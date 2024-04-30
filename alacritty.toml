@@ -14,5 +14,5 @@ decorations = "Buttonless"
 startup_mode = "Maximized"
 
 [font]
-normal.family = "MesloLGS Nerd Font Mono"
+normal.family = "MesloLGS NF"
 size = 14

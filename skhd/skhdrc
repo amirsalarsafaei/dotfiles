@@ -1,3 +1,13 @@
+# -- Remap --
+ctrl - c: /opt/homebrew/bin/skhd -k "cmd - c"
+ctrl - v: /opt/homebrew/bin/skhd -k "cmd - v"
+ctrl - a: /opt/homebrew/bin/skhd -k "cmd - a"
+ctrl - x: /opt/homebrew/bin/skhd -k "cmd - x"
+ctrl - z: /opt/homebrew/bin/skhd -k "cmd - z"
+ctrl - f: /opt/homebrew/bin/skhd -k "cmd - f"
+shift + ctrl - z: /opt/homebrew/bin/skhd -k "shift + cmd - z"
+
+
 # -- Changing Window Focus --
 
 # change window focus within space
