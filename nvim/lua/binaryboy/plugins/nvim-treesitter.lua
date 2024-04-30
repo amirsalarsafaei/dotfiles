@@ -20,6 +20,7 @@ return {
       autotag = {
         enable = true,
       },
+     sync_install = false,
       -- ensure these language parsers are installed
       ensure_installed = {
         "go",
