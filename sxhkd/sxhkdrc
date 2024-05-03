@@ -1,4 +1,4 @@
-#
+#aa
 # wm independent hotkeys
 #
 
@@ -7,7 +7,7 @@ super + Return
 	alacritty
 # program launcher
 super + @space
-	dmenu_run
+	launcher
 
 # make sxhkd reload its configuration files:
 super + Escape
@@ -42,8 +42,7 @@ super + g
 #
 
 # set the window state
-super + {t,shift + t,s,f}
-	bspc node -t {tiled,pseudo_tiled,floating,fullscreen}
+super + {t,shift + t,s,f}	bspc node -t {tiled,pseudo_tiled,floating,fullscreen}
 
 # set the node flags
 super + ctrl + {m,x,y,z}
