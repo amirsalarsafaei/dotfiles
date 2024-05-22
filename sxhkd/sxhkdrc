@@ -6,12 +6,29 @@
 super + Return
 	alacritty
 # program launcher
-super + @space
+ctrl + space
 	launcher
 
 # make sxhkd reload its configuration files:
 super + Escape
 	pkill -USR1 -x sxhkd
+
+# Auto and Media
+XF86AudioLowerVolume
+	amixer set Master 5%-
+XF86AudioRaiseVolume
+	amixer set Master 5%+
+XF86AudioMute
+	amixer set Master toggle
+
+
+
+super + ctrl + l
+	betterlockscreen -l dim
+
+
+super + space
+	setxkbmap -query | grep -q 'ir' && setxkbmap us || setxkbmap ir
 
 #
 # bspwm hotkeys
@@ -24,6 +41,10 @@ super + alt + {q,r}
 # close and kill
 super + {_,shift + }w
 	bspc node -{c,k}
+
+# hide and unhide
+super + alt + shift + h
+	bspc node --flag hidden=on
 
 # alternate between the tiled and monocle layout
 super + m
@@ -42,7 +63,8 @@ super + g
 #
 
 # set the window state
-super + {t,shift + t,s,f}	bspc node -t {tiled,pseudo_tiled,floating,fullscreen}
+super + {t,shift + t,s,f}	
+	bspc node -t {tiled,pseudo_tiled,floating,fullscreen}
 
 # set the node flags
 super + ctrl + {m,x,y,z}
@@ -81,6 +103,11 @@ super + {o,i}
 # focus or send to the given desktop
 super + {_,shift + }{1-9,0}
 	bspc {desktop -f,node -d} '^{1-9,10}'
+
+# rotate window around parent
+super + {_, shift + }r
+	bspc query -N -n @parent | xargs -I id -n 1 bspc node id -R {90, 270}
+
 
 #
 # preselect
