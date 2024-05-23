@@ -21,8 +21,6 @@ XF86AudioRaiseVolume
 XF86AudioMute
 	amixer set Master toggle
 
-
-
 super + ctrl + l
 	betterlockscreen -l dim
 
@@ -43,7 +41,7 @@ super + {_,shift + }w
 	bspc node -{c,k}
 
 # hide and unhide
-super + alt + shift + h
+super + ctrl + shift + h
 	bspc node --flag hidden=on
 
 # alternate between the tiled and monocle layout
