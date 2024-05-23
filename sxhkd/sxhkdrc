@@ -24,7 +24,6 @@ XF86AudioMute
 super + ctrl + l
 	betterlockscreen -l dim
 
-
 super + space
 	setxkbmap -query | grep -q 'ir' && setxkbmap us || setxkbmap ir
 
