@@ -1,0 +1,10 @@
+(include "./greeting/_modules.yuck")
+(include "./greeting/_layout.yuck")
+(defwindow greeting :stacking "bg"
+  :windowtype "normal"
+  :wm-ignore false 
+  :monitor 0
+  :stacking "bg"
+  :exclusive true
+  :geometry (geometry :x 0 :y 0 :width "50%" :height "50%" :anchor "center") 
+  (greeting_layout))

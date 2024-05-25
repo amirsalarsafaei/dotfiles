@@ -15,3 +15,7 @@ feh --no-fehbg --bg-fill ~/Pictures/wallpaper.jpg &
 # Keyring 
 
 eval $(gnome-keyring-daemon -s --components=pkcs11,secrets,ssh,gpg) &>/dev/null
+
+xsetroot -cursor_name left_ptr &
+
+eww open greeting  &>/dev/null

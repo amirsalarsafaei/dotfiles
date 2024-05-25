@@ -1,0 +1,119 @@
+(defwidget _greetingdate [day short_pretty]
+  (box :hexpand true 
+       :halign "start" 
+       :orientation "vertical" 
+       :space-evenly false 
+       :class "greeting-date-box" 
+       :width 200
+    (label :halign "start"
+           :text short_pretty 
+           :class "greeting-date-pretty")
+    (label :halign "start" 
+           :text day 
+           :class "greeting-date-day")))
+
+(defwidget _fluidbat [label icon_full icon_crit icon_norm class]
+  (overlay :class "greeting-bat-overlay"
+    (progress :width 180 
+              :class "greeting-bat-prog ${class}" 
+              :value {EWW_BATTERY.BAT0.capacity > 95 ? 100 : EWW_BATTERY.BAT0.capacity})
+    (box :valign "center" 
+         :spacing 5 
+         :space-evenly false 
+         :class "greeting-bat-prog-box"
+      (box :halign "start" 
+           :hexpand true 
+           :orientation "vertical" 
+           :space-evenly false 
+           :class "greeting-bat-label-box"
+        (label :halign "start" 
+               :text label 
+               :class "greeting-bat-label")
+        (label :halign "start" 
+               :text "${EWW_BATTERY.BAT0.capacity > 95 ? 100 : EWW_BATTERY.BAT0.capacity}%" 
+               :class "greeting-bat-status-label"))
+      (label :halign "end" 
+             :text {EWW_BATTERY.BAT0.capacity > 95 ? icon_full : EWW_BATTERY.BAT0.capacity < 21 ? icon_crit : icon_norm} 
+             :class "greeting-bat-icon"))))
+
+
+(defwidget _greetingpctl [cover label title artist volume volume_icon status_cmd status_icon]
+  (box  
+       :orientation "vertical" 
+       :space-evenly false
+	   :valign "start"
+       :class "greeting-pctl-box" 
+       :style "background-image: radial-gradient(circle farthest-side at bottom, rgba(23, 28, 33, 0.7) 100%), url(\"${pctl_sub['mpris:artUrl']}\")"
+       :width 300
+       :height 300
+	   :valign "start"
+    (box :space-evenly false 
+         :orientation "vertical" 
+         :class "greeting-pctl-label-title-artist"
+      (label :halign "start" 
+             :text label 
+             :class "greeting-pctl-label")
+      (label :halign "start" 
+             :limit-width 20 
+             :wrap true 
+             :xalign 0.0 
+             :text title 
+             :class "greeting-pctl-title")
+      (label :halign "start" 
+             :limit-width 20 
+             :text artist 
+             :class "greeting-pctl-artist"))
+    (box :vexpand true 
+         :valign "end" 
+         :hexpand true 
+         :space-evenly false 
+         :class "greeting-pctl-status-volume-box"
+      (box :space-evenly false 
+           :spacing 5 
+           :class "greeting-pctl-volume"
+        (label :text volume_icon
+               :class "greeting-pctl-volume-icon")
+        (label :text volume 
+               :class "greeting-pctl-volume-label"))
+      (button :hexpand true 
+              :halign "end"
+              :onclick status_cmd 
+              :class "greeting-pctl-status" status_icon))))
+
+
+        
+(defwidget _greetingevents [events] 
+  (box :orientation "vertical" 
+       :space-evenly false
+	   :spacing 20
+	   :hexpand true
+       :class "greeting-events-box" 
+	(for event in events
+		(_greetingevent :event event)
+	)
+    ))
+
+(defwidget _greetingevent [event]
+	(box :orientation "vertical"
+		 :space-evenly false
+		 :spacing 5
+		 :hexpand true
+		 :height 140
+		 :class "greeting-event-box"
+	  (label :halign "center" 
+             :text {event["summary"]} 
+             :class "greeting-event-title")
+      (label :halign "start" 
+             :limit-width 20 
+             :wrap true 
+             :xalign 0.0 
+             :text {event["start"]["pretty_date"]} 
+             :class "greeting-event-start-date")
+      (label :halign "start" 
+             :limit-width 20 
+             :text {event["end"]["pretty_date"]} 
+             :class "greeting-event-end-date")
+	)
+)
+
+

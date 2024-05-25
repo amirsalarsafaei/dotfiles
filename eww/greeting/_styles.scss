@@ -1,0 +1,176 @@
+.greeting-layout-box {
+	font-family: MesloLGS NF, Dosis;
+	background-color: $shade08;
+	color: $base05;
+	padding: 2em;
+	border-radius: 0.5em;
+	color: $base05;
+}
+
+.greeting-date-box {
+	padding: 1.4em;
+	background-image: linear-gradient(100deg, $shade05, $shade06);
+	border-radius: 0.5em;
+}
+
+.greeting-date-pretty {
+	font-size: 16;
+	color: $base04;
+}
+
+.greeting-date-day {
+	font-size: 23;
+}
+
+.greeting-bat-overlay {
+	color: $base03;
+}
+
+.greeting-bat-prog {
+	border-radius: 0.5em;
+
+	trough {
+		padding: 3em 0 3em 0;
+		background-color: $low;
+		border-radius: 0.5em;
+
+		progress {
+			padding: 3em 1em 3em 1em;
+			background-color: rgba(darken($base14, 10%), 0.8);
+			border-radius: 0.5em;
+		}
+	}
+}
+
+.greeting-bat-label {
+	font-size: 16;
+	padding-left: 1em;
+}
+
+.greeting-bat-status-label {
+	font-size: 20;
+	font-weight: bold;
+	padding-left: 0.8em;
+}
+
+.greeting-bat-icon {
+	padding-right: 1em;
+	font-size: 30;
+}
+
+.greeting-bat-full {
+	trough {
+		background-color: $low;
+
+		progress {
+			background-color: rgba(darken($base14, 10%), 0.8);
+		}
+	}
+}
+
+.greeting-bat-norm {
+	trough {
+		background-color: $normal;
+
+		progress {
+			background-color: rgba(darken($base09, 10%), 0.8);
+		}
+	}
+}
+
+.greeting-bat-warn {
+	trough {
+		background-color: $other;
+
+		progress {
+			background-color: rgba(darken($base13, 10%), 0.8);
+		}
+	}
+}
+
+.greeting-bat-crit {
+	trough {
+		background-color: $critical;
+
+		progress {
+			background-color: rgba(darken($base11, 10%), 0.8);
+		}
+	}
+}
+
+.greeting-pctl-box {
+	background-repeat: no-repeat;
+	background-size: contain;
+	background-position: center;
+	padding: 1em;
+	border-radius: 0.5em;
+}
+
+.greeting-pctl-label {
+	font-size: 16;
+	color: $base04;
+}
+
+.greeting-pctl-title {
+	font-size: 20;
+	font-weight: bold;
+	color: $base05;
+}
+
+.greeting-pctl-artist {
+	font-size: 16;
+	color: $base04;
+}
+
+.greeting-pctl-volume-icon {
+	font-size: 38;
+}
+
+.greeting-pctl-volume-label {
+	font-size: 38;
+}
+
+.greeting-pctl-status {
+	font-size: 30;
+}
+
+.greeting-pctl-status:hover {
+	color: $base15;
+}
+
+.testing {
+	background-color: #ffffff;
+}
+
+.greeting-wifi-icon {
+	font-size: 25;
+	background-color: $shade08;
+	padding: 0.8em;
+	border-radius: 0.2em;
+	color: $base09;
+}
+
+.greeting-events-box {}
+
+.greeting-event-box {
+	background-color: $shade05;
+	padding: 1em 3em;
+	border-radius: 0.5em;
+}
+
+
+.greeting-event-title {
+	font-size: 25;
+	font-weight: bold;
+	margin-bottom: 0.3em;
+}
+
+.greeting-event-start-date {
+	font-size: 16;
+	color: $base04;
+}
+
+.greeting-event-end-date {
+	font-size: 16;
+	color: $base04;
+}

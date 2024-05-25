@@ -1,0 +1,44 @@
+(defwidget greeting_layout []
+	(box :space-evenly false
+		:class "greeting-layout-box"
+		:spacing 20
+		:orientation "v"
+		(box
+            :space-evenly false 
+            :class "greeting-date-bat-pctl" 
+            :spacing 25 
+			:orientation "h"
+			(box :orientation "vertical" 
+              :space-evenly false
+			  :spacing 20
+              :class "greeting-date-bat" 
+			  :height 300
+			  :hexpand false
+           (_greetingdate :day {time.day} 
+                      :short_pretty "${time.day_num} ${time.month}, ${time.year}")
+		   (_greetingdate
+					  :day {pertime.day} 
+                      :short_pretty "${pertime.day_num} ${pertime.month}, ${pertime.year}")
+           (_fluidbat :class {EWW_BATTERY.BAT0.capacity > 95 ? "greeting-bat-full" :
+                              EWW_BATTERY.BAT0.capacity > 50 ? "greeting-bat-norm" :
+                              EWW_BATTERY.BAT0.capacity > 20 ? "greeting-bat-warn" : "bolt-bat-crit"} 
+                      :label "Battery" 
+                      :icon_full "" 
+                      :icon_norm "" 
+                      :icon_crit "")
+			)
+
+        	(_greetingpctl :cover {pctl_sub["mpris:artUrl"]} 
+            	:label {pctl_sub["status"]} 
+                :title {pctl_sub["xesam:title"]} 
+                :artist {pctl_sub["xesam:artist"]} 
+			    :volume volume_level
+			    :volume_icon volume_status
+			    :status_cmd "playerctl play-pause"
+			    :status_icon {pctl_sub["status"] == "Playing" ? "" : ""})
+			(_greetingevents :events {cal_events})
+)))
+  
+
+
+
