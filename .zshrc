@@ -71,10 +71,25 @@ zstyle ':omz:update' mode auto      # update automatically without asking
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git ansible history emoji encode64 copyfile copybuffer  docker docker-compose tmux virtualenv  zsh-navigation-tools aws battery aliases command-not-found golang themes kubectl zsh-autosuggestions zsh-syntax-highlighting helm kubectx dotenv ubuntu fast-syntax-highlighting zsh-autocomplete git-prompt tmuxinator zsh-vi-mode)
+plugins=(git ansible history emoji encode64 copyfile copybuffer  docker docker-compose tmux virtualenv aws battery aliases command-not-found golang themes kubectl  zsh-syntax-highlighting helm kubectx dotenv ubuntu  fast-syntax-highlighting zsh-autosuggestions zsh-autocomplete git-prompt tmuxinator zsh-vi-mode)
 
 
+
+function zvm_after_lazy_keybindings() {
+ bindkey -M viins             '^I'         menu-select
+ bindkey -M viins "$terminfo[kcbt]"        menu-select
+ bindkey -M vicmd             '^I'         menu-select
+ bindkey -M vicmd "$terminfo[kcbt]"        menu-select 
+ bindkey -M menuselect              '^I'         menu-complete
+bindkey -M menuselect "$terminfo[kcbt]" reverse-menu-complete
+}
 source $ZSH/oh-my-zsh.sh
+
+# Zsh keybinding
+
+
+
+
 
 # User configuration
 
@@ -133,3 +148,11 @@ export XDG_CONFIG_HOME="$HOME/.config"
 export XDG_CACHE_HOME="$HOME/.cache"
 export XDG_MUSIC_DIR="$HOME/Music"
 export XDG_PICTURES_DIR="$HOME/Pictures"
+
+
+ bindkey -M viins             '^I'         menu-select
+ bindkey -M viins "$terminfo[kcbt]"        menu-select
+ bindkey -M vicmd             '^I'         menu-select
+ bindkey -M vicmd "$terminfo[kcbt]"        menu-select 
+ bindkey -M menuselect              '^I'         menu-complete
+bindkey -M menuselect "$terminfo[kcbt]" reverse-menu-complete
