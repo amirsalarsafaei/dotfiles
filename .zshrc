@@ -71,7 +71,7 @@ zstyle ':omz:update' mode auto      # update automatically without asking
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git ansible history emoji encode64 sudo copyfile copybuffer  docker docker-compose tmux virtualenv  zsh-navigation-tools aws battery aliases command-not-found golang themes kubectl zsh-autosuggestions zsh-syntax-highlighting helm kubectx dotenv ubuntu fast-syntax-highlighting zsh-autocomplete git-prompt tmuxinator)
+plugins=(git ansible history emoji encode64 copyfile copybuffer  docker docker-compose tmux virtualenv  zsh-navigation-tools aws battery aliases command-not-found golang themes kubectl zsh-autosuggestions zsh-syntax-highlighting helm kubectx dotenv ubuntu fast-syntax-highlighting zsh-autocomplete git-prompt tmuxinator zsh-vi-mode)
 
 
 source $ZSH/oh-my-zsh.sh
