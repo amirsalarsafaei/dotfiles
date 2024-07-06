@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """Script that interacts with playerctl to manipulate all MPRIS players.
 Here it is mostly being used for getting the current track metadata and feeding it
 to an YUCK listener variable.
@@ -23,17 +22,18 @@ to an YUCK listener variable.
 
 import json
 import os
-import sys
 import pathlib
 import shutil
-import utils
+import sys
 
 # supress GIO warnings.
 import gi
+import utils
+
 gi.require_version("Playerctl", "2.0")
 
-from gi.repository import GLib, Playerctl
 import requests
+from gi.repository import GLib, Playerctl
 
 
 def on_metadata(*args):
@@ -55,8 +55,10 @@ def on_metadata(*args):
         "xesam:title": "Unknown",
         "xesam:album": "Unknown",
         "status": "Stopped",
-    } | {key: val for key, val in dict(args[1]).items() if val} # overwrite
-
+    } | {
+        key: val for key, val in dict(args[1]).items() if val
+    }  # overwrite
+    print(metadata)
     name = args[0].props.player_name
     metadata["player"] = name or "none"
     metadata["status"] = args[0].props.status
@@ -130,7 +132,7 @@ def player_null_check(player_manager) -> bool:
         A bool i.e. True if there are no active players, False otherwise.
     """
     if not len(player_manager.props.player_names):
-        metadata =  {
+        metadata = {
             "mpris:artUrl": default_cover,
             "xesam:artist": "Unavailable",
             "xesam:title": "Unavailable",
@@ -138,7 +140,7 @@ def player_null_check(player_manager) -> bool:
             "status": "Stopped",
             "player": "none",
         }
-        metadata |= get_bright_dark_from_cover(default_cover) # overwrite fallback
+        metadata |= get_bright_dark_from_cover(default_cover)  # overwrite fallback
         sys.stdout.write(json.dumps(metadata) + "\n")
         sys.stdout.flush()
         return False
@@ -236,10 +238,10 @@ def get_bright_dark_from_cover(image_path: str) -> dict:
     Returns:
         A dict of bright and dark color eg: {'bright': '#292929', 'dark': '#BEBFC1'}
     """
-    return {'bright': '#292929', 'dark': '#BEBFC1'}
- 
+    return {"bright": "#292929", "dark": "#BEBFC1"}
+
     if image_path == default_cover:
-        return {'bright': '#292929', 'dark': '#BEBFC1'}
+        return {"bright": "#292929", "dark": "#BEBFC1"}
 
     # if the color cache already exists then load that and return
     color_cached = pathlib.PosixPath(f"{os.path.dirname(image_path)}/colors.json")
@@ -250,7 +252,7 @@ def get_bright_dark_from_cover(image_path: str) -> dict:
     colors = utils.img_dark_bright_col(image_path)
 
     # since Firefox only caches one thumbnail at a time and overwrites it
-    # we need to keep on regenerating the colors and return them without 
+    # we need to keep on regenerating the colors and return them without
     # caching them.
     parsed_colors = {"bright": colors[3], "dark": colors[9]}
     if "firefox-mpris" in image_path:
@@ -263,7 +265,9 @@ def get_bright_dark_from_cover(image_path: str) -> dict:
 
 
 if __name__ == "__main__":
-    with open(os.path.expandvars("$XDG_CONFIG_HOME/eww/ewwrc"), encoding="utf8") as file:
+    with open(
+        os.path.expandvars("$XDG_CONFIG_HOME/eww/ewwrc"), encoding="utf8"
+    ) as file:
         config: dict = json.loads(file.read())["player"]
         default_cover = os.path.expandvars(config["default_art"])
         pctl_cache = os.path.expandvars(config["pctl_cache"])

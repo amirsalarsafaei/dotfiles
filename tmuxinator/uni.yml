@@ -1,7 +1,7 @@
-# /home/amirsalar/.config/tmuxinator/work.yml
+# /home/amirsalar/.config/tmuxinator/vpn.yml
 
-name: work
-root: ~/divar/
+name: uni
+root: ~/
 
 # Optional tmux socket
 # socket_name: foo
@@ -12,7 +12,7 @@ root: ~/divar/
 # Project hooks
 
 # Runs on project start, always
-on_project_start: watson start work
+on_project_start: watson start uni 
 
 # Run on project start, the first time
 # on_project_first_start: command
@@ -21,7 +21,7 @@ on_project_start: watson start work
 # on_project_restart: command
 
 # Run on project exit ( detaching from tmux session )
-# on_project_exit: command
+# on_project_exit: watson stop 
 
 # Run on project stop
 # on_project_stop: watson stop
@@ -45,5 +45,5 @@ on_project_start: watson start work
 # attach: false
 
 windows:
-  - cmd: []
-  - open-platform: vim open-platform
+  - uni: []
+

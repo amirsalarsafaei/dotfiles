@@ -1,7 +1,7 @@
 (defpoll time :interval "3s" `date +'{"hour":"%H","min":"%M","sec":"%S","pretty":"%a, %e %b","day":"%A","month":"%B","dom":"%e","year":"%Y","day_num":"%d","month_num":"%m","year_num":"%y"}'`)
 (defpoll uptime :interval "48h" "uptime --pretty | ./src/shell/uptime.awk")
 (defpoll pertime :interval "5m" `.venv/bin/python scripts/jalali.py`)
-(deflisten pctl_sub ".venv/bin/python scripts/playerctl.py")
+(deflisten pctl_sub ".venv/bin/python3 scripts/playerctl.py")
 
 (defpoll volume_status :interval "1s" "[ $(pamixer --get-volume-human) = muted ] && echo 󰝟 || echo ")
 (defpoll volume_level :interval "1s" "pamixer --get-volume")

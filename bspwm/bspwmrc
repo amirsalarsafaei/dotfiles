@@ -17,4 +17,4 @@ bspc rule -a feh state="floating" center=true
 bspc rule -a feh border=off
 bspc rule -a Eww border=off state="floating" desktop=2
 bspc rule -a TelegramDesktop state="floating"
-
+bspc rule -a copyq state="floating" center=true
