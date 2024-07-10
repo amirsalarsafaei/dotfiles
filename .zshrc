@@ -144,10 +144,6 @@ ___MY_VMOPTIONS_SHELL_FILE="${HOME}/.jetbrains.vmoptions.sh"; if [ -f "${___MY_V
 [[ ! -f ~/.zshrc.secret ]] || source ~/.zshrc.secret
 
 
-export XDG_CONFIG_HOME="$HOME/.config"
-export XDG_CACHE_HOME="$HOME/.cache"
-export XDG_MUSIC_DIR="$HOME/Music"
-export XDG_PICTURES_DIR="$HOME/Pictures"
 
 
  bindkey -M viins             '^I'         menu-select
