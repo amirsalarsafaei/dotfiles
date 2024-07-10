@@ -10,10 +10,16 @@ return {
 	config = function()
 		local dap = require("dap")
 		local dapui = require("dapui")
+		local dap_go = require("dap-go")
 
-		require("dap-go").setup()
+		dap_go.setup({
+			delve = {
+				initialize_timeout_sec = 30,
+			},
+		})
 		dapui.setup()
 
+		-- adding dap ui attachments
 		dap.listeners.before.attach.dapui_config = function()
 			dapui.open()
 		end
@@ -27,7 +33,8 @@ return {
 			dapui.close()
 		end
 
-		Map("n", "<Leader>dt", dap.toggle_breakpoint, {})
+		Map("n", "<Leader>db", dap.toggle_breakpoint, {})
 		Map("n", "<Leader>dc", dap.continue, {})
+		Map("n", "<Leader>dt", dap_go.debug_test, {})
 	end,
 }

@@ -1,9 +1,9 @@
 #! /bin/sh
 
 $HOME/.config/bspwm/autostart.sh
+$HOME/.config/bspwm/multimonitor.sh
 
 
-bspc monitor -d I II III IV V VI VII VIII IX X
 
 
 bspc config border_width 5

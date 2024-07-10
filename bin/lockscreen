@@ -1,0 +1,5 @@
+#!/bin/bash
+
+setxkbmap -query | grep -q 'ir' && setxkbmap us
+
+betterlockscreen -l --dim

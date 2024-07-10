@@ -15,14 +15,14 @@ super + Escape
 
 # Auto and Media
 XF86AudioLowerVolume
-	amixer set Master 5%-
+	volume down
 XF86AudioRaiseVolume
-	amixer set Master 5%+
+	volume up
 XF86AudioMute
-	amixer set Master toggle
+	volume mute
 
 super + ctrl + l
-	betterlockscreen -l dim
+	lockscreen
 
 super + space
 	setxkbmap -query | grep -q 'ir' && setxkbmap us || setxkbmap ir
