@@ -1,3 +1,5 @@
+
+
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block; everything else may go below.
@@ -5,12 +7,13 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
+
+
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme eac time oh-my-zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THEME
 # See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
 ZSH_THEME="powerlevel10k/powerlevel10k"
-
 # Set list of themes to pick from when loading at random
 # Setting this variable when ZSH_THEME=random will cause zsh to load
 # a theme from this variable instead of looking in $ZSH/themes/
@@ -28,10 +31,8 @@ ZSH_THEME="powerlevel10k/powerlevel10k"
 # zstyle ':omz:update' mode disabled  # disable automatic updates
 zstyle ':omz:update' mode auto      # update automatically without asking
 # zstyle ':omz:update' mode reminder  # just remind me to update when it's time
-
 # Uncomment the following line to change how often to auto-update (in days).
 # zstyle ':omz:update' frequency 13
-
 # Uncomment the following line if pasting URLs and other text is messed up.
 # DISABLE_MAGIC_FUNCTIONS="true"
 
@@ -71,26 +72,15 @@ zstyle ':omz:update' mode auto      # update automatically without asking
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git ansible history emoji encode64 copyfile copybuffer  docker docker-compose tmux virtualenv aws battery aliases command-not-found golang themes kubectl  zsh-syntax-highlighting helm kubectx dotenv ubuntu  fast-syntax-highlighting zsh-autosuggestions zsh-autocomplete git-prompt tmuxinator zsh-vi-mode)
+plugins=(git history encode64  docker docker-compose tmux virtualenv aws battery aliases command-not-found golang kubectl zsh-syntax-highlighting kubectx dotenv ubuntu  fast-syntax-highlighting zsh-autosuggestions zsh-autocomplete git-prompt tmuxinator vi-mode zsh-system-clipboard)
 
 
-
-function zvm_after_lazy_keybindings() {
- bindkey -M viins             '^I'         menu-select
- bindkey -M viins "$terminfo[kcbt]"        menu-select
- bindkey -M vicmd             '^I'         menu-select
- bindkey -M vicmd "$terminfo[kcbt]"        menu-select 
- bindkey -M menuselect              '^I'         menu-complete
-bindkey -M menuselect "$terminfo[kcbt]" reverse-menu-complete
-}
 source $ZSH/oh-my-zsh.sh
 
-# Zsh keybinding
 
+VI_MODE_SET_CURSOR=true
 
-
-
-
+zstyle :zle:evil-registers:'[A-Za-z%#]' editor nvim
 # User configuration
 
 # export MANPATH="/usr/local/man:$MANPATH"
@@ -132,9 +122,9 @@ alias pbcopy='xclip -selection clipboard'
 alias pbpaste='xclip -selection clipboard -o'
 
 
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 ___MY_VMOPTIONS_SHELL_FILE="${HOME}/.jetbrains.vmoptions.sh"; if [ -f "${___MY_VMOPTIONS_SHELL_FILE}" ]; then . "${___MY_VMOPTIONS_SHELL_FILE}"; fi
+
+
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
@@ -143,12 +133,19 @@ ___MY_VMOPTIONS_SHELL_FILE="${HOME}/.jetbrains.vmoptions.sh"; if [ -f "${___MY_V
 # private configs
 [[ ! -f ~/.zshrc.secret ]] || source ~/.zshrc.secret
 
+# Key bindings
 
-
-
- bindkey -M viins             '^I'         menu-select
- bindkey -M viins "$terminfo[kcbt]"        menu-select
- bindkey -M vicmd             '^I'         menu-select
- bindkey -M vicmd "$terminfo[kcbt]"        menu-select 
- bindkey -M menuselect              '^I'         menu-complete
+bindkey -M viins             '^I'         menu-select
+bindkey -M viins "$terminfo[kcbt]"        menu-select
+bindkey -M vicmd             '^I'         menu-select
+bindkey -M vicmd "$terminfo[kcbt]"        menu-select 
+bindkey -M menuselect              '^I'         menu-complete
 bindkey -M menuselect "$terminfo[kcbt]" reverse-menu-complete
+bindkey -M vicmd '^E' autosuggest-accept
+
+# fnm
+FNM_PATH="/home/amirsalar/.local/share/fnm"
+if [ -d "$FNM_PATH" ]; then
+  export PATH="/home/amirsalar/.local/share/fnm:$PATH"
+  eval "`fnm env`"
+fi

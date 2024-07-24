@@ -11,9 +11,9 @@ return {
 			-- install jsregexp (optional!).
 			build = "make install_jsregexp",
 		},
-		"saadparwaiz1/cmp_luasnip", -- for autocompletion
+		"saadparwaiz1/cmp_luasnip",   -- for autocompletion
 		"rafamadriz/friendly-snippets", -- useful snippets
-		"onsails/lspkind.nvim", -- vs-code like pictograms
+		"onsails/lspkind.nvim",       -- vs-code like pictograms
 	},
 	config = function()
 		local cmp = require("cmp")
@@ -40,7 +40,7 @@ return {
 				["<C-b>"] = cmp.mapping.scroll_docs(-4),
 				["<C-f>"] = cmp.mapping.scroll_docs(4),
 				["<C-Space>"] = cmp.mapping.complete(), -- show completion suggestions
-				["<C-e>"] = cmp.mapping.abort(), -- close completion window
+				["<C-e>"] = cmp.mapping.abort(),    -- close completion window
 				["<CR>"] = cmp.mapping.confirm({ select = false }),
 				-- Tab mapping
 				["<Tab>"] = function(fallback)
@@ -64,10 +64,12 @@ return {
 			}),
 			-- sources for autocompletion
 			sources = cmp.config.sources({
-				{ name = "nvim_lsp", priority = 8 },
-				{ name = "luasnip", priority = 7 }, -- snippets
-				{ name = "buffer", priority = 7 }, -- text within current buffer
-				{ name = "path", priority = 4 }, -- file system paths
+				{ name = "lazydev",                group_index = 0 },
+				{ name = "nvim_lsp",               priority = 8 },
+				{ name = "nvim_lsp_signature_help" },
+				{ name = "luasnip",                priority = 7 }, -- snippets
+				{ name = "buffer",                 priority = 7,   keyword_length = 4 }, -- text within current buffer
+				{ name = "path",                   priority = 4 }, -- file system paths
 			}),
 
 			-- configure lspkind for vs-code like pictograms in completion menu
@@ -75,7 +77,7 @@ return {
 			formatting = {
 				format = lspkind.cmp_format({
 					maxwidth = 50,
-					ellipsis_char = "...",
+					mode = "symbol",
 				}),
 			},
 		})

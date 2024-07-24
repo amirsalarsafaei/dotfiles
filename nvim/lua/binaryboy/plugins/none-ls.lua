@@ -32,6 +32,8 @@ return {
 				}),
 				-- lua
 				null_ls.builtins.formatting.stylua,
+				-- general
+				null_ls.builtins.diagnostics.codespell,
 			},
 			on_attach = function(client, bufnr)
 				if client.supports_method("textDocument/formatting") then

@@ -392,7 +392,8 @@ tmux_conf_copy_to_os_clipboard=false
 # move status line to top
 #set -g status-position top
 
-
+# Function to toggle visibility of the terminal pane by resizing it
+bind-key t split-window -v -p 20
 # -- tpm -----------------------------------------------------------------------
 
 # while I don't use tpm myself, many people requested official support so here
