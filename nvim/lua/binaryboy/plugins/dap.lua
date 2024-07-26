@@ -33,7 +33,6 @@ return {
 				debugger_path = vim.fn.stdpath("data") .. "/lazy/vscode-js-debug",
 				adapters = { "pwa-node", "pwa-chrome", "node", "chrome" },
 			})
-
 			local js_based_languages = { "typescript", "javascript", "typescriptreact", "javascriptreact" }
 
 			for _, language in ipairs(js_based_languages) do
@@ -94,13 +93,13 @@ return {
 				dapui.close()
 			end
 
-			Map("n", "<Leader>dp", dap.toggle_breakpoint, {})
-			Map("n", "<Leader>dc", dap.continue, {})
-			Map("n", "<Leader>dt", dap_go.debug_test, {})
-			Map("n", "<Leader>dq", dap.close, {})
-			Map("n", "<Leader>di", dap.step_into, {})
-			Map("n", "<Leader>do", dap.step_out, {})
-			Map("n", "<Leader>ds", dap.step_over, {})
+			Map("n", "<Leader>dp", dap.toggle_breakpoint, { desc = "setting break points" })
+			Map("n", "<Leader>dc", dap.continue, { desc = "continue debugger" })
+			Map("n", "<Leader>dt", dap_go.debug_test, { desc = "debug go test" })
+			Map("n", "<Leader>dq", dap.close, { desc = "close debugger" })
+			Map("n", "<Leader>di", dap.step_into, { desc = "step into code" })
+			Map("n", "<Leader>do", dap.step_out, { desc = "step out of the code" })
+			Map("n", "<Leader>ds", dap.step_over, { desc = "step over the code" })
 		end,
 	},
 }

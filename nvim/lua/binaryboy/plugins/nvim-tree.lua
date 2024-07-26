@@ -13,6 +13,7 @@ return {
 				width = 35,
 				relativenumber = true,
 			},
+			prefer_startup_root = true,
 			update_focused_file = {
 				enable = true,
 				update_root = {
@@ -68,11 +69,16 @@ return {
 				},
 			},
 			filters = {
-				custom = { ".DS_Store", "\\.git$", "\\.pyc$", "__pycache__" },
+				custom = { ".DS_Store", "\\.git$", "\\.pyc$", "__pycache__", ".idea" },
 			},
 			git = {
-				ignore = true,
+				ignore = false,
 				enable = true,
+			},
+			diagnostics = {
+				enable = true,
+				show_on_dirs = true,
+				show_on_open_dirs = false,
 			},
 		})
 

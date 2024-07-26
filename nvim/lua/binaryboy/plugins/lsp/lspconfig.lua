@@ -16,11 +16,13 @@ return {
 		dependencies = {
 			"hrsh7th/cmp-nvim-lsp",
 			{ "antosha417/nvim-lsp-file-operations", config = true },
+			"nanotee/sqls.nvim",
 		},
 		config = function()
 			-- import lspconfig plugin
 			local lspconfig = require("lspconfig")
-
+			local configs = require("lspconfig.configs")
+			local util = require("lspconfig.util")
 			-- import mason_lspconfig plugin
 			local mason_lspconfig = require("mason-lspconfig")
 
@@ -134,6 +136,40 @@ return {
 						),
 					})
 				end,
+				["elixirls"] = function()
+					lspconfig["elixirls"].setup({
+						capabilities = capabilities,
+						cmd = { vim.fn.stdpath("data") .. "/mason/bin/elixir-ls" },
+					})
+				end,
+				["lexical"] = function()
+					lspconfig["lexical"].setup({
+						capabilities = capabilities,
+						cmd = { vim.fn.stdpath("data") .. "/mason/bin/lexical" },
+					})
+				end,
+				["sqls"] = function()
+					lspconfig["sqls"].setup({
+						capabilities = capabilities,
+						on_attach = function(client, bufn)
+							require("sqls").on_attach(client, bufn)
+						end,
+					})
+				end,
+			})
+			configs["protobuf-language-server"] = {
+				default_config = {
+					cmd = { vim.env.GOPATH .. "/bin/protobuf-language-server" },
+					filetypes = { "proto" },
+					root_fir = util.root_pattern(".git"),
+					single_file_support = true,
+					settings = {
+						["additional-proto-dirs"] = { "third_party/proto", "src/proto" },
+					},
+				},
+			}
+			lspconfig["protobuf-language-server"].setup({
+				capabilities = capabilities,
 			})
 		end,
 	},

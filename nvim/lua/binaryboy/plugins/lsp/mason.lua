@@ -38,6 +38,7 @@ return {
 				"lua_ls",
 				"prismals",
 				"pyright",
+				"elixirls@v0.11.0",
 				"sqls",
 			},
 		})

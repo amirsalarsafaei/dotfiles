@@ -5,11 +5,6 @@ return {
 		vim.o.timeout = true
 		vim.o.timeoutlen = 500
 	end,
-	opts = {
-		-- your configuration comes here
-		-- or leave it empty to use the default settings
-		-- refer to the configuration section below
-	},
 	keys = {
 		{
 			"<leader>?",
@@ -19,4 +14,14 @@ return {
 			desc = "Buffer Local Keymaps (which-key)",
 		},
 	},
+	config = function()
+		local wk = require("which-key")
+		wk.add({
+			{ "<leader>e", group = "file explorer" },
+			{ "<leader>f", group = "search" },
+			{ "<leader>h", group = "git hunks" },
+			{ "<leader>x", group = "trouble" },
+			{ "<leader>d", group = "debugging" },
+		})
+	end,
 }

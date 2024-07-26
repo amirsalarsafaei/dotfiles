@@ -6,6 +6,35 @@ return {
 		"nvimtools/none-ls.nvim",
 	},
 	config = function()
+		local Path = require("plenary.path")
+
+		local function find_parent_folder_with_file(start_path, filename)
+			local current_path = Path:new(start_path):absolute()
+
+			while true do
+				local target_file = Path:new(current_path, filename)
+				if target_file:exists() then
+					return current_path
+				end
+
+				-- Move to the parent directory.
+				local parent_path = Path:new(current_path):parent():absolute()
+
+				if parent_path == current_path then
+					-- If the parent path is the same as the current path, we've reached the root.
+					return nil
+				end
+
+				current_path = parent_path
+			end
+		end
+
+		local sqlfluff_args = { "--dialect", "postgres" }
+		local sqlfluff_config_root = find_parent_folder_with_file(vim.fn.expand("%:p"), ".sqlfluff")
+		if sqlfluff_config_root then
+			vim.list_extend(sqlfluff_args, { "--config", sqlfluff_config_root })
+		end
+
 		local augroup = vim.api.nvim_create_augroup("NullLsLspFormatting", {})
 		require("mason").setup()
 		local null_ls = require("null-ls")
@@ -32,6 +61,14 @@ return {
 				}),
 				-- lua
 				null_ls.builtins.formatting.stylua,
+				-- sql
+				null_ls.builtins.diagnostics.sqlfluff.with({
+					extra_args = sqlfluff_args, -- change to your dialect
+				}),
+
+				null_ls.builtins.formatting.sqlfluff.with({
+					extra_args = sqlfluff_args, -- change to your dialect
+				}),
 				-- general
 				null_ls.builtins.diagnostics.codespell,
 			},

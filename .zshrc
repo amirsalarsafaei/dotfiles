@@ -8,9 +8,7 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
 fi
 
 
-
-# Set name of the theme to load --- if set to "random", it will
-# load a random theme eac time oh-my-zsh is loaded, in which case,
+# Set name of the theme to load --- if set to "random", it will load a random theme eac time oh-my-zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THEME
 # See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
 ZSH_THEME="powerlevel10k/powerlevel10k"
@@ -72,7 +70,7 @@ zstyle ':omz:update' mode auto      # update automatically without asking
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git history encode64  docker docker-compose tmux virtualenv aws battery aliases command-not-found golang kubectl zsh-syntax-highlighting kubectx dotenv ubuntu  fast-syntax-highlighting zsh-autosuggestions zsh-autocomplete git-prompt tmuxinator vi-mode zsh-system-clipboard)
+plugins=(git asdf history encode64  docker docker-compose tmux virtualenv aws battery aliases command-not-found golang kubectl zsh-syntax-highlighting kubectx dotenv ubuntu  fast-syntax-highlighting zsh-autosuggestions zsh-autocomplete git-prompt tmuxinator vi-mode zsh-system-clipboard)
 
 
 source $ZSH/oh-my-zsh.sh
@@ -81,6 +79,15 @@ source $ZSH/oh-my-zsh.sh
 VI_MODE_SET_CURSOR=true
 
 zstyle :zle:evil-registers:'[A-Za-z%#]' editor nvim
+
+
+tmux-window-name() {
+	($TMUX_PLUGIN_MANAGER_PATH/tmux-window-name/scripts/rename_session_windows.py &)
+}
+
+add-zsh-hook chpwd tmux-window-name
+
+
 # User configuration
 
 # export MANPATH="/usr/local/man:$MANPATH"
