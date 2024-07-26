@@ -1,6 +1,6 @@
 [ shell ]
 program = "/bin/zsh"
-args = [ "-l", "-c", "tmuxinator work"]
+args = [ "-l", "-c", "tmuxinator mux"]
 
 [ env ]
 TERM = "xterm-256color"
