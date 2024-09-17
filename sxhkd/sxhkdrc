@@ -4,7 +4,7 @@
 
 # terminal emulator
 super + Return
-	wezterm
+	alacritty &
 # program launcher
 ctrl + space
 	launcher
@@ -23,9 +23,6 @@ XF86AudioMute
 
 super + ctrl + l
 	lockscreen
-
-super + space
-	setxkbmap -query | grep -q 'ir' && setxkbmap us || setxkbmap ir
 
 #
 # bspwm hotkeys

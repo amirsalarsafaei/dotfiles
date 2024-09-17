@@ -6,34 +6,9 @@ return {
 		"nvimtools/none-ls.nvim",
 	},
 	config = function()
-		local Path = require("plenary.path")
-
-		local function find_parent_folder_with_file(start_path, filename)
-			local current_path = Path:new(start_path):absolute()
-
-			while true do
-				local target_file = Path:new(current_path, filename)
-				if target_file:exists() then
-					return current_path
-				end
-
-				-- Move to the parent directory.
-				local parent_path = Path:new(current_path):parent():absolute()
-
-				if parent_path == current_path then
-					-- If the parent path is the same as the current path, we've reached the root.
-					return nil
-				end
-
-				current_path = parent_path
-			end
-		end
 
 		local sqlfluff_args = { "--dialect", "postgres" }
-		local sqlfluff_config_root = find_parent_folder_with_file(vim.fn.expand("%:p"), ".sqlfluff")
-		if sqlfluff_config_root then
-			vim.list_extend(sqlfluff_args, { "--config", sqlfluff_config_root })
-		end
+		vim.list_extend(sqlfluff_args, { "--config", "$ROOT/.sqlfluff" })
 
 		local augroup = vim.api.nvim_create_augroup("NullLsLspFormatting", {})
 		require("mason").setup()

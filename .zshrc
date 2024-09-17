@@ -111,22 +111,6 @@ add-zsh-hook chpwd tmux-window-name
 # For a full list of active aliases, run `alias`.
 #
 # Example aliases
-alias zshconfig="nvim ~/.zshrc && exec zsh"
-alias vim="nvim"
-alias reload="exec zsh"
-alias bat="batcat"
-alias tele=telepresence
-alias teleconn="telepresence connect"
-alias telestat="telepresence status"
-alias teleinter="telepresence intercept"
-alias teleleave="telepresence leave"
-alias telequit="telepresence quit"
-alias teleuninstall="telepresence uninstall --agent"
-alias telelist="telepresence list"
-alias gitshort="git rev-parse --short=8 HEAD"
-alias gitrecent="git for-each-ref --sort=-committerdate refs/heads/ --format='%(committerdate:short) %(refname:short)'"
-alias pbcopy='xclip -selection clipboard'
-alias pbpaste='xclip -selection clipboard -o'
 
 
 ___MY_VMOPTIONS_SHELL_FILE="${HOME}/.jetbrains.vmoptions.sh"; if [ -f "${___MY_VMOPTIONS_SHELL_FILE}" ]; then . "${___MY_VMOPTIONS_SHELL_FILE}"; fi
@@ -137,8 +121,6 @@ ___MY_VMOPTIONS_SHELL_FILE="${HOME}/.jetbrains.vmoptions.sh"; if [ -f "${___MY_V
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
 
-# private configs
-[[ ! -f ~/.zshrc.secret ]] || source ~/.zshrc.secret
 
 # Key bindings
 

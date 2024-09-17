@@ -14,7 +14,7 @@ Map("n", "<leader>r", ":so %<CR>", { desc = "Reload configuration without restar
 
 Map("n", "<leader>s", ":w<CR>", { desc = "Fast saving with <leader> and s" })
 
-Map("n", "<leader>sv", "<C-w>sv", { desc = "Split window vertically" })
+Map("n", "<leader>sv", "<cmd>vsplit<CR>", { desc = "Split window vertically" })
 Map("n", "<leader>sh", "<C-w>sh", { desc = "Split window horizontally" })
 Map("n", "<leader>se", "<C-w>=", { desc = "Make splits equal size" })
 Map("n", "<leader>sx", "<cmd>close<CR>", { desc = "Closes active pane" })

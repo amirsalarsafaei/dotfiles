@@ -6,6 +6,8 @@ picom --config $HOME/.config/bspwm/picom.conf &
 
 pgrep -x sxhkd > /dev/null || sxhkd &
 
+autorander --change
+
 feh --no-fehbg --bg-fill ~/Pictures/wallpaper.jpg &
 
 # Polkit
@@ -19,3 +21,5 @@ eval $(gnome-keyring-daemon -s --components=pkcs11,secrets,ssh,gpg) &>/dev/null
 xsetroot -cursor_name left_ptr &
 
 eww open greeting  &>/dev/null
+
+setxkbmap -layout us,ir -option grp:win_space_toggle 

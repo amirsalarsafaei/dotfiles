@@ -4,9 +4,7 @@ return {
 		ft = "lua", -- only load on lua files
 		opts = {
 			library = {
-				-- See the configuration section for more details
-				-- Load luvit types when the `vim.uv` word is found
-				{ path = "luvit-meta/library", words = { "vim%.uv" } },
+				-- See the configuration section for more details Load luvit types when the `vim.uv` word is found { path = "luvit-meta/library", words = { "vim%.uv" } },
 			},
 		},
 	},
@@ -28,6 +26,7 @@ return {
 
 			-- import cmp-nvim-lsp plugin
 			local cmp_nvim_lsp = require("cmp_nvim_lsp")
+			local telescope = require("telescope")
 
 			local keymap = vim.keymap -- for conciseness
 
@@ -40,10 +39,13 @@ return {
 
 					-- set keybinds
 					opts.desc = "Show LSP references"
-					keymap.set("n", "gR", "<cmd>Telescope lsp_references<CR>", opts) -- show definition, references
+					keymap.set("n", "gR", "<cmd>Telescope lsp_references include_declaration=false<CR>", opts) -- show definition, references
 
 					opts.desc = "Go to declaration"
 					keymap.set("n", "gD", vim.lsp.buf.declaration, opts) -- go to declaration
+
+					opts.desc = "Show signature help"
+					keymap.set("n", "gs", vim.lsp.buf.signature_help, opts) -- show lsp definitions
 
 					opts.desc = "Show LSP definitions"
 					keymap.set("n", "gd", "<cmd>Telescope lsp_definitions<CR>", opts) -- show lsp definitions
@@ -109,6 +111,50 @@ return {
 						capabilities = capabilities,
 					})
 				end,
+				["gopls"] = function()
+					lspconfig.gopls.setup({
+						capabilities = capabilities,
+						settings = {
+							gopls = {
+								codelenses = {
+									gc_details = true,
+									generate = true,
+									regenerate_cgo = true,
+									run_govulncheck = true,
+									test = true,
+									tidy = true,
+									upgrade_dependency = true,
+								},
+								hints = {
+									assignVariableTypes = true,
+									compositeLiteralFields = true,
+									compositeLiteralTypes = true,
+									constantValues = true,
+									functionTypeParameters = true,
+									parameterNames = true,
+									rangeVariableTypes = true,
+								},
+								analyses = {
+									fieldalignment = true,
+									nilness = true,
+									unusedparams = true,
+									unusedwrite = true,
+									useany = true,
+								},
+								staticcheck = true,
+								directoryFilters = {
+									"-.git",
+									"-.vscode",
+									"-.idea",
+									"-.vscode-test",
+									"-node_modules",
+									"-.nvim",
+								},
+								semanticTokens = true,
+							},
+						},
+					})
+				end,
 				["lua_ls"] = function()
 					-- configure lua server (with special settings)
 					lspconfig["lua_ls"].setup({
@@ -154,6 +200,19 @@ return {
 						on_attach = function(client, bufn)
 							require("sqls").on_attach(client, bufn)
 						end,
+					})
+				end,
+				["yamlls"] = function()
+					lspconfig.yamlls.setup({
+						capabilities = capabilities,
+						settings = {
+							yaml = {
+								validate = true,
+								schemas = {
+									kubernetes = { "k8s**.yaml", "kube*/*.yaml" },
+								},
+							},
+						},
 					})
 				end,
 			})

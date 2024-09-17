@@ -13,16 +13,21 @@ return {
 			"nvim-neotest/nvim-nio",
 			"leoluz/nvim-dap-go",
 			"mxsdev/nvim-dap-vscode-js",
+			"theHamsta/nvim-dap-virtual-text",
 		},
 		config = function()
 			local dap = require("dap")
 			local dapui = require("dapui")
 			local dap_go = require("dap-go")
 			local dap_js = require("dap-vscode-js")
+			local dap_vt = require("nvim-dap-virtual-text")
+
+			dap_vt.setup({})
 
 			dap_go.setup({
 				delve = {
 					initialize_timeout_sec = 30,
+					path = vim.fn.stdpath("data") .. "/mason/bin/dlv",
 				},
 				dap_configurations = {
 					type = "go",
@@ -77,7 +82,11 @@ return {
 				}
 			end
 
-			dapui.setup()
+			dapui.setup({
+				render = {
+					max_type_length = 0,
+				},
+			})
 
 			-- adding dap ui attachments
 			dap.listeners.before.attach.dapui_config = function()
@@ -86,20 +95,31 @@ return {
 			dap.listeners.before.launch.dapui_config = function()
 				dapui.open()
 			end
-			dap.listeners.before.event_terminated.dapui_config = function()
-				dapui.close()
-			end
-			dap.listeners.before.event_exited.dapui_config = function()
-				dapui.close()
-			end
 
-			Map("n", "<Leader>dp", dap.toggle_breakpoint, { desc = "setting break points" })
+			Map("n", "<Leader>dp", dap.toggle_breakpoint, { desc = "toggle debug break points" })
+			Map("n", "<leader>dbc", function()
+				dap.set_breakpoint(vim.fn.input("Breakpoint condition: "))
+			end, { desc = "conditional break point" })
+			Map("n", "<leader>dbl", function()
+				dap.set_breakpoint(nil, nil, vim.fn.input("Log point message: "))
+			end, { desc = "logging break point" })
+
 			Map("n", "<Leader>dc", dap.continue, { desc = "continue debugger" })
-			Map("n", "<Leader>dt", dap_go.debug_test, { desc = "debug go test" })
-			Map("n", "<Leader>dq", dap.close, { desc = "close debugger" })
+			Map("n", "<Leader>ds", dap.close, { desc = "closes debugger" })
+			Map("n", "<Leader>dl", dap.run_last, { desc = "runs last debug profile" })
+
+			Map("n", "<Leader>dj", dap.down, { desc = "go down in stack trace" })
+			Map("n", "<Leader>dk", dap.up, { desc = "go up in stack trace" })
+
+			Map("n", "<Leader>dq", dapui.close, { desc = "close debugger ui" })
+
 			Map("n", "<Leader>di", dap.step_into, { desc = "step into code" })
-			Map("n", "<Leader>do", dap.step_out, { desc = "step out of the code" })
-			Map("n", "<Leader>ds", dap.step_over, { desc = "step over the code" })
+			Map("n", "<Leader>d0", dap.step_out, { desc = "step out of the code" })
+			Map("n", "<Leader>do", dap.step_over, { desc = "step over the code" })
+
+			Map("n", "<Leader>df", function()
+				dapui.float_element("scopes", { enter = true })
+			end)
 		end,
 	},
 }
