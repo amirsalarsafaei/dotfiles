@@ -14,6 +14,10 @@ let
   };
 in
 {
+  nixpkgs.config = {
+    allowUnfree = true;
+    allowUnfreePredicate = (_: true);
+  };
   # Home Manager needs a bit of information about you and the paths it should
   # manage.
   home.username = "amirsalar";
@@ -32,6 +36,71 @@ in
   # enviroent.
   home.packages = [
     # Dev Tools
+	pkgs.telepresence2
+    (pkgs.jetbrains.goland.override {
+      vmopts = ''
+                			  -Xms128m
+                				-Xmx1024m
+                				-XX:ReservedCodeCacheSize=512m
+                				-XX:+IgnoreUnrecognizedVMOptions
+                				-XX:+UseG1GC
+                				-XX:SoftRefLRUPolicyMSPerMB=50
+                				-XX:CICompilerCount=2
+                				-XX:+HeapDumpOnOutOfMemoryError
+                				-XX:-OmitStackTraceInFastThrow
+                				-ea
+                				-Dsun.io.useCanonCaches=false
+                				-Djdk.http.auth.tunneling.disabledSchemes=""
+                				-Djdk.attach.allowAttachSelf=true
+                				-Djdk.module.illegalAccess.silent=true
+                				-Dkotlinx.coroutines.debug=off
+                				-XX:ErrorFile=$USER_HOME/java_error_in_idea_%p.log
+                				-XX:HeapDumpPath=$USER_HOME/java_error_in_idea.hprof
+
+        						--add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED
+        	    				--add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED
+
+                				-javaagent:/home/amirsalar/ja-netfilter/ja-netfilter.jar=jetbrains
+
+        						-Dawt.toolkit.name=WLToolkit
+                			'';
+    })
+    (pkgs.jetbrains.webstorm.override {
+      vmopts = ''
+
+			-Xms128m
+			-Xmx1024m
+			-XX:ReservedCodeCacheSize=512m
+			-XX:+IgnoreUnrecognizedVMOptions
+			-XX:+UseG1GC
+			-XX:SoftRefLRUPolicyMSPerMB=50
+			-XX:CICompilerCount=2
+			-XX:+HeapDumpOnOutOfMemoryError
+			-XX:-OmitStackTraceInFastThrow
+			-ea
+			-Dsun.io.useCanonCaches=false
+			-Djdk.http.auth.tunneling.disabledSchemes=""
+			-Djdk.attach.allowAttachSelf=true
+			-Djdk.module.illegalAccess.silent=true
+			-Dkotlinx.coroutines.debug=off
+			-XX:ErrorFile=$USER_HOME/java_error_in_idea_%p.log
+			-XX:HeapDumpPath=$USER_HOME/java_error_in_idea.hprof
+
+			--add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED
+			--add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED
+
+			-javaagent:/home/amirsalar/ja-netfilter/ja-netfilter.jar=jetbrains
+			-Dawt.toolkit.name=WLToolkit
+			'';
+    })
+    pkgs.asciiquarium
+    pkgs.docker
+    pkgs.docker-compose
+    pkgs.kitty
+    pkgs.libnotify
+    pkgs.neofetch
+    pkgs.wezterm
+    pkgs.xcowsay
     pkgs.neovim
     pkgs.just
     pkgs.tmux
@@ -136,6 +205,8 @@ in
     EDITOR = "nvim";
     GOPATH = "${homeDir}/go";
     TMUX_WINDOW_NAME_PATH = "${tmuxWindowName}/share/tmux-plugins/window-manager";
+	GOBIN = "${homeDir}/.local/bin";
+	PATH = "$PATH:/usr/local/bin";
   };
   home.sessionPath = [
     "$HOME/.local/bin"
@@ -159,6 +230,9 @@ in
     enable = true;
     userName = "Amirsalar Safaei";
     userEmail = "amirs.s.g.o@gmail.com";
+    extraConfig = {
+      url."ssh://git@git.divar.cloud/".insteadOf = "https://git.divar.cloud/";
+    };
   };
   programs.zsh = {
     enable = true;
@@ -211,33 +285,32 @@ in
     ];
 
     initExtra = ''
-        source ${homeDir}/.p10k.zsh
+      source ${homeDir}/.p10k.zsh
 
-        ZVM_READKEY_ENGINE=$ZVM_READKEY_ENGINE_ZLE
+      ZVM_READKEY_ENGINE=$ZVM_READKEY_ENGINE_ZLE
 
-        VI_MODE_SET_CURSOR=true
-      ZVM_INSERT_MODE_CURSOR=$ZVM_CURSOR_BEAM
+      VI_MODE_SET_CURSOR=true
 
       function tmux-window-name() {
-          (${tmuxWindowName}/share/tmux-plugins/window-manager/scripts/rename_session_windows.py &)
-        }
+        (${tmuxWindowName}/share/tmux-plugins/window-manager/scripts/rename_session_windows.py &)
+      }
 
-        add-zsh-hook chpwd tmux-window-name
+      add-zsh-hook chpwd tmux-window-name
 
-        # Load personal shell files if present
-        #___MY_VMOPTIONS_SHELL_FILE="{HOME}/.jetbrains.vmoptions.sh"
-        #if [ -f "{___MY_VMOPTIONS_SHELL_FILE}" ]; then
-        #  . "{___MY_VMOPTIONS_SHELL_FILE}"
-        #fi
+      # Load personal shell files if present
+      #___MY_VMOPTIONS_SHELL_FILE="{HOME}/.jetbrains.vmoptions.sh"
+      #if [ -f "{___MY_VMOPTIONS_SHELL_FILE}" ]; then
+      #  . "{___MY_VMOPTIONS_SHELL_FILE}"
+      #fi
 
-        # Key bindings
-        bindkey -M viins '^I' menu-select
-        bindkey -M viins "$terminfo[kcbt]" menu-select
-        bindkey -M vicmd '^I' menu-select
-        bindkey -M vicmd "$terminfo[kcbt]" menu-select
-        bindkey -M menuselect '^I' menu-complete
-        bindkey -M menuselect "$terminfo[kcbt]" reverse-menu-complete
-        bindkey -M vicmd '^E' autosuggest-accept
+      # Key bindings
+      bindkey -M viins '^I' menu-select
+      bindkey -M viins "$terminfo[kcbt]" menu-select
+      bindkey -M vicmd '^I' menu-select
+      bindkey -M vicmd "$terminfo[kcbt]" menu-select
+      bindkey -M menuselect '^I' menu-complete
+      bindkey -M menuselect "$terminfo[kcbt]" reverse-menu-complete
+      bindkey -M vicmd '^E' autosuggest-accept
     '';
   };
   programs.alacritty = {
@@ -261,6 +334,14 @@ in
         size = 12;
       };
     };
+  };
+  programs.kitty = {
+    enable = true;
+    environment.TERM = "xterm-256color";
+    extraConfig = ''
+            background_opacity 0.8
+      	  font_family MesloLGS Nerd Font
+      		'';
   };
   programs.tmux = {
     enable = true;
@@ -308,27 +389,11 @@ in
       bind -r C-l next-window     # select next window
       bind Tab last-window        # move to last active window
 
+      set -g default-terminal "tmux-256color"
     '';
 
 
     plugins = [
-      pkgs.tmuxPlugins.cpu
-      pkgs.tmuxPlugins.yank
-      {
-        plugin = pkgs.tmuxPlugins.mkTmuxPlugin {
-          pname = "battery";
-          pluginName = "battery";
-          version = "2023-12-01";
-          src = pkgs.fetchFromGitHub {
-            owner = "tmux-plugins";
-            repo = "tmux-battery";
-            rev = "48fae59ba4503cf345d25e4e66d79685aa3ceb75";
-            sha256 = "1gx5f6qylzcqn6y3i1l92j277rqjrin7kn86njvn174d32wi78y8";
-          };
-        };
-      }
-      tmuxWindowName
-      pkgs.tmuxPlugins.vim-tmux-navigator
       {
         plugin = pkgs.tmuxPlugins.catppuccin;
         extraConfig = ''
@@ -357,6 +422,36 @@ in
           set -g @catppuccin_directory_text "#{pane_current_path}"
         '';
       }
+      pkgs.tmuxPlugins.cpu
+      pkgs.tmuxPlugins.yank
+      {
+        plugin = pkgs.tmuxPlugins.mkTmuxPlugin {
+          pname = "battery";
+          pluginName = "battery";
+          version = "2023-12-01";
+          src = pkgs.fetchFromGitHub {
+            owner = "tmux-plugins";
+            repo = "tmux-battery";
+            rev = "48fae59ba4503cf345d25e4e66d79685aa3ceb75";
+            sha256 = "1gx5f6qylzcqn6y3i1l92j277rqjrin7kn86njvn174d32wi78y8";
+          };
+        };
+      }
+      # {
+      #   plugin = pkgs.tmuxPlugins.mkTmuxPlugin {
+      #     pname = "kube";
+      #     pluginName = "kube";
+      #     version = "2023-12-01";
+      #     src = pkgs.fetchFromGitHub {
+      #       owner = "amirsalarsafaei";
+      #       repo = "tmux-kube";
+      #       rev = "v1.0.0";
+      #       sha256 = "1gx5f6qylzcqn6y3i1l92j277rqjrin7kn86njvn174d32wi78y8";
+      #     };
+      #   };
+      # }
+      tmuxWindowName
+      pkgs.tmuxPlugins.vim-tmux-navigator
     ];
   };
 }

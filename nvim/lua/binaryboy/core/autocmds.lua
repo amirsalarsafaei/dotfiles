@@ -34,11 +34,20 @@ autocmd("Filetype", {
 
 autocmd("VimEnter", {
 	callback = function()
-		if vim.env.TMUX_PLUGIN_MANAGER_PATH then
-			vim.loop.spawn(
-				vim.env.TMUX_PLUGIN_MANAGER_PATH .. "/tmux-window-name/scripts/rename_session_windows.py",
-				{}
-			)
+		if vim.env.TMUX_WINDOW_NAME_PATH then
+			local uv = vim.uv
+			uv.spawn(vim.env.TMUX_WINDOW_NAME_PATH .. "/scripts/rename_session_windows.py", {})
 		end
 	end,
 })
+
+-- autocmd("VimLeave", {
+-- 	callback = function()
+-- 		if vim.env.TMUX_WINDOW_NAME_PATH then
+-- 			vim.loop.spawn(
+-- 				vim.env.TMUX_WINDOW_NAME_PATH .. "/scripts/rename_session_windows.py",
+-- 				{}
+-- 			)
+-- 		end
+-- 	end,
+-- })
