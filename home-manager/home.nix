@@ -1,17 +1,6 @@
 { pkgs, config, ... }:
 let
   homeDir = config.home.homeDirectory;
-  tmuxWindowName = pkgs.tmuxPlugins.mkTmuxPlugin {
-    pname = "window-manager";
-    pluginName = "window-manager";
-    version = "2023-12-01";
-    src = pkgs.fetchFromGitHub {
-      owner = "ofirgall";
-      repo = "tmux-window-name";
-      rev = "dc97a79ac35a9db67af558bb66b3a7ad41c924e7";
-      sha256 = "048j942jgplqvqx65ljfc278fn7qrhqx4bzmgzcvmg9kgjap7dm3";
-    };
-  };
 in
 {
   nixpkgs.config = {
@@ -36,7 +25,7 @@ in
   # enviroent.
   home.packages = [
     # Dev Tools
-	pkgs.handbrake
+    pkgs.handbrake
     pkgs.wofi
     pkgs.rofi-wayland
     pkgs.ngrok
@@ -48,31 +37,31 @@ in
     pkgs.telepresence2
     (pkgs.jetbrains.goland.override {
       vmopts = ''
-												-Xms128m
-												-Xmx1024m
-												-XX:ReservedCodeCacheSize=512m
-												-XX:+IgnoreUnrecognizedVMOptions
-												-XX:+UseG1GC
-												-XX:SoftRefLRUPolicyMSPerMB=50
-												-XX:CICompilerCount=2
-												-XX:+HeapDumpOnOutOfMemoryError
-												-XX:-OmitStackTraceInFastThrow
-												-ea
-												-Dsun.io.useCanonCaches=false
-												-Djdk.http.auth.tunneling.disabledSchemes=""
-												-Djdk.attach.allowAttachSelf=true
-												-Djdk.module.illegalAccess.silent=true
-												-Dkotlinx.coroutines.debug=off
-												-XX:ErrorFile=$USER_HOME/java_error_in_idea_%p.log
-												-XX:HeapDumpPath=$USER_HOME/java_error_in_idea.hprof
+        												-Xms128m
+        												-Xmx1024m
+        												-XX:ReservedCodeCacheSize=512m
+        												-XX:+IgnoreUnrecognizedVMOptions
+        												-XX:+UseG1GC
+        												-XX:SoftRefLRUPolicyMSPerMB=50
+        												-XX:CICompilerCount=2
+        												-XX:+HeapDumpOnOutOfMemoryError
+        												-XX:-OmitStackTraceInFastThrow
+        												-ea
+        												-Dsun.io.useCanonCaches=false
+        												-Djdk.http.auth.tunneling.disabledSchemes=""
+        												-Djdk.attach.allowAttachSelf=true
+        												-Djdk.module.illegalAccess.silent=true
+        												-Dkotlinx.coroutines.debug=off
+        												-XX:ErrorFile=$USER_HOME/java_error_in_idea_%p.log
+        												-XX:HeapDumpPath=$USER_HOME/java_error_in_idea.hprof
 
-										--add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED
-											--add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED
+        										--add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED
+        											--add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED
 
-												-javaagent:/home/amirsalar/ja-netfilter/ja-netfilter.jar=jetbrains
+        												-javaagent:/home/amirsalar/ja-netfilter/ja-netfilter.jar=jetbrains
 
-										-Dawt.toolkit.name=WLToolkit
-											'';
+        										-Dawt.toolkit.name=WLToolkit
+        											'';
     })
     (pkgs.jetbrains.webstorm.override {
       vmopts = ''
@@ -186,10 +175,10 @@ in
   # plain files is through 'home.file'.
   home.file = {
     ".gitconfig-work".text = ''
-      [user]
-					name = "Amirsalar Safaei"
-					email = "amirsalar.safaei@divar.ir"
-							'';
+            [user]
+      					name = "Amirsalar Safaei"
+      					email = "amirsalar.safaei@divar.ir"
+      							'';
     # # Building this configuration will create a copy of 'dotfiles/screenrc' in
     # # the Nix store. Activating the configuration will then make '~/.screenrc' a
     # # symlink to the Nix store copy.
@@ -221,8 +210,7 @@ in
   home.sessionVariables = {
     EDITOR = "nvim";
     GOPATH = "${homeDir}/go";
-	GOPRIVATE = "git.divar.cloud,git.cafebazaar.ir";
-    TMUX_WINDOW_NAME_PATH = "${tmuxWindowName}/share/tmux-plugins/window-manager";
+    GOPRIVATE = "git.divar.cloud,git.cafebazaar.ir";
     GOBIN = "${homeDir}/.local/bin";
     PATH = "$PATH:/usr/local/bin";
   };
@@ -290,13 +278,13 @@ in
 
     shellGlobalAliases = {
       "vim" = "nvim";
-	  pbcopy = "wl-copy";
-	  pbpaste = "wl-paste";
-	  gitrecent = "git for-each-ref --sort=-committerdate refs/heads/ --format='%(committerdate:short) %(refname:short)'";
-	  gitshort = "git rev-parse --short=8 HEAD";
+      pbcopy = "wl-copy";
+      pbpaste = "wl-paste";
+      gitrecent = "git for-each-ref --sort=-committerdate refs/heads/ --format='%(committerdate:short) %(refname:short)'";
+      gitshort = "git rev-parse --short=8 HEAD";
     };
     shellAliases = {
-      "vpn" = "sudo cat ~/totp-pass | totp-cli generate divar vpn | sudo openfortivpn";
+      "vpn" = "pidof openfortivpn || sudo cat ~/totp-pass | totp-cli generate divar vpn | sudo openfortivpn";
     };
 
     plugins = [
@@ -316,35 +304,29 @@ in
     ];
 
     initExtra = ''
-      source ${homeDir}/.p10k.zsh
+            source ${homeDir}/.p10k.zsh
 
-      ZVM_READKEY_ENGINE=$ZVM_READKEY_ENGINE_ZLE
+            ZVM_READKEY_ENGINE=$ZVM_READKEY_ENGINE_ZLE
 
-      VI_MODE_SET_CURSOR=true
+            VI_MODE_SET_CURSOR=true
 
-      function tmux-window-name() {
-        (${tmuxWindowName}/share/tmux-plugins/window-manager/scripts/rename_session_windows.py &)
-      }
+            # Load personal shell files if present
+            #___MY_VMOPTIONS_SHELL_FILE="{HOME}/.jetbrains.vmoptions.sh"
+            #if [ -f "{___MY_VMOPTIONS_SHELL_FILE}" ]; then
+            #  . "{___MY_VMOPTIONS_SHELL_FILE}"
+            #fi
 
-      add-zsh-hook chpwd tmux-window-name
-
-      # Load personal shell files if present
-      #___MY_VMOPTIONS_SHELL_FILE="{HOME}/.jetbrains.vmoptions.sh"
-      #if [ -f "{___MY_VMOPTIONS_SHELL_FILE}" ]; then
-      #  . "{___MY_VMOPTIONS_SHELL_FILE}"
-      #fi
-
-      # Key bindings
-      bindkey -M viins '^I' menu-select
-      bindkey -M viins "$terminfo[kcbt]" menu-select
-      bindkey -M vicmd '^I' menu-select
-      bindkey -M vicmd "$terminfo[kcbt]" menu-select
-      bindkey -M menuselect '^I' menu-complete
-      bindkey -M menuselect "$terminfo[kcbt]" reverse-menu-complete
-      bindkey -M vicmd '^E' autosuggest-accept
-			if [ -z "$TMUX" ] && [ "$TERM" = "xterm-kitty" ]; then
-			  exec tmux new-session && exit;
-			fi
+            # Key bindings
+            bindkey -M viins '^I' menu-select
+            bindkey -M viins "$terminfo[kcbt]" menu-select
+            bindkey -M vicmd '^I' menu-select
+            bindkey -M vicmd "$terminfo[kcbt]" menu-select
+            bindkey -M menuselect '^I' menu-complete
+            bindkey -M menuselect "$terminfo[kcbt]" reverse-menu-complete
+            bindkey -M vicmd '^E' autosuggest-accept
+      			if [ -z "$TMUX" ] && [ "$TERM" = "xterm-kitty" ]; then
+      			  exec tmux new-session && exit;
+      			fi
     '';
   };
   programs.alacritty = {
@@ -373,11 +355,11 @@ in
     enable = true;
     environment.TERM = "xterm-256color";
     extraConfig = ''
-      background_opacity 0.8
+            background_opacity 0.8
 
-      window_padding_width 7
-      font_family MesloLGS Nerd Font
-														'';
+            window_padding_width 7
+            font_family MesloLGS Nerd Font
+      														'';
   };
   programs.tmux = {
     enable = true;
@@ -426,6 +408,11 @@ in
       bind Tab last-window        # move to last active window
 
       set -g default-terminal "tmux-256color"
+
+      set-option -g status-interval 5
+      set-option -g automatic-rename on
+
+      set-option -g automatic-rename-format "#{?#{==:#{pane_current_command},zsh},#{b:pane_current_path},#{b:pane_current_path}:#{pane_current_command}}"
     '';
 
 
@@ -447,8 +434,8 @@ in
           set -g @catppuccin_window_current_fill "number"
           set -g @catppuccin_window_current_text "#W"
 
-          set -g @catppuccin_status_modules_right "kube session"
-          set -g @catppuccin_status_modules_left "uptime cpu battery"
+          set -g @catppuccin_status_modules_right "session"
+          set -g @catppuccin_status_modules_left "cpu battery"
           set -g @catppuccin_status_left_separator  " "
           set -g @catppuccin_status_right_separator ""
           set -g @catppuccin_status_fill "icon"
@@ -473,20 +460,6 @@ in
           };
         };
       }
-      # {
-      #   plugin = pkgs.tmuxPlugins.mkTmuxPlugin {
-      #     pname = "kube";
-      #     pluginName = "kube";
-      #     version = "2023-12-01";
-      #     src = pkgs.fetchFromGitHub {
-      #       owner = "amirsalarsafaei";
-      #       repo = "tmux-kube";
-      #       rev = "v1.0.0";
-      #       sha256 = "1gx5f6qylzcqn6y3i1l92j277rqjrin7kn86njvn174d32wi78y8";
-      #     };
-      #   };
-      # }
-      tmuxWindowName
       pkgs.tmuxPlugins.vim-tmux-navigator
     ];
   };
@@ -538,6 +511,13 @@ in
         ",~/Pictures/lockscreen.png"
       ];
     };
+
+  };
+  programs.waybar = {
+    enable = true;
+    systemd.enable = true;
+    settings = { mainBar = { battery = { format = "Bat: {capacity}%"; format-charging = "Bat: {capacity}% (charging)"; format-plugged = "Bat: {capacity}% (plugged)"; interval = 10; }; clock = { format = "{:%H:%M:%S %Y-%m-%d}"; interval = 1; }; cpu = { format = "CPU: {usage}%"; interval = 1; }; "custom/absclock" = { exec = "date +%s"; format = "{}"; interval = 1; return-type = "{}"; }; "custom/loadavg" = { exec = "cat /proc/loadavg | head -c 14"; format = "Load average: {}"; interval = 1; return-type = "{}"; }; "custom/uptime" = { exec = "uptime -p | sed 's/up //g' -"; format = "Uptime: {}"; interval = 60; return-type = "{}"; }; height = 33; idle_inhibitor = { format = "{icon}"; format-icons = { activated = "Don't idle"; deactivated = "Idling"; }; }; memory = { format = "RAM: {}%"; interval = 1; }; modules-center = [ ]; modules-left = [ "sway/workspaces" "tray" "sway/mode" ]; modules-right = [ "idle_inhibitor" "cpu" "memory" "wireplumber" "battery" "sway/language" "clock" ]; network = { format = "Net via {ifname}"; format-disconnected = "No net"; format-linked = "Net (No IP) via {ifname}"; on-click = ""; tooltip-format = "{ipaddr}/{cidr}"; }; position = "top"; "sway/mode" = { format = "<span style=\"italic\">{}</span>"; }; temperature = { format = "Temperature: {temperatureC}°C"; interval = 1; }; tray = { spacing = 10; }; wireplumber = { format = "Vol: {volume}%"; format-muted = "Vol: muted"; on-click = "pavucontrol"; scroll-step = 1; }; }; };
+
 
   };
 }
