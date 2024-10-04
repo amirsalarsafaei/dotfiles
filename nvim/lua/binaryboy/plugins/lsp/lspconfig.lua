@@ -218,7 +218,7 @@ return {
 			})
 			configs["protobuf-language-server"] = {
 				default_config = {
-					cmd = { vim.env.GOPATH .. "/bin/protobuf-language-server" },
+					cmd = { vim.env.GOBIN .. "/protobuf-language-server" },
 					filetypes = { "proto" },
 					root_fir = util.root_pattern(".git"),
 					single_file_support = true,

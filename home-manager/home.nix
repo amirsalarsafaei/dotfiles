@@ -36,34 +36,43 @@ in
   # enviroent.
   home.packages = [
     # Dev Tools
-	pkgs.telepresence2
+	pkgs.handbrake
+    pkgs.wofi
+    pkgs.rofi-wayland
+    pkgs.ngrok
+    pkgs.postman
+    pkgs.vlc
+    pkgs.obs-studio
+    pkgs.telegram-desktop
+    pkgs.openfortivpn
+    pkgs.telepresence2
     (pkgs.jetbrains.goland.override {
       vmopts = ''
-                			  -Xms128m
-                				-Xmx1024m
-                				-XX:ReservedCodeCacheSize=512m
-                				-XX:+IgnoreUnrecognizedVMOptions
-                				-XX:+UseG1GC
-                				-XX:SoftRefLRUPolicyMSPerMB=50
-                				-XX:CICompilerCount=2
-                				-XX:+HeapDumpOnOutOfMemoryError
-                				-XX:-OmitStackTraceInFastThrow
-                				-ea
-                				-Dsun.io.useCanonCaches=false
-                				-Djdk.http.auth.tunneling.disabledSchemes=""
-                				-Djdk.attach.allowAttachSelf=true
-                				-Djdk.module.illegalAccess.silent=true
-                				-Dkotlinx.coroutines.debug=off
-                				-XX:ErrorFile=$USER_HOME/java_error_in_idea_%p.log
-                				-XX:HeapDumpPath=$USER_HOME/java_error_in_idea.hprof
+												-Xms128m
+												-Xmx1024m
+												-XX:ReservedCodeCacheSize=512m
+												-XX:+IgnoreUnrecognizedVMOptions
+												-XX:+UseG1GC
+												-XX:SoftRefLRUPolicyMSPerMB=50
+												-XX:CICompilerCount=2
+												-XX:+HeapDumpOnOutOfMemoryError
+												-XX:-OmitStackTraceInFastThrow
+												-ea
+												-Dsun.io.useCanonCaches=false
+												-Djdk.http.auth.tunneling.disabledSchemes=""
+												-Djdk.attach.allowAttachSelf=true
+												-Djdk.module.illegalAccess.silent=true
+												-Dkotlinx.coroutines.debug=off
+												-XX:ErrorFile=$USER_HOME/java_error_in_idea_%p.log
+												-XX:HeapDumpPath=$USER_HOME/java_error_in_idea.hprof
 
-        						--add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED
-        	    				--add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED
+										--add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED
+											--add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED
 
-                				-javaagent:/home/amirsalar/ja-netfilter/ja-netfilter.jar=jetbrains
+												-javaagent:/home/amirsalar/ja-netfilter/ja-netfilter.jar=jetbrains
 
-        						-Dawt.toolkit.name=WLToolkit
-                			'';
+										-Dawt.toolkit.name=WLToolkit
+											'';
     })
     (pkgs.jetbrains.webstorm.override {
       vmopts = ''
@@ -107,7 +116,7 @@ in
     pkgs.tmuxinator
 
 
-    (pkgs.python3.withPackages (ppkgs: [
+    (pkgs.python3Full.withPackages (ppkgs: [
       ppkgs.libtmux
     ]))
 
@@ -128,6 +137,9 @@ in
     pkgs.awscli2
 
     # Misc
+    pkgs.grim
+    pkgs.slurp
+    pkgs.hyprpaper
     pkgs.android-tools
     pkgs.wl-clipboard
     pkgs.cowsay
@@ -173,6 +185,11 @@ in
   # Home Manager is pretty good at managing dotfiles. The primary way to manage
   # plain files is through 'home.file'.
   home.file = {
+    ".gitconfig-work".text = ''
+      [user]
+					name = "Amirsalar Safaei"
+					email = "amirsalar.safaei@divar.ir"
+							'';
     # # Building this configuration will create a copy of 'dotfiles/screenrc' in
     # # the Nix store. Activating the configuration will then make '~/.screenrc' a
     # # symlink to the Nix store copy.
@@ -204,9 +221,10 @@ in
   home.sessionVariables = {
     EDITOR = "nvim";
     GOPATH = "${homeDir}/go";
+	GOPRIVATE = "git.divar.cloud,git.cafebazaar.ir";
     TMUX_WINDOW_NAME_PATH = "${tmuxWindowName}/share/tmux-plugins/window-manager";
-	GOBIN = "${homeDir}/.local/bin";
-	PATH = "$PATH:/usr/local/bin";
+    GOBIN = "${homeDir}/.local/bin";
+    PATH = "$PATH:/usr/local/bin";
   };
   home.sessionPath = [
     "$HOME/.local/bin"
@@ -233,6 +251,12 @@ in
     extraConfig = {
       url."ssh://git@git.divar.cloud/".insteadOf = "https://git.divar.cloud/";
     };
+    includes = [
+      {
+        path = "${homeDir}/.gitconfig-work";
+        condition = "gitdir:${homeDir}/divar/";
+      }
+    ];
   };
   programs.zsh = {
     enable = true;
@@ -266,6 +290,13 @@ in
 
     shellGlobalAliases = {
       "vim" = "nvim";
+	  pbcopy = "wl-copy";
+	  pbpaste = "wl-paste";
+	  gitrecent = "git for-each-ref --sort=-committerdate refs/heads/ --format='%(committerdate:short) %(refname:short)'";
+	  gitshort = "git rev-parse --short=8 HEAD";
+    };
+    shellAliases = {
+      "vpn" = "sudo cat ~/totp-pass | totp-cli generate divar vpn | sudo openfortivpn";
     };
 
     plugins = [
@@ -311,6 +342,9 @@ in
       bindkey -M menuselect '^I' menu-complete
       bindkey -M menuselect "$terminfo[kcbt]" reverse-menu-complete
       bindkey -M vicmd '^E' autosuggest-accept
+			if [ -z "$TMUX" ] && [ "$TERM" = "xterm-kitty" ]; then
+			  exec tmux new-session && exit;
+			fi
     '';
   };
   programs.alacritty = {
@@ -339,9 +373,11 @@ in
     enable = true;
     environment.TERM = "xterm-256color";
     extraConfig = ''
-            background_opacity 0.8
-      	  font_family MesloLGS Nerd Font
-      		'';
+      background_opacity 0.8
+
+      window_padding_width 7
+      font_family MesloLGS Nerd Font
+														'';
   };
   programs.tmux = {
     enable = true;
@@ -453,5 +489,55 @@ in
       tmuxWindowName
       pkgs.tmuxPlugins.vim-tmux-navigator
     ];
+  };
+
+  programs.hyprlock = {
+    enable = true;
+    settings = {
+      general = {
+        disable_loading_bar = true;
+        hide_cursor = true;
+        no_fade_in = false;
+      };
+
+      background = [
+        {
+          path = "~/Pictures/lockscreen.png";
+          blur_passes = 3;
+          blur_size = 8;
+        }
+      ];
+
+      input-field = [
+        {
+          size = "200, 50";
+          position = "0, -80";
+          monitor = "";
+          dots_center = true;
+          fade_on_empty = false;
+          font_color = "rgb(202, 211, 245)";
+          inner_color = "rgb(91, 96, 120)";
+          outer_color = "rgb(24, 25, 38)";
+          outline_thickness = 5;
+          placeholder_text = ''\'<span foreground="##cad3f5">Password...</span>'\'';
+          shadow_passes = 2;
+        }
+      ];
+    };
+  };
+  services.hyprpaper = {
+    enable = true;
+    settings = {
+      ipc = "off";
+      splash = false;
+
+      preload =
+        [ "~/Pictures/lockscreen.png" ];
+
+      wallpaper = [
+        ",~/Pictures/lockscreen.png"
+      ];
+    };
+
   };
 }
