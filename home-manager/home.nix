@@ -25,6 +25,13 @@ in
   # enviroent.
   home.packages = [
     # Dev Tools
+    (pkgs.pass.withExtensions
+      (exts: [ exts.pass-otp ]))
+    pkgs.rofi-pass-wayland
+    pkgs.wtype
+    pkgs.wofi-pass
+    pkgs.xorg.xwininfo
+    pkgs.w3m
     pkgs.pavucontrol
     pkgs.sing-box
     pkgs.handbrake
@@ -36,6 +43,8 @@ in
     pkgs.obs-studio
     pkgs.telegram-desktop
     pkgs.openfortivpn
+    pkgs.pkg-config
+    pkgs.openssl_3_3
     pkgs.telepresence2
     (pkgs.jetbrains.goland.override {
       vmopts = ''
@@ -329,6 +338,7 @@ in
       			if [ -z "$TMUX" ] && [ "$TERM" = "xterm-kitty" ]; then
       			  exec tmux new-session && exit;
       			fi
+            source ~/zshsecret
     '';
   };
   programs.alacritty = {
@@ -567,13 +577,16 @@ in
             format = " \t{}%";
             interval = 5;
           };
+          "hyprland/window" = {
+            format = "{}";
+            max-length = 30;
+          };
           modules-center = [ ];
-          modules-left = [ "hyprland/workspaces" "tray" "network" ];
+          modules-left = [ "hyprland/workspaces" "tray" "network" "hyprland/window" ];
           modules-right = [ "temperature" "cpu" "memory" "wireplumber" "battery" "hyprland/language" "clock" ];
           network = {
             format = "Net via {ifname}";
             format-disconnected = "No net";
-            format-linked = "Net (No IP) via {ifname}";
             format-wifi = "{essid} ({signalStrength}%)  ";
             tooltip-format = "{ipaddr}/{cidr}";
           };
@@ -593,6 +606,28 @@ in
           };
         };
 
+    };
+  };
+  services.hypridle = {
+    enable = true;
+    settings = {
+      general = {
+        after_sleep_cmd = "hyprctl dispatch dpms on";
+        ignore_dbus_inhibit = false;
+        lock_cmd = "pidof hyprlock || hyprlock";
+      };
+
+      listener = [
+        {
+          timeout = 900;
+          on-timeout = "hyprlock";
+        }
+        {
+          timeout = 1200;
+          on-timeout = "hyprctl dispatch dpms off";
+          on-resume = "hyprctl dispatch dpms on";
+        }
+      ];
     };
   };
 }

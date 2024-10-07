@@ -1,10 +1,11 @@
 return {
 	{
-		"folke/lazydev.nvim",
+		"folke/neodev.nvim",
 		ft = "lua", -- only load on lua files
 		opts = {
 			library = {
-				-- See the configuration section for more details Load luvit types when the `vim.uv` word is found { path = "luvit-meta/library", words = { "vim%.uv" } },
+				plugins = { "neotest" },
+				types = true,
 			},
 		},
 	},
@@ -17,16 +18,12 @@ return {
 			"nanotee/sqls.nvim",
 		},
 		config = function()
-			-- import lspconfig plugin
 			local lspconfig = require("lspconfig")
 			local configs = require("lspconfig.configs")
 			local util = require("lspconfig.util")
-			-- import mason_lspconfig plugin
 			local mason_lspconfig = require("mason-lspconfig")
 
-			-- import cmp-nvim-lsp plugin
 			local cmp_nvim_lsp = require("cmp_nvim_lsp")
-			local telescope = require("telescope")
 
 			local keymap = vim.keymap -- for conciseness
 

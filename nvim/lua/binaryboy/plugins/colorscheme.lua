@@ -11,5 +11,6 @@ return {
 			},
 		})
 		vim.cmd.colorscheme("catppuccin")
+		require("avante_lib").load()
 	end,
 }

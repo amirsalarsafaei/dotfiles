@@ -28,6 +28,7 @@ autocmd("Filetype", {
 		"lua",
 		"javascriptreact",
 		"typescriptreact",
+		"nix",
 	},
 	command = "setlocal shiftwidth=2 tabstop=2",
 })
