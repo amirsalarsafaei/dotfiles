@@ -25,6 +25,10 @@ in
   # enviroent.
   home.packages = [
     # Dev Tools
+    pkgs.ffmpeg_7-full
+    pkgs.libimobiledevice
+    pkgs.ifuse
+    pkgs.kdePackages.kdenlive
     (pkgs.pass.withExtensions
       (exts: [ exts.pass-otp ]))
     pkgs.rofi-pass-wayland
@@ -165,7 +169,6 @@ in
     pkgs.nmap
     pkgs.gh
     pkgs.nerdfonts
-
 
 
     # # It is sometimes useful to fine-tune packages, for example, by applying
@@ -619,7 +622,7 @@ in
 
       listener = [
         {
-          timeout = 900;
+          timeout = 100;
           on-timeout = "hyprlock";
         }
         {
