@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+case $1 in
+	up)
+	xbacklight  -inc 10
+	;;
+	down)
+	xbacklight  -dec 10
+	;;
+esac
+
+notify-send -h int:value:$(xbacklight  -get) "Brightness"
+

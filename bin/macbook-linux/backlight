@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+case $1 in
+	up)
+	xbacklight -ctrl kbd_backlight -inc 20
+	;;
+	down)
+	xbacklight -ctrl kbd_backlight -dec 20
+	;;
+esac
+
+notify-send -h int:value:$(xbacklight -ctrl kbd_backlight -get) "Backlight"

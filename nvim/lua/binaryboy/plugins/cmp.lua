@@ -11,9 +11,11 @@ return {
 			-- install jsregexp (optional!).
 			build = "make install_jsregexp",
 		},
-		"saadparwaiz1/cmp_luasnip",   -- for autocompletion
+		"saadparwaiz1/cmp_luasnip", -- for autocompletion
 		"rafamadriz/friendly-snippets", -- useful snippets
-		"onsails/lspkind.nvim",       -- vs-code like pictograms
+		"onsails/lspkind.nvim", -- vs-code like pictograms
+		"Snikimonkd/cmp-go-pkgs",
+		"hrsh7th/cmp-nvim-lsp-signature-help",
 	},
 	config = function()
 		local cmp = require("cmp")
@@ -22,6 +24,31 @@ return {
 
 		local lspkind = require("lspkind")
 
+		-- Variable to track signature help state
+		local signature_help_enabled = true
+
+		-- Function to toggle signature help
+		local function toggle_signature_help()
+			signature_help_enabled = not signature_help_enabled
+			local sources = cmp.get_config().sources
+
+			-- Rebuild sources list
+			local new_sources = {}
+			for _, source in ipairs(sources) do
+				if source.name ~= "nvim_lsp_signature_help" then
+					table.insert(new_sources, source)
+				end
+			end
+
+			-- Add signature help if enabled
+			if signature_help_enabled then
+				table.insert(new_sources, { name = "nvim_lsp_signature_help" })
+			end
+
+			cmp.setup.buffer({ sources = new_sources })
+			vim.notify("Signature help " .. (signature_help_enabled and "enabled" or "disabled"))
+		end
+
 		-- loads vscode style snippets from installed plugins (e.g. friendly-snippets)
 		require("luasnip.loaders.from_vscode").lazy_load()
 
@@ -29,21 +56,37 @@ return {
 			completion = {
 				completeopt = "menu,menuone,preview,noselect",
 			},
+			sorting = {
+				priority_weight = 2,
+				comparators = {
+					cmp.config.compare.offset,
+					cmp.config.compare.exact,
+					cmp.config.compare.score,
+					cmp.config.compare.recently_used,
+					cmp.config.compare.locality,
+					cmp.config.compare.kind,
+					cmp.config.compare.sort_text,
+					cmp.config.compare.length,
+					cmp.config.compare.order,
+				},
+			},
 			snippet = { -- configure how nvim-cmp interacts with snippet engine
 				expand = function(args)
 					luasnip.lsp_expand(args.body)
 				end,
 			},
 			mapping = cmp.mapping.preset.insert({
-				["<C-k>"] = cmp.mapping.select_prev_item(), -- previous suggestion
-				["<C-j>"] = cmp.mapping.select_next_item(), -- next suggestion
-				["<C-b>"] = cmp.mapping.scroll_docs(-4),
-				["<C-f>"] = cmp.mapping.scroll_docs(4),
-				["<C-Space>"] = cmp.mapping.complete(), -- show completion suggestions
-				["<C-e>"] = cmp.mapping.abort(),    -- close completion window
+				["<C-s>"] = cmp.mapping.complete_common_string(),
+				["<A-s>"] = function()
+					toggle_signature_help()
+				end, -- Toggle signature help
+				["<C-k>"] = cmp.mapping.scroll_docs(-4),
+				["<C-j>"] = cmp.mapping.scroll_docs(4),
+				["<A-c>"] = cmp.mapping.complete(), -- show completion suggestions
+				["<C-e>"] = cmp.mapping.abort(), -- close completion window
 				["<CR>"] = cmp.mapping.confirm({ select = false }),
 				-- Tab mapping
-				["<Tab>"] = function(fallback)
+				["<C-n>"] = function(fallback)
 					if cmp.visible() then
 						cmp.select_next_item()
 					elseif luasnip.expand_or_jumpable() then
@@ -52,7 +95,7 @@ return {
 						fallback()
 					end
 				end,
-				["<S-Tab>"] = function(fallback)
+				["<C-p>"] = function(fallback)
 					if cmp.visible() then
 						cmp.select_prev_item()
 					elseif luasnip.jumpable(-1) then
@@ -64,12 +107,12 @@ return {
 			}),
 			-- sources for autocompletion
 			sources = cmp.config.sources({
-				{ name = "lazydev",                group_index = 0 },
-				{ name = "nvim_lsp",               priority = 8 },
+				{ name = "nvim_lsp", priority = 8 },
 				{ name = "nvim_lsp_signature_help" },
-				{ name = "luasnip",                priority = 7 }, -- snippets
-				{ name = "buffer",                 priority = 7,   keyword_length = 4 }, -- text within current buffer
-				{ name = "path",                   priority = 4 }, -- file system paths
+				{ name = "luasnip", priority = 7 }, -- snippets
+				{ name = "buffer", priority = 7, keyword_length = 4 }, -- text within current buffer
+				{ name = "go_pkgs", priority = 5 },
+				{ name = "path", priority = 4 }, -- file system paths
 			}),
 
 			-- configure lspkind for vs-code like pictograms in completion menu
@@ -78,8 +121,13 @@ return {
 				format = lspkind.cmp_format({
 					maxwidth = 50,
 					mode = "symbol",
+					with_text = true,
+					menu = {
+						go_pkgs = "[pkgs]",
+					},
 				}),
 			},
+			matching = { disallow_symbol_nonprefix_matching = false }, -- to use . and / in urls
 		})
 	end,
 }

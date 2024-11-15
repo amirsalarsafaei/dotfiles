@@ -1,2 +1,2 @@
-require('binaryboy.core')
-require('binaryboy.lazy')
+require("binaryboy.core")
+require("binaryboy.lazy")

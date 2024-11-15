@@ -7,6 +7,31 @@ in
     allowUnfree = true;
     allowUnfreePredicate = (_: true);
   };
+  nixpkgs.overlays = [
+    (final: prev: {
+      postman = prev.postman.overrideAttrs (old: rec {
+        version = "20241026182607";
+        src = final.fetchurl {
+          url = "https://dl.pstmn.io/download/latest/linux_arm";
+          sha256 = "14pp3frips0nwdb3xxryyixakl6bbxi94jkd1aq40xg6pcl2s58g";
+          name = "${old.pname}-${version}.tar.gz";
+        };
+        buildInputs = old.buildInputs ++ [ pkgs.xdg-utils ];
+        postFixup = ''
+          pushd $out/share/postman
+          patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" postman
+          patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" chrome_crashpad_handler
+          for file in $(find . -type f \( -name \*.node -o -name postman -o -name \*.so\* \) ); do
+            ORIGIN=$(patchelf --print-rpath $file); \
+            patchelf --set-rpath "${pkgs.lib.makeLibraryPath old.buildInputs}:$ORIGIN" $file
+          done
+          popd
+          wrapProgram $out/bin/postman --set PATH ${pkgs.lib.makeBinPath [ pkgs.openssl pkgs.xdg-utils ]}:\$PATH
+        '';
+
+      });
+    })
+  ];
   # Home Manager needs a bit of information about you and the paths it should
   # manage.
   home.username = "amirsalar";
@@ -25,9 +50,12 @@ in
   # enviroent.
   home.packages = [
     # Dev Tools
+    pkgs.fd
     pkgs.ffmpeg_7-full
     pkgs.libimobiledevice
     pkgs.ifuse
+    pkgs.xdg-utils
+    pkgs.iptables
     pkgs.kdePackages.kdenlive
     (pkgs.pass.withExtensions
       (exts: [ exts.pass-otp ]))
@@ -400,6 +428,8 @@ in
       bind BTab switch-client -l  
       bind - split-window -c '#{pane_current_path}' -v
       bind _ split-window -c '#{pane_current_path}' -h
+      bind = split-window -c '#{pane_current_path}' -v -l '20%'
+      bind + split-window -c '#{pane_current_path}' -h -l '20%'
       # pane navigation
       bind -r h select-pane -L # move left 
       bind -r j select-pane -D # move down 
@@ -631,6 +661,68 @@ in
           on-resume = "hyprctl dispatch dpms on";
         }
       ];
+    };
+  };
+  xdg.mimeApps = {
+    enable = true;
+    associations.added = {
+      "application/x-extension-htm" = [ "firefox.desktop" ];
+      "application/x-extension-html" = [ "firefox.desktop" ];
+      "application/x-extension-shtml" = [ "firefox.desktop" ];
+      "application/x-extension-xht" = [ "firefox.desktop" ];
+      "application/x-extension-xhtml" = [ "firefox.desktop" ];
+      "application/xhtml+xml" = [ "firefox.desktop" ];
+      "text/html" = [ "firefox.desktop" ];
+      "video/quicktime" = [ "vlc-2.desktop" ];
+      "video/x-matroska" = [ "vlc-4.desktop" "vlc-3.desktop" ];
+      "x-scheme-handler/chrome" = [ "firefox.desktop" ];
+      "x-scheme-handler/http" = [ "firefox.desktop" ];
+      "x-scheme-handler/https" = [ "firefox.desktop" ];
+    };
+
+    defaultApplications = {
+      "application/x-extension-htm" = "firefox.desktop";
+      "application/x-extension-html" = "firefox.desktop";
+      "application/x-extension-shtml" = "firefox.desktop";
+      "application/x-extension-xht" = "firefox.desktop";
+      "application/x-extension-xhtml" = "firefox.desktop";
+      "application/xhtml+xml" = "firefox.desktop";
+      "text/html" = "firefox.desktop";
+      "video/quicktime" = "vlc-2.desktop";
+      "video/x-matroska" = "vlc-4.desktop";
+      "x-scheme-handler/chrome" = "firefox.desktop";
+      "x-scheme-handler/http" = "firefox.desktop";
+      "x-scheme-handler/https" = "firefox.desktop";
+      "x-scheme-handler/postman" = "postman.desktop";
+    };
+  };
+  services.dunst = {
+    enable = true;
+    settings = {
+      global = {
+        width = 300;
+        height = 300;
+        offset = "30x50";
+        origin = "top-right";
+        transparency = 10;
+        padding = 5;
+        corner_radius = 10;
+        frame_color = "#eceff1";
+        font = "JetBrainsMono Nerd Font Mono";
+        progress_bar = true;
+        progress_bar_height = 10;
+        progress_bar_frame_width = 1;
+        progress_bar_min_width = 150;
+        progress_bar_max_width = 300;
+        progress_bar_corner_radius = 5;
+        highlight = "#34a1db";
+      };
+
+      urgency_normal = {
+        background = "#5f7296";
+        foreground = "#eceff1";
+        timeout = 10;
+      };
     };
   };
 }

@@ -16,12 +16,14 @@ return {
 			"hrsh7th/cmp-nvim-lsp",
 			{ "antosha417/nvim-lsp-file-operations", config = true },
 			"nanotee/sqls.nvim",
+			"j-hui/fidget.nvim",
 		},
 		config = function()
 			local lspconfig = require("lspconfig")
 			local configs = require("lspconfig.configs")
 			local util = require("lspconfig.util")
 			local mason_lspconfig = require("mason-lspconfig")
+			require("fidget").setup()
 
 			local cmp_nvim_lsp = require("cmp_nvim_lsp")
 
