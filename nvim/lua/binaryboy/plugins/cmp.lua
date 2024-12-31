@@ -52,6 +52,14 @@ return {
 		-- loads vscode style snippets from installed plugins (e.g. friendly-snippets)
 		require("luasnip.loaders.from_vscode").lazy_load()
 
+		-- Terminal completion configuration
+		cmp.setup.filetype("toggleterm", {
+			sources = {
+				{ name = "buffer" },
+				{ name = "path" },
+			},
+		})
+
 		cmp.setup({
 			completion = {
 				completeopt = "menu,menuone,preview,noselect",
@@ -114,6 +122,16 @@ return {
 				{ name = "go_pkgs", priority = 5 },
 				{ name = "path", priority = 4 }, -- file system paths
 			}),
+			enabled = function()
+				-- Disable completion in comments
+				local context = require("cmp.config.context")
+				-- Keep command mode completion enabled when cursor is in a comment
+				if vim.api.nvim_get_mode().mode == "c" then
+					return true
+				else
+					return not context.in_treesitter_capture("comment") and not context.in_syntax_group("Comment")
+				end
+			end,
 
 			-- configure lspkind for vs-code like pictograms in completion menu
 			--

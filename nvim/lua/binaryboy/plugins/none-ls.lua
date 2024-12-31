@@ -16,7 +16,33 @@ return {
 		local null_ls = require("null-ls")
 
 		null_ls.setup({
+			debounce = 150, -- Debounce formatting requests
 			sources = {
+				-- markdown
+				null_ls.builtins.formatting.prettier.with({
+					filetypes = { "markdown", "json", "yaml", "markdown.mdx" },
+				}),
+
+				-- shell scripts
+				null_ls.builtins.formatting.shfmt.with({
+					extra_args = { "-i", "2", "-ci" },
+				}),
+
+				-- yaml/json
+				null_ls.builtins.formatting.yamlfmt,
+				null_ls.builtins.diagnostics.yamllint,
+
+				-- docker
+				null_ls.builtins.diagnostics.hadolint,
+
+				-- git commits
+				null_ls.builtins.diagnostics.commitlint,
+
+				-- spelling
+				null_ls.builtins.diagnostics.codespell.with({
+					filetypes = { "markdown", "text" },
+				}),
+
 				-- golang
 				null_ls.builtins.formatting.gofmt,
 				null_ls.builtins.formatting.goimports_reviser.with({
@@ -36,6 +62,8 @@ return {
 				-- sql
 				null_ls.builtins.diagnostics.sqlfluff.with({ extra_args = get_sqlfluff_args() }),
 				null_ls.builtins.formatting.sqlfluff.with({ extra_args = get_sqlfluff_args() }),
+
+				null_ls.builtins.formatting.buf,
 			},
 			on_attach = function(client, bufnr)
 				if client.supports_method("textDocument/formatting") then
@@ -52,8 +80,12 @@ return {
 		})
 
 		require("mason-null-ls").setup({
-			ensure_installed = {},
 			automatic_installation = true,
+			handlers = {
+				buf = function()
+					-- Do nothing for buf formatter
+				end,
+			},
 		})
 
 		Map("n", "<leader>gf", vim.lsp.buf.format, { desc = "Format buffer" })

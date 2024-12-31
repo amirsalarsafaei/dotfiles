@@ -56,7 +56,6 @@ in
     pkgs.ifuse
     pkgs.xdg-utils
     pkgs.iptables
-    pkgs.kdePackages.kdenlive
     (pkgs.pass.withExtensions
       (exts: [ exts.pass-otp ]))
     pkgs.rofi-pass-wayland
@@ -72,68 +71,11 @@ in
     pkgs.ngrok
     pkgs.postman
     pkgs.vlc
-    pkgs.obs-studio
     pkgs.telegram-desktop
     pkgs.openfortivpn
     pkgs.pkg-config
     pkgs.openssl_3_3
     pkgs.telepresence2
-    (pkgs.jetbrains.goland.override {
-      vmopts = ''
-        												-Xms128m
-        												-Xmx1024m
-        												-XX:ReservedCodeCacheSize=512m
-        												-XX:+IgnoreUnrecognizedVMOptions
-        												-XX:+UseG1GC
-        												-XX:SoftRefLRUPolicyMSPerMB=50
-        												-XX:CICompilerCount=2
-        												-XX:+HeapDumpOnOutOfMemoryError
-        												-XX:-OmitStackTraceInFastThrow
-        												-ea
-        												-Dsun.io.useCanonCaches=false
-        												-Djdk.http.auth.tunneling.disabledSchemes=""
-        												-Djdk.attach.allowAttachSelf=true
-        												-Djdk.module.illegalAccess.silent=true
-        												-Dkotlinx.coroutines.debug=off
-        												-XX:ErrorFile=$USER_HOME/java_error_in_idea_%p.log
-        												-XX:HeapDumpPath=$USER_HOME/java_error_in_idea.hprof
-
-        										--add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED
-        											--add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED
-
-        												-javaagent:/home/amirsalar/ja-netfilter/ja-netfilter.jar=jetbrains
-
-        										-Dawt.toolkit.name=WLToolkit
-        											'';
-    })
-    (pkgs.jetbrains.webstorm.override {
-      vmopts = ''
-
-			-Xms128m
-			-Xmx1024m
-			-XX:ReservedCodeCacheSize=512m
-			-XX:+IgnoreUnrecognizedVMOptions
-			-XX:+UseG1GC
-			-XX:SoftRefLRUPolicyMSPerMB=50
-			-XX:CICompilerCount=2
-			-XX:+HeapDumpOnOutOfMemoryError
-			-XX:-OmitStackTraceInFastThrow
-			-ea
-			-Dsun.io.useCanonCaches=false
-			-Djdk.http.auth.tunneling.disabledSchemes=""
-			-Djdk.attach.allowAttachSelf=true
-			-Djdk.module.illegalAccess.silent=true
-			-Dkotlinx.coroutines.debug=off
-			-XX:ErrorFile=$USER_HOME/java_error_in_idea_%p.log
-			-XX:HeapDumpPath=$USER_HOME/java_error_in_idea.hprof
-
-			--add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED
-			--add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED
-
-			-javaagent:/home/amirsalar/ja-netfilter/ja-netfilter.jar=jetbrains
-			-Dawt.toolkit.name=WLToolkit
-			'';
-    })
     pkgs.asciiquarium
     pkgs.docker
     pkgs.docker-compose
@@ -147,11 +89,9 @@ in
     pkgs.tmux
     pkgs.tmuxinator
 
-
     (pkgs.python3Full.withPackages (ppkgs: [
       ppkgs.libtmux
     ]))
-
     pkgs.zsh
     pkgs.oh-my-zsh
     pkgs.zsh-fast-syntax-highlighting
@@ -315,7 +255,10 @@ in
       ];
     };
     enableCompletion = true;
-    autosuggestion.enable = true;
+    autosuggestion = {
+      enable = true;
+      strategy = [ "history" "completion" ];
+    };
     syntaxHighlighting.enable = true;
 
     shellGlobalAliases = {
@@ -344,6 +287,22 @@ in
         src = pkgs.zsh-autocomplete.src;
       }
     ];
+
+    initExtraFirst = ''
+      # Autocomplete settings
+      zstyle ':autocomplete:*' min-input 1
+      zstyle ':autocomplete:*' min-delay 0.05  # seconds (float)
+      zstyle ':autocomplete:*' max-lines 50%
+      zstyle ':autocomplete:history-search:*' list-lines 16
+      zstyle ':autocomplete:history-incremental-search-*:*' list-lines 16
+      zstyle ':autocomplete:*' recent-dirs off
+      zstyle ':autocomplete:*' insert-unambiguous yes
+      zstyle ':autocomplete:*' widget-style menu-select
+      zstyle ':autocomplete:*' fzf-completion yes
+      zstyle ':autocomplete:*' async yes
+      zstyle ':autocomplete:*' list-lines 10
+      zstyle ':autocomplete:*' delay 0.1
+    '';
 
     initExtra = ''
             source ${homeDir}/.p10k.zsh
@@ -666,34 +625,34 @@ in
   xdg.mimeApps = {
     enable = true;
     associations.added = {
-      "application/x-extension-htm" = [ "firefox.desktop" ];
-      "application/x-extension-html" = [ "firefox.desktop" ];
-      "application/x-extension-shtml" = [ "firefox.desktop" ];
-      "application/x-extension-xht" = [ "firefox.desktop" ];
-      "application/x-extension-xhtml" = [ "firefox.desktop" ];
-      "application/xhtml+xml" = [ "firefox.desktop" ];
-      "text/html" = [ "firefox.desktop" ];
+      "application/x-extension-htm" = [ "chromium.desktop" ];
+      "application/x-extension-html" = [ "chromium.desktop" ];
+      "application/x-extension-shtml" = [ "chromium.desktop" ];
+      "application/x-extension-xht" = [ "chromium.desktop" ];
+      "application/x-extension-xhtml" = [ "chromium.desktop" ];
+      "application/xhtml+xml" = [ "chromium.desktop" ];
+      "text/html" = [ "chromium.desktop" ];
       "video/quicktime" = [ "vlc-2.desktop" ];
       "video/x-matroska" = [ "vlc-4.desktop" "vlc-3.desktop" ];
-      "x-scheme-handler/chrome" = [ "firefox.desktop" ];
-      "x-scheme-handler/http" = [ "firefox.desktop" ];
-      "x-scheme-handler/https" = [ "firefox.desktop" ];
+      "x-scheme-handler/chrome" = [ "chromium.desktop" ];
+      "x-scheme-handler/http" = [ "chromium.desktop" ];
+      "x-scheme-handler/https" = [ "chromium.desktop" ];
     };
 
     defaultApplications = {
-      "application/x-extension-htm" = "firefox.desktop";
-      "application/x-extension-html" = "firefox.desktop";
-      "application/x-extension-shtml" = "firefox.desktop";
-      "application/x-extension-xht" = "firefox.desktop";
-      "application/x-extension-xhtml" = "firefox.desktop";
-      "application/xhtml+xml" = "firefox.desktop";
-      "text/html" = "firefox.desktop";
+      "application/x-extension-htm" = "chromium.desktop";
+      "application/x-extension-html" = "chromium.desktop";
+      "application/x-extension-shtml" = "chromium.desktop";
+      "application/x-extension-xht" = "chromium.desktop";
+      "application/x-extension-xhtml" = "chromium.desktop";
+      "application/xhtml+xml" = "chromium.desktop";
+      "text/html" = "chromium.desktop";
       "video/quicktime" = "vlc-2.desktop";
       "video/x-matroska" = "vlc-4.desktop";
-      "x-scheme-handler/chrome" = "firefox.desktop";
-      "x-scheme-handler/http" = "firefox.desktop";
-      "x-scheme-handler/https" = "firefox.desktop";
-      "x-scheme-handler/postman" = "postman.desktop";
+      "x-scheme-handler/chrome" = "chromium.desktop";
+      "x-scheme-handler/http" = "chromium.desktop";
+      "x-scheme-handler/https" = "chromium.desktop";
+      "x-scheme-handler/postman" = "chromium.desktop";
     };
   };
   services.dunst = {
