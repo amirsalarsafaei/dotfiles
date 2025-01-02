@@ -15,7 +15,7 @@
             name = "${old.pname}-${version}.tar.gz";
           } else {
             url = "https://dl.pstmn.io/download/latest/linux_64";
-            sha256 = "10zcbjxm7810jpbgggsmdn3acprqhk3p3ci95hhjp4ss4fnwc663";
+            sha256 = "j18cmaD95DiOZYM15b7wm8JNOWqRfBV0FVHFll6INRI=";
             name = "${old.pname}-${version}.tar.gz";
           }
         );
