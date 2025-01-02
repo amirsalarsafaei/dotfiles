@@ -12,18 +12,23 @@
 
   outputs = { nixpkgs, home-manager, ... }:
     let
-      system = "aarch64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
-    in {
-      homeConfigurations."amirsalar" = home-manager.lib.homeManagerConfiguration {
-        inherit pkgs;
-
-        # Specify your home configuration modules here, for example,
-        # the path to your home.nix.
-        modules = [ ./home.nix ];
-
-        # Optionally use extraSpecialArgs
-        # to pass through arguments to home.nix
-      };
+      supportedSystems = [ "x86_64-linux" "aarch64-linux" ];
+      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
+      pkgsForSystem = system: nixpkgs.legacyPackages.${system};
+    in
+    {
+      homeConfigurations = forAllSystems (system: {
+        "amirsalar" = home-manager.lib.homeManagerConfiguration {
+          pkgs = pkgsForSystem system;
+          modules = [
+            ./home.nix
+            {
+              _module.args = {
+                homeDir = "/home/amirsalar";
+              };
+            }
+          ];
+        };
+      })."amirsalar";
     };
 }

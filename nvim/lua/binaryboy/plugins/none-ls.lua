@@ -49,7 +49,6 @@ return {
 					extra_args = { "-company-prefixes", "git.divar.cloud/divar" },
 				}),
 				null_ls.builtins.diagnostics.golangci_lint,
-				null_ls.builtins.formatting.gofumpt,
 
 				-- python
 				null_ls.builtins.formatting.isort,
