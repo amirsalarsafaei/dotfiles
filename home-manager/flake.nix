@@ -12,23 +12,30 @@
 
   outputs = { nixpkgs, home-manager, ... }:
     let
-      supportedSystems = [ "x86_64-linux" "aarch64-linux" ];
-      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-      pkgsForSystem = system: nixpkgs.legacyPackages.${system};
+      systems = {
+        x86_64 = "x86_64-linux";
+        aarch64 = "aarch64-linux";
+      };
+      username = "amirsalar";
     in
     {
-      homeConfigurations = forAllSystems (system: {
-        "amirsalar" = home-manager.lib.homeManagerConfiguration {
-          pkgs = pkgsForSystem system;
+      homeConfigurations = {
+        "${username}@rog" = home-manager.lib.homeManagerConfiguration {
+          pkgs = nixpkgs.legacyPackages.${systems.x86_64};
           modules = [
             ./home.nix
-            {
-              _module.args = {
-                homeDir = "/home/amirsalar";
-              };
-            }
+            { _module.args = { homeDir = "/home/${username}"; }; }
+            ./rog.nix
           ];
         };
-      })."amirsalar";
+        "${username}@mac" = home-manager.lib.homeManagerConfiguration {
+          pkgs = nixpkgs.legacyPackages.${systems.aarch64};
+          modules = [
+            ./home.nix
+            { _module.args = { homeDir = "/home/${username}"; }; }
+            ./mac.nix
+          ];
+        };
+      };
     };
 }

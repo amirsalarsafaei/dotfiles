@@ -1,7 +1,4 @@
-{ pkgs, config, ... }:
-let
-  homeDir = config.home.homeDirectory;
-in
+{ pkgs, config, homeDir, ... }:
 {
   nixpkgs.config = {
     allowUnfree = true;
@@ -34,22 +31,13 @@ in
           popd
           wrapProgram $out/bin/postman --set PATH ${pkgs.lib.makeBinPath [ pkgs.openssl pkgs.xdg-utils ]}:\$PATH
         '';
-
       });
     })
   ];
-  # Home Manager needs a bit of information about you and the paths it should
-  # manage.
+
   home.username = "amirsalar";
   home.homeDirectory = "/home/amirsalar";
 
-  # This value determines the Home Manager release that your configuration is
-  # compatible with. This helps avoid breakage when a new Home Manager release
-  # introduces backwards incompatible changes.
-  #
-  # You should not change this value, even if you update Home Manager. If you do
-  # want to update the value, then make sure to first check the Home Manager
-  # release notes.
   home.stateVersion = "24.05"; # Please read the comment before changing.
 
   # The home.packages option allows you to install Nix packages into your
@@ -65,29 +53,14 @@ in
     '';
   };
 
-  # Home Manager can also manage your environment variables through
-  # 'home.sessionVariables'. These will be explicitly sourced when using a
-  # shell provided by Home Manager. If you don't want to manage your shell
-  # through Home Manager then you have to manually source 'hm-session-vars.sh'
-  # located at either
-  #
-  #  ~/.nix-profile/etc/profile.d/hm-session-vars.sh
-  #
-  # or
-  #
-  #  ~/.local/state/nix/profiles/profile/etc/profile.d/hm-session-vars.sh
-  #
-  # or
-  #
-  #  /etc/profiles/per-user/amirsalar/etc/profile.d/hm-session-vars.sh
-  #
   home.sessionVariables = {
     EDITOR = "nvim";
     GOPATH = "${homeDir}/go";
-    GOPRIVATE = "git.divar.cloud,git.cafebazaar.ir";
+    GOPRIVATE = "git.divar.cloud";
     GOBIN = "${homeDir}/.local/bin";
     PATH = "$PATH:/usr/local/bin";
   };
+
   home.sessionPath = [
     "$HOME/.local/bin"
   ];
@@ -103,41 +76,7 @@ in
     };
   };
 
-  # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;
 
-  xdg.mimeApps = {
-    enable = true;
-    associations.added = {
-      "application/x-extension-htm" = [ "chromium.desktop" ];
-      "application/x-extension-html" = [ "chromium.desktop" ];
-      "application/x-extension-shtml" = [ "chromium.desktop" ];
-      "application/x-extension-xht" = [ "chromium.desktop" ];
-      "application/x-extension-xhtml" = [ "chromium.desktop" ];
-      "application/xhtml+xml" = [ "chromium.desktop" ];
-      "text/html" = [ "chromium.desktop" ];
-      "video/quicktime" = [ "vlc-2.desktop" ];
-      "video/x-matroska" = [ "vlc-4.desktop" "vlc-3.desktop" ];
-      "x-scheme-handler/chrome" = [ "chromium.desktop" ];
-      "x-scheme-handler/http" = [ "chromium.desktop" ];
-      "x-scheme-handler/https" = [ "chromium.desktop" ];
-    };
-
-    defaultApplications = {
-      "application/x-extension-htm" = "chromium.desktop";
-      "application/x-extension-html" = "chromium.desktop";
-      "application/x-extension-shtml" = "chromium.desktop";
-      "application/x-extension-xht" = "chromium.desktop";
-      "application/x-extension-xhtml" = "chromium.desktop";
-      "application/xhtml+xml" = "chromium.desktop";
-      "text/html" = "chromium.desktop";
-      "video/quicktime" = "vlc-2.desktop";
-      "video/x-matroska" = "vlc-4.desktop";
-      "x-scheme-handler/chrome" = "chromium.desktop";
-      "x-scheme-handler/http" = "chromium.desktop";
-      "x-scheme-handler/https" = "chromium.desktop";
-      "x-scheme-handler/postman" = "chromium.desktop";
-    };
-  };
   imports = [ ./modules ];
 }
