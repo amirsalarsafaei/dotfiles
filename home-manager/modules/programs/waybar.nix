@@ -8,9 +8,9 @@
           layer = "top";
           exclusive = true;
           battery = {
-            format = " \t{capacity}%";
-            format-charging = "󰢝 \t{capacity}%";
-            format-plugged = " \t{capacity}%";
+            format = "  {capacity}%";
+            format-charging = "󰢝  {capacity}%";
+            format-plugged = "  {capacity}%";
             interval = 30;
           };
           clock = {
@@ -18,7 +18,7 @@
             interval = 1;
           };
           cpu = {
-            format = " \t{usage}%";
+            format = "  {usage}%";
             interval = 5;
           };
           "custom/absclock" = {
@@ -48,7 +48,7 @@
             };
           };
           memory = {
-            format = " \t{}%";
+            format = "  {}%";
             interval = 5;
           };
           "hyprland/window" = {
@@ -66,15 +66,15 @@
           };
           position = "top";
           temperature = {
-            format = "\t{temperatureC}°C";
+            format = " {temperatureC}°C";
             interval = 1;
           };
           tray = {
             spacing = 10;
           };
           wireplumber = {
-            format = " \t{volume}%";
-            format-muted = "\tmute";
+            format = "  {volume}%";
+            format-muted = " mute";
             on-click = "pavucontrol";
             scroll-step = 1;
           };

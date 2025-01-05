@@ -1,37 +1,235 @@
-/*
-*
-* Catppuccin Mocha palette
-* Maintainer: rubyowo
-*
-*/
+/* =============================================================================
+ *
+ * Waybar configuration
+ *
+ * Configuration reference: https://github.com/Alexays/Waybar/wiki/Configuration
+ *
+ * =========================================================================== */
 
-@define-color base   #24273a;
-@define-color mantle #1e2030;
-@define-color crust  #181926;
+/* -----------------------------------------------------------------------------
+ * Keyframes
+ * -------------------------------------------------------------------------- */
 
-@define-color text     #cad3f5;
-@define-color subtext0 #a5adcb;
-@define-color subtext1 #b8c0e0;
+@keyframes blink-warning {
+  70% {
+    color: white;
+  }
 
-@define-color surface0 #363a4f;
-@define-color surface1 #494d64;
-@define-color surface2 #5b6078;
+  to {
+    color: white;
+    background-color: orange;
+  }
+}
 
-@define-color overlay0 #6e738d;
-@define-color overlay1 #8087a2;
-@define-color overlay2 #939ab7;
+@keyframes blink-critical {
+  70% {
+    color: white;
+  }
 
-@define-color blue      #8aadf4;
-@define-color lavender  #b7bdf8;
-@define-color sapphire  #7dc4e4;
-@define-color sky       #91d7e3;
-@define-color teal      #8bd5ca;
-@define-color green     #a6da95;
-@define-color yellow    #eed49f;
-@define-color peach     #f5a97f;
-@define-color maroon    #ee99a0;
-@define-color red       #ed8796;
-@define-color mauve     #c6a0f6;
-@define-color pink      #f5bde6;
-@define-color flamingo  #f0c6c6;
-@define-color rosewater #f4dbd6;
+  to {
+    color: white;
+    background-color: red;
+  }
+}
+
+
+/* -----------------------------------------------------------------------------
+ * Base styles
+ * -------------------------------------------------------------------------- */
+
+/* Reset all styles */
+* {
+  border: none;
+  border-radius: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  transition: all 0.3s ease;
+}
+
+/* The whole bar */
+#waybar {
+  background: linear-gradient(45deg, #1a1b26 0%, #24283b 100%);
+  color: #c0caf5;
+  font-family: 'JetBrains Mono Nerd Font', Cantarell, Noto Sans, sans-serif;
+  font-size: 13px;
+  border-radius: 0 0 12px 12px;
+  margin: 0 8px;
+  box-shadow: rgba(0, 0, 0, 0.116) 2px 2px 4px 2px;
+}
+
+/* Each module */
+#battery,
+#clock,
+#cpu,
+#custom-keyboard-layout,
+#memory,
+#mode,
+#network,
+#pulseaudio,
+#temperature,
+#tray {
+  padding: 0 10px;
+  margin: 4px 4px;
+  border-radius: 8px;
+  background: rgba(36, 40, 59, 0.4);
+  color: #c0caf5;
+}
+
+#battery:hover,
+#clock:hover,
+#cpu:hover,
+#custom-keyboard-layout:hover,
+#memory:hover,
+#network:hover,
+#pulseaudio:hover,
+#temperature:hover {
+  background: rgba(36, 40, 59, 0.8);
+  box-shadow: rgba(0, 0, 0, 0.116) 2px 2px 4px 2px;
+}
+
+
+/* -----------------------------------------------------------------------------
+ * Module styles
+ * -------------------------------------------------------------------------- */
+
+#battery {
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+
+
+
+#battery.warning {
+  color: #e0af68;
+  background: rgba(224, 175, 104, 0.2);
+}
+
+#battery.critical {
+  color: #f7768e;
+  background: rgba(247, 118, 142, 0.2);
+}
+
+#battery.warning.discharging {
+  animation-name: blink-warning;
+  animation-duration: 3s;
+}
+
+#battery.critical.discharging {
+  animation-name: blink-critical;
+  animation-duration: 2s;
+}
+
+#clock {
+  font-weight: bold;
+  color: #7aa2f7;
+  background: rgba(122, 162, 247, 0.2);
+}
+
+#cpu {
+  /* No styles */
+}
+
+#cpu.warning {
+  color: orange;
+}
+
+#cpu.critical {
+  color: red;
+}
+
+#memory {
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+
+#memory.warning {
+  color: orange;
+}
+
+#memory.critical {
+  color: red;
+  animation-name: blink-critical;
+  animation-duration: 2s;
+}
+
+#mode {
+  background: #64727D;
+  border-top: 2px solid white;
+  /* To compensate for the top border and still have vertical centering */
+  padding-bottom: 2px;
+}
+
+#network {
+  /* No styles */
+}
+
+#network.disconnected {
+  color: orange;
+}
+
+#pulseaudio {
+  /* No styles */
+}
+
+#pulseaudio.muted {
+  /* No styles */
+}
+
+#custom-spotify {
+  color: #9ece6a;
+  background: rgba(158, 206, 106, 0.2);
+  border-radius: 8px;
+  padding: 0 12px;
+  margin: 4px 4px;
+}
+
+#custom-spotify:hover {
+  background: rgba(158, 206, 106, 0.3);
+  box-shadow: rgba(0, 0, 0, 0.116) 2px 2px 4px 2px;
+}
+
+#temperature {
+  /* No styles */
+}
+
+#temperature.critical {
+  color: red;
+}
+
+#tray {
+  /* No styles */
+}
+
+#window {
+  font-weight: bold;
+}
+
+#workspaces button {
+  padding: 0 10px;
+  margin: 4px 4px;
+  border-radius: 8px;
+  background: rgba(36, 40, 59, 0.4);
+  color: #565f89;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+#workspaces button.focused {
+  background: rgba(122, 162, 247, 0.2);
+  color: #7aa2f7;
+  box-shadow: rgba(0, 0, 0, 0.116) 2px 2px 4px 2px;
+}
+
+#workspaces button.urgent {
+  background: rgba(247, 118, 142, 0.2);
+  color: #f7768e;
+}
+
+#workspaces button:hover {
+  background: rgba(36, 40, 59, 0.8);
+  color: #c0caf5;
+  box-shadow: rgba(0, 0, 0, 0.116) 2px 2px 4px 2px;
+}
