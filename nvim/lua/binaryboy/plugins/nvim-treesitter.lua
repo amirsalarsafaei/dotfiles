@@ -43,6 +43,10 @@ return {
 				"gitignore",
 				"query",
 				"vimdoc",
+				"nix",
+				"gomod",
+				"rust",
+				"sql",
 				"c",
 			},
 			incremental_selection = {
