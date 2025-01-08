@@ -56,7 +56,7 @@
             max-length = 30;
           };
           modules-center = [ ];
-          modules-left = [ "hyprland/workspaces" "tray" "network" "hyprland/window" ];
+          modules-left = [ "hyprland/workspaces" "hyprland/submap" "tray" "network" "hyprland/window" ];
           modules-right = [ "temperature" "cpu" "memory" "wireplumber" "battery" "hyprland/language" "clock" ];
           network = {
             format = "Net via {ifname}";

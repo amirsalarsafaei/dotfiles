@@ -11,7 +11,7 @@
         src = final.fetchurl (
           if pkgs.stdenv.hostPlatform.isAarch64 then {
             url = "https://dl.pstmn.io/download/latest/linux_arm";
-            sha256 = "14pp3frips0nwdb3xxryyixakl6bbxi94jkd1aq40xg6pcl2s58g";
+            sha256 = "ai58xhMTCDfST4RVoRBAExD7oDlSCq8N7+bJaPH2uF0=";
             name = "${old.pname}-${version}.tar.gz";
           } else {
             url = "https://dl.pstmn.io/download/latest/linux_64";

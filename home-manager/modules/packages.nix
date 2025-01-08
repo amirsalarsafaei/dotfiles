@@ -16,7 +16,6 @@
     pkgs.w3m
     pkgs.pavucontrol
     pkgs.sing-box
-    pkgs.handbrake
     pkgs.wofi
     pkgs.rofi-wayland
     pkgs.ngrok
@@ -87,7 +86,10 @@
     pkgs.ipcalc
     pkgs.nmap
     pkgs.gh
-    pkgs.nerdfonts
     pkgs.nload
+    pkgs.nerd-fonts.fira-code
+    pkgs.nerd-fonts.jetbrains-mono
+    pkgs.nerd-fonts.hack
   ];
+
 }
