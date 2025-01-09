@@ -89,7 +89,7 @@ config.keys = {
 	-- Leader key configuration (CTRL+b prefix)
 	{
 		key = "b",
-		mods = "LEADER|CTRL",
+		mods = "CTRL",
 		action = act.SendKey({ key = "b", mods = "CTRL" }),
 	},
 
