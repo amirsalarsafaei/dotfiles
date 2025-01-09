@@ -285,8 +285,10 @@ in
   services.blueman.enable = true;
   hardware.keyboard.qmk.enable = true;
 
+  fonts.fontDir.enable = true;
+  fonts.fontconfig.enable = true;
+
 
 
   boot.binfmt.emulatedSystems = [ "x86_64-linux" ];
 }
-

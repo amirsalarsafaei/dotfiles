@@ -90,6 +90,11 @@
     pkgs.nerd-fonts.fira-code
     pkgs.nerd-fonts.jetbrains-mono
     pkgs.nerd-fonts.hack
+    pkgs.nerd-fonts.meslo-lg
+    pkgs.nerd-fonts.ubuntu-mono
+    pkgs.nerd-fonts.inconsolata
+    pkgs.nerd-fonts.fantasque-sans-mono
+    pkgs.nerd-fonts.victor-mono
   ];
 
 }
