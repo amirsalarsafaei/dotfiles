@@ -94,9 +94,6 @@
         exec tmux new-session;
       fi
 
-      echo $TERM
-      
-
       ZVM_READKEY_ENGINE=$ZVM_READKEY_ENGINE_ZLE
 
       VI_MODE_SET_CURSOR=true
