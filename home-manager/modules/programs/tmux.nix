@@ -47,7 +47,6 @@
       bind -r C-l next-window     # select next window
       bind Tab last-window        # move to last active window
 
-      set -g default-terminal "tmux-256color"
 
       set-option -g status-interval 5
       set-option -g automatic-rename on

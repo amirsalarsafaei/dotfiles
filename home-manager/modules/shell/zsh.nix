@@ -22,7 +22,6 @@
         "dotenv"
         "git-prompt"
         "tmuxinator"
-        "vi-mode"
       ];
     };
     enableCompletion = true;
@@ -44,6 +43,15 @@
     };
 
     plugins = [
+      {
+        name = "zsh-vi-mode";
+        src = pkgs.fetchFromGitHub {
+          owner = "jeffreytse";
+          repo = "zsh-vi-mode";
+          rev = "cd730cd347dcc0d8ce1697f67714a90f07da26ed";
+          sha256 = "sha256-UQo9shimLaLp68U3EcsjcxokJHOTGhOjDw4XDx6ggF4=";
+        };
+      }
       {
         name = "zsh-powerlevel10k";
         src = pkgs.zsh-powerlevel10k.src;
@@ -81,30 +89,35 @@
     '';
 
     initExtra = ''
-            source ${homeDir}/.p10k.zsh
+      source ${homeDir}/.p10k.zsh
+      if [ -z "$TMUX" ] && { [ "$TERM" = "xterm-kitty" ] || [ "$TERM" = "wezterm1" ]; }; then
+        exec tmux new-session;
+      fi
 
-            ZVM_READKEY_ENGINE=$ZVM_READKEY_ENGINE_ZLE
+      echo $TERM
+      
 
-            VI_MODE_SET_CURSOR=true
+      ZVM_READKEY_ENGINE=$ZVM_READKEY_ENGINE_ZLE
 
-            # Load personal shell files if present
-            #___MY_VMOPTIONS_SHELL_FILE="{HOME}/.jetbrains.vmoptions.sh"
-            #if [ -f "{___MY_VMOPTIONS_SHELL_FILE}" ]; then
-            #  . "{___MY_VMOPTIONS_SHELL_FILE}"
-            #fi
+      VI_MODE_SET_CURSOR=true
 
-            # Key bindings
-            bindkey -M viins '^I' menu-select
-            bindkey -M viins "$terminfo[kcbt]" menu-select
-            bindkey -M vicmd '^I' menu-select
-            bindkey -M vicmd "$terminfo[kcbt]" menu-select
-            bindkey -M menuselect '^I' menu-complete
-            bindkey -M menuselect "$terminfo[kcbt]" reverse-menu-complete
-            bindkey -M vicmd '^E' autosuggest-accept
-      			if [ -z "$TMUX" ] && [ "$TERM" = "xterm-kitty" ]; then
-      			  exec tmux new-session && exit;
-      			fi
-            source ~/zshsecret
+      function zvm_after_init() {
+        bindkey -M viins '^I' menu-select
+        bindkey -M viins "$terminfo[kcbt]" menu-select
+        bindkey -M vicmd '^I' menu-select
+        bindkey -M vicmd "$terminfo[kcbt]" menu-select
+        bindkey -M menuselect '^I' menu-complete
+        bindkey -M menuselect "$terminfo[kcbt]" reverse-menu-complete
+        bindkey -M vicmd '^E' autosuggest-accept
+      }
+
+      # Load personal shell files if present
+      #___MY_VMOPTIONS_SHELL_FILE="{HOME}/.jetbrains.vmoptions.sh"
+      #if [ -f "{___MY_VMOPTIONS_SHELL_FILE}" ]; then
+      #  . "{___MY_VMOPTIONS_SHELL_FILE}"
+      #fi
+
+      source ~/zshsecret
     '';
   };
 }

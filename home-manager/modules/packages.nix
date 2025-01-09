@@ -95,6 +95,9 @@
     pkgs.nerd-fonts.inconsolata
     pkgs.nerd-fonts.fantasque-sans-mono
     pkgs.nerd-fonts.victor-mono
+    pkgs.nerd-fonts.iosevka-term-slab
+    pkgs.nerd-fonts.iosevka
+    pkgs.meslo-lgs-nf
   ];
 
 }
