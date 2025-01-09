@@ -2,6 +2,7 @@
   home.packages = [
     # Dev Tools
     pkgs.fd
+    pkgs.totp-cli
     pkgs.ffmpeg_7-full
     pkgs.libimobiledevice
     pkgs.ifuse
