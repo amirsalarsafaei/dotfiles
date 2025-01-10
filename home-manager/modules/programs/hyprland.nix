@@ -18,7 +18,7 @@
         "${monitors.secondaryMonitor},preferred,auto,auto"
       ];
 
-      "$terminal" = "kitty";
+      "$terminal" = "wezterm";
       "$fileManager" = "dolphin";
       "$menu" = "rofi -show run";
 

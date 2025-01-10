@@ -267,6 +267,16 @@
 
       #window {
         font-weight: bold;
+        padding: 0 10px;
+        margin: 4px 4px;
+        border-radius: 12px;
+        background: rgba(36, 40, 59, 0.4);
+        color: #c0caf5;
+      }
+
+      #window:hover {
+        background: rgba(36, 40, 59, 0.8);
+        box-shadow: rgba(0, 0, 0, 0.116) 2px 2px 4px 2px;
       }
 
       #workspaces button {
@@ -277,8 +287,17 @@
         color: #565f89;
         font-weight: bold;
         transition: all 0.3s ease;
-      min-width: 35px;
-      font-size: 15px;
+        min-width: 35px;
+        font-size: 15px;
+      }
+
+      #workspaces button .windows {
+        margin-left: 4px;
+        color: #7aa2f7;
+      }
+
+      #workspaces button.empty .windows {
+        color: #565f89;
       }
 
       #workspaces button.active {
@@ -360,10 +379,6 @@
             format = "  {}%";
             interval = 5;
           };
-          "hyprland/window" = {
-            format = "{}";
-            max-length = 30;
-          };
           modules-center = [ ];
           modules-left = [ "hyprland/workspaces" "network" "hyprland/window" "tray" ];
           modules-right = [
@@ -427,18 +442,25 @@
               "DP-1" = [ 6 7 8 9 ];
               "HDMI-A-1" = [ 6 7 8 9 ];
             };
-            format = "{icon}";
-            format-icons = {
-              "1" = "󰆍"; # Terminal/Dev
-              "2" = "󰈹"; # Web Browser
-              "3" = "󰭹"; # Chat/Social
-              "4" = "󰒓"; # Games
-              "5" = "󰉋"; # Files
-              "6" = "󰆍"; # Music
-              "7" = "󰈹"; # Video/Media
-              "8" = "󰭹"; # Settings
-              "9" = "󰒓"; # Downloads/Misc
+            format = "{icon} {windows}";
+            format-window-separator = " ";
+            window-rewrite-default = "";
+            window-rewrite = {
+              "chromium" = "󰈹";
+              "wezterm" = "󰆍";
+              "dolphin" = "󰉋";
+              "firefox" = "";
+              "code" = "󰨞";
+              "title<.*youtube.*>" = "󰗃";
+              "spotify" = "󰓇";
+              "discord" = "󰙯";
+              "steam" = "󰓓";
+              "org.pwmt.zathura" = "󰈙";
+              "mpv" = "󰕧";
+              "vlc" = "󰕧";
+              "foot" = "󰆍";
             };
+            max-length = 30;
           };
         };
 
