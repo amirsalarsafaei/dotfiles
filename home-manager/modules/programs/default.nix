@@ -7,5 +7,6 @@
     ./hyprlock.nix
     ./waybar.nix
     ./rofi.nix
+    ./wezterm.nix
   ];
 }
