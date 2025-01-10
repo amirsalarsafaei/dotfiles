@@ -50,7 +50,6 @@ config.skip_close_confirmation_for_processes_named = {
 
 -- Enable tab bar with nice features
 config.enable_tab_bar = true
-config.hide_tab_bar_if_only_one_tab = true
 config.use_fancy_tab_bar = true
 config.tab_max_width = 32
 config.show_tab_index_in_tab_bar = false
@@ -236,7 +235,7 @@ bar.apply_to_config(config, {
 			color = 6,
 		},
 		hostname = {
-			enabled = true,
+			enabled = false,
 			icon = wezterm.nerdfonts.cod_server,
 			color = 8,
 		},
