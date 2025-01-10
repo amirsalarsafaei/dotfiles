@@ -24,7 +24,7 @@
         "tmuxinator"
       ];
     };
-    enableCompletion = true;
+    enableCompletion = false;
     autosuggestion = {
       enable = true;
       strategy = [ "history" "completion" ];
@@ -64,25 +64,14 @@
     ];
 
     initExtraFirst = ''
-      # Autocomplete settings
-      zstyle ':autocomplete:*' min-input 2  # Characters before autocompletion triggers
-      zstyle ':autocomplete:*' delay 0.1    # Seconds (float) before autocompletion starts
-      zstyle ':autocomplete:*' max-lines 50%  # Maximum number of lines to use for autocompletion
-      zstyle ':autocomplete:*' list-lines 8   # Number of lines to show in list
-      zstyle ':autocomplete:history-search:*' list-lines 8  # Number of history lines to show
+      # Minimal completion configuration
+      zstyle ':completion:*' menu select
+      zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
       
-      # Behavior
-      zstyle ':autocomplete:*' recent-dirs off  # Don't suggest recent directories
-      zstyle ':autocomplete:*' insert-unambiguous no  # Don't insert common prefix
-      zstyle ':autocomplete:*' widget-style menu-select  # Use menu selection
-      zstyle ':autocomplete:*' fzf-completion yes  # Enable fzf integration
-      
-      # Performance
-      zstyle ':autocomplete:*' async yes  # Asynchronous suggestions
-      zstyle ':autocomplete:*' throttle 0.1  # Throttle rapid suggestions
-      
-      # Appearance
-      zstyle ':completion:*' menu select  # Enable menu selection
+      # Performance optimizations
+      export ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
+      export ZSH_AUTOSUGGEST_USE_ASYNC=true
+      export ZSH_AUTOSUGGEST_MANUAL_REBIND=1
     '';
 
     initExtra = ''
@@ -92,10 +81,10 @@
       fi
 
       # Load personal shell files if present
-      #___MY_VMOPTIONS_SHELL_FILE="{HOME}/.jetbrains.vmoptions.sh"
-      #if [ -f "{___MY_VMOPTIONS_SHELL_FILE}" ]; then
-      #  . "{___MY_VMOPTIONS_SHELL_FILE}"
-      #fi
+      ___MY_VMOPTIONS_SHELL_FILE="$HOME/.jetbrains.vmoptions.sh"
+      if [ -f "$___MY_VMOPTIONS_SHELL_FILE" ]; then
+        . "$___MY_VMOPTIONS_SHELL_FILE"
+      fi
 
       source ~/zshsecret
     '';

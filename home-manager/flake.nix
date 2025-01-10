@@ -24,7 +24,17 @@
           pkgs = nixpkgs.legacyPackages.${systems.x86_64};
           modules = [
             ./home.nix
-            { _module.args = { homeDir = "/home/${username}"; device = "rog"; }; }
+            {
+              _module.args = {
+                homeDir = "/home/${username}";
+                device = "rog";
+
+                monitors = {
+                  mainMonitor = "eDP-2";
+                  secondaryMonitor = "DP-1";
+                };
+              };
+            }
             ./rog.nix
           ];
         };
@@ -32,7 +42,17 @@
           pkgs = nixpkgs.legacyPackages.${systems.aarch64};
           modules = [
             ./home.nix
-            { _module.args = { homeDir = "/home/${username}"; device = "mac"; }; }
+            {
+              _module.args = {
+                homeDir = "/home/${username}";
+                device = "mac";
+
+                monitors = {
+                  mainMonitor = "eDP-1";
+                  secondaryMonitor = "HDMI-A-1";
+                };
+              };
+            }
             ./mac.nix
           ];
         };

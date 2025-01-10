@@ -8,5 +8,6 @@
     ./waybar.nix
     ./rofi.nix
     ./wezterm.nix
+    ./hyprland.nix
   ];
 }

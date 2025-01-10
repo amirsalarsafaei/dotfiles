@@ -100,14 +100,16 @@
     pkgs.nerd-fonts.iosevka-term-slab
     pkgs.nerd-fonts.iosevka
     pkgs.meslo-lgs-nf
-    (pkgs.chromium.override {
-      commandLineArgs = [
-        "--ozone-platform-hint=auto"
-        "--enable-wayland-ime"
-        "--enable-features=WaylandWindowDecorations"
-        "--disable-gpu-compositing"
-      ];
-    })
+    (if device == "rog" then
+      (pkgs.chromium.override {
+        commandLineArgs = [
+          "--ozone-platform-hint=auto"
+          "--enable-wayland-ime"
+          "--enable-features=WaylandWindowDecorations"
+          "--disable-gpu-compositing"
+        ];
+      })
+    else pkgs.chromium)
   ] ++ pkgs.lib.optionals (device != "mac") [
     pkgs.zoom-us
   ];

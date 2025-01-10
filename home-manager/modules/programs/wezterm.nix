@@ -7,14 +7,61 @@
     extraConfig = ''
       local act = wezterm.action
       local config = wezterm.config_builder()
+      config.front_end = "WebGpu"
+      gpus = wezterm.gui.enumerate_gpus()
+      config.webgpu_preferred_adapter = gpus[1]
+
+
+      local tabline = wezterm.plugin.require("https://github.com/michaelbrusegard/tabline.wez")
+
+      -- Setup tabline with custom config
+      tabline.setup({
+        options = {
+          icons_enabled = true,
+          theme = 'Catppuccin Mocha',
+          section_separators = {
+            left = wezterm.nerdfonts.pl_left_hard_divider,
+            right = wezterm.nerdfonts.pl_right_hard_divider,
+          },
+          component_separators = {
+            left = wezterm.nerdfonts.pl_left_soft_divider,
+            right = wezterm.nerdfonts.pl_right_soft_divider,
+          },
+          tab_separators = {
+            left = wezterm.nerdfonts.pl_left_hard_divider,
+            right = wezterm.nerdfonts.pl_right_hard_divider,
+          },
+        },
+        sections = {
+          tabline_a = { 'mode' },
+          tabline_b = { 'workspace' },
+          tabline_c = { 'window' },
+          tab_active = {
+            'index',
+            { 'parent', padding = 0 },
+            '/',
+            { 'cwd', max_length = 20, padding = { left = 0, right = 1 } },
+            { 'zoomed', padding = 0 },
+          
+          },
+          tab_inactive = { 
+            'index', 
+            { 'parent', padding = { left = 0, right = 1 } },
+            { 'process', padding = { left = 0, right = 1 } } 
+          },
+          tabline_x = { 'ram', 'cpu' },
+          tabline_y = { 'datetime', 'battery' },
+          tabline_z = { 'domain' },
+        },
+      })
 
       -- Set leader key (CTRL+b like tmux)
       config.leader = { key = "b", mods = "CTRL", timeout_milliseconds = 1000 }
       config.disable_default_key_bindings = true
+      config.enable_wayland = true
 
       local direction_keys = {
-        h = "Left",
-        j = "Down",
+        h = "Left", j = "Down",
         k = "Up",
         l = "Right",
       }
@@ -54,15 +101,6 @@
         "tmux",
       }
 
-      -- Enable tab bar for tabline plugin
-      config.enable_tab_bar = true
-      config.switch_to_last_active_tab_when_closing_tab = true
-      config.hide_tab_bar_if_only_one_tab = false
-      config.window_decorations = 'RESIZE'
-      config.show_new_tab_button_in_tab_bar = false
-      config.use_fancy_tab_bar = false
-      config.tab_bar_at_bottom = true
-      config.tab_max_width = 32
 
       -- Better terminal features
       config.scrollback_lines = 100000
@@ -81,7 +119,6 @@
       config.harfbuzz_features = { "calt=0", "clig=0", "liga=0" }
       config.font_size = 13.0
 
-      -- Smart pane/vim navigation
       config.keys = {
         -- Pane navigation (Smart vim-aware)
         split_nav("h"),
@@ -193,6 +230,13 @@
           key = "?", 
           mods = "LEADER|SHIFT", 
           action = act.Search({CaseSensitiveString=""}),
+        },
+      
+        -- Debug overlay
+        {
+          key = "D",
+          mods = "LEADER|SHIFT",
+          action = act.ShowDebugOverlay,
         },
       }
 
@@ -316,49 +360,15 @@
 
       config.color_scheme = "Catppuccin Mocha"
 
-      local tabline = wezterm.plugin.require("https://github.com/michaelbrusegard/tabline.wez")
-      
+      -- Enable tab bar for tabline plugin
+      config.enable_tab_bar = true
+      config.switch_to_last_active_tab_when_closing_tab = true
+      config.hide_tab_bar_if_only_one_tab = false
+      config.show_new_tab_button_in_tab_bar = false
+      config.use_fancy_tab_bar = false
+      config.tab_bar_at_bottom = true
+      config.tab_max_width = 32
 
-      -- Setup tabline with custom config
-      tabline.setup({
-        options = {
-          icons_enabled = true,
-          theme = 'Catppuccin Mocha',
-          section_separators = {
-            left = wezterm.nerdfonts.pl_left_hard_divider,
-            right = wezterm.nerdfonts.pl_right_hard_divider,
-          },
-          component_separators = {
-            left = wezterm.nerdfonts.pl_left_soft_divider,
-            right = wezterm.nerdfonts.pl_right_soft_divider,
-          },
-          tab_separators = {
-            left = wezterm.nerdfonts.pl_left_hard_divider,
-            right = wezterm.nerdfonts.pl_right_hard_divider,
-          },
-        },
-        sections = {
-          tabline_a = { 'mode' },
-          tabline_b = { 'workspace' },
-          tabline_c = { 'window' },
-          tab_active = {
-            'index',
-            { 'parent', padding = 0 },
-            '/',
-            { 'cwd', max_length = 20, padding = { left = 0, right = 1 } },
-            { 'zoomed', padding = 0 },
-          
-          },
-          tab_inactive = { 
-            'index', 
-            { 'parent', padding = { left = 0, right = 1 } },
-            { 'process', padding = { left = 0, right = 1 } } 
-          },
-          tabline_x = { 'ram', 'cpu' },
-          tabline_y = { 'datetime', 'battery' },
-          tabline_z = { 'domain' },
-        },
-      })
 
 
       -- Window decoration and positioning settings
