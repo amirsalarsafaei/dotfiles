@@ -53,7 +53,12 @@ return {
 				-- python
 				null_ls.builtins.formatting.isort,
 				null_ls.builtins.formatting.black,
-				null_ls.builtins.diagnostics.pylint,
+				null_ls.builtins.diagnostics.pylint.with({
+					extra_args = {
+						"--init-hook",
+						"import pylint_venv; pylint_venv.inithook(force_venv_activation=True)",
+					},
+				}),
 
 				-- lua
 				null_ls.builtins.formatting.stylua,

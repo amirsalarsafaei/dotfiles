@@ -13,6 +13,8 @@
       set -s escape-time 10                     # faster command sequences
       set -sg repeat-time 600                   # increase repeat timeout
       set -s focus-events on
+      set -g default-terminal "xterm-256color"
+      set -ag terminal-overrides ",xterm-256color:RGB"
 
       set -g prefix2 C-a                        # GNU-Screen compatible prefix
       bind C-a send-prefix -2

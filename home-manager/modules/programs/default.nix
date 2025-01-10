@@ -6,5 +6,6 @@
     ./tmux.nix
     ./hyprlock.nix
     ./waybar.nix
+    ./rofi.nix
   ];
 }

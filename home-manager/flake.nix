@@ -24,7 +24,7 @@
           pkgs = nixpkgs.legacyPackages.${systems.x86_64};
           modules = [
             ./home.nix
-            { _module.args = { homeDir = "/home/${username}"; }; }
+            { _module.args = { homeDir = "/home/${username}"; device = "rog"; }; }
             ./rog.nix
           ];
         };
@@ -32,7 +32,7 @@
           pkgs = nixpkgs.legacyPackages.${systems.aarch64};
           modules = [
             ./home.nix
-            { _module.args = { homeDir = "/home/${username}"; }; }
+            { _module.args = { homeDir = "/home/${username}"; device = "mac"; }; }
             ./mac.nix
           ];
         };

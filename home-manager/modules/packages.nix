@@ -1,4 +1,4 @@
-{ pkgs, ... }: {
+{ pkgs, device, ... }: {
   home.packages = [
     # Dev Tools
     pkgs.fd
@@ -42,6 +42,7 @@
 
     (pkgs.python3Full.withPackages (ppkgs: [
       ppkgs.libtmux
+      ppkgs.pylint-venv
     ]))
     pkgs.zsh
     pkgs.oh-my-zsh
@@ -99,6 +100,16 @@
     pkgs.nerd-fonts.iosevka-term-slab
     pkgs.nerd-fonts.iosevka
     pkgs.meslo-lgs-nf
+    (pkgs.chromium.override {
+      commandLineArgs = [
+        "--ozone-platform-hint=auto"
+        "--enable-wayland-ime"
+        "--enable-features=WaylandWindowDecorations"
+        "--disable-gpu-compositing"
+      ];
+    })
+  ] ++ pkgs.lib.optionals (device != "mac") [
+    pkgs.zoom-us
   ];
 
 }
