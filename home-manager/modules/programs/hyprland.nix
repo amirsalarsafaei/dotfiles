@@ -11,6 +11,8 @@
 {
   wayland.windowManager.hyprland = {
     enable = true;
+    systemd.enable = false;
+    package = pkgs.stable.hyprland;
     settings = {
       monitor = [
         "${monitors.mainMonitor},preferred,auto,auto"
