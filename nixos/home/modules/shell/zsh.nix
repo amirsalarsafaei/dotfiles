@@ -56,6 +56,11 @@
         src = pkgs.zsh-nix-shell;
         file = "share/zsh-nix-shell/nix-shell.plugin.zsh";
       }
+      {
+        name = "zsh-you-should-use";
+        src = "${pkgs.zsh-you-should-use}/share/zsh/plugins/you-should-use";
+        file = "you-should-use.plugin.zsh";
+      }
     ];
 
     initExtraFirst = ''

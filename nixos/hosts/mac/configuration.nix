@@ -19,7 +19,7 @@
     binfmt.emulatedSystems = [ "x86_64-linux" ];
     extraModprobeConfig = ''
       options hid_apple swap_fn_leftctrl=1 iso_layout=0 swap_opt_cmd=1 '';
-    m1n1CustomLogo = ./unnamed.png;
+    m1n1CustomLogo = ./boot-logo.png;
     kernelParams = [ "apple_dcp.show_notch=1" ];
   };
 
