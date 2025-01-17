@@ -10,7 +10,7 @@
 
 {
   wayland.windowManager.hyprland = {
-    enable = true;
+    enable = false;
     systemd.enable = false;
     package = pkgs.hyprland;
     settings = {

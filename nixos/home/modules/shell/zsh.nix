@@ -44,11 +44,6 @@
 
     plugins = [
       {
-        name = "zsh-powerlevel10k";
-        src = pkgs.zsh-powerlevel10k.src;
-        file = "powerlevel10k.zsh-theme";
-      }
-      {
         name = "fast-syntax-highlighting";
         src = pkgs.zsh-fast-syntax-highlighting.src;
       }
@@ -75,10 +70,6 @@
     '';
 
     initExtra = ''
-      source ${homeDir}/.p10k.zsh
-      if [ -z "$TMUX" ] && { [ "$TERM" = "xterm-kitty" ] }; then
-        exec tmux new-session;
-      fi
 
       # Load personal shell files if present
       ___MY_VMOPTIONS_SHELL_FILE="$HOME/.jetbrains.vmoptions.sh"

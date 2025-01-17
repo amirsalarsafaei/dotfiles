@@ -13,9 +13,16 @@
 
 
   # Use the systemd-boot EFI boot loader.
-  boot.loader.systemd-boot.enable = true;
-  boot.loader.efi.canTouchEfiVariables = false;
-  hardware.asahi.peripheralFirmwareDirectory = ./firmware;
+  boot = {
+    loader.systemd-boot.enable = true;
+    loader.efi.canTouchEfiVariables = false;
+    binfmt.emulatedSystems = [ "x86_64-linux" ];
+    extraModprobeConfig = ''
+      options hid_apple swap_fn_leftctrl=1 iso_layout=0 swap_opt_cmd=1 '';
+    m1n1CustomLogo = ./unnamed.png;
+    kernelParams = [ "apple_dcp.show_notch=1" ];
+  };
+
 
   networking.hostName = "amirsalar"; # Define your hostname.
   # Pick only one of the below networking options.
@@ -55,29 +62,29 @@
   };
 
 
-  hardware.asahi.useExperimentalGPUDriver = true;
-  hardware.graphics.enable = true;
-  hardware.bluetooth.enable = true;
-  hardware.bluetooth.powerOnBoot = true;
+  hardware = {
+    asahi = {
+      peripheralFirmwareDirectory = ./firmware;
+      useExperimentalGPUDriver = true;
+      # experimentalGPUInstallMode = "driver";
+      # setupAsahiSound = true;
+      # withRust = true;
+    };
+    graphics.enable = true;
+
+    bluetooth.enable = true;
+    bluetooth.powerOnBoot = true;
+  };
 
 
-
-  # Configure keymap in X11
   services.xserver.xkb.layout = "us,ir";
   services.xserver.xkb.options = "grp:win_space_toggle";
 
-  # Enable CUPS to print documents.
-  # services.printing.enable = true;
-
-  # Enable sound.
-  # hardware.pulseaudio.enable = true;
-  # OR
   services.pipewire = {
     enable = true;
     pulse.enable = true;
   };
 
-  # Enable touchpad support (enabled default in most desktopManager).
   services.libinput.enable = true;
 
   services.postgresql =
@@ -104,13 +111,6 @@
           "--ozone-platform-hint=auto"
         ];
       })
-      (
-        runCommandLocal "breeze-cursors-fix" { } ''
-          					dir=$out/share/icons
-          					mkdir -p $dir
-          					ln -s ${kdePackages.breeze}/share/icons/breeze_cursors $dir/default
-          				''
-      )
     ];
     shell = pkgs.zsh;
   };
@@ -144,6 +144,7 @@
     enable = true;
     package = pkgs.usbmuxd2;
   };
+
   environment.sessionVariables = {
     NIXOS_OZONE_WL = "1";
   };
@@ -163,6 +164,7 @@
 
   programs.hyprland = {
     enable = true;
+    withUWSM = true;
   };
 
   programs.zsh = {
@@ -203,10 +205,10 @@
   # and migrated your data accordingly.
   #
   # For more information, see `man configuration.nix` or https://nixos.org/manual/nixos/stable/options#opt-system.stateVersion .
-  system.stateVersion = "24.11"; # Did you read the comment?
-  boot.extraModprobeConfig = ''
-    options hid_apple swap_fn_leftctrl=1 iso_layout=0 swap_opt_cmd=1 '';
+  system.stateVersion = "24.05"; # Did you read the comment?
+
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
   nixpkgs.config.allowUnfree = true;
   programs.nix-ld.enable = true;
   programs.dconf.enable = true;
@@ -220,21 +222,22 @@
     };
   };
   virtualisation.docker.enable = true;
-  # boot.m1n1ExtraOptions = ''
-  #   apple_dcp.show_notch=1
-  #   	'';
+
   services.udev.extraRules = ''
     	SUBSYSTEM=="backlight", ACTION=="add",
     	RUN+="${pkgs.coreutils-full}/bin/chmod 666 /sys/class/backlight/apple-panel-bl/brightness" 
     	RUN+="${pkgs.coreutils-full}/bin/chmod 666 /sys/class/leds/kbd_backlight/brightness" 
     	'';
+
   swapDevices = [{
     device = "/var/lib/swapfile";
     size = 16 * 1024;
   }];
+
   services.logind = {
     lidSwitch = "suspend";
   };
+
   services.acpid.enable = true;
   systemd.services.nix-cleanup = {
     description = "NixOS generation cleanup";
@@ -258,19 +261,8 @@
 
   xdg.portal = {
     enable = true;
-    extraPortals = [ pkgs.xdg-desktop-portal-hyprland pkgs.xdg-desktop-portal-wlr ];
+    extraPortals = [ pkgs.xdg-desktop-portal-hyprland ];
     xdgOpenUsePortal = true;
-    wlr.enable = true;
-  };
-
-  programs.uwsm = {
-    enable = true;
-    waylandCompositors.hyprland = {
- prettyName = "Hyprland";
-  comment = "Hyprland compositor managed by UWSM";
-  binPath = "/run/current-system/sw/bin/Hyprland";
-    };
-    package = pkgs.unstable.uwsm;
   };
 
   zramSwap.enable = true;
@@ -288,14 +280,9 @@
     ];
   };
 
-
   services.blueman.enable = true;
   hardware.keyboard.qmk.enable = true;
 
   fonts.fontDir.enable = true;
   fonts.fontconfig.enable = true;
-
-
-
-  boot.binfmt.emulatedSystems = [ "x86_64-linux" ];
 }

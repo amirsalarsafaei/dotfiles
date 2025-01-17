@@ -38,11 +38,6 @@ return {
 				-- git commits
 				null_ls.builtins.diagnostics.commitlint,
 
-				-- spelling
-				null_ls.builtins.diagnostics.codespell.with({
-					filetypes = { "markdown", "text" },
-				}),
-
 				-- golang
 				null_ls.builtins.formatting.gofmt,
 				null_ls.builtins.formatting.goimports_reviser.with({

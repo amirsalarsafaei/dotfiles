@@ -7,6 +7,9 @@ return {
 		claude = {
 			endpoint = "https://aiproxy.divar.dev/providers/anthropic",
 		},
+		openai = {
+			endpoint = "https://aiproxy.divar.dev/providers/openai/v1/",
+		},
 	},
 	-- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
 	build = "make BUILD_FROM_SOURCE=true",

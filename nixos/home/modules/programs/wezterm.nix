@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ currentHostname, pkgs, lib, ... }:
 
 {
   programs.wezterm = {
@@ -7,11 +7,11 @@
     extraConfig = ''
       local act = wezterm.action
       local config = wezterm.config_builder()
+      ${lib.optionalString (currentHostname == "rog") ''
       config.front_end = "WebGpu"
       gpus = wezterm.gui.enumerate_gpus()
       config.webgpu_preferred_adapter = gpus[1]
-
-
+      ''}
       local tabline = wezterm.plugin.require("https://github.com/michaelbrusegard/tabline.wez")
 
       -- Setup tabline with custom config

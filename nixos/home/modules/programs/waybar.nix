@@ -62,7 +62,8 @@
       }
 
       .modules-right {
-        margin-right: 5px;
+      padding-right: 30px;
+        margin-right: 10px;
         border-radius: 12px;
         background: linear-gradient(45deg, #1a1b26 0%, #24283b 100%);
         box-shadow: rgba(0, 0, 0, 0.116) 2px 2px 4px 2px;
@@ -71,7 +72,7 @@
             }
       
             .modules-left {
-      margin-left: 5px;
+      margin-left: 10px;
       border-radius: 12px;
       background: linear-gradient(45deg, #1a1b26 0%, #24283b 100%);
       box-shadow: rgba(0, 0, 0, 0.116) 2px 2px 4px 2px;
@@ -425,31 +426,37 @@
           };
           keyboard-state = {
             capslock = true;
-            numlock = true;
+            numlock = false;
             format = {
               capslock = "󰪛 {name}";
-              numlock = "󰎠 {name}";
             };
             format-icons = {
               locked = "";
               unlocked = "";
             };
           };
+          "hyprland/window" = {
+            separate-outputs = true;
+            format = "{title}";
+            icon = true;
+            max-length = 10;
+            icon-size = 20;
+          };
           "hyprland/workspaces" = {
             persistent-workspaces = {
-              "eDP-2" = [ 1 2 3 4 5 ];
-              "eDP-1" = [ 1 2 3 4 5 ];
+              "eDP-2" = [ 1 2 3 ];
+              "eDP-1" = [ 1 2 3 ];
               "DP-1" = [ 6 7 8 9 ];
               "HDMI-A-1" = [ 6 7 8 9 ];
             };
             format = "{icon} {windows}";
             format-window-separator = " ";
-            window-rewrite-default = "";
+            window-rewrite-default = "";
             window-rewrite = {
-              "chromium" = "󰈹";
+              "chromium" = "";
               "wezterm" = "󰆍";
               "dolphin" = "󰉋";
-              "firefox" = "";
+              "firefox" = "󰈹";
               "code" = "󰨞";
               "title<.*youtube.*>" = "󰗃";
               "spotify" = "󰓇";
@@ -459,6 +466,8 @@
               "mpv" = "󰕧";
               "vlc" = "󰕧";
               "foot" = "󰆍";
+              "postman" = "";
+              "telegram" = "";
             };
             max-length = 30;
           };
