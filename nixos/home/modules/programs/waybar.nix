@@ -459,6 +459,8 @@
               "firefox" = "󰈹";
               "code" = "󰨞";
               "title<.*youtube.*>" = "󰗃";
+              "title<.*GitLab.*>" = "";
+              "title<.*Cliq.*>" = "";
               "spotify" = "󰓇";
               "discord" = "󰙯";
               "steam" = "󰓓";

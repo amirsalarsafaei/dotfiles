@@ -103,14 +103,6 @@
 
       -- Better terminal features
       config.scrollback_lines = 100000
-      config.enable_kitty_keyboard = true
-      config.enable_csi_u_key_encoding = true
-      config.term = "wezterm"
-      config.set_environment_variables = {
-        TERM = "wezterm",
-        COLORTERM = "truecolor",
-        TERM_PROGRAM = "WezTerm",
-      }
       config.enable_scroll_bar = false
 
 

@@ -15,6 +15,8 @@ return {
 		require("mason").setup()
 		local null_ls = require("null-ls")
 
+		local sqlfluff_args = get_sqlfluff_args()
+
 		null_ls.setup({
 			debounce = 150, -- Debounce formatting requests
 			sources = {
@@ -59,8 +61,8 @@ return {
 				null_ls.builtins.formatting.stylua,
 
 				-- sql
-				null_ls.builtins.diagnostics.sqlfluff.with({ extra_args = get_sqlfluff_args() }),
-				null_ls.builtins.formatting.sqlfluff.with({ extra_args = get_sqlfluff_args() }),
+				null_ls.builtins.diagnostics.sqlfluff.with({ extra_args = sqlfluff_args }),
+				null_ls.builtins.formatting.sqlfluff.with({ extra_args = sqlfluff_args }),
 
 				null_ls.builtins.formatting.buf,
 			},

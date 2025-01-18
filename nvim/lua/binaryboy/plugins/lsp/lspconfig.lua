@@ -138,6 +138,8 @@ return {
 									unusedparams = true,
 									unusedwrite = true,
 									useany = true,
+									yield = true,
+									waitgroup = true,
 								},
 								staticcheck = true,
 								directoryFilters = {
@@ -212,6 +214,9 @@ return {
 							},
 						},
 					})
+				end,
+				["buf_ls"] = function()
+					-- don't attach buf lsp
 				end,
 			})
 			configs["protobuf-language-server"] = {
