@@ -9,5 +9,7 @@
     ./rofi.nix
     ./wezterm.nix
     ./hyprland.nix
+    ./vscode.nix
+    ./texlive.nix
   ];
 }

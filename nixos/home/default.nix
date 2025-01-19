@@ -19,6 +19,11 @@ in
             [user]
       					name = "Amirsalar Safaei"
       					email = "amirsalar.safaei@divar.ir"
+            [core]
+                excludesFile = "${homeDir}/.gitignore-work"
+    '';
+    ".gitignore-work".text = ''
+      shell.nix
     '';
   };
 
@@ -45,5 +50,5 @@ in
     };
   };
 
-  imports = [ ./modules hostConfig];
+  imports = [ ./modules hostConfig ];
 }
