@@ -4,5 +4,6 @@
     ./programs
     ./services
     ./shell
+    ./systemd
   ];
 }

@@ -24,6 +24,7 @@ in
     '';
     ".gitignore-work".text = ''
       shell.nix
+      .wakatime-project
     '';
   };
 

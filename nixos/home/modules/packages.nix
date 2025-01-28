@@ -1,5 +1,7 @@
 { pkgs, currentHostname, ... }: {
   home.packages = [
+    pkgs.nixd
+    pkgs.texstudio
     # Dev Tools
     pkgs.fd
     pkgs.totp-cli

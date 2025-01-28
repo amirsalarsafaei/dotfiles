@@ -15,6 +15,8 @@
       msc
       zref
       xstring
+      framed
+      csquotes
       scheme-medium;
   };
 }
