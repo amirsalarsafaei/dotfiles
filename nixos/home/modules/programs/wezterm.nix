@@ -367,6 +367,13 @@
       config.cursor_blink_rate = 0
       config.window_background_opacity = 0.95
       config.status_update_interval = 1000
+      config.window_padding = {
+        left = '0.5cell',
+        right = '0.5cell',
+        top = 0,
+        bottom = 0,
+      }
+
 
       return config
     '';
