@@ -1,5 +1,5 @@
 {
   imports = [
-    # ./vps-backup.nix
+    ./vps-backup.nix
   ];
 }
