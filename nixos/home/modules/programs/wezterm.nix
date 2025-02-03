@@ -229,6 +229,23 @@
           mods = "LEADER|SHIFT",
           action = act.ShowDebugOverlay,
         },
+
+        -- Font size adjustment
+        {
+          key = "+",
+          mods = "CTRL|SHIFT",
+          action = act.IncreaseFontSize,
+        },
+        {
+          key = "-",
+          mods = "CTRL",
+          action = act.DecreaseFontSize,
+        },
+        {
+          key = "0",
+          mods = "CTRL",
+          action = act.ResetFontSize,
+        },
       }
 
       -- Configure copy mode to be vim-like

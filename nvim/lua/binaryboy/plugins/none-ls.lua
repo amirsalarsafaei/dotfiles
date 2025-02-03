@@ -81,8 +81,16 @@ return {
 		})
 
 		require("mason-null-ls").setup({
+			ensure_installed = nil,
 			automatic_installation = true,
 			handlers = {
+				function(source, types)
+					if not null_ls.is_registered(source) then
+						vim.tbl_map(function(type)
+							null_ls.register(null_ls.builtins[type][source])
+						end, types)
+					end
+				end,
 				buf = function()
 					-- Do nothing for buf formatter
 				end,
