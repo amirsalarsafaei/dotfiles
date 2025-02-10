@@ -1,4 +1,4 @@
-{ pkgs, ... }: {
+{ pkgs, secrets, ... }: {
 
   networking.hostName = "amirsalar"; # Define your hostname.
   # Pick only one of the below networking options.
@@ -237,4 +237,10 @@
   };
 
   services.dbus.packages = [ pkgs.gcr pkgs.gnome-keyring ];
+
+  environment.variables = {
+    GOOGLE_DEFAULT_CLIENT_ID = secrets.google.clientId;
+    GOOGLE_DEFAULT_CLIENT_SECRET = secrets.google.clientSecret;
+    GOOGLE_API_KEY = secrets.google.apiKey;
+  };
 }

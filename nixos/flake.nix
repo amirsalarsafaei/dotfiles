@@ -12,23 +12,27 @@
 
   };
 
-  outputs = { nixpkgs, nixpkgs-unstable, home-manager, sops-nix, ... }:
+  outputs = { nixpkgs, nixpkgs-unstable, home-manager, ... }:
     let
       systems = {
         x86_64 = "x86_64-linux";
         aarch64 = "aarch64-linux";
       };
 
+      secrets = builtins.fromJSON (builtins.readFile ./secrets/secrets.json);
+
       # Helper function to create system configurations
       mkSystem =
         { system
         , hostname
         , username ? "amirsalar"
-        , ageSSHKey ? "/home/${username}/.ssh/id_ed25519"
         , extraModules ? [ ]
         }:
         nixpkgs.lib.nixosSystem {
           inherit system;
+          specialArgs = {
+            inherit secrets;
+          };
           modules = [
             ./hosts/common/default.nix
 
@@ -84,6 +88,7 @@
                 useUserPackages = true;
                 backupFileExtension = "backup";
                 extraSpecialArgs = {
+                  inherit secrets;
                   currentHostname = hostname;
                   currentSystem = system;
                   homeDir = "/home/${username}";

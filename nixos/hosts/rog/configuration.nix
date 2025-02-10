@@ -106,11 +106,6 @@ in
     GDK_BACKEND = "wayland";
   };
 
-  environment.variables = {
-    # GOOGLE_DEFAULT_CLIENT_ID = config.secretUtils.readSecretCommand "google/clientId";
-    # GOOGLE_DEFAULT_CLIENT_SECRET = config.secretUtils.readSecretCommand "google/clientSecret";
-    # GOOGLE_API_KEY = config.secretUtils.readSecretCommand "google/apiKey";
-  };
 
   environment.systemPackages = with pkgs; [
     nvidia-vaapi-driver
