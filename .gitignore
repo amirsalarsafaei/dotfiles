@@ -6,4 +6,3 @@ __pycache__/
 */credentials.json
 secret-key
 secret-key-base64
-nixos/secrets
