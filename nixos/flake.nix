@@ -9,9 +9,10 @@
       url = "github:nix-community/home-manager/master";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
   };
 
-  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, ... }:
+  outputs = { nixpkgs, nixpkgs-unstable, home-manager, sops-nix, ... }:
     let
       systems = {
         x86_64 = "x86_64-linux";
@@ -19,16 +20,24 @@
       };
 
       # Helper function to create system configurations
-      mkSystem = { system, hostname, username ? "amirsalar", extraModules ? [ ] }:
+      mkSystem =
+        { system
+        , hostname
+        , username ? "amirsalar"
+        , ageSSHKey ? "/home/${username}/.ssh/id_ed25519"
+        , extraModules ? [ ]
+        }:
         nixpkgs.lib.nixosSystem {
           inherit system;
           modules = [
+            ./hosts/common/default.nix
 
             # Host-specific configuration
             ./hosts/${hostname}/configuration.nix
 
             # Hardware-specific configuration
             ./hosts/${hostname}/hardware-configuration.nix
+
 
             home-manager.nixosModules.home-manager
             {
@@ -48,7 +57,7 @@
                         name = "${old.pname}-${version}.tar.gz";
                       } else {
                         url = "https://dl.pstmn.io/download/latest/linux_64";
-                        sha256 = "j18cmaD95DiOZYM15b7wm8JNOWqRfBV0FVHFll6INRI=";
+                        sha256 = "y260wmU+C0Y6wpeHuHe0mXuAZZgZ38qr2pGprhZJ7sE=";
                         name = "${old.pname}-${version}.tar.gz";
                       }
                     );

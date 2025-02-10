@@ -1,5 +1,8 @@
 { pkgs, currentHostname, ... }: {
   home.packages = [
+    pkgs.git-crypt
+    pkgs.sops
+    pkgs.devenv
     pkgs.nixd
     pkgs.texstudio
     # Dev Tools
