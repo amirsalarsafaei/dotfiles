@@ -103,16 +103,54 @@ return {
 				vim.fn.sign_define(hl, { text = icon, texthl = hl, numhl = "" })
 			end
 
+			-- Common root patterns for all LSP servers
+			local common_root_patterns = {
+				-- Version Control
+				".git",
+				".gitignore",
+				-- Package Managers
+				"package.json",
+				"yarn.lock",
+				"pnpm-lock.yaml",
+				"bun.lockb",
+				"composer.json",
+				"Cargo.toml",
+				"go.mod",
+				"requirements.txt",
+				"pyproject.toml",
+				"Gemfile",
+				-- Build Tools
+				"Makefile",
+				"CMakeLists.txt",
+				"build.gradle",
+				"pom.xml",
+				-- Documentation
+				"README.md",
+				"README",
+				-- Project Config
+				".editorconfig",
+				".prettierrc",
+				"tsconfig.json",
+				-- Environment
+				".env",
+				".nvmrc",
+				-- IDE/Editor
+				".vscode",
+				".idea",
+			}
+
 			mason_lspconfig.setup_handlers({
 				-- default handler for installed servers
 				function(server_name)
 					lspconfig[server_name].setup({
 						capabilities = capabilities,
+						root_dir = lspconfig.util.root_pattern(unpack(common_root_patterns)),
 					})
 				end,
 				["gopls"] = function()
 					lspconfig.gopls.setup({
 						capabilities = capabilities,
+						root_dir = lspconfig.util.root_pattern(unpack(common_root_patterns)),
 						settings = {
 							gopls = {
 								codelenses = {
@@ -168,6 +206,9 @@ return {
 								completion = {
 									callSnippet = "Replace",
 								},
+								runtime = {
+									version = "LuaJIT",
+								},
 							},
 						},
 					})
@@ -175,10 +216,24 @@ return {
 				["eslint"] = function()
 					lspconfig.eslint.setup({
 						root_dir = require("lspconfig").util.root_pattern(
+							-- ESLint specific files
 							"eslint.config.js",
 							".eslintrc.js",
 							".eslintrc.json",
-							".eslintrc"
+							".eslintrc",
+							".eslintrc.cjs",
+							".eslintrc.yaml",
+							".eslintrc.yml",
+							-- Common project root files
+							".gitignore",
+							".git",
+							"package.json",
+							"yarn.lock",
+							"pnpm-lock.yaml",
+							"bun.lockb",
+							"Makefile",
+							"README.md",
+							"README"
 						),
 					})
 				end,

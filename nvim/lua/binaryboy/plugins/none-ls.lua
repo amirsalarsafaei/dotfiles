@@ -8,7 +8,15 @@ return {
 	config = function()
 		local function get_sqlfluff_args()
 			local args = { "--dialect", "postgres" }
-			return vim.list_extend(args, { "--config", "$ROOT/.sqlfluff" })
+			-- Check if .sqlfluff config exists in the project root
+			local root = vim.fn.getcwd()
+			local config_path = root .. "/.sqlfluff"
+
+			if vim.fn.filereadable(config_path) == 1 then
+				return vim.list_extend(args, { "--config", "$ROOT/.sqlfluff" })
+			end
+
+			return args
 		end
 
 		local augroup = vim.api.nvim_create_augroup("NullLsLspFormatting", {})
