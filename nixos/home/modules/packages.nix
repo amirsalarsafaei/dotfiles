@@ -1,4 +1,4 @@
-{ pkgs, currentHostname, ... }: {
+{ pkgs, currentHostname, currentSystem, ... }: {
   home.packages = [
     pkgs.git-crypt
     pkgs.sops
@@ -115,8 +115,9 @@
         ];
       })
     else pkgs.chromium)
-  ] ++ pkgs.lib.optionals (currentHostname != "mac") [
+  ]
+  ++ pkgs.lib.optionals (currentHostname != "x86_64-linux") [
     pkgs.zoom-us
+    pkgs.android-studio
   ];
-
 }
