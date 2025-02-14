@@ -95,22 +95,11 @@ return {
 			vim.keymap.set("n", "<leader>fc", builtin.grep_string, { desc = "Find word under cursor" })
 			vim.keymap.set("n", "<leader>fp", "<cmd>Telescope projects<cr>", { desc = "Projects" })
 
-			-- Git operations
-			vim.keymap.set("n", "<leader>gc", builtin.git_commits, { desc = "Git commits" })
-			vim.keymap.set("n", "<leader>gf", builtin.git_files, { desc = "Git files" })
-			vim.keymap.set("n", "<leader>gb", builtin.git_branches, { desc = "Git branches" })
-			vim.keymap.set("n", "<leader>gs", builtin.git_status, { desc = "Git status" })
-
 			-- Search operations
 			vim.keymap.set("n", "<leader>fw", builtin.grep_string, { desc = "Find word" })
 			vim.keymap.set("n", "<leader>fs", function()
 				builtin.grep_string({ search = vim.fn.input("Grep > ") })
 			end, { desc = "Grep search" })
-
-			-- LSP operations
-			vim.keymap.set("n", "<leader>lr", builtin.lsp_references, { desc = "LSP references" })
-			vim.keymap.set("n", "<leader>ld", builtin.lsp_definitions, { desc = "LSP definitions" })
-			vim.keymap.set("n", "<leader>li", builtin.lsp_implementations, { desc = "LSP implementations" })
 
 			-- Quickfix operations
 			vim.keymap.set("n", "<leader>q", builtin.quickfix, { desc = "Quickfix list" })

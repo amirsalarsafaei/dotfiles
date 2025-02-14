@@ -31,11 +31,15 @@ in
     enable = true;
     extraPackages = with pkgs; [
       nvidia-vaapi-driver
+      intel-media-driver
+      intel-vaapi-driver
+      libvdpau-va-gl
       vaapiVdpau
       libvdpau
       vulkan-loader
       vulkan-validation-layers
     ];
+    extraPackages32 = with pkgs.pkgsi686Linux; [ intel-vaapi-driver ];
   };
   # Load nvidia driver for Xorg and Wayland
   services.xserver.videoDrivers = [ "nvidia" ];

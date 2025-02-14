@@ -22,7 +22,7 @@
 
       "$terminal" = "wezterm";
       "$fileManager" = "dolphin";
-      "$menu" = "rofi -show run";
+      "$menu" = "rofi -show drun -run-command 'uwsm app -- {cmd}'";
 
       env = [
         "XCURSOR_SIZE,24"
