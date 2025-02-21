@@ -185,6 +185,10 @@
         ",XF86MonBrightnessDown,exec,brightness down"
         ",XF86LaunchA,exec,backlight down"
         "SUPER,XF86LaunchA,exec,backlight up"
+        ",Print,exec,grim -g \"$(slurp)\" - | wl-copy" # Region screenshot to clipboard
+        ",XF86Print,exec,grim -g \"$(slurp)\" - | wl-copy" # Region screenshot to clipboard (XF86 key)
+        "SHIFT,Print,exec,grim - | wl-copy" # Full screenshot to clipboard
+        "SHIFT,XF86Print,exec,grim - | wl-copy" # Full screenshot to clipboard (XF86 key)
       ];
 
       workspace = [

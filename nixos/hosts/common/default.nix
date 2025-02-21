@@ -75,11 +75,6 @@
     packages = with pkgs; [
       firefox
       tree
-      (chromium.override {
-        commandLineArgs = [
-          "--ozone-platform-hint=auto"
-        ];
-      })
     ];
     shell = pkgs.zsh;
   };
