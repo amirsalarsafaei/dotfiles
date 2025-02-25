@@ -48,6 +48,8 @@ return {
 				"rust",
 				"sql",
 				"c",
+				"python",
+				"kotlin",
 			},
 			incremental_selection = {
 				enable = true,

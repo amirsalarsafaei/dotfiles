@@ -1,6 +1,12 @@
 { pkgs, currentHostname, currentSystem, ... }: {
   home.packages = [
+    <<<<<<< HEAD
     pkgs.argo-rollouts
+    =======
+    pkgs.kotlin
+    >>>>>>> 2456
+    fcd
+    (some os changes)
     pkgs.git-crypt
     pkgs.sops
     pkgs.devenv
