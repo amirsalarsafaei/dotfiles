@@ -107,9 +107,9 @@
     pkgs.unstable.nerd-fonts.iosevka
     pkgs.unstable.meslo-lgs-nf
     (if currentHostname == "rog" then
-      (pkgs.chromium.override {
+      (pkgs.unstable.chromium.override {
         commandLineArgs = [
-          "--ozone-platform-hint=auto"
+          "--ozone-platform=wayland"
           "--enable-wayland-ime"
           "--enable-features=WaylandWindowDecorations"
           "--disable-gpu-compositing"
@@ -117,8 +117,9 @@
       })
     else pkgs.chromium)
   ]
-  ++ pkgs.lib.optionals (currentHostname != "x86_64-linux") [
+  ++ pkgs.lib.optionals (currentSystem == "x86_64-linux") [
     pkgs.zoom-us
     pkgs.android-studio
+    pkgs.unstable.discord
   ];
 }

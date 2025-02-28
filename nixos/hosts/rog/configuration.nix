@@ -112,6 +112,8 @@ in
 
 
   environment.systemPackages = with pkgs; [
+    git
+
     nvidia-vaapi-driver
     libva
     libvdpau
@@ -126,7 +128,6 @@ in
     xdg-utils
     qemu
     zsh
-    git
     gnome-keyring
     libsecret
     libgnome-keyring
