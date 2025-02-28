@@ -1,6 +1,6 @@
-{ config
-, lib
+{ inputs
 , pkgs
+, lib
 , monitors ? {
     mainMonitor = "eDP-1";
     secondaryMonitor = "HDMI-A-1";
@@ -12,7 +12,7 @@
   wayland.windowManager.hyprland = {
     enable = true;
     systemd.enable = false;
-    package = pkgs.hyprland;
+    package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
     settings = {
       monitor = [
         "${monitors.mainMonitor},preferred,auto,auto"

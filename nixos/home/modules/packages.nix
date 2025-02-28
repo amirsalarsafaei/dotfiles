@@ -1,5 +1,6 @@
 { pkgs, currentHostname, currentSystem, ... }: {
   home.packages = [
+    pkgs.argo-rollouts
     pkgs.git-crypt
     pkgs.sops
     pkgs.devenv

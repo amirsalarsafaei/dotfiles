@@ -1,4 +1,4 @@
-{ pkgs, secrets, ... }: {
+{ inputs, pkgs, secrets, ... }: {
 
   networking.hostName = "amirsalar"; # Define your hostname.
   # Pick only one of the below networking options.
@@ -100,6 +100,9 @@
   programs.hyprland = {
     enable = true;
     withUWSM = true;
+    package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
+    # make sure to also set the portal package, so that they are in sync
+    portalPackage = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
   };
 
   programs.zsh = {

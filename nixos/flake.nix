@@ -1,9 +1,26 @@
 {
   description = "NixOS configuration";
 
+  nixConfig = {
+    subtituters = [
+      # nix community's cache server
+      "https://nix-community.cachix.org"
+
+      "https://hyprland.cachix.org"
+    ];
+    trusted-public-keys = [
+      # nix community's cache server public key
+      "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+
+      "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
+    ];
+  };
+
   inputs = {
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
     nixpkgs.url = "github:nixos/nixpkgs/nixos-24.11";
+
+    hyprland.url = "github:hyprwm/Hyprland";
 
     home-manager = {
       url = "github:nix-community/home-manager/master";
@@ -12,7 +29,7 @@
 
   };
 
-  outputs = { nixpkgs, nixpkgs-unstable, home-manager, ... }:
+  outputs = { nixpkgs, nixpkgs-unstable, home-manager, ... } @ inputs:
     let
       systems = {
         x86_64 = "x86_64-linux";
@@ -33,6 +50,7 @@
 
           specialArgs = {
             inherit secrets;
+            inherit inputs;
           };
           modules = [
             ./hosts/common/default.nix
@@ -101,6 +119,7 @@
                 backupFileExtension = "backup";
                 extraSpecialArgs = {
                   inherit secrets;
+                  inherit inputs;
                   currentHostname = hostname;
                   currentSystem = system;
                   homeDir = "/home/${username}";
