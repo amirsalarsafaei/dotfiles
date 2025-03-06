@@ -1,5 +1,6 @@
 { pkgs, currentHostname, currentSystem, ... }: {
   home.packages = [
+    pkgs.ncdu
     pkgs.argo-rollouts
     pkgs.kotlin
     pkgs.git-crypt
