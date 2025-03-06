@@ -20,7 +20,7 @@
     pkgs.wofi
     pkgs.rofi-wayland
     pkgs.ngrok
-    pkgs.postman
+    # pkgs.postman
     pkgs.vlc
     pkgs.telegram-desktop
     pkgs.openfortivpn

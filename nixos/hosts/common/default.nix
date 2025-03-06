@@ -150,7 +150,12 @@
     xdgOpenUsePortal = true;
   };
 
-  virtualisation.docker.enable = true;
+  virtualisation.docker = {
+    enable = true;
+    daemon.settings = {
+      bip = "172.26.0.1/16";
+    };
+  };
 
   # Zswap configuration
   zramSwap.enable = true;
@@ -181,7 +186,7 @@
   services.printing.enable = true;
 
   # Enable sound with pipewire.
-  hardware.pulseaudio.enable = false;
+  services.pulseaudio.enable = false;
   security.rtkit.enable = true;
 
 

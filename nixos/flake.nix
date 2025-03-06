@@ -19,8 +19,8 @@
   };
 
   inputs = {
-    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-24.11";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs-stable.url = "github:nixos/nixpkgs/nixos-24.11";
 
     hyprland.url = "github:hyprwm/Hyprland";
 
@@ -31,7 +31,7 @@
 
   };
 
-  outputs = { nixpkgs, nixpkgs-unstable, home-manager, ... } @ inputs:
+  outputs = { nixpkgs, nixpkgs-stable, home-manager, ... } @ inputs:
     let
       systems = {
         x86_64 = "x86_64-linux";
@@ -73,7 +73,7 @@
                 };
                 overlays = [
                   (final: prev: {
-                    unstable = import nixpkgs-unstable {
+                    stable = import nixpkgs-stable {
                       inherit system;
                       config = {
                         android_sdk.accept_license = true;

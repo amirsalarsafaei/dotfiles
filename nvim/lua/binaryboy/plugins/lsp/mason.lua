@@ -35,7 +35,6 @@ return {
 				"cssls",
 				"lua_ls",
 				"prismals",
-				"pyright",
 				"elixirls@v0.11.0",
 				"sqls",
 				"buf_ls@v1.15.1",

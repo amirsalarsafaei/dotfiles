@@ -1,12 +1,7 @@
 { pkgs, currentHostname, currentSystem, ... }: {
   home.packages = [
-    <<<<<<< HEAD
     pkgs.argo-rollouts
-    =======
     pkgs.kotlin
-    >>>>>>> 2456
-    fcd
-    (some os changes)
     pkgs.git-crypt
     pkgs.sops
     pkgs.devenv
@@ -32,12 +27,12 @@
     pkgs.wofi
     pkgs.rofi-wayland
     pkgs.ngrok
-    pkgs.postman
+    # pkgs.postman
     pkgs.vlc
     pkgs.telegram-desktop
     pkgs.openfortivpn
     pkgs.pkg-config
-    pkgs.openssl_3_3
+    pkgs.openssl_3_4
     pkgs.telepresence2
     pkgs.asciiquarium
     pkgs.docker
@@ -101,17 +96,17 @@
     pkgs.nmap
     pkgs.gh
     pkgs.nload
-    pkgs.unstable.nerd-fonts.fira-code
-    pkgs.unstable.nerd-fonts.jetbrains-mono
-    pkgs.unstable.nerd-fonts.hack
-    pkgs.unstable.nerd-fonts.meslo-lg
-    pkgs.unstable.nerd-fonts.ubuntu-mono
-    pkgs.unstable.nerd-fonts.inconsolata
-    pkgs.unstable.nerd-fonts.fantasque-sans-mono
-    pkgs.unstable.nerd-fonts.victor-mono
-    pkgs.unstable.nerd-fonts.iosevka-term-slab
-    pkgs.unstable.nerd-fonts.iosevka
-    pkgs.unstable.meslo-lgs-nf
+    pkgs.nerd-fonts.fira-code
+    pkgs.nerd-fonts.jetbrains-mono
+    pkgs.nerd-fonts.hack
+    pkgs.nerd-fonts.meslo-lg
+    pkgs.nerd-fonts.ubuntu-mono
+    pkgs.nerd-fonts.inconsolata
+    pkgs.nerd-fonts.fantasque-sans-mono
+    pkgs.nerd-fonts.victor-mono
+    pkgs.nerd-fonts.iosevka-term-slab
+    pkgs.nerd-fonts.iosevka
+    pkgs.meslo-lgs-nf
     (if currentHostname == "rog" then
       (pkgs.unstable.chromium.override {
         commandLineArgs = [
