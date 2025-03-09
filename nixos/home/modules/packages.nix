@@ -28,7 +28,8 @@
     pkgs.wofi
     pkgs.rofi-wayland
     pkgs.ngrok
-    # pkgs.postman
+    pkgs.spotify-player
+    pkgs.postman
     pkgs.vlc
     pkgs.telegram-desktop
     pkgs.openfortivpn
