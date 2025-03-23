@@ -110,7 +110,7 @@
     pkgs.nerd-fonts.iosevka
     pkgs.meslo-lgs-nf
     (if currentHostname == "rog" then
-      (pkgs.unstable.chromium.override {
+      (pkgs.chromium.override {
         commandLineArgs = [
           "--ozone-platform=wayland"
           "--enable-wayland-ime"
@@ -123,6 +123,6 @@
   ++ pkgs.lib.optionals (currentSystem == "x86_64-linux") [
     pkgs.zoom-us
     pkgs.android-studio
-    pkgs.unstable.discord
+    pkgs.discord
   ];
 }

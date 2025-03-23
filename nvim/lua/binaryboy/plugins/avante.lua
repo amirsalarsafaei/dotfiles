@@ -53,8 +53,9 @@ return {
 			openai = {
 				endpoint = "https://aiproxy.divar.dev/providers/openai/v1/",
 			},
+			provider = "claude",
 		})
 
-		Map("n", "<leader>af", "<cmd>AvanteClear<cr><cmd>", { desc = "clears avante" })
+		Map("n", "<leader>al", "<cmd>AvanteClear<CR><cmd>", { desc = "clears avante" })
 	end,
 }
