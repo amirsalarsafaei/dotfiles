@@ -274,6 +274,18 @@ return {
 					-- don't attach buf lsp
 				end,
 			})
+
+			lspconfig.clangd.setup({
+				capabilities = capabilities,
+				cmd = { "clangd", "--background-index", "--clang-tidy" },
+				init_options = {
+					-- You can add clangd-specific initialization options here
+					clangdFileStatus = true,
+					usePlaceholders = true,
+					completeUnimported = true,
+					semanticHighlighting = true,
+				},
+			})
 			configs["protobuf-language-server"] = {
 				default_config = {
 					cmd = { vim.env.GOBIN .. "/protobuf-language-server" },

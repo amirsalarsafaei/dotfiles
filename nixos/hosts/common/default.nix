@@ -117,6 +117,11 @@
   programs.nix-ld.enable = true;
   programs.dconf.enable = true;
 
+  nix.extraOptions = ''
+    extra-substituters = https://devenv.cachix.org
+    extra-trusted-public-keys = devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=
+  '';
+
   services.blueman.enable = true;
   hardware.keyboard.qmk.enable = true;
 

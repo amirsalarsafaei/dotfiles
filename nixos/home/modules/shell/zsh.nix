@@ -1,4 +1,4 @@
-{ pkgs, homeDir, ... }: {
+{ pkgs, ... }: {
   programs.zsh = {
     enable = true;
     oh-my-zsh = {
@@ -71,6 +71,8 @@
       # Performance optimizations
       export ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
       export ZSH_AUTOSUGGEST_USE_ASYNC=true
+
+      export PATH=$PATH:$HOME/.local/bin/
       export ZSH_AUTOSUGGEST_MANUAL_REBIND=1
     '';
 
@@ -81,6 +83,8 @@
       if [ -f "$___MY_VMOPTIONS_SHELL_FILE" ]; then
         . "$___MY_VMOPTIONS_SHELL_FILE"
       fi
+      export EDITOR=nvim
+
 
       source ~/zshsecret
     '';

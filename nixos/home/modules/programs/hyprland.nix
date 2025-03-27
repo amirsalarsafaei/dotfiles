@@ -211,7 +211,12 @@
 
       windowrulev2 = [
         "suppressevent maximize,class:.*"
-        "opacity 1.0 override 1.0 override,class:^(vlc|firefox|chromium-browser)$"
+        "opacity 1.0 override 1.0 override,class:^(vlc|firefox|chromium-browser|jetbrains-.*)$"
+        "bordercolor rgba(33ccffee) rgba(33ccffee),class:^(jetbrains-.*)$"
+        "animation none,class:^(jetbrains-.*)$"
+        "nofocus,class:^jetbrains-(?!toolbox),floating:1,title:^win\d+$"
+        "float,class:^(jetbrains-.*)$,title:^(win[0-9]+)$"
+        "nofocus,class:^(jetbrains-.*)$,title:^(win[0-9]+)$"
       ];
     };
   };

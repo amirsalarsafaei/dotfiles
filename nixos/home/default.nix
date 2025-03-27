@@ -33,7 +33,6 @@ in
     GOPATH = "${homeDir}/go";
     GOPRIVATE = "git.divar.cloud";
     GOBIN = "${homeDir}/.local/bin";
-    PATH = "$PATH:/usr/local/bin";
   };
 
   home.sessionPath = [

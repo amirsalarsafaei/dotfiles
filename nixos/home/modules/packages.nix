@@ -1,5 +1,9 @@
 { pkgs, currentHostname, currentSystem, ... }: {
   home.packages = [
+    pkgs.syncthing
+    pkgs.obsidian
+    pkgs.jemalloc
+    pkgs.cmake
     pkgs.ncdu
     pkgs.argo-rollouts
     pkgs.kotlin
