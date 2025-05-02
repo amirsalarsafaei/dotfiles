@@ -19,70 +19,99 @@ return {
 			"j-hui/fidget.nvim",
 		},
 		config = function()
+			-- Core requirements
 			local lspconfig = require("lspconfig")
 			local configs = require("lspconfig.configs")
 			local util = require("lspconfig.util")
-			local mason_lspconfig = require("mason-lspconfig")
+			local cmp_nvim_lsp = require("cmp_nvim_lsp")
+			local keymap = vim.keymap
+
+			-- Setup fidget for LSP progress display
 			require("fidget").setup()
 
-			local cmp_nvim_lsp = require("cmp_nvim_lsp")
-
-			local keymap = vim.keymap -- for conciseness
-
+			-----------------------------------------------------------
+			-- LSP Keybindings
+			-----------------------------------------------------------
 			vim.api.nvim_create_autocmd("LspAttach", {
 				group = vim.api.nvim_create_augroup("UserLspConfig", {}),
 				callback = function(ev)
-					-- Buffer local mappings.
-					-- See `:help vim.lsp.*` for documentation on any of the below functions
-					local opts = { buffer = ev.buf, silent = true }
+					-- Navigation
+					keymap.set(
+						"n",
+						"gR",
+						"<cmd>Telescope lsp_references include_declaration=false<CR>",
+						{ buffer = ev.buf, desc = "Show LSP references" }
+					)
+					keymap.set("n", "gD", vim.lsp.buf.declaration, { buffer = ev.buf, desc = "Go to declaration" })
+					keymap.set(
+						"n",
+						"gd",
+						"<cmd>Telescope lsp_definitions<CR>",
+						{ buffer = ev.buf, desc = "Show LSP definitions" }
+					)
+					keymap.set(
+						"n",
+						"gi",
+						"<cmd>Telescope lsp_implementations<CR>",
+						{ buffer = ev.buf, desc = "Show LSP implementations" }
+					)
+					keymap.set(
+						"n",
+						"gt",
+						"<cmd>Telescope lsp_type_definitions<CR>",
+						{ buffer = ev.buf, desc = "Show LSP type definitions" }
+					)
 
-					-- set keybinds
-					opts.desc = "Show LSP references"
-					keymap.set("n", "gR", "<cmd>Telescope lsp_references include_declaration=false<CR>", opts) -- show definition, references
+					-- Information
+					keymap.set(
+						"n",
+						"K",
+						vim.lsp.buf.hover,
+						{ buffer = ev.buf, desc = "Show documentation for what is under cursor" }
+					)
+					keymap.set("n", "gs", vim.lsp.buf.signature_help, { buffer = ev.buf, desc = "Show signature help" })
 
-					opts.desc = "Go to declaration"
-					keymap.set("n", "gD", vim.lsp.buf.declaration, opts) -- go to declaration
+					-- Code actions
+					keymap.set(
+						{ "n", "v" },
+						"<leader>ca",
+						vim.lsp.buf.code_action,
+						{ buffer = ev.buf, desc = "See available code actions" }
+					)
+					keymap.set("n", "<leader>rn", vim.lsp.buf.rename, { buffer = ev.buf, desc = "Smart rename" })
 
-					opts.desc = "Show signature help"
-					keymap.set("n", "gs", vim.lsp.buf.signature_help, opts) -- show lsp definitions
+					-- Diagnostics
+					keymap.set(
+						"n",
+						"<leader>D",
+						"<cmd>Telescope diagnostics bufnr=0<CR>",
+						{ buffer = ev.buf, desc = "Show buffer diagnostics" }
+					)
+					keymap.set(
+						"n",
+						"<leader>d",
+						vim.diagnostic.open_float,
+						{ buffer = ev.buf, desc = "Show line diagnostics" }
+					)
+					keymap.set(
+						"n",
+						"[d",
+						vim.diagnostic.goto_prev,
+						{ buffer = ev.buf, desc = "Go to previous diagnostic" }
+					)
+					keymap.set("n", "]d", vim.diagnostic.goto_next, { buffer = ev.buf, desc = "Go to next diagnostic" })
 
-					opts.desc = "Show LSP definitions"
-					keymap.set("n", "gd", "<cmd>Telescope lsp_definitions<CR>", opts) -- show lsp definitions
-
-					opts.desc = "Show LSP implementations"
-					keymap.set("n", "gi", "<cmd>Telescope lsp_implementations<CR>", opts) -- show lsp implementations
-
-					opts.desc = "Show LSP type definitions"
-					keymap.set("n", "gt", "<cmd>Telescope lsp_type_definitions<CR>", opts) -- show lsp type definitions
-
-					opts.desc = "See available code actions"
-					keymap.set({ "n", "v" }, "<leader>ca", vim.lsp.buf.code_action, opts) -- see available code actions, in visual mode will apply to selection
-
-					opts.desc = "Smart rename"
-					keymap.set("n", "<leader>rn", vim.lsp.buf.rename, opts) -- smart rename
-
-					opts.desc = "Show buffer diagnostics"
-					keymap.set("n", "<leader>D", "<cmd>Telescope diagnostics bufnr=0<CR>", opts) -- show  diagnostics for file
-
-					opts.desc = "Show line diagnostics"
-					keymap.set("n", "<leader>d", vim.diagnostic.open_float, opts) -- show diagnostics for line
-
-					opts.desc = "Go to previous diagnostic"
-					keymap.set("n", "[d", vim.diagnostic.goto_prev, opts) -- jump to previous diagnostic in buffer
-
-					opts.desc = "Go to next diagnostic"
-					keymap.set("n", "]d", vim.diagnostic.goto_next, opts) -- jump to next diagnostic in buffer
-
-					opts.desc = "Show documentation for what is under cursor"
-					keymap.set("n", "K", vim.lsp.buf.hover, opts) -- show documentation for what is under cursor
-
-					opts.desc = "Restart LSP"
-					keymap.set("n", "<leader>rs", ":LspRestart<CR>", opts) -- mapping to restart lsp if necessary
+					-- Utility
+					keymap.set("n", "<leader>rs", ":LspRestart<CR>", { buffer = ev.buf, desc = "Restart LSP" })
 				end,
 			})
 
-			-- used to enable autocompletion (assign to every lsp server config)
+			-----------------------------------------------------------
+			-- LSP Diagnostics Configuration
+			-----------------------------------------------------------
+			-- Used to enable autocompletion (assign to every lsp server config)
 			local capabilities = cmp_nvim_lsp.default_capabilities()
+
 			vim.diagnostic.config({
 				update_in_insert = true,
 				float = {
@@ -95,7 +124,7 @@ return {
 				},
 			})
 
-			-- Change the Diagnostic symbols in the sign column (gutter)
+			-- Diagnostic symbols in the sign column (gutter)
 			-- (not in youtube nvim video)
 			local signs = { Error = " ", Warn = " ", Hint = "󰠠 ", Info = " " }
 			for type, icon in pairs(signs) do
@@ -103,7 +132,7 @@ return {
 				vim.fn.sign_define(hl, { text = icon, texthl = hl, numhl = "" })
 			end
 
-			-- Common root patterns for all LSP servers
+			-- Common root patterns for project detection
 			local common_root_patterns = {
 				-- Version Control
 				".git",
@@ -139,158 +168,158 @@ return {
 				".idea",
 			}
 
-			mason_lspconfig.setup_handlers({
-				-- default handler for installed servers
-				function(server_name)
-					lspconfig[server_name].setup({
-						capabilities = capabilities,
-						root_dir = lspconfig.util.root_pattern(unpack(common_root_patterns)),
-					})
-				end,
-				["gopls"] = function()
-					lspconfig.gopls.setup({
-						capabilities = capabilities,
-						root_dir = lspconfig.util.root_pattern(unpack(common_root_patterns)),
-						settings = {
-							gopls = {
-								codelenses = {
-									gc_details = true,
-									generate = true,
-									regenerate_cgo = true,
-									run_govulncheck = true,
-									test = true,
-									tidy = true,
-									upgrade_dependency = true,
-								},
-								hints = {
-									assignVariableTypes = true,
-									compositeLiteralFields = true,
-									compositeLiteralTypes = true,
-									constantValues = true,
-									functionTypeParameters = true,
-									parameterNames = true,
-									rangeVariableTypes = true,
-								},
-								analyses = {
-									nilness = true,
-									unusedparams = true,
-									unusedwrite = true,
-									useany = true,
-									yield = true,
-									waitgroup = true,
-								},
-								staticcheck = true,
-								directoryFilters = {
-									"-.git",
-									"-.vscode",
-									"-.idea",
-									"-.vscode-test",
-									"-node_modules",
-									"-.nvim",
-								},
-								semanticTokens = true,
-							},
+			-- Helper function to setup servers with common configuration
+			local function setup_server(server, config)
+				config = config or {}
+				config.capabilities = config.capabilities or capabilities
+
+				-- Apply root_dir if not explicitly set
+				if not config.root_dir and not server.root_dir then
+					config.root_dir = lspconfig.util.root_pattern(unpack(common_root_patterns))
+				end
+
+				lspconfig[server].setup(config)
+			end
+
+			-----------------------------------------------------------
+			-- Language Server Configurations
+			-----------------------------------------------------------
+			-- Go
+			setup_server("gopls", {
+				settings = {
+					gopls = {
+						codelenses = {
+							gc_details = true,
+							generate = true,
+							regenerate_cgo = true,
+							run_govulncheck = true,
+							test = true,
+							tidy = true,
+							upgrade_dependency = true,
 						},
-					})
-				end,
-				["lua_ls"] = function()
-					-- configure lua server (with special settings)
-					lspconfig["lua_ls"].setup({
-						capabilities = capabilities,
-						settings = {
-							Lua = {
-								-- make the language server recognize "vim" global
-								diagnostics = {
-									globals = { "vim" },
-								},
-								completion = {
-									callSnippet = "Replace",
-								},
-								runtime = {
-									version = "LuaJIT",
-								},
-							},
+						hints = {
+							assignVariableTypes = true,
+							compositeLiteralFields = true,
+							compositeLiteralTypes = true,
+							constantValues = true,
+							functionTypeParameters = true,
+							parameterNames = true,
+							rangeVariableTypes = true,
 						},
-					})
-				end,
-				["eslint"] = function()
-					lspconfig.eslint.setup({
-						root_dir = require("lspconfig").util.root_pattern(
-							-- ESLint specific files
-							"eslint.config.js",
-							".eslintrc.js",
-							".eslintrc.json",
-							".eslintrc",
-							".eslintrc.cjs",
-							".eslintrc.yaml",
-							".eslintrc.yml",
-							-- Common project root files
-							".gitignore",
-							".git",
-							"package.json",
-							"yarn.lock",
-							"pnpm-lock.yaml",
-							"bun.lockb",
-							"Makefile",
-							"README.md",
-							"README"
-						),
-					})
-				end,
-				["elixirls"] = function()
-					lspconfig["elixirls"].setup({
-						capabilities = capabilities,
-						cmd = { vim.fn.stdpath("data") .. "/mason/bin/elixir-ls" },
-					})
-				end,
-				["lexical"] = function()
-					lspconfig["lexical"].setup({
-						capabilities = capabilities,
-						cmd = { vim.fn.stdpath("data") .. "/mason/bin/lexical" },
-					})
-				end,
-				["sqls"] = function()
-					lspconfig["sqls"].setup({
-						capabilities = capabilities,
-						on_attach = function(client, bufn)
-							require("sqls").on_attach(client, bufn)
-						end,
-					})
-				end,
-				["yamlls"] = function()
-					lspconfig.yamlls.setup({
-						capabilities = capabilities,
-						settings = {
-							yaml = {
-								validate = true,
-								schemas = {
-									kubernetes = { "k8s**.yaml", "kube*/*.yaml" },
-								},
-							},
+						analyses = {
+							nilness = true,
+							unusedparams = true,
+							unusedwrite = true,
+							useany = true,
+							yield = true,
+							waitgroup = true,
 						},
-					})
-				end,
-				["buf_ls"] = function()
-					-- don't attach buf lsp
+						staticcheck = true,
+						directoryFilters = {
+							"-.git",
+							"-.vscode",
+							"-.idea",
+							"-.vscode-test",
+							"-node_modules",
+							"-.nvim",
+						},
+						semanticTokens = true,
+					},
+				},
+			})
+
+			-- Lua
+			setup_server("lua_ls", {
+				settings = {
+					Lua = {
+						diagnostics = {
+							globals = { "vim" },
+						},
+						completion = {
+							callSnippet = "Replace",
+						},
+						runtime = {
+							version = "LuaJIT",
+						},
+					},
+				},
+			})
+
+			-- ESLint
+			setup_server("eslint", {
+				root_dir = lspconfig.util.root_pattern(
+				-- ESLint specific files
+					"eslint.config.js",
+					".eslintrc.js",
+					".eslintrc.json",
+					".eslintrc",
+					".eslintrc.cjs",
+					".eslintrc.yaml",
+					".eslintrc.yml",
+					-- Common project root files
+					".gitignore",
+					".git",
+					"package.json",
+					"yarn.lock",
+					"pnpm-lock.yaml",
+					"bun.lockb",
+					"Makefile",
+					"README.md",
+					"README"
+				),
+			})
+
+			-- Elixir
+			setup_server("elixirls")
+
+			-- OCaml
+			setup_server("lexical")
+
+			-- SQL
+			setup_server("sqls", {
+				on_attach = function(client, bufn)
+					require("sqls").on_attach(client, bufn)
 				end,
 			})
 
-			lspconfig.clangd.setup({
-				capabilities = capabilities,
+			-- YAML
+			setup_server("yamlls", {
+				settings = {
+					yaml = {
+						validate = true,
+						schemas = {
+							kubernetes = { "k8s**.yaml", "kube*/*.yaml" },
+						},
+					},
+				},
+			})
+
+			-- TypeScript/JavaScript
+			setup_server("ts_ls")
+
+			-- Python
+			setup_server("pyright")
+
+			-- Rust
+			setup_server("rust_analyzer")
+
+			-- C/C++
+			setup_server("clangd", {
 				cmd = { "clangd", "--background-index", "--clang-tidy" },
 				init_options = {
-					-- You can add clangd-specific initialization options here
 					clangdFileStatus = true,
 					usePlaceholders = true,
 					completeUnimported = true,
 					semanticHighlighting = true,
 				},
 			})
+
+			-- Protobuf
 			configs["protobuf-language-server"] = {
 				default_config = {
 					cmd = { vim.env.GOBIN .. "/protobuf-language-server" },
 					filetypes = { "proto" },
-					root_fir = util.root_pattern(".git"),
+					root_dir = util.root_pattern(".git"),
 					single_file_support = true,
 					settings = {
 						["additional-proto-dirs"] = { "third_party/proto", "src/proto" },
@@ -300,8 +329,9 @@ return {
 			lspconfig["protobuf-language-server"].setup({
 				capabilities = capabilities,
 			})
-			lspconfig.nixd.setup({
-				capabilities = capabilities,
+
+			-- Nix
+			setup_server("nixd", {
 				settings = {
 					nixpkgs = {
 						expr = "import <nixpkgs> { }",

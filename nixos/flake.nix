@@ -31,9 +31,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    apple-silicon-support.url = "github:tpwrules/nixos-apple-silicon/19b1103d09b4be12bdbf4c713b0e45fc434b5f6a";
   };
 
-  outputs = { nixpkgs, nixpkgs-stable, home-manager, ... } @ inputs:
+  outputs = { nixpkgs, nixpkgs-stable, home-manager, apple-silicon-support, ... } @ inputs:
     let
       systems = {
         x86_64 = "x86_64-linux";
@@ -55,6 +56,7 @@
           specialArgs = {
             inherit secrets;
             inherit inputs;
+            inherit apple-silicon-support;
           };
           modules = [
             ./hosts/common/default.nix
@@ -88,7 +90,7 @@
                       src = final.fetchurl (
                         if final.stdenv.hostPlatform.isAarch64 then {
                           url = "https://dl.pstmn.io/download/latest/linux_arm";
-                          sha256 = "RYzhb5DcXeZP4zhTFzbxoyNaWWF4ICzW3IQ3V9TSA6E=";
+                          sha256 = "rqv/a3tO+6p1vnFtiNkkI/gYYkHZn6C0pvztHVGhhkE=";
                           name = "${old.pname}-${version}.tar.gz";
                         } else {
                           url = "https://dl.pstmn.io/download/latest/linux_64";

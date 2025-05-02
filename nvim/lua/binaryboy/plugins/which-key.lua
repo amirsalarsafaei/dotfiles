@@ -21,7 +21,7 @@ return {
 			{ "<leader>f", group = "search" },
 			{ "<leader>h", group = "git hunks" },
 			{ "<leader>x", group = "trouble" },
-			{ "<leader>d", group = "debugging" },
+			{ "<leader>r", group = "debugging" },
 		})
 	end,
 }

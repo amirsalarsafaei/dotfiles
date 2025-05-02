@@ -96,28 +96,28 @@ return {
 				dapui.open()
 			end
 
-			Map("n", "<Leader>dp", dap.toggle_breakpoint, { desc = "toggle debug break points" })
-			Map("n", "<leader>dbc", function()
+			Map("n", "<leader>rp", dap.toggle_breakpoint, { desc = "toggle debug break points" })
+			Map("n", "<leader>rbc", function()
 				dap.set_breakpoint(vim.fn.input("Breakpoint condition: "))
 			end, { desc = "conditional break point" })
-			Map("n", "<leader>dbl", function()
+			Map("n", "<leader>rbl", function()
 				dap.set_breakpoint(nil, nil, vim.fn.input("Log point message: "))
 			end, { desc = "logging break point" })
 
-			Map("n", "<Leader>dc", dap.continue, { desc = "continue debugger" })
-			Map("n", "<Leader>ds", dap.close, { desc = "closes debugger" })
-			Map("n", "<Leader>dl", dap.run_last, { desc = "runs last debug profile" })
+			Map("n", "<leader>rc", dap.continue, { desc = "continue debugger" })
+			Map("n", "<leader>rs", dap.close, { desc = "closes debugger" })
+			Map("n", "<leader>rl", dap.run_last, { desc = "runs last debug profile" })
 
-			Map("n", "<Leader>dj", dap.down, { desc = "go down in stack trace" })
-			Map("n", "<Leader>dk", dap.up, { desc = "go up in stack trace" })
+			Map("n", "<leader>rj", dap.down, { desc = "go down in stack trace" })
+			Map("n", "<leader>rk", dap.up, { desc = "go up in stack trace" })
 
-			Map("n", "<Leader>dq", dapui.close, { desc = "close debugger ui" })
+			Map("n", "<leader>rq", dapui.close, { desc = "close debugger ui" })
 
-			Map("n", "<Leader>di", dap.step_into, { desc = "step into code" })
-			Map("n", "<Leader>d0", dap.step_out, { desc = "step out of the code" })
-			Map("n", "<Leader>do", dap.step_over, { desc = "step over the code" })
+			Map("n", "<leader>ri", dap.step_into, { desc = "step into code" })
+			Map("n", "<leader>r0", dap.step_out, { desc = "step out of the code" })
+			Map("n", "<leader>ro", dap.step_over, { desc = "step over the code" })
 
-			Map("n", "<Leader>df", function()
+			Map("n", "<leader>rf", function()
 				dapui.float_element("scopes", { enter = true })
 			end)
 		end,

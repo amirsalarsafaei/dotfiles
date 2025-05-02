@@ -66,8 +66,8 @@ return {
 						},
 					},
 					-- Additional default settings
-					selection_caret = " ",
-					multi_icon = " ",
+					-- selection_caret = " ",
+					-- multi_icon = " ",
 					vimgrep_arguments = {
 						"rg",
 						"--color=never",

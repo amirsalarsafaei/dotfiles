@@ -9,7 +9,7 @@
       enable = true;
       wifi = {
         backend = "iwd";
-        powersave = true;
+        powersave = false;
       };
     };
     wireless.iwd = {
