@@ -31,7 +31,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    apple-silicon-support.url = "github:tpwrules/nixos-apple-silicon/19b1103d09b4be12bdbf4c713b0e45fc434b5f6a";
+    apple-silicon-support.url = "github:tpwrules/nixos-apple-silicon/main";
   };
 
   outputs = { nixpkgs, nixpkgs-stable, home-manager, apple-silicon-support, ... } @ inputs:
@@ -90,7 +90,7 @@
                       src = final.fetchurl (
                         if final.stdenv.hostPlatform.isAarch64 then {
                           url = "https://dl.pstmn.io/download/latest/linux_arm";
-                          sha256 = "rqv/a3tO+6p1vnFtiNkkI/gYYkHZn6C0pvztHVGhhkE=";
+                          sha256 = "Kvxm2KA0zIrAJOORRHBFffQDdSDVJMrpZ83u6zlNMkk=";
                           name = "${old.pname}-${version}.tar.gz";
                         } else {
                           url = "https://dl.pstmn.io/download/latest/linux_64";
@@ -122,17 +122,13 @@
               home-manager = {
                 useGlobalPkgs = true;
                 useUserPackages = true;
-                backupFileExtension = "backup";
+                backupFileExtension = "backup-tmp";
                 extraSpecialArgs = {
                   inherit secrets;
                   inherit inputs;
                   currentHostname = hostname;
                   currentSystem = system;
                   homeDir = "/home/${username}";
-                  monitors = {
-                    mainMonitor = "eDP-1";
-                    secondaryMonitor = "HDMI-A-1";
-                  };
                 };
                 users.${username} =
                   import ./home/default.nix;

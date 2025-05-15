@@ -13,6 +13,6 @@ return {
 	config = function()
 		local gitlab = require("gitlab")
 		gitlab.setup()
-		Map("n", "glnc", gitlab.create_comment, { desc = "creates gitlab git merge request comment" })
+		vim.keymap.set("n", "glnc", gitlab.create_comment, { desc = "creates gitlab git merge request comment", noremap = true, silent = true })
 	end,
 }

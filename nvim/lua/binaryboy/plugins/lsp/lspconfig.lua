@@ -306,6 +306,7 @@ return {
 			-- C/C++
 			setup_server("clangd", {
 				cmd = { "clangd", "--background-index", "--clang-tidy" },
+				filetypes = { "c", "cpp", "objc", "objcpp", "cuda" }, -- Explicitly exclude proto files
 				init_options = {
 					clangdFileStatus = true,
 					usePlaceholders = true,

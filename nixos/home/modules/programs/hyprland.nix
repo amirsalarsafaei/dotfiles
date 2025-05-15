@@ -1,10 +1,6 @@
 { inputs
 , pkgs
 , lib
-, monitors ? {
-    mainMonitor = "eDP-1";
-    secondaryMonitor = "HDMI-A-1";
-  }
 , ...
 }:
 
@@ -14,11 +10,6 @@
     systemd.enable = false;
     package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
     settings = {
-      monitor = [
-        "${monitors.mainMonitor},preferred,auto,auto"
-      ] ++ lib.optionals (monitors ? secondaryMonitor) [
-        "${monitors.secondaryMonitor},preferred,auto,auto"
-      ];
 
       "$terminal" = "wezterm";
       "$fileManager" = "dolphin";
@@ -189,20 +180,6 @@
         ",XF86Print,exec,grim -g \"$(slurp)\" - | wl-copy" # Region screenshot to clipboard (XF86 key)
         "SHIFT,Print,exec,grim - | wl-copy" # Full screenshot to clipboard
         "SHIFT,XF86Print,exec,grim - | wl-copy" # Full screenshot to clipboard (XF86 key)
-      ];
-
-      workspace = [
-        "1,monitor:${monitors.mainMonitor}"
-        "2,monitor:${monitors.mainMonitor}"
-        "3,monitor:${monitors.mainMonitor}"
-        "4,monitor:${monitors.mainMonitor}"
-        "5,monitor:${monitors.mainMonitor}"
-      ] ++ lib.optionals (monitors ? secondaryMonitor) [
-        "6,monitor:${monitors.secondaryMonitor}"
-        "7,monitor:${monitors.secondaryMonitor}"
-        "8,monitor:${monitors.secondaryMonitor}"
-        "9,monitor:${monitors.secondaryMonitor}"
-        "0,monitor:${monitors.secondaryMonitor}"
       ];
 
       xwayland = {

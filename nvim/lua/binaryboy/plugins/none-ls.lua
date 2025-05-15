@@ -1,10 +1,6 @@
 return {
-	"jay-babu/mason-null-ls.nvim",
-	Gvent = { "BufReadPre", "BufNewFile" },
-	dependencies = {
-		"williamboman/mason.nvim",
-		"nvimtools/none-ls.nvim",
-	},
+	"nvimtools/none-ls.nvim",
+	event = { "BufReadPre", "BufNewFile" },
 	config = function()
 		local function get_sqlfluff_args()
 			local args = { "--dialect", "postgres" }
@@ -20,7 +16,6 @@ return {
 		end
 
 		local augroup = vim.api.nvim_create_augroup("NullLsLspFormatting", {})
-		require("mason").setup()
 		local null_ls = require("null-ls")
 
 		local sqlfluff_args = get_sqlfluff_args()
@@ -88,23 +83,6 @@ return {
 			end,
 		})
 
-		require("mason-null-ls").setup({
-			ensure_installed = nil,
-			automatic_installation = true,
-			handlers = {
-				function(source, types)
-					if not null_ls.is_registered(source) then
-						vim.tbl_map(function(type)
-							null_ls.register(null_ls.builtins[type][source])
-						end, types)
-					end
-				end,
-				buf = function()
-					-- Do nothing for buf formatter
-				end,
-			},
-		})
-
-		Map("n", "<leader>gf", vim.lsp.buf.format, { desc = "Format buffer" })
+		vim.keymap.set("n", "<leader>gf", vim.lsp.buf.format, { desc = "Format buffer", noremap = true, silent = true })
 	end,
 }

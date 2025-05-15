@@ -29,6 +29,8 @@
       pkgs.postman
       pkgs.docker
       pkgs.docker-compose
+      pkgs.gore
+      pkgs.devbox
     ];
     
     # Language Servers, Formatters, Linters, and Debuggers
@@ -42,11 +44,11 @@
       pkgs.gopls                 # Go LSP
       pkgs.golangci-lint         # Go linter
       pkgs.delve                 # Go debugger
+      pkgs.goimports-reviser
       
       # Rust
-      pkgs.rust-analyzer         # Rust LSP
-      pkgs.rustfmt               # Rust formatter
-      pkgs.clippy                # Rust linter
+      # pkgs.rustfmt               # Rust formatter
+      # pkgs.clippy                # Rust linter
       
       # C/C++
       pkgs.clang-tools           # C/C++ LSP (clangd) and formatter (clang-format)
@@ -73,13 +75,19 @@
       pkgs.yaml-language-server  # YAML LSP
       pkgs.nodePackages.vscode-json-languageserver # JSON LSP
       pkgs.yamllint              # YAML linter
+      pkgs.yamlfmt
       pkgs.yq-go                 # YAML processor
       pkgs.jq                    # JSON processor
+
+      # JS/TS
+      pkgs.typescript-language-server
+      pkgs.vscode-langservers-extracted
       
       # General
       pkgs.nodePackages.prettier # Formatter for many languages
       pkgs.efm-langserver       # General purpose LSP
       pkgs.shellcheck           # Shell script linter
+      
     ];
 
     # Terminal and Shell

@@ -96,30 +96,30 @@ return {
 				dapui.open()
 			end
 
-			Map("n", "<leader>rp", dap.toggle_breakpoint, { desc = "toggle debug break points" })
-			Map("n", "<leader>rbc", function()
+			vim.keymap.set("n", "<leader>rp", dap.toggle_breakpoint, { desc = "toggle debug break points", noremap = true, silent = true })
+			vim.keymap.set("n", "<leader>rbc", function()
 				dap.set_breakpoint(vim.fn.input("Breakpoint condition: "))
-			end, { desc = "conditional break point" })
-			Map("n", "<leader>rbl", function()
+			end, { desc = "conditional break point", noremap = true, silent = true })
+			vim.keymap.set("n", "<leader>rbl", function()
 				dap.set_breakpoint(nil, nil, vim.fn.input("Log point message: "))
-			end, { desc = "logging break point" })
+			end, { desc = "logging break point", noremap = true, silent = true })
 
-			Map("n", "<leader>rc", dap.continue, { desc = "continue debugger" })
-			Map("n", "<leader>rs", dap.close, { desc = "closes debugger" })
-			Map("n", "<leader>rl", dap.run_last, { desc = "runs last debug profile" })
+			vim.keymap.set("n", "<leader>rc", dap.continue, { desc = "continue debugger", noremap = true, silent = true })
+			vim.keymap.set("n", "<leader>rs", dap.close, { desc = "closes debugger", noremap = true, silent = true })
+			vim.keymap.set("n", "<leader>rl", dap.run_last, { desc = "runs last debug profile", noremap = true, silent = true })
 
-			Map("n", "<leader>rj", dap.down, { desc = "go down in stack trace" })
-			Map("n", "<leader>rk", dap.up, { desc = "go up in stack trace" })
+			vim.keymap.set("n", "<leader>rj", dap.down, { desc = "go down in stack trace", noremap = true, silent = true })
+			vim.keymap.set("n", "<leader>rk", dap.up, { desc = "go up in stack trace", noremap = true, silent = true })
 
-			Map("n", "<leader>rq", dapui.close, { desc = "close debugger ui" })
+			vim.keymap.set("n", "<leader>rq", dapui.close, { desc = "close debugger ui", noremap = true, silent = true })
 
-			Map("n", "<leader>ri", dap.step_into, { desc = "step into code" })
-			Map("n", "<leader>r0", dap.step_out, { desc = "step out of the code" })
-			Map("n", "<leader>ro", dap.step_over, { desc = "step over the code" })
+			vim.keymap.set("n", "<leader>ri", dap.step_into, { desc = "step into code", noremap = true, silent = true })
+			vim.keymap.set("n", "<leader>r0", dap.step_out, { desc = "step out of the code", noremap = true, silent = true })
+			vim.keymap.set("n", "<leader>ro", dap.step_over, { desc = "step over the code", noremap = true, silent = true })
 
-			Map("n", "<leader>rf", function()
+			vim.keymap.set("n", "<leader>rf", function()
 				dapui.float_element("scopes", { enter = true })
-			end)
+			end, { noremap = true, silent = true })
 		end,
 	},
 }

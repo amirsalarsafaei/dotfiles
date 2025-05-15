@@ -55,6 +55,6 @@ return {
 			provider = "claude",
 		})
 
-		Map("n", "<leader>al", "<cmd>AvanteClear<CR><cmd>", { desc = "clears avante" })
+		vim.keymap.set("n", "<leader>al", "<cmd>AvanteClear<CR><cmd>", { desc = "clears avante", noremap = true, silent = true })
 	end,
 }

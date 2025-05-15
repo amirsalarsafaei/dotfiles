@@ -12,11 +12,16 @@
         powersave = false;
       };
     };
+    wireless.enable = false;
     wireless.iwd = {
       enable = true;
       settings = {
-        General.EnableNetworkConfiguration = true;
-        IPv6.Enabled = true;
+        General = {
+          EnableNetworkConfiguration = true;
+        };
+        Network = {
+          ConnectTimeout = 60;
+        };
         Settings = {
           AutoConnect = true;
         };

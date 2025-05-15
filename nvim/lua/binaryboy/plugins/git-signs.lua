@@ -54,7 +54,9 @@ return {
 				local function map(mode, l, r, opts)
 					opts = opts or {}
 					opts.buffer = bufnr
-					Map(mode, l, r, opts)
+					opts.noremap = opts.noremap ~= false
+					opts.silent = opts.silent ~= false
+					vim.keymap.set(mode, l, r, opts)
 				end
 
 				-- Navigation

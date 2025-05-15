@@ -48,6 +48,11 @@ in
       source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/personal/dotfiles/nvim";
       recursive = true;
     };
+    "yamllint/config".text = ''
+      extends: relaxed
+      rules:
+        line-length: disable
+    '';
   };
 
   imports = [ ./modules hostConfig ];

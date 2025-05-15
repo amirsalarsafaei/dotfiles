@@ -29,9 +29,8 @@
     asahi = {
       peripheralFirmwareDirectory = ./firmware;
       useExperimentalGPUDriver = true;
-      # experimentalGPUInstallMode = "driver";
-      # setupAsahiSound = true;
-      # withRust = true;
+      setupAsahiSound = true;
+      withRust = true;
     };
   };
 
@@ -89,11 +88,11 @@
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
-  services.udev.extraRules = ''
-    	SUBSYSTEM=="backlight", ACTION=="add",
-    	RUN+="${pkgs.coreutils-full}/bin/chmod 666 /sys/class/backlight/apple-panel-bl/brightness" 
-    	RUN+="${pkgs.coreutils-full}/bin/chmod 666 /sys/class/leds/kbd_backlight/brightness" 
-    	'';
+  # services.udev.extraRules = ''
+  #   	SUBSYSTEM=="backlight", ACTION=="add",
+  #   	RUN+="${pkgs.coreutils-full}/bin/chmod 666 /sys/class/backlight/apple-panel-bl/brightness" 
+  #   	RUN+="${pkgs.coreutils-full}/bin/chmod 666 /sys/class/leds/kbd_backlight/brightness" 
+  #   	'';
 
   services.logind = {
     lidSwitch = "suspend";
