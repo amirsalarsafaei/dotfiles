@@ -1,4 +1,4 @@
-{ pkgs, ... }: {
+{ pkgs, lib, ... }: {
   programs.zsh = {
     enable = true;
     oh-my-zsh = {
@@ -63,30 +63,33 @@
       }
     ];
 
-    initExtraFirst = ''
-      # Minimal completion configuration
-      zstyle ':completion:*' menu select
-      zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
-      
-      # Performance optimizations
-      export ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
-      export ZSH_AUTOSUGGEST_USE_ASYNC=true
+    initContent = lib.mkMerge [
+      (lib.mkBefore ''
+        # Minimal completion configuration
+        zstyle ':completion:*' menu select
+        zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+        
+        # Performance optimizations
+        export ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
+        export ZSH_AUTOSUGGEST_USE_ASYNC=true
+        export ZSH_AUTOSUGGEST_MANUAL_REBIND=1
 
-      export PATH=$PATH:$HOME/.local/bin/
-      export ZSH_AUTOSUGGEST_MANUAL_REBIND=1
-    '';
+        # Add local bin to PATH
+        export PATH=$PATH:$HOME/.local/bin/
+      '')
+      ''
+        # Load personal shell files if present
+        ___MY_VMOPTIONS_SHELL_FILE="$HOME/.jetbrains.vmoptions.sh"
+        if [ -f "$___MY_VMOPTIONS_SHELL_FILE" ]; then
+          . "$___MY_VMOPTIONS_SHELL_FILE"
+        fi
+        
+        # Set default editor
+        export EDITOR=nvim
 
-    initExtra = ''
-
-      # Load personal shell files if present
-      ___MY_VMOPTIONS_SHELL_FILE="$HOME/.jetbrains.vmoptions.sh"
-      if [ -f "$___MY_VMOPTIONS_SHELL_FILE" ]; then
-        . "$___MY_VMOPTIONS_SHELL_FILE"
-      fi
-      export EDITOR=nvim
-
-
-      source ~/zshsecret
-    '';
+        # Load secrets
+        source ~/zshsecret
+      ''
+    ];
   };
 }

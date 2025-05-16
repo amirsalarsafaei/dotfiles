@@ -1,11 +1,11 @@
-{ pkgs, config, homeDir, currentHostname, ... }:
+{ config, homeDir, currentHostname, ... }:
 let
   hostConfig = ./hosts + "/${currentHostname}.nix";
 in
 {
 
   home.username = "amirsalar";
-  home.homeDirectory = "/home/amirsalar";
+  home.homeDirectory = homeDir;
 
   home.stateVersion = "24.11"; # Please read the comment before changing.
 
@@ -50,8 +50,6 @@ in
     };
     "yamllint/config".text = ''
       extends: relaxed
-      rules:
-        line-length: disable
     '';
   };
 

@@ -2,63 +2,64 @@
   description = "NixOS configuration";
 
   nixConfig = {
-    subtituters = [
-      # nix community's cache server
-      "https://nix-community.cachix.org"
-
-      "https://hyprland.cachix.org"
+    substituters = [
       "https://cache.nixos.org"
+      "https://nix-community.cachix.org"
+      "https://hyprland.cachix.org"
       "https://devenv.cachix.org"
     ];
     trusted-public-keys = [
-      # nix community's cache server public key
-      "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-
-      "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
       "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+      "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+      "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
       "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw="
     ];
   };
 
   inputs = {
+    # Nixpkgs
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     nixpkgs-stable.url = "github:nixos/nixpkgs/nixos-24.11";
-
-    hyprland.url = "github:hyprwm/Hyprland";
-
+    
+    # Home manager
     home-manager = {
       url = "github:nix-community/home-manager/master";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
+    
+    # Window manager
+    hyprland.url = "github:hyprwm/Hyprland";
+    
+    # Hardware support
     apple-silicon-support.url = "github:tpwrules/nixos-apple-silicon/main";
   };
 
   outputs = { nixpkgs, nixpkgs-stable, home-manager, apple-silicon-support, ... } @ inputs:
     let
+      # Define supported systems
       systems = {
         x86_64 = "x86_64-linux";
         aarch64 = "aarch64-linux";
       };
 
+      # Load secrets from JSON file
       secrets = builtins.fromJSON (builtins.readFile ./secrets/secrets.json);
 
       # Helper function to create system configurations
-      mkSystem =
-        { system
-        , hostname
-        , username ? "amirsalar"
-        , extraModules ? [ ]
-        }:
-        nixpkgs.lib.nixosSystem {
-          inherit system;
+      mkSystem = { 
+        system,
+        hostname,
+        username ? "amirsalar",
+        extraModules ? [ ]
+      }:
+      nixpkgs.lib.nixosSystem {
+        inherit system;
 
-          specialArgs = {
-            inherit secrets;
-            inherit inputs;
-            inherit apple-silicon-support;
-          };
+        specialArgs = {
+          inherit secrets inputs apple-silicon-support;
+        };
           modules = [
+            # Common configuration for all hosts
             ./hosts/common/default.nix
 
             # Host-specific configuration
@@ -67,71 +68,34 @@
             # Hardware-specific configuration
             ./hosts/${hostname}/hardware-configuration.nix
 
-
+            # System-wide nixpkgs configuration
             {
-              # System-wide nixpkgs configuration
               nixpkgs = {
                 config = {
                   android_sdk.accept_license = true;
                   allowUnfree = true;
                 };
-                overlays = [
-                  (final: prev: {
-                    stable = import nixpkgs-stable {
-                      inherit system;
-                      config = {
-                        android_sdk.accept_license = true;
-                        allowUnfree = true;
-                      };
-                    };
-
-                    postman = prev.postman.overrideAttrs (old: rec {
-                      version = "2025-01-15";
-                      src = final.fetchurl (
-                        if final.stdenv.hostPlatform.isAarch64 then {
-                          url = "https://dl.pstmn.io/download/latest/linux_arm";
-                          sha256 = "Kvxm2KA0zIrAJOORRHBFffQDdSDVJMrpZ83u6zlNMkk=";
-                          name = "${old.pname}-${version}.tar.gz";
-                        } else {
-                          url = "https://dl.pstmn.io/download/latest/linux_64";
-                          sha256 = "saczZ6e3WxGstqD9kbfxVoQKnC0gHVqEZWiNL2GRLtM=";
-                          name = "${old.pname}-${version}.tar.gz";
-                        }
-                      );
-                      buildInputs = old.buildInputs ++ [ final.xdg-utils ];
-                      postFixup = ''
-                        pushd $out/share/postman
-                        patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" postman
-                        patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" chrome_crashpad_handler
-                        for file in $(find . -type f \( -name \*.node -o -name postman -o -name \*.so\* \) ); do
-                          ORIGIN=$(patchelf --print-rpath $file); \
-                          patchelf --set-rpath "${final.lib.makeLibraryPath old.buildInputs}:$ORIGIN" $file
-                        done
-                        popd
-                        wrapProgram $out/bin/postman --set PATH ${final.lib.makeBinPath [ final.openssl final.xdg-utils ]}:\$PATH
-                      '';
-                    });
-                  })
-
-                ];
+                # Import overlays from the overlays directory
+                overlays = import ./overlays { 
+                  inherit nixpkgs-stable system; 
+                };
               };
             }
 
+            # Home Manager configuration
             home-manager.nixosModules.home-manager
             {
               home-manager = {
                 useGlobalPkgs = true;
                 useUserPackages = true;
-                backupFileExtension = "backup-tmp";
+                backupFileExtension = "backup";
                 extraSpecialArgs = {
-                  inherit secrets;
-                  inherit inputs;
+                  inherit secrets inputs;
                   currentHostname = hostname;
                   currentSystem = system;
                   homeDir = "/home/${username}";
                 };
-                users.${username} =
-                  import ./home/default.nix;
+                users.${username} = import ./home/default.nix;
               };
             }
           ] ++ extraModules;
@@ -139,12 +103,13 @@
     in
     {
       nixosConfigurations = {
-        # MacBook (ARM)
+        # MacBook Pro (ARM)
         mac = mkSystem {
           system = systems.aarch64;
           hostname = "mac";
         };
 
+        # ROG laptop (x86_64)
         rog = mkSystem {
           system = systems.x86_64;
           hostname = "rog";
