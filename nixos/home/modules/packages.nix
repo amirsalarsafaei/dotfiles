@@ -82,6 +82,15 @@
       # JS/TS
       pkgs.typescript-language-server
       pkgs.vscode-langservers-extracted
+      pkgs.nodePackages.eslint    # JavaScript/TypeScript linter
+      
+      # Lua
+      pkgs.lua-language-server    # Lua LSP
+      pkgs.luaformatter           # Lua formatter
+      
+      # Docker
+      pkgs.dockerfile-language-server-nodejs  # Dockerfile LSP
+      pkgs.hadolint               # Dockerfile linter
       
       # General
       pkgs.nodePackages.prettier # Formatter for many languages
@@ -121,6 +130,13 @@
       pkgs.fzf
       pkgs.coreutils-full
       pkgs.ncdu
+      pkgs.zip
+      pkgs.p7zip
+      pkgs.gzip
+      pkgs.bzip2
+      pkgs.xz
+      pkgs.tree
+      pkgs.bat
       
       # System Information
       pkgs.neofetch

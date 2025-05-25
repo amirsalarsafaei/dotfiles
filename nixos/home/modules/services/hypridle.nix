@@ -7,7 +7,6 @@
         ignore_dbus_inhibit = false;
         lock_cmd = "pidof hyprlock || hyprlock";
       };
-
       listener = [
         {
           timeout = 500;

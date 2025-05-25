@@ -1,6 +1,5 @@
 { inputs
 , pkgs
-, lib
 , ...
 }:
 
@@ -14,6 +13,7 @@
       "$terminal" = "wezterm";
       "$fileManager" = "dolphin";
       "$menu" = "rofi -show drun -run-command 'uwsm app -- {cmd}'";
+      "$clipboard" = "rofi-cliphist-paste";
 
       env = [
         "XCURSOR_SIZE,24"
@@ -148,6 +148,11 @@
         "SUPER,S,togglespecialworkspace,magic"
         "SUPER SHIFT,S,movetoworkspace,special:magic"
 
+        # Clipboard management
+        "SUPER,v,exec,$clipboard"
+        "SUPER SHIFT,v,exec,rofi-cliphist-delete"
+        "SUPER CTRL,v,exec,cliphist-clear"
+
         # Mouse bindings
         "SUPER,mouse_down,workspace,e+1"
         "SUPER,mouse_up,workspace,e-1"
@@ -180,6 +185,9 @@
         ",XF86Print,exec,grim -g \"$(slurp)\" - | wl-copy" # Region screenshot to clipboard (XF86 key)
         "SHIFT,Print,exec,grim - | wl-copy" # Full screenshot to clipboard
         "SHIFT,XF86Print,exec,grim - | wl-copy" # Full screenshot to clipboard (XF86 key)
+        # MacBook Pro screenshot bindings
+        "SHIFT ALT,F3,exec,grim - | wl-copy" # Full screenshot to clipboard
+        "SHIFT ALT,F4,exec,grim -g \"$(slurp)\" - | wl-copy" # Region screenshot to clipboard
       ];
 
       xwayland = {

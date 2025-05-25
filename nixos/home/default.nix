@@ -1,7 +1,4 @@
 { config, homeDir, currentHostname, ... }:
-let
-  hostConfig = ./hosts + "/${currentHostname}.nix";
-in
 {
 
   home.username = "amirsalar";
@@ -53,5 +50,5 @@ in
     '';
   };
 
-  imports = [ ./modules hostConfig ];
+  imports = [ ./modules ];
 }

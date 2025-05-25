@@ -16,7 +16,7 @@ return {
 			"hrsh7th/cmp-nvim-lsp",
 			{ "antosha417/nvim-lsp-file-operations", config = true },
 			"nanotee/sqls.nvim",
-			"j-hui/fidget.nvim",
+			{ "j-hui/fidget.nvim",                   opts = {} }, -- Use opts for simpler setup
 		},
 		config = function()
 			-- Core requirements
@@ -26,8 +26,7 @@ return {
 			local cmp_nvim_lsp = require("cmp_nvim_lsp")
 			local keymap = vim.keymap
 
-			-- Setup fidget for LSP progress display
-			require("fidget").setup()
+			-- Fidget is configured via opts in the dependencies
 
 			-----------------------------------------------------------
 			-- LSP Keybindings
@@ -35,31 +34,34 @@ return {
 			vim.api.nvim_create_autocmd("LspAttach", {
 				group = vim.api.nvim_create_augroup("UserLspConfig", {}),
 				callback = function(ev)
+					local client = vim.lsp.get_client_by_id(ev.data.client_id)
+					local bufnr = ev.buf
+
 					-- Navigation
 					keymap.set(
 						"n",
 						"gR",
 						"<cmd>Telescope lsp_references include_declaration=false<CR>",
-						{ buffer = ev.buf, desc = "Show LSP references" }
+						{ buffer = bufnr, desc = "Show LSP references" }
 					)
-					keymap.set("n", "gD", vim.lsp.buf.declaration, { buffer = ev.buf, desc = "Go to declaration" })
+					keymap.set("n", "gD", vim.lsp.buf.declaration, { buffer = bufnr, desc = "Go to declaration" })
 					keymap.set(
 						"n",
 						"gd",
 						"<cmd>Telescope lsp_definitions<CR>",
-						{ buffer = ev.buf, desc = "Show LSP definitions" }
+						{ buffer = bufnr, desc = "Show LSP definitions" }
 					)
 					keymap.set(
 						"n",
 						"gi",
 						"<cmd>Telescope lsp_implementations<CR>",
-						{ buffer = ev.buf, desc = "Show LSP implementations" }
+						{ buffer = bufnr, desc = "Show LSP implementations" }
 					)
 					keymap.set(
 						"n",
 						"gt",
 						"<cmd>Telescope lsp_type_definitions<CR>",
-						{ buffer = ev.buf, desc = "Show LSP type definitions" }
+						{ buffer = bufnr, desc = "Show LSP type definitions" }
 					)
 
 					-- Information
@@ -67,42 +69,50 @@ return {
 						"n",
 						"K",
 						vim.lsp.buf.hover,
-						{ buffer = ev.buf, desc = "Show documentation for what is under cursor" }
+						{ buffer = bufnr, desc = "Show documentation for what is under cursor" }
 					)
-					keymap.set("n", "gs", vim.lsp.buf.signature_help, { buffer = ev.buf, desc = "Show signature help" })
+					keymap.set("n", "gs", vim.lsp.buf.signature_help, { buffer = bufnr, desc = "Show signature help" })
 
 					-- Code actions
 					keymap.set(
 						{ "n", "v" },
 						"<leader>ca",
 						vim.lsp.buf.code_action,
-						{ buffer = ev.buf, desc = "See available code actions" }
+						{ buffer = bufnr, desc = "See available code actions" }
 					)
-					keymap.set("n", "<leader>rn", vim.lsp.buf.rename, { buffer = ev.buf, desc = "Smart rename" })
+					keymap.set("n", "<leader>rn", vim.lsp.buf.rename, { buffer = bufnr, desc = "Smart rename" })
 
 					-- Diagnostics
 					keymap.set(
 						"n",
 						"<leader>D",
 						"<cmd>Telescope diagnostics bufnr=0<CR>",
-						{ buffer = ev.buf, desc = "Show buffer diagnostics" }
+						{ buffer = bufnr, desc = "Show buffer diagnostics" }
 					)
 					keymap.set(
 						"n",
 						"<leader>d",
 						vim.diagnostic.open_float,
-						{ buffer = ev.buf, desc = "Show line diagnostics" }
+						{ buffer = bufnr, desc = "Show line diagnostics" }
 					)
 					keymap.set(
 						"n",
 						"[d",
 						vim.diagnostic.goto_prev,
-						{ buffer = ev.buf, desc = "Go to previous diagnostic" }
+						{ buffer = bufnr, desc = "Go to previous diagnostic" }
 					)
-					keymap.set("n", "]d", vim.diagnostic.goto_next, { buffer = ev.buf, desc = "Go to next diagnostic" })
+					keymap.set("n", "]d", vim.diagnostic.goto_next, { buffer = bufnr, desc = "Go to next diagnostic" })
 
 					-- Utility
-					keymap.set("n", "<leader>rs", ":LspRestart<CR>", { buffer = ev.buf, desc = "Restart LSP" })
+					keymap.set("n", "<leader>rs", ":LspRestart<CR>", { buffer = bufnr, desc = "Restart LSP" })
+
+					-- Inlay hints (Neovim 0.10+)
+					if client and client:supports_method("textDocument/inlayHint") then
+						-- Toggle inlay hints with <leader>ih
+						keymap.set("n", "<leader>ih", function()
+							vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({ buffer = bufnr }))
+						end, { buffer = bufnr, desc = "Toggle inlay hints" })
+					end
 				end,
 			})
 
@@ -112,6 +122,20 @@ return {
 			-- Used to enable autocompletion (assign to every lsp server config)
 			local capabilities = cmp_nvim_lsp.default_capabilities()
 
+			-- Enable completions for all file operations
+			capabilities.workspace = {
+				fileOperations = {
+					didCreate = true,
+					didRename = true,
+					didDelete = true,
+					willCreate = true,
+					willRename = true,
+					willDelete = true,
+				},
+			}
+
+			-- Diagnostic symbols in the sign column (gutter)
+			local signs = { Error = " ", Warn = " ", Hint = "󰠠 ", Info = " " }
 			vim.diagnostic.config({
 				update_in_insert = true,
 				float = {
@@ -122,15 +146,20 @@ return {
 					header = "",
 					prefix = "",
 				},
+				severity_sort = true,
+				virtual_text = {
+					prefix = "●", -- Could be '■', '▎', 'x'
+					source = "if_many",
+				},
+				signs = {
+					text = {
+						[vim.diagnostic.severity.ERROR] = signs.Error,
+						[vim.diagnostic.severity.WARN] = signs.Warn,
+						[vim.diagnostic.severity.HINT] = signs.Hint,
+						[vim.diagnostic.severity.INFO] = signs.Info,
+					},
+				},
 			})
-
-			-- Diagnostic symbols in the sign column (gutter)
-			-- (not in youtube nvim video)
-			local signs = { Error = " ", Warn = " ", Hint = "󰠠 ", Info = " " }
-			for type, icon in pairs(signs) do
-				local hl = "DiagnosticSign" .. type
-				vim.fn.sign_define(hl, { text = icon, texthl = hl, numhl = "" })
-			end
 
 			-- Common root patterns for project detection
 			local common_root_patterns = {
@@ -176,6 +205,11 @@ return {
 				-- Apply root_dir if not explicitly set
 				if not config.root_dir and not server.root_dir then
 					config.root_dir = lspconfig.util.root_pattern(unpack(common_root_patterns))
+				end
+
+				-- Enable inlay hints by default for supported servers (Neovim 0.10+)
+				if vim.fn.has("nvim-0.10") == 1 then
+					config.inlay_hints = config.inlay_hints or { enabled = true }
 				end
 
 				lspconfig[server].setup(config)

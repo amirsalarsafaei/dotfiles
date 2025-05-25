@@ -7,7 +7,7 @@
     terminal = "${pkgs.wezterm}/bin/wezterm";
     theme = "catppuccin-mocha";
     extraConfig = {
-      modi = "run,drun,ssh,window,filebrowser";
+      modi = "run,drun,ssh,window,filebrowser,clipboard:${pkgs.cliphist}/bin/cliphist list";
       icon-theme = "Papirus-Dark";
       show-icons = true;
       drun-display-format = "{icon} {name}";
@@ -17,10 +17,10 @@
 
       # Display Settings
       display-drun = "󰣆 Apps";
-      display-run = " Run";
       display-ssh = "󰣀 SSH";
       display-window = "󱂬 Windows";
       display-filebrowser = "󰉋 Files";
+      display-clipboard = "󰅌 Clipboard";
 
       # Behavior
       sidebar-mode = true;
