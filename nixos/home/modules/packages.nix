@@ -31,6 +31,7 @@
       pkgs.docker-compose
       pkgs.gore
       pkgs.devbox
+      pkgs.bazel
     ];
     
     # Language Servers, Formatters, Linters, and Debuggers

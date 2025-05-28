@@ -5,7 +5,7 @@ final: prev: {
     src = final.fetchurl (
       if final.stdenv.hostPlatform.isAarch64 then {
         url = "https://dl.pstmn.io/download/latest/linux_arm";
-        sha256 = "Kvxm2KA0zIrAJOORRHBFffQDdSDVJMrpZ83u6zlNMkk=";
+        sha256 = "or4jru0kRL4AnRSuUIMhlBg20fXl2L6Mjra6rGIgjd8=";
         name = "${old.pname}-${version}.tar.gz";
       } else {
         url = "https://dl.pstmn.io/download/latest/linux_64";
