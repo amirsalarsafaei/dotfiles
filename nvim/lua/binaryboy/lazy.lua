@@ -18,7 +18,7 @@ if not status_ok then
   return
 end
 
-lazy.setup({ { import = "binaryboy.plugins" }, { import = "binaryboy.plugins.lsp" } }, {
+lazy.setup({ { import = "binaryboy.plugins" } }, {
   checker = {
     enabled = true,
     notify = false,

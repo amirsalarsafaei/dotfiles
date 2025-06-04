@@ -11,12 +11,12 @@ return {
 		"MunifTanjim/nui.nvim",
 		--- The below dependencies are optional,
 		---
-		"echasnovski/mini.pick", -- for file_selector provider mini.pick
+		"echasnovski/mini.pick",       -- for file_selector provider mini.pick
 		"nvim-telescope/telescope.nvim", -- for file_selector provider telescope
-		"hrsh7th/nvim-cmp", -- autocompletion for avante commands and mentions
-		"ibhagwan/fzf-lua", -- for file_selector provider fzf
+		"hrsh7th/nvim-cmp",            -- autocompletion for avante commands and mentions
+		"ibhagwan/fzf-lua",            -- for file_selector provider fzf
 		"nvim-tree/nvim-web-devicons", -- or echasnovski/mini.icons
-		"zbirenbaum/copilot.lua", -- for providers='copilot'
+		"zbirenbaum/copilot.lua",      -- for providers='copilot'
 		{
 			-- support for image pasting
 			"HakonHarnes/img-clip.nvim",
@@ -46,15 +46,19 @@ return {
 
 	config = function()
 		require("avante").setup({
-			claude = {
-				endpoint = "https://aiproxy.divar.dev/providers/anthropic",
-			},
-			openai = {
-				endpoint = "https://aiproxy.divar.dev/providers/openai/v1/",
+			providers = {
+				claude = {
+					endpoint = "https://litellm.data.divar.cloud",
+					model = "claude-sonnet-4-20250514",
+				},
+				openai = {
+					endpoint = "https://litellm.data.divar.cloud",
+				},
 			},
 			provider = "claude",
 		})
 
-		vim.keymap.set("n", "<leader>al", "<cmd>AvanteClear<CR><cmd>", { desc = "clears avante", noremap = true, silent = true })
+		vim.keymap.set("n", "<leader>al", "<cmd>AvanteClear<CR><cmd>",
+			{ desc = "clears avante", noremap = true, silent = true })
 	end,
 }

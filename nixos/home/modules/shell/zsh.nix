@@ -24,11 +24,16 @@
         "tmuxinator"
       ];
     };
-    enableCompletion = false;
+    # Enable completion system - this is needed for proper functioning
+    enableCompletion = true;
+    
+    # Use built-in autosuggestions instead of conflicting with zsh-autocomplete
     autosuggestion = {
       enable = true;
       strategy = [ "history" "completion" ];
     };
+    
+    # Use built-in syntax highlighting to avoid conflicts
     syntaxHighlighting.enable = true;
 
     shellGlobalAliases = {
@@ -44,14 +49,6 @@
 
     plugins = [
       {
-        name = "fast-syntax-highlighting";
-        src = pkgs.zsh-fast-syntax-highlighting.src;
-      }
-      {
-        name = "zsh-autocomplete";
-        src = pkgs.zsh-autocomplete.src;
-      }
-      {
         name = "zsh-nix-shell";
         src = pkgs.zsh-nix-shell;
         file = "share/zsh-nix-shell/nix-shell.plugin.zsh";
@@ -65,14 +62,25 @@
 
     initContent = lib.mkMerge [
       (lib.mkBefore ''
-        # Minimal completion configuration
+        # Ensure completion system is properly initialized
+        autoload -Uz compinit
+        compinit
+        
+        # Enhanced completion configuration
         zstyle ':completion:*' menu select
-        zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+        zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
+        zstyle ':completion:*' list-colors ""
+        zstyle ':completion:*:descriptions' format '[%d]'
+        zstyle ':completion:*' group-name ""
+        zstyle ':completion:*' special-dirs true
         
         # Performance optimizations
         export ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
         export ZSH_AUTOSUGGEST_USE_ASYNC=true
         export ZSH_AUTOSUGGEST_MANUAL_REBIND=1
+        
+        # Prevent completion conflicts
+        export ZSH_DISABLE_COMPFIX=true
 
         # Add local bin to PATH
         export PATH=$PATH:$HOME/.local/bin/

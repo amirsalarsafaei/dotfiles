@@ -1,0 +1,15 @@
+vim.lsp.enable({
+	'lua_ls',
+	'gopls',
+	'nixd',
+	'pyright',
+	'yamlls',
+	'protobuf-language-server',
+	'eslint',
+	'elixirls',
+	'lexical',
+	'sqls',
+	'ts_ls',
+	'rust_analyzer',
+	'sqls',
+})
