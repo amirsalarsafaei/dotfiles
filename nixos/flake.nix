@@ -31,7 +31,7 @@
     hyprland.url = "github:hyprwm/Hyprland";
     
     # Hardware support
-    apple-silicon-support.url = "github:tpwrules/nixos-apple-silicon/main";
+    apple-silicon-support.url = "github:nix-community/nixos-apple-silicon/main";
   };
 
   outputs = { nixpkgs, nixpkgs-stable, home-manager, apple-silicon-support, ... } @ inputs:

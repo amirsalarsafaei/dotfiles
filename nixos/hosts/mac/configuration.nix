@@ -88,27 +88,11 @@
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
-  # services.udev.extraRules = ''
-  #   	SUBSYSTEM=="backlight", ACTION=="add",
-  #   	RUN+="${pkgs.coreutils-full}/bin/chmod 666 /sys/class/backlight/apple-panel-bl/brightness" 
-  #   	RUN+="${pkgs.coreutils-full}/bin/chmod 666 /sys/class/leds/kbd_backlight/brightness" 
-  #   	'';
+  services.udev.extraRules = ''
+    SUBSYSTEM=="backlight", ACTION=="add", RUN+="${pkgs.coreutils-full}/bin/chmod 666 /sys/class/backlight/apple-panel-bl/brightness", RUN+="${pkgs.coreutils-full}/bin/chmod 666 /sys/class/leds/kbd_backlight/brightness"
+  '';
 
   services.logind = {
     lidSwitch = "suspend";
   };
-
-  systemd.services.dhcpcd = {
-    # Adding the necessary capabilities
-    serviceConfig.CapabilityBoundingSet = [
-      "CAP_NET_ADMIN"
-      "CAP_NET_BIND_SERVICE"
-      "CAP_NET_RAW"
-      "CAP_SETGID"
-      "CAP_SETUID"
-      "CAP_SYS_CHROOT"
-      "CAP_KILL" # Added CAP_KILL capability
-    ];
-  };
-
 }
