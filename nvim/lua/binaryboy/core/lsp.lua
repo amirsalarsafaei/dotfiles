@@ -12,4 +12,5 @@ vim.lsp.enable({
 	'ts_ls',
 	'rust_analyzer',
 	'sqls',
+	'sourcekit'
 })

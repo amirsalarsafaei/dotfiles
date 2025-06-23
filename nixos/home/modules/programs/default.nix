@@ -11,5 +11,6 @@
     ./hyprland.nix
     ./vscode.nix
     ./texlive.nix
+    ./distrobox.nix
   ];
 }

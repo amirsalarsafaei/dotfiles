@@ -1,6 +1,29 @@
 { inputs, pkgs, secrets, ... }: {
-
   networking.hostName = "amirsalar"; # Define your hostname.
+  networking.hosts = {
+    "216.239.38.120"= [
+       "google.com"
+       "www.google.com"
+       "mail.google.com"
+       "gmail.com"
+       "accounts.google.com"
+       "colab.research.google.com"
+       "ssl.gstatic.com"
+       "fonts.googleapis.com"
+       "lh3.googleusercontent.com"
+       "fonts.gstatic.com"
+       "www.gstatic.com"
+       "clients1.google.com"
+       "clients2.google.com"
+       "clients3.google.com"
+       "clients4.google.com"
+       "clients5.google.com"
+       "clients6.google.com"
+       "ogads-pa.clients6.google.com"
+       "play.google.com"
+       "workspace.google.com"
+      ];
+  };
   # Pick only one of the below networking options.
   # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
   # networking.networkmanager.enable = true;  # Easiest to use and most distros use this by default.
@@ -123,8 +146,8 @@
   programs.dconf.enable = true;
 
   nix.extraOptions = ''
-    extra-substituters = https://devenv.cachix.org
-    extra-trusted-public-keys = devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=
+     extra-substituters = https://devenv.cachix.org
+     extra-trusted-public-keys = devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw= nixpkgs-python.cachix.org-1:hxjI7pFxTyuTHn2NkvWCrAUcNZLNS3ZAvfYNuYifcEU=
   '';
 
   services.blueman.enable = true;

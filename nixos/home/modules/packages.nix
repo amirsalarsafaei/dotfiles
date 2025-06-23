@@ -46,6 +46,7 @@
       pkgs.golangci-lint         # Go linter
       pkgs.delve                 # Go debugger
       pkgs.goimports-reviser
+      pkgs.golangci-lint-langserver
       
       # Rust
       # pkgs.rustfmt               # Rust formatter
@@ -60,6 +61,9 @@
       # Kotlin
       pkgs.kotlin-language-server # Kotlin LSP
       pkgs.ktlint                # Kotlin linter and formatter
+
+      # SQL
+      pkgs.sqls
       
       # Python
       pkgs.pyright               # Python LSP

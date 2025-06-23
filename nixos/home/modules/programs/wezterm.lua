@@ -39,17 +39,17 @@ tabline.setup({
       { 'cpu', padding = { left = 1, right = 2 } }
     },
     tabline_y = {
-      { 'datetime', style = '%H:%M', padding = { left = 2, right = 2 } },
-      { 'battery', padding = { left = 1, right = 1 } }
+      { 'datetime', style = '%H:%M',                  padding = { left = 2, right = 2 } },
+      { 'battery',  padding = { left = 1, right = 1 } }
     },
     tabline_z = { 'domain' },
     tab_active = {
       { 'index',   padding = { left = 2, right = 1 } },
       { 'process', padding = { left = 1, right = 1 } },
       { 'parent',  max_length = 15,                  padding = { left = 1, right = 1 } },
-      { '/', padding = { left = 0, right = 0 } },
-      { 'cwd',    max_length = 20, padding = { left = 0, right = 2 } },
-      { 'zoomed', padding = { left = 1, right = 1 } },
+      { '/',       padding = { left = 0, right = 0 } },
+      { 'cwd',     max_length = 20,                  padding = { left = 0, right = 2 } },
+      { 'zoomed',  padding = { left = 1, right = 1 } },
     },
   },
   extensions = {},
@@ -108,8 +108,8 @@ config.enable_scroll_bar = false
 
 config.font = wezterm.font("JetBrainsMono Nerd Font", { weight = "Regular", stretch = "Normal", style = "Normal" })
 config.harfbuzz_features = { "calt=0", "clig=0", "liga=0" }
-config.font_size = 13.0
-config.line_height = 1.2
+config.font_size = 14.0
+config.line_height = 1
 
 config.keys = {
   -- Pane navigation (Smart vim-aware)
@@ -129,12 +129,12 @@ config.keys = {
   {
     key = "-",
     mods = "LEADER",
-    action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }),
+    action = act.SplitVertical({ domain = "CurrentPaneDomain" }),
   },
   {
-    key = "_",
-    mods = "LEADER|SHIFT",
-    action = act.SplitVertical({ domain = "CurrentPaneDomain" }),
+    key = "=",
+    mods = "LEADER",
+    action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }),
   },
 
   -- Pane navigation with leader
@@ -151,8 +151,8 @@ config.keys = {
   { key = "&", mods = "LEADER", action = act.CloseCurrentTab({ confirm = true }) },
   { key = "x", mods = "LEADER", action = act.CloseCurrentPane({ confirm = true }) },
   {
-    key = "=",
-    mods = "LEADER",
+    key = "_",
+    mods = "LEADER|SHIFT",
     action = wezterm.action.SplitPane({
       direction = "Down",
       size = { Percent = 20 },
@@ -175,18 +175,183 @@ config.keys = {
 
   -- Window/Tab navigation
   { key = "Tab", mods = "LEADER", action = act.ActivateLastTab },
-  { key = "f",   mods = "LEADER", action = act.ShowTabNavigator },
+  {
+    key = "f",
+    mods = "LEADER",
+    action = wezterm.action_callback(function(window, pane)
+      local tabs = window:tabs()
+      local choices = {}
+
+      for i, tab in ipairs(tabs) do
+        local tab_info = tab:get_title()
+        local is_active = tab:tab_id() == window:active_tab():tab_id()
+        local panes = tab:panes()
+        local pane_count = #panes
+
+        -- Get process info from active pane
+        local active_pane = tab:active_pane()
+        local process_name = active_pane:get_foreground_process_name() or "shell"
+        process_name = process_name:match("([^/]+)$") or process_name
+
+        -- Get working directory
+        local cwd = active_pane:get_current_working_dir()
+        local dir_name = "~"
+        if cwd then
+          dir_name = cwd.file_path:match("([^/]+)/?$") or "~"
+        end
+
+        -- Choose icon based on process
+        local icon = "🖥️"
+        if process_name:match("nvim") or process_name:match("vim") then
+          icon = "📝"
+        elseif process_name:match("git") then
+          icon = "🌿"
+        elseif process_name:match("docker") then
+          icon = "🐳"
+        elseif process_name:match("node") or process_name:match("npm") or process_name:match("yarn") then
+          icon = "📦"
+        elseif process_name:match("python") then
+          icon = "🐍"
+        elseif process_name:match("cargo") or process_name:match("rust") then
+          icon = "🦀"
+        elseif process_name:match("ssh") then
+          icon = "🔗"
+        elseif process_name:match("htop") or process_name:match("top") then
+          icon = "📊"
+        elseif process_name:match("bash") or process_name:match("zsh") or process_name:match("fish") then
+          icon = "🐚"
+        end
+
+        -- Format display text with more details
+        local status = is_active and "●" or "○"
+        local pane_info = pane_count > 1 and string.format(" [%d panes]", pane_count) or ""
+        local display_text = string.format("%s %s %d: %s (%s) in %s%s",
+          status, icon, i, tab_info, process_name, dir_name, pane_info)
+
+        table.insert(choices, {
+          id = tostring(tab:tab_id()),
+          label = display_text,
+        })
+      end
+
+      -- Add separator
+      table.insert(choices, {
+        id = "separator",
+        label = "─────────────────────────────────────────",
+      })
+
+      -- Add management options
+      table.insert(choices, {
+        id = "new",
+        label = "➕ 📄 Create new tab",
+      })
+
+      table.insert(choices, {
+        id = "rename",
+        label = "✏️ 📝 Rename current tab",
+      })
+
+      table.insert(choices, {
+        id = "delete",
+        label = "🗑️ ❌ Delete tab",
+      })
+
+      window:perform_action(act.InputSelector({
+        action = wezterm.action_callback(function(win, pane_arg, selected_id)
+          if not selected_id or selected_id == "separator" then
+            return
+          end
+
+          if selected_id == "new" then
+            win:perform_action(act.SpawnTab("CurrentPaneDomain"), pane_arg)
+            return
+          end
+
+          if selected_id == "rename" then
+            win:perform_action(act.PromptInputLine({
+              description = "Enter new name for tab",
+              action = wezterm.action_callback(function(rename_window, _, line)
+                if line then
+                  rename_window:active_tab():set_title(line)
+                end
+              end),
+            }), pane_arg)
+            return
+          end
+
+          if selected_id == "delete" then
+            -- Show a second selector for tab deletion
+            local delete_choices = {}
+            local all_tabs_for_delete = win:tabs()
+
+            for i, tab in ipairs(all_tabs_for_delete) do
+              local tab_info = tab:get_title()
+              local is_active = tab:tab_id() == win:active_tab():tab_id()
+              local status = is_active and "●" or "○"
+              local warning = is_active and " (CURRENT)" or ""
+
+              table.insert(delete_choices, {
+                id = tostring(tab:tab_id()),
+                label = string.format("%s %d: %s%s", status, i, tab_info, warning),
+              })
+            end
+
+            win:perform_action(act.InputSelector({
+              action = wezterm.action_callback(function(delete_win, _, delete_id)
+                if not delete_id then
+                  return
+                end
+
+                -- Find the tab to delete
+                local tabs_to_check = delete_win:tabs()
+                for _, tab in ipairs(tabs_to_check) do
+                  if tostring(tab:tab_id()) == delete_id then
+                    -- Only close if there's more than one tab
+                    if #tabs_to_check > 1 then
+                      tab:close()
+                    else
+                      delete_win:toast_notification("WezTerm", "Cannot close the last tab", nil, 2000)
+                    end
+                    return
+                  end
+                end
+              end),
+              title = "🗑️ Delete Tab - Select tab to close",
+              choices = delete_choices,
+              fuzzy = false,
+              description = "Select tab to delete (Enter to confirm, Esc to cancel)",
+            }), pane_arg)
+            return
+          end
+
+          -- Find and activate the selected tab
+          local all_tabs = win:tabs()
+          for _, tab in ipairs(all_tabs) do
+            if tostring(tab:tab_id()) == selected_id then
+              tab:activate()
+              return
+            end
+          end
+        end),
+        title = "🚀 Tab Navigator - Enhanced tmux-style",
+        choices = choices,
+        fuzzy = true,
+        alphabet = "123456789abcdefghijklmnopqrstuvwxyz",
+        description = "Navigate: ↑↓/jk | Select: Enter | New: n | Rename: r | Delete: d | Cancel: Esc",
+      }), pane)
+    end)
+  },
 
   -- Switch to tabs by number
-  { key = "1",   mods = "LEADER", action = act.ActivateTab(0) },
-  { key = "2",   mods = "LEADER", action = act.ActivateTab(1) },
-  { key = "3",   mods = "LEADER", action = act.ActivateTab(2) },
-  { key = "4",   mods = "LEADER", action = act.ActivateTab(3) },
-  { key = "5",   mods = "LEADER", action = act.ActivateTab(4) },
-  { key = "6",   mods = "LEADER", action = act.ActivateTab(5) },
-  { key = "7",   mods = "LEADER", action = act.ActivateTab(6) },
-  { key = "8",   mods = "LEADER", action = act.ActivateTab(7) },
-  { key = "9",   mods = "LEADER", action = act.ActivateTab(8) },
+  { key = "1", mods = "LEADER", action = act.ActivateTab(0) },
+  { key = "2", mods = "LEADER", action = act.ActivateTab(1) },
+  { key = "3", mods = "LEADER", action = act.ActivateTab(2) },
+  { key = "4", mods = "LEADER", action = act.ActivateTab(3) },
+  { key = "5", mods = "LEADER", action = act.ActivateTab(4) },
+  { key = "6", mods = "LEADER", action = act.ActivateTab(5) },
+  { key = "7", mods = "LEADER", action = act.ActivateTab(6) },
+  { key = "8", mods = "LEADER", action = act.ActivateTab(7) },
+  { key = "9", mods = "LEADER", action = act.ActivateTab(8) },
 
   -- Pane management
   {
@@ -463,16 +628,16 @@ config.cursor_blink_rate = 0
 config.window_background_opacity = 0.95
 config.status_update_interval = 1000
 config.window_padding = {
-  left = '1cell',
-  right = '1cell',
-  top = '0.5cell',
-  bottom = '0.5cell',
+  top = '0.25cell',
+  bottom = '0cell',
+  right = '5px',
+  left = '2px',
 }
 
 -- Additional performance and UX improvements
 config.automatically_reload_config = true
 config.check_for_updates = false
-config.show_update_window = false
+config.window_decorations = "NONE"
 
 -- Better scrolling behavior
 config.alternate_buffer_wheel_scroll_speed = 3

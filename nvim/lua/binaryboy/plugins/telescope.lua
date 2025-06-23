@@ -16,7 +16,6 @@ return {
 			local trouble = require("trouble")
 			local trouble_telescope = require("trouble.sources.telescope")
 
-			telescope.load_extension("projects")
 
 			local custom_actions = transform_mod({
 				open_trouble_qflist = function(prompt_bufnr)
@@ -93,7 +92,6 @@ return {
 			-- File history and recent files
 			vim.keymap.set("n", "<leader>fr", builtin.oldfiles, { desc = "Recent files" })
 			vim.keymap.set("n", "<leader>fc", builtin.grep_string, { desc = "Find word under cursor" })
-			vim.keymap.set("n", "<leader>fp", "<cmd>Telescope projects<cr>", { desc = "Projects" })
 
 			-- Search operations
 			vim.keymap.set("n", "<leader>fw", builtin.grep_string, { desc = "Find word" })

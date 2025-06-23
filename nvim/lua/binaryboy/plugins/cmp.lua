@@ -1,240 +1,258 @@
 return {
-	"hrsh7th/nvim-cmp",
-	event = { "InsertEnter", "CmdlineEnter" }, -- Load for both insert and cmdline
+	"saghen/blink.cmp",
+	lazy = false, -- lazy loading handled internally
 	dependencies = {
-		"hrsh7th/cmp-buffer",                   -- source for text in buffer
-		"hrsh7th/cmp-path",                     -- source for file system paths
-		"hrsh7th/cmp-cmdline",                  -- source for cmdline completion
-		"hrsh7th/cmp-nvim-lua",                 -- source for neovim Lua API
-		{
-			"L3MON4D3/LuaSnip",
-			version = "v2.*", -- follow latest release
-			build = "make install_jsregexp",
-			dependencies = {
-				"rafamadriz/friendly-snippets", -- useful snippets
+		"rafamadriz/friendly-snippets", -- useful snippets
+		"folke/lazydev.nvim", -- better lua completion for neovim config
+	},
+	opts = {
+		-- Enables keymaps, completions and signature help when true
+		enabled = function()
+			return true
+		end,
+
+		-- Keymap configuration
+		keymap = {
+			preset = "default",
+			-- Custom keymaps based on old nvim-cmp configuration
+			["<C-s>"] = { "show", "fallback" }, -- Show completion (closest to complete_common_string)
+			["<A-s>"] = {
+				function(cmp)
+					-- Toggle signature help
+					if require("blink.cmp.signature").is_open() then
+						cmp.hide_signature()
+					else
+						cmp.show_signature()
+					end
+				end
+			},
+			["<C-k>"] = { "scroll_documentation_up", "fallback" },
+			["<C-j>"] = { "scroll_documentation_down", "fallback" },
+			["<A-c>"] = { "show", "fallback" }, -- Show completion suggestions
+			["<C-e>"] = { "cancel", "fallback" }, -- Close completion window
+			["<Tab>"] = { "accept", "fallback" }, -- Confirm selection (more ergonomic than Enter)
+			-- Navigation with snippet support
+			["<C-n>"] = {
+				function(cmp)
+					if cmp.snippet_active() then
+						return cmp.snippet_forward()
+					else
+						return cmp.select_next()
+					end
+				end,
+				"fallback"
+			},
+			["<C-p>"] = {
+				function(cmp)
+					if cmp.snippet_active() then
+						return cmp.snippet_backward()
+					else
+						return cmp.select_prev()
+					end
+				end,
+				"fallback"
 			},
 		},
-		"saadparwaiz1/cmp_luasnip", -- for autocompletion
-		"onsails/lspkind.nvim",   -- vs-code like pictograms
-		"Snikimonkd/cmp-go-pkgs",
-		"hrsh7th/cmp-nvim-lsp-signature-help",
-		"roobert/tailwindcss-colorizer-cmp.nvim", -- tailwind colors in completion
-	},
-	config = function()
-		local cmp = require("cmp")
-		local luasnip = require("luasnip")
-		local lspkind = require("lspkind")
 
-		-- Setup tailwindcss colorizer if available
-		local has_tailwind_colorizer, tailwind_colorizer_cmp = pcall(require, "tailwindcss-colorizer-cmp")
+		-- Appearance configuration
+		appearance = {
+			use_nvim_cmp_as_default = true,
+			nerd_font_variant = "mono",
+		},
 
-		-- Variable to track signature help state
-		local signature_help_enabled = true
+		-- Sources configuration
+		sources = {
+			default = { "lsp", "path", "buffer", "snippets" },
+		},
 
-		-- Function to toggle signature help
-		local function toggle_signature_help()
-			signature_help_enabled = not signature_help_enabled
-			local sources = cmp.get_config().sources
+		-- Snippets configuration
+		snippets = {
+			expand = function(snippet)
+				vim.snippet.expand(snippet)
+			end,
+			active = function(filter)
+				return vim.snippet.active(filter)
+			end,
+			jump = function(direction)
+				vim.snippet.jump(direction)
+			end,
+		},
 
-			-- Rebuild sources list
-			local new_sources = {}
-			for _, source in ipairs(sources) do
-				if source.name ~= "nvim_lsp_signature_help" then
-					table.insert(new_sources, source)
-				end
-			end
-
-			-- Add signature help if enabled
-			if signature_help_enabled then
-				table.insert(new_sources, { name = "nvim_lsp_signature_help" })
-			end
-
-			cmp.setup.buffer({ sources = new_sources })
-			vim.notify("Signature help " .. (signature_help_enabled and "enabled" or "disabled"))
-		end
-
-		-- Load vscode style snippets from installed plugins (e.g. friendly-snippets)
-		require("luasnip.loaders.from_vscode").lazy_load()
-
-		-- Enable LuaSnip history
-		luasnip.config.setup({
-			history = true,
-			updateevents = "TextChanged,TextChangedI",
-			enable_autosnippets = true,
-		})
-
-		-- Terminal completion configuration
-		cmp.setup.filetype("toggleterm", {
-			sources = {
-				{ name = "buffer" },
-				{ name = "path" },
+		-- Completion configuration
+		completion = {
+			keyword = {
+				range = "prefix",
 			},
-		})
-
-		-- Command line completion setup
-		cmp.setup.cmdline(":", {
-			mapping = cmp.mapping.preset.cmdline(),
-			sources = cmp.config.sources({
-				{ name = "path" },
-				{ name = "cmdline" },
-				{ name = "nvim_lua" },
-			}),
-			formatting = {
-				fields = { "abbr", "kind" },
+			trigger = {
+				prefetch_on_insert = true,
+				show_in_snippet = true,
+				show_on_backspace = false,
+				show_on_backspace_in_keyword = false,
+				show_on_backspace_after_accept = true,
+				show_on_backspace_after_insert_enter = true,
+				show_on_keyword = true,
+				show_on_trigger_character = true,
+				show_on_insert = false,
+				show_on_blocked_trigger_characters = { " ", "\n", "\t" },
+				show_on_accept_on_trigger_character = true,
+				show_on_insert_on_trigger_character = true,
+				show_on_x_blocked_trigger_characters = { "'", '"', "(" },
 			},
-		})
-
-		-- Search completion setup
-		cmp.setup.cmdline({ "/", "?" }, {
-			mapping = cmp.mapping.preset.cmdline(),
-			sources = {
-				{ name = "buffer" },
-			},
-		})
-
-		-- Main completion setup
-		cmp.setup({
-			completion = {
-				completeopt = "menu,menuone,preview,noselect",
-			},
-			window = {
-				completion = cmp.config.window.bordered({
-					winhighlight = "Normal:CmpNormal,FloatBorder:CmpBorder,CursorLine:PmenuSel,Search:None",
-					scrollbar = true,
-					col_offset = -3,
-					side_padding = 0,
-				}),
-				documentation = cmp.config.window.bordered({
-					winhighlight = "Normal:CmpDocNormal,FloatBorder:CmpDocBorder,CursorLine:CmpDocSel,Search:None",
-				}),
-			},
-			sorting = {
-				priority_weight = 2.5, -- Give more weight to priority
-				comparators = {
-					-- Prioritize exact matches first
-					cmp.config.compare.exact,
-					cmp.config.compare.score,
-					cmp.config.compare.offset,
-					-- Prioritize recently used items more
-					cmp.config.compare.recently_used,
-					-- Prioritize items from current buffer more
-					cmp.config.compare.locality,
-					cmp.config.compare.kind,
-					cmp.config.compare.sort_text,
-					cmp.config.compare.length,
-					cmp.config.compare.order,
+			list = {
+				max_items = 200,
+				selection = {
+					preselect = true,
+					auto_insert = true,
+				},
+				cycle = {
+					from_bottom = true,
+					from_top = true,
 				},
 			},
-			snippet = { -- configure how nvim-cmp interacts with snippet engine
-				expand = function(args)
-					luasnip.lsp_expand(args.body)
-				end,
+			accept = {
+				dot_repeat = true,
+				create_undo_point = true,
+				resolve_timeout_ms = 100,
+				auto_brackets = {
+					enabled = true,
+					default_brackets = { "(", ")" },
+					override_brackets_for_filetypes = {},
+					kind_resolution = {
+						enabled = true,
+						blocked_filetypes = { "typescriptreact", "javascriptreact", "vue" },
+					},
+					semantic_token_resolution = {
+						enabled = true,
+						blocked_filetypes = { "java" },
+						timeout_ms = 400,
+					},
+				},
 			},
-			mapping = cmp.mapping.preset.insert({
-				["<C-s>"] = cmp.mapping.complete_common_string(),
-				["<A-s>"] = function()
-					toggle_signature_help()
-				end, -- Toggle signature help
-				["<C-k>"] = cmp.mapping.scroll_docs(-4),
-				["<C-j>"] = cmp.mapping.scroll_docs(4),
-				["<A-c>"] = cmp.mapping.complete(), -- show completion suggestions
-				["<C-e>"] = cmp.mapping.abort(), -- close completion window
-				["<CR>"] = cmp.mapping.confirm({ select = false }),
-				-- Tab mapping
-				["<C-n>"] = function(fallback)
-					if cmp.visible() then
-						cmp.select_next_item()
-					elseif luasnip.expand_or_jumpable() then
-						luasnip.expand_or_jump()
-					else
-						fallback()
-					end
-				end,
-				["<C-p>"] = function(fallback)
-					if cmp.visible() then
-						cmp.select_prev_item()
-					elseif luasnip.jumpable(-1) then
-						luasnip.jump(-1)
-					else
-						fallback()
-					end
-				end,
-			}),
-			-- sources for autocompletion
-			sources = cmp.config.sources({
-				{ name = "nvim_lsp",                priority = 8 },
-				{ name = "nvim_lsp_signature_help", priority = 7 },
-				{ name = "luasnip",                 priority = 7 }, -- snippets
-				{ name = "nvim_lua",                priority = 6 }, -- neovim lua API
-				{ name = "buffer",                  priority = 5, keyword_length = 4 }, -- text within current buffer
-				{ name = "go_pkgs",                 priority = 5 },
-				{ name = "path",                    priority = 4 }, -- file system paths
-			}),
-			enabled = function()
-				-- Disable completion in comments
-				local context = require("cmp.config.context")
-				-- Keep command mode completion enabled when cursor is in a comment
-				if vim.api.nvim_get_mode().mode == "c" then
-					return true
-				else
-					return not context.in_treesitter_capture("comment") and not context.in_syntax_group("Comment")
-				end
+			menu = {
+				enabled = true,
+				min_width = 15,
+				max_height = 10,
+				border = "rounded",
+				winblend = 0,
+				winhighlight = "Normal:BlinkCmpMenu,FloatBorder:BlinkCmpMenuBorder,CursorLine:BlinkCmpMenuSelection,Search:None",
+				scrolloff = 2,
+				scrollbar = true,
+				direction_priority = { "s", "n" },
+				auto_show = true,
+				draw = {
+					align_to = "label",
+					padding = 1,
+					gap = 1,
+					cursorline_priority = 10000,
+					treesitter = { "lsp" },
+					columns = { { "kind_icon" }, { "label", "label_description", gap = 1 }, { "source_name" } },
+				},
+			},
+			documentation = {
+				auto_show = false,
+				auto_show_delay_ms = 500,
+				update_delay_ms = 50,
+				treesitter_highlighting = true,
+				window = {
+					min_width = 10,
+					max_width = 80,
+					max_height = 20,
+					border = "rounded",
+					winblend = 0,
+					winhighlight = "Normal:BlinkCmpDoc,FloatBorder:BlinkCmpDocBorder,EndOfBuffer:BlinkCmpDoc",
+					scrollbar = true,
+					direction_priority = {
+						menu_north = { "e", "w", "n", "s" },
+						menu_south = { "e", "w", "s", "n" },
+					},
+				},
+			},
+			ghost_text = {
+				enabled = false,
+				show_with_selection = true,
+				show_without_selection = false,
+				show_with_menu = true,
+				show_without_menu = true,
+			},
+		},
+
+		-- Signature help configuration
+		signature = {
+			enabled = false,
+			trigger = {
+				enabled = true,
+				show_on_keyword = false,
+				blocked_trigger_characters = {},
+				blocked_retrigger_characters = {},
+				show_on_trigger_character = true,
+				show_on_insert = false,
+				show_on_insert_on_trigger_character = true,
+			},
+			window = {
+				min_width = 1,
+				max_width = 100,
+				max_height = 10,
+				border = "rounded",
+				winblend = 0,
+				winhighlight = "Normal:BlinkCmpSignatureHelp,FloatBorder:BlinkCmpSignatureHelpBorder",
+				scrollbar = false,
+				direction_priority = { "n", "s" },
+				treesitter_highlighting = true,
+				show_documentation = true,
+			},
+		},
+
+		-- Fuzzy matching configuration
+		fuzzy = {
+			implementation = "prefer_rust_with_warning",
+			max_typos = function(keyword)
+				return math.floor(#keyword / 4)
 			end,
-
-			-- Configure lspkind for vs-code like pictograms in completion menu
-			formatting = {
-				format = function(entry, vim_item)
-					-- Add indicator for selected item
-					local item_selected = (entry.completion_item.data or {}).item_selected or false
-					if item_selected then
-						vim_item.abbr = "→ " .. vim_item.abbr
-					end
-
-					-- Basic formatting with lspkind
-					local formatted = lspkind.cmp_format({
-						maxwidth = 50,
-						mode = "symbol",
-						with_text = true,
-						menu = {
-							nvim_lsp = "[LSP]",
-							nvim_lua = "[Lua]",
-							luasnip = "[Snip]",
-							buffer = "[Buf]",
-							path = "[Path]",
-							go_pkgs = "[Go]",
-							cmdline = "[Cmd]",
-							nvim_lsp_signature_help = "[Sig]",
-						},
-						before = function(entry_item, vim_item_inner)
-							-- Show source name in the menu
-							vim_item_inner.menu = vim_item_inner.menu or ""
-
-							-- Get source name
-							local source_name = entry_item.source.name
-							if source_name == "nvim_lsp" then
-								vim_item_inner.dup = 0 -- Remove duplicates from LSP
-							end
-
-							return vim_item_inner
-						end,
-					})(entry, vim_item)
-
-					-- Add tailwind colors if available
-					if has_tailwind_colorizer then
-						formatted = tailwind_colorizer_cmp.formatter(entry, formatted)
-					end
-
-					return formatted
-				end,
+			use_frecency = true,
+			use_proximity = true,
+			use_unsafe_no_lock = false,
+			sorts = { "score", "sort_text" },
+			prebuilt_binaries = {
+				download = true,
+				ignore_version_mismatch = false,
+				force_version = nil,
+				force_system_triple = nil,
+				extra_curl_args = {},
+				proxy = {
+					from_env = true,
+					url = nil,
+				},
 			},
-			matching = { disallow_symbol_nonprefix_matching = false }, -- to use . and / in urls
-			experimental = {
-				ghost_text = { hl_group = "CmpGhostText" },           -- Show ghost text
-				native_menu = false,
-			},
-			view = {
-				entries = { name = "custom", selection_order = "near_cursor" },
-			},
+		},
+	},
+	config = function(_, opts)
+		-- Setup blink.cmp
+		local blink_cmp = require("blink.cmp")
+		blink_cmp.setup(opts)
+
+
+		-- Setup custom highlight groups
+		vim.api.nvim_set_hl(0, "BlinkCmpMenu", { link = "Pmenu" })
+		vim.api.nvim_set_hl(0, "BlinkCmpMenuBorder", { link = "FloatBorder" })
+		vim.api.nvim_set_hl(0, "BlinkCmpMenuSelection", { link = "PmenuSel" })
+		vim.api.nvim_set_hl(0, "BlinkCmpDoc", { link = "NormalFloat" })
+		vim.api.nvim_set_hl(0, "BlinkCmpDocBorder", { link = "FloatBorder" })
+		vim.api.nvim_set_hl(0, "BlinkCmpDocCursorLine", { link = "Visual" })
+		vim.api.nvim_set_hl(0, "BlinkCmpSignatureHelp", { link = "NormalFloat" })
+		vim.api.nvim_set_hl(0, "BlinkCmpSignatureHelpBorder", { link = "FloatBorder" })
+
+		-- Filetype-specific configurations
+		vim.api.nvim_create_autocmd("FileType", {
+			pattern = "toggleterm",
+			callback = function()
+				blink_cmp.setup_buffer({
+					sources = {
+						default = { "buffer", "path" },
+					},
+				})
+			end,
 		})
+
+		-- Disable completion in comments
 	end,
 }
