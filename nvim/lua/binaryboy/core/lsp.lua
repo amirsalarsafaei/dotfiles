@@ -12,5 +12,11 @@ vim.lsp.enable({
 	'ts_ls',
 	'rust_analyzer',
 	'sqls',
-	'sourcekit'
+	'sourcekit',
+	'cssls',
+	'html',
+	'golangci_lint_ls',
+	'dockerls',
+	'docker_compose_language_service',
+	'bashls'
 })

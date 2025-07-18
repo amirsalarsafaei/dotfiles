@@ -95,6 +95,7 @@
       
       # Docker
       pkgs.dockerfile-language-server-nodejs  # Dockerfile LSP
+      pkgs.docker-compose-language-service
       pkgs.hadolint               # Dockerfile linter
       
       # General
@@ -173,6 +174,7 @@
     # Infrastructure and Cloud
     infraTools = [
       pkgs.kubectl
+      pkgs.kubectl-neat
       pkgs.k9s
       pkgs.stern
       pkgs.awscli2

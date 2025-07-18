@@ -48,6 +48,12 @@
     "yamllint/config".text = ''
       extends: relaxed
     '';
+    "yamlfmt/.yamlfmt".text = ''
+      formatter:
+        type: basic
+        retain_line_breaks: true
+        drop_merge_tag: true
+    '';
   };
 
   imports = [ ./modules ];
