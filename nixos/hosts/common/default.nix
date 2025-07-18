@@ -99,7 +99,7 @@
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.amirsalar = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "input" "sudo" "docker" "video" "kvm" "adbuser" ];
+    extraGroups = [ "wheel" "input" "sudo" "docker" "video" "kvm" "adbuser" "audio" ];
     packages = with pkgs; [
       firefox
       tree

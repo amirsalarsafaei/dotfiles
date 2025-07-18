@@ -5,8 +5,8 @@
 			ubuntu = {
 				image = "ubuntu:24.04";
 				init_hooks = [
-					# "sudo apt-get update -y"
-					# "sudo apt-get install -y ca-certificates"
+					"sudo apt-get update -y"
+					"sudo apt-get install -y ca-certificates"
 					"mkdir -p /usr/local/bin/"
 					"export PATH=/usr/local/bin:$PATH"
 					# "wget https://download.swift.org/swift-6.1.2-release/ubuntu2404-aarch64/swift-6.1.2-RELEASE/swift-6.1.2-RELEASE-ubuntu24.04-aarch64.tar.gz -o swift.tar.gz"

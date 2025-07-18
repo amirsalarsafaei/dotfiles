@@ -116,6 +116,12 @@
           system = systems.x86_64;
           hostname = "rog";
         };
+
+	# G14 Laptop (x86_64)
+	g14 = mkSystem {
+	  system = systems.x86_64;
+	  hostname = "g14";
+	};
       };
     };
 }
