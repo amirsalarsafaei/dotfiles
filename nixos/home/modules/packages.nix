@@ -248,6 +248,7 @@
       pkgs.xdg-utils
       pkgs.w3m
       pkgs.android-tools
+      pkgs.obs-studio
     ];
 
     # Platform-specific packages
