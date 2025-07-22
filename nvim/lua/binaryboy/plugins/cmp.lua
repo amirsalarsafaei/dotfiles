@@ -64,6 +64,9 @@ return {
 		-- Sources configuration
 		sources = {
 			default = { "lsp", "path", "buffer", "snippets" },
+			per_filetype = {
+				toggleterm = { "buffer", "path" },
+			},
 		},
 
 		-- Snippets configuration
@@ -94,7 +97,7 @@ return {
 				show_on_keyword = true,
 				show_on_trigger_character = true,
 				show_on_insert = false,
-				show_on_blocked_trigger_characters = { " ", "\n", "\t" },
+				show_on_blocked_trigger_characters = { "\n", "\t" },
 				show_on_accept_on_trigger_character = true,
 				show_on_insert_on_trigger_character = true,
 				show_on_x_blocked_trigger_characters = { "'", '"', "(" },
@@ -241,18 +244,6 @@ return {
 		vim.api.nvim_set_hl(0, "BlinkCmpDocCursorLine", { link = "Visual" })
 		vim.api.nvim_set_hl(0, "BlinkCmpSignatureHelp", { link = "NormalFloat" })
 		vim.api.nvim_set_hl(0, "BlinkCmpSignatureHelpBorder", { link = "FloatBorder" })
-
-		-- Filetype-specific configurations
-		vim.api.nvim_create_autocmd("FileType", {
-			pattern = "toggleterm",
-			callback = function()
-				blink_cmp.setup_buffer({
-					sources = {
-						default = { "buffer", "path" },
-					},
-				})
-			end,
-		})
 
 		-- Disable completion in comments
 	end,
