@@ -1,13 +1,13 @@
 return {
 	"saghen/blink.cmp",
 	version = "1.*",
-	lazy = false, -- lazy loading handled internally
+	lazy = false,                   -- lazy loading handled internally
 	dependencies = {
 		"rafamadriz/friendly-snippets", -- useful snippets
-		"folke/lazydev.nvim", -- better lua completion for neovim config
+		"folke/lazydev.nvim",         -- better lua completion for neovim config
+		"giuxtaposition/blink-cmp-copilot",
 	},
 	opts = {
-		-- Enables keymaps, completions and signature help when true
 		enabled = function()
 			return true
 		end,
@@ -63,9 +63,17 @@ return {
 
 		-- Sources configuration
 		sources = {
-			default = { "lsp", "path", "buffer", "snippets" },
+			default = { "lsp", "path", "buffer", "copilot", "snippets" },
 			per_filetype = {
 				toggleterm = { "buffer", "path" },
+			},
+			providers = {
+				copilot = {
+					name = "copilot",
+					module = "blink-cmp-copilot",
+					score_offset = 100,
+					async = true,
+				},
 			},
 		},
 
@@ -234,8 +242,6 @@ return {
 		local blink_cmp = require("blink.cmp")
 		blink_cmp.setup(opts)
 
-
-		-- Setup custom highlight groups
 		vim.api.nvim_set_hl(0, "BlinkCmpMenu", { link = "Pmenu" })
 		vim.api.nvim_set_hl(0, "BlinkCmpMenuBorder", { link = "FloatBorder" })
 		vim.api.nvim_set_hl(0, "BlinkCmpMenuSelection", { link = "PmenuSel" })
@@ -244,7 +250,5 @@ return {
 		vim.api.nvim_set_hl(0, "BlinkCmpDocCursorLine", { link = "Visual" })
 		vim.api.nvim_set_hl(0, "BlinkCmpSignatureHelp", { link = "NormalFloat" })
 		vim.api.nvim_set_hl(0, "BlinkCmpSignatureHelpBorder", { link = "FloatBorder" })
-
-		-- Disable completion in comments
 	end,
 }

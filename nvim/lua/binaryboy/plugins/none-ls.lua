@@ -38,7 +38,7 @@ return {
 				null_ls.builtins.diagnostics.yamllint,
 
 				-- javascript/typescript
-				null_ls.builtins.formatting.eslint,
+				-- null_ls.builtins.formatting.eslint,
 
 				-- docker
 				null_ls.builtins.diagnostics.hadolint,
@@ -47,11 +47,16 @@ return {
 				null_ls.builtins.diagnostics.commitlint,
 
 				-- golang
-				null_ls.builtins.formatting.gofmt,
+				null_ls.builtins.formatting.gofmt.with({
+					filetypes = { "go" },
+				}),
 				null_ls.builtins.formatting.goimports_reviser.with({
+					filetypes = { "go" },
 					extra_args = { "-company-prefixes", "git.divar.cloud/divar" },
 				}),
-				null_ls.builtins.diagnostics.golangci_lint,
+				null_ls.builtins.diagnostics.golangci_lint.with({
+					filetypes = { "go" },
+				}),
 
 				-- python
 				null_ls.builtins.formatting.isort,
@@ -73,6 +78,7 @@ return {
 				null_ls.builtins.formatting.buf,
 			},
 			on_attach = function(client, bufnr)
+				vim.notify("null-ls attached to buffer: " .. bufnr .. " " .. client.name)
 				if client:supports_method("textDocument/formatting") then
 					vim.api.nvim_clear_autocmds({ group = augroup, buffer = bufnr })
 					vim.api.nvim_create_autocmd("BufWritePre", {

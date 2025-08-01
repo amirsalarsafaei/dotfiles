@@ -32,6 +32,8 @@
       pkgs.gore
       pkgs.devbox
       pkgs.bazel
+      pkgs.kubernetes-helm
+      pkgs.amp-cli
     ];
     
     # Language Servers, Formatters, Linters, and Debuggers
@@ -47,6 +49,7 @@
       pkgs.delve                 # Go debugger
       pkgs.goimports-reviser
       pkgs.golangci-lint-langserver
+      pkgs.gotestsum
       
       # Rust
       # pkgs.rustfmt               # Rust formatter
@@ -256,6 +259,7 @@
       pkgs.zoom-us
       pkgs.android-studio
       pkgs.discord
+      pkgs.insomnia
     ];
 
   in
