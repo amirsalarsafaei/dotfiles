@@ -9,7 +9,7 @@ final: prev: {
         name = "${old.pname}-${version}.tar.gz";
       } else {
         url = "https://dl.pstmn.io/download/latest/linux_64";
-        sha256 = "ob89cXHlJTBQki8gL8JjRqSrPg+SWpZ78buKR8cnOk8=";
+        sha256 = "bwvNmcSBbwLt3kNbd05Yy2IgNHUJx7qTvDMKrGmOOi0=";
         name = "${old.pname}-${version}.tar.gz";
       }
     );

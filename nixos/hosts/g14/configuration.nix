@@ -31,7 +31,7 @@
   # Use latest kernel.
   boot.kernelPackages = pkgs.linuxPackages_latest;
 
-  services.xserver.videoDrivers = [ "nvidia" ];
+  services.xserver.videoDrivers = [ "nvidia" "amdgpu" ];
   hardware.nvidia = {
     # Enable DRM kernel mode setting
     modesetting.enable = true;
@@ -56,9 +56,11 @@
     package = config.boot.kernelPackages.nvidiaPackages.production;
 
 
-    # prime = {
-    #   sync.enable = true;
-    # };
+    prime = {
+      offload.enable = true;
+      amdgpuBusId = "PCI:101:0:0";
+      nvidiaBusId = "PCI:100:0:0";
+    };
   };
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
