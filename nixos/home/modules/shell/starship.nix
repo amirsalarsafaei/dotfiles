@@ -6,229 +6,143 @@
     enableBashIntegration = true;
     enableZshIntegration = true;
     settings = {
-      # Elegant format with better visual hierarchy and spacing
-      format = ''
-        $os$username$hostname$directory$git_branch$git_status
-        $package$nodejs$python$rust$golang$c$lua$nix_shell
-        $docker_context$kubernetes$aws$gcloud$terraform$pulumi
-        $cmd_duration$time$line_break$character'';
-      
+      # Single-line format with concise information
+      format = "$os$username$directory$git_branch$git_status$package$nodejs$python$rust$golang$c$lua$nix_shell$docker_context$kubernetes$cmd_duration$character";
       add_newline = false;
-      right_format = "$sudo";
+      right_format = "$sudo$time";
 
-      # Enhanced character symbols with better visual appeal
+      # Clean character symbols
       character = {
-        success_symbol = "❯(bold green)";
-        error_symbol = "❯(bold red)";
-        vimcmd_symbol = "❮(bold yellow)";
+        success_symbol = "❯(bold bright-green)";
+        error_symbol = "❯(bold bright-red)";
+        vimcmd_symbol = "❮(bold bright-yellow)";
       };
 
       palette = "catppuccin_macchiato";
       
-      # Clean user and host display
       username = {
-        format = "⟨$user⟩($style)";
-        show_always = true;
-        style_user = "bold blue";
+        format = "[ $user ]($style)";
+        show_always = false;
+        style_user = "bg:blue fg:black";
       };
       hostname = {
-        ssh_only = false;
-        format = "@⟨$hostname⟩($style) ";
-        style = "bold green";
+        disabled = true;
       };
 
-      # System info with elegant styling
+      # Clean system info
       os = {
-        format = "⟨$symbol⟩($style)";
-        style = "bold white";
+        format = "[$symbol]($style)";
+        style = "bold bright-white";
         disabled = false;
       };
       sudo = {
-        format = "as ⟨$symbol⟩($style)";
-        style = "bold red";
+        format = "sudo($style)";
+        style = "bold bright-red";
       };
       time = {
-        format = "⟨$time⟩($style)";
-        style = "bold yellow";
+        format = "[$time]($style)";
+        style = "dim bright-blue";
         disabled = false;
       };
       cmd_duration = {
-        format = "took ⟨$duration⟩($style)";
+        format = "[$duration]($style) ";
         min_time = 2000;
-        style = "bold yellow";
+        style = "bold bright-yellow";
       };
 
-      # Enhanced package display
       package = {
-        format = "$symbol⟨$version⟩($style) ";
-        symbol = "📦 ";
-        style = "bold cyan";
+        format = "[ $version]($style) ";
+        style = "bold bright-cyan";
       };
 
-      # Improved git branch display
+      # Clean git branch display
       git_branch = {
-        format = "$symbol⟨$branch⟩($style) ";
-        symbol = " ";
+        format = "[ $branch]($style) ";
         style = "bold purple";
       };
 
-      # Development environments with modern icons
+      # AWS disabled
       aws = {
-        format = "⟨$symbol($profile)(\\($region\\))(\\[$duration\\])⟩($style) ";
-        symbol = "☁️  ";
-        style = "bold yellow";
-      };
-      bun = {
-        format = "$symbol⟨$version⟩($style) ";
-        symbol = "🍞 ";
+        disabled = true;
       };
       c = {
-        format = "$symbol⟨$version(-$name)⟩($style) ";
-        symbol = " ";
-        style = "bold blue";
-      };
-      deno = {
-        format = "$symbol⟨$version⟩($style) ";
-        symbol = "🦕 ";
+        format = " $version($style) ";
+        style = "bold bright-blue";
       };
       docker_context = {
-        format = "$symbol⟨$context⟩($style) ";
-        symbol = "🐳 ";
-        style = "bold blue";
-      };
-      gcloud = {
-        format = "⟨$symbol$account(\\($region\\))⟩($style) ";
-        symbol = "☁️  ";
-        style = "bold blue";
-      };
-      gleam = {
-        format = "$symbol⟨$version⟩($style) ";
-        symbol = "⭐ ";
+        format = "[ $context]($style) ";
+        style = "bold bright-cyan";
       };
       golang = {
-        format = "$symbol⟨$version⟩($style) ";
-        symbol = "🐹 ";
+        format = "[ $version]($style) ";
         style = "bold cyan";
       };
-      guix_shell = {
-        format = "⟨$symbol⟩($style) ";
-      };
-      haskell = {
-        format = "$symbol⟨$version⟩($style) ";
-        symbol = "λ ";
-        style = "bold purple";
-      };
-      julia = {
-        format = "$symbol⟨$version⟩($style) ";
-        symbol = " julia ";
-        style = "bold purple";
-      };
       kubernetes = {
-        format = "$symbol⟨$context( \\($namespace\\))⟩($style) ";
-        symbol = "⎈ ";
+        format = "[ $context]($style) ";
         disabled = false;
         style = "bold blue";
       };
       lua = {
-        format = "$symbol⟨$version⟩($style) ";
-        symbol = "🌙 ";
+        format = "[ $version]($style) ";
         style = "bold blue";
       };
       nix_shell = {
-        format = "$symbol⟨$state( \\($name\\))⟩($style) ";
-        symbol = "❄️  ";
+        format = "[󱄅 $state]($style) ";
         style = "bold blue";
       };
       nodejs = {
-        format = "$symbol⟨$version⟩($style) ";
-        symbol = " ";
+        format = "[ $version]($style) ";
         style = "bold green";
-        detect_files = [
-          "package.json"
-          ".node-version"
-          "!bunfig.toml"
-          "!bun.lockb"
-        ];
-      };
-      ocaml = {
-        format = "$symbol⟨$version(\\($switch_indicator$switch_name\\))⟩($style) ";
-        symbol = "🐫 ";
-      };
-      pulumi = {
-        format = "$symbol⟨$stack⟩($style) ";
-        symbol = "🛠️  ";
+        detect_files = ["package.json" ".node-version" "!bunfig.toml" "!bun.lockb"];
       };
       python = {
-        format = "$symbol⟨$pyenv_prefix($version)(\\($virtualenv\\))⟩($style) ";
-        symbol = "🐍 ";
+        format = "[ $version]($style) ";
         style = "bold yellow";
       };
-      rlang = {
-        format = "$symbol⟨$version⟩($style) ";
-        symbol = "📊 ";
-      };
       rust = {
-        format = "$symbol⟨$version⟩($style) ";
-        symbol = "🦀 ";
+        format = "[ $version]($style) ";
         style = "bold red";
-      };
-      scala = {
-        format = "$symbol⟨$version⟩($style) ";
-        symbol = "🔺 ";
       };
       terraform = {
-        format = "$symbol⟨$version⟩($style) ";
-        symbol = "💠 ";
+        format = "[ $version]($style) ";
         style = "bold purple";
       };
-      zig = {
-        format = "$symbol⟨$version⟩($style) ";
-        symbol = "⚡ ";
-      };
 
-      # Enhanced git status with better visual hierarchy and cleaner symbols
+      # Simplified git status
       git_status = {
-        format = ''(⟨$all_status$ahead_behind⟩($style) )'';
-        style = "bold red";
-        
-        # Cleaner and more intuitive symbols
-        conflicted = "⚡$count";
-        ahead = "⇡$count";
-        behind = "⇣$count";
-        diverged = "⇕⇡$ahead_count⇣$behind_count";
-        up_to_date = "✓";
-        untracked = "?$count";
-        stashed = "⚑$count";
-        modified = "!$count";
-        staged = "+$count";
-        renamed = "»$count";
-        deleted = "✘$count";
+        format = "($all_status$ahead_behind) ";
+        conflicted = " $count";
+        ahead = "[⇡$count](bold green)";
+        behind = "[⇣$count](bold yellow)";
+        diverged = "[⇕⇡$ahead_count⇣$behind_count](bold purple)";
+        up_to_date = "[✓](bold green)";
+        untracked = "[?$count](bold blue)";
+        stashed = " $count"; 
+        modified = "[!$count](bold yellow)";
+        staged = "[+$count](bold green)";
+        renamed = "[»$count](bold purple)";
+        deleted = "[✘$count](bold red)";
       };
 
-      # Enhanced directory display with better truncation and visual hierarchy
+      # Improved directory display - more readable path
       directory = {
-        format = "⟨$path⟩($style)⟨$read_only⟩($read_only_style) ";
-        truncation_length = 3;
+        format = "[$path]($style) ";
+        truncation_length = 5;
         truncation_symbol = "…/";
-        truncate_to_repo = true;
+        truncate_to_repo = false;
         style = "bold cyan";
-        read_only = "🔒";
+        read_only = "";
         read_only_style = "red";
-        home_symbol = "🏠 ";
+        home_symbol = "~";
         use_os_path_sep = true;
         substitutions = {
-          "Documents" = "📚 ";
-          "Downloads" = "📥 ";
-          "Music" = "🎵 ";
-          "Pictures" = "🖼️ ";
-          "Videos" = "🎬 ";
-          "Desktop" = "🖥️ ";
-          "Projects" = "💼 ";
-          "Code" = "💻 ";
-          ".config" = "⚙️ ";
-          "Development" = "🛠️ ";
-          "Apps" = "📱 ";
-          "Library" = "📖 ";
+          "Documents" = "docs";
+          "Downloads" = "dl";
+          "Pictures" = "pics";
+          "Desktop" = "desk";
+          "Projects" = "proj";
+          ".config" = "cfg";
+          "Development" = "dev";
         };
       };
     } // builtins.fromTOML (builtins.readFile

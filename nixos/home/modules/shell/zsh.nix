@@ -38,8 +38,6 @@
 
     shellGlobalAliases = {
       "vim" = "nvim";
-      pbcopy = "wl-copy";
-      pbpaste = "wl-paste";
       gitrecent = "git for-each-ref --sort=-committerdate refs/heads/ --format='%(committerdate:short) %(refname:short)'";
       gitshort = "git rev-parse --short=8 HEAD";
     };
@@ -58,29 +56,32 @@
         src = "${pkgs.zsh-you-should-use}/share/zsh/plugins/you-should-use";
         file = "you-should-use.plugin.zsh";
       }
+      {
+        name = "zsh-autocomplete";
+        src = pkgs.zsh-autocomplete;
+        file = "share/zsh-autocomplete/zsh-autocomplete.plugin.zsh";
+      }
+      {
+        name = "zsh-vi-mode";
+        src = pkgs.zsh-vi-mode;
+        file = "share/zsh-vi-mode/zsh-vi-mode.plugin.zsh";
+      }
     ];
 
     initContent = lib.mkMerge [
       (lib.mkBefore ''
+        
         # Ensure completion system is properly initialized
-        autoload -Uz compinit
-        compinit
-        
-        # Enhanced completion configuration
-        zstyle ':completion:*' menu select
-        zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
-        zstyle ':completion:*' list-colors ""
-        zstyle ':completion:*:descriptions' format '[%d]'
-        zstyle ':completion:*' group-name ""
-        zstyle ':completion:*' special-dirs true
-        
-        # Performance optimizations
-        export ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
-        export ZSH_AUTOSUGGEST_USE_ASYNC=true
-        export ZSH_AUTOSUGGEST_MANUAL_REBIND=1
-        
         # Prevent completion conflicts
         export ZSH_DISABLE_COMPFIX=true
+        
+        # Configure zsh-autocomplete to work well with autosuggestions
+        zstyle ':autocomplete:*' min-delay 0.3
+        zstyle ':autocomplete:*' min-input 3
+        
+        # Performance optimizations for autosuggestions
+        export ZSH_AUTOSUGGEST_USE_ASYNC=true
+        export ZSH_AUTOSUGGEST_MANUAL_REBIND=1
 
         # Add local bin to PATH
         export PATH=$PATH:$HOME/.local/bin/

@@ -58,6 +58,8 @@
     coreutils-full
     libimobiledevice
     ifuse
+    xdg-desktop-portal
+    xdg-desktop-portal-gtk
   ];
 
 

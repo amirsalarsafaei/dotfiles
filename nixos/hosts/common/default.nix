@@ -129,7 +129,6 @@
     enable = true;
     withUWSM = true;
     package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
-    # make sure to also set the portal package, so that they are in sync
     portalPackage = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
   };
 
@@ -179,7 +178,10 @@
 
   xdg.portal = {
     enable = true;
-    extraPortals = [ inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland pkgs.xdg-desktop-portal-gtk ];
+    extraPortals = [ 
+      inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland
+      pkgs.xdg-desktop-portal-gtk
+    ];
     xdgOpenUsePortal = true;
   };
 
@@ -270,6 +272,7 @@
   };
 
   services.dbus.packages = [ pkgs.gcr pkgs.gnome-keyring ];
+  services.dbus.enable = true;
 
   environment.variables = {
     GOOGLE_DEFAULT_CLIENT_ID = secrets.google.clientId;

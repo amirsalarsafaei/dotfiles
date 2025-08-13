@@ -7,7 +7,6 @@
       "https://nix-community.cachix.org"
       "https://hyprland.cachix.org"
       "https://devenv.cachix.org"
-      "https://devbox.cachix.org"
     ];
     trusted-public-keys = [
       "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
@@ -90,7 +89,7 @@
               home-manager = {
                 useGlobalPkgs = true;
                 useUserPackages = true;
-                backupFileExtension = "backup";
+                backupFileExtension = "backup-1";
                 extraSpecialArgs = {
                   inherit secrets inputs;
                   currentHostname = hostname;

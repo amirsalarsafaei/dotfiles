@@ -169,6 +169,7 @@
       pkgs.nload
       pkgs.sing-box
       pkgs.openfortivpn
+      pkgs.openconnect
       pkgs.telepresence2
       pkgs.ngrok
       pkgs.iptables
