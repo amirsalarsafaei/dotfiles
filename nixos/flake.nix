@@ -1,5 +1,5 @@
 {
-  description = "NixOS configuration";
+  description = "Unified Nix configurations for all my machines";
 
   nixConfig = {
     substituters = [
@@ -15,75 +15,83 @@
       "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw="
       "nixpkgs-python.cachix.org-1:hxjI7pFxTyuTHn2NkvWCrAUcNZLNS3ZAvfYNuYifcEU="
     ];
+    extra-experimental-features = "nix-command flakes";
   };
 
   inputs = {
-    # Nixpkgs
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     nixpkgs-stable.url = "github:nixos/nixpkgs/nixos-24.11";
-    
-    # Home manager
+
     home-manager = {
-      url = "github:nix-community/home-manager/master";
+      url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    
-    # Window manager
+
     hyprland.url = "github:hyprwm/Hyprland";
-    
-    # Hardware support
+
+    # Asahi support
     apple-silicon-support.url = "github:nix-community/nixos-apple-silicon/main";
   };
 
-  outputs = { nixpkgs, nixpkgs-stable, home-manager, apple-silicon-support, ... } @ inputs:
+  outputs = { self, nixpkgs, nixpkgs-stable, home-manager, apple-silicon-support, ... }@inputs:
     let
-      # Define supported systems
+      inherit (nixpkgs) lib;
+      
       systems = {
         x86_64 = "x86_64-linux";
         aarch64 = "aarch64-linux";
       };
 
-      # Load secrets from JSON file
-      secrets = builtins.fromJSON (builtins.readFile ./secrets/secrets.json);
+      secrets = 
+        let secretsPath = ./secrets/secrets.json;
+        in if builtins.pathExists secretsPath
+           then builtins.fromJSON (builtins.readFile secretsPath)
+           else builtins.trace "Warning: secrets.json not found, using empty secrets" { };
 
-      # Helper function to create system configurations
-      mkSystem = { 
-        system,
-        hostname,
-        username ? "amirsalar",
-        extraModules ? [ ]
-      }:
-      nixpkgs.lib.nixosSystem {
-        inherit system;
-
-        specialArgs = {
-          inherit secrets inputs apple-silicon-support;
+      commonNixpkgsConfig = system: {
+        config = {
+          android_sdk.accept_license = true;
+          allowUnfree = true;
         };
+        overlays = import ./overlays { inherit nixpkgs-stable system; };
+      };
+
+      allHosts = {
+        mac = {
+          system = systems.aarch64;
+          type = "nixos";
+          username = "amirsalar";
+          extraModules = [ apple-silicon-support.nixosModules.apple-silicon-support ];
+        };
+        rog = {
+          system = systems.x86_64;
+          type = "nixos";
+          username = "amirsalar";
+          extraModules = [ ];
+        };
+        g14 = {
+          system = systems.x86_64;
+          type = "nixos";
+          username = "amirsalar";
+          extraModules = [ ];
+        };
+        g14Arch = {
+          system = systems.x86_64;
+          type = "home-manager";
+          username = "amirsalar";
+          extraModules = [ ];
+        };
+      };
+
+      mkNixOS = { hostname, system, username, extraModules ? [ ], ... }: 
+        lib.nixosSystem {
+          inherit system;
+          specialArgs = { inherit secrets inputs apple-silicon-support; };
           modules = [
-            # Common configuration for all hosts
             ./hosts/common/default.nix
-
-            # Host-specific configuration
             ./hosts/${hostname}/configuration.nix
-
-            # Hardware-specific configuration
             ./hosts/${hostname}/hardware-configuration.nix
-
-            # System-wide nixpkgs configuration
-            {
-              nixpkgs = {
-                config = {
-                  android_sdk.accept_license = true;
-                  allowUnfree = true;
-                };
-                # Import overlays from the overlays directory
-                overlays = import ./overlays { 
-                  inherit nixpkgs-stable system; 
-                };
-              };
-            }
-
-            # Home Manager configuration
+            { nixpkgs = commonNixpkgsConfig system; }
             home-manager.nixosModules.home-manager
             {
               home-manager = {
@@ -101,26 +109,37 @@
             }
           ] ++ extraModules;
         };
+
+      mkHomeManager = { hostname, system, username, ... }:
+        home-manager.lib.homeManagerConfiguration {
+          pkgs = nixpkgs.legacyPackages.${system};
+          extraSpecialArgs = {
+            inherit secrets inputs;
+            currentSystem = system;
+            currentHostname = hostname;
+            homeDir = "/home/${username}";
+          };
+          modules = [
+            ./home/default.nix
+            { nixpkgs = commonNixpkgsConfig system; }
+          ];
+        };
+
+      nixosHosts = lib.filterAttrs (_: hostConfig: hostConfig.type == "nixos") allHosts;
+      homeManagerHosts = lib.filterAttrs (_: hostConfig: hostConfig.type == "home-manager") allHosts;
+
     in
     {
-      nixosConfigurations = {
-        # MacBook Pro (ARM)
-        mac = mkSystem {
-          system = systems.aarch64;
-          hostname = "mac";
-        };
+      nixosConfigurations = lib.mapAttrs 
+        (hostname: hostConfig: mkNixOS (hostConfig // { inherit hostname; }))
+        nixosHosts;
 
-        # ROG laptop (x86_64)
-        rog = mkSystem {
-          system = systems.x86_64;
-          hostname = "rog";
-        };
-
-	# G14 Laptop (x86_64)
-	g14 = mkSystem {
-	  system = systems.x86_64;
-	  hostname = "g14";
-	};
-      };
+      homeConfigurations = lib.mapAttrs
+        (hostname: hostConfig: mkHomeManager (hostConfig // { inherit hostname; }))
+        homeManagerHosts
+      // lib.mapAttrs'
+        (hostname: hostConfig: lib.nameValuePair "${hostConfig.username}@${hostname}" 
+          (mkHomeManager (hostConfig // { inherit hostname; })))
+        homeManagerHosts;
     };
 }
