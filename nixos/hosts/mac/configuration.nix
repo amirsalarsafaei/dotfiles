@@ -30,7 +30,6 @@
       peripheralFirmwareDirectory = ./firmware;
       useExperimentalGPUDriver = false;
       setupAsahiSound = true;
-      withRust = true;
     };
   };
 

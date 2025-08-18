@@ -17,7 +17,7 @@
       # Development Utilities
       pkgs.cmake
       pkgs.pkg-config
-      pkgs.openssl_3_4
+      pkgs.openssl_3
       pkgs.gnumake
       pkgs.just
       pkgs.devenv
@@ -32,7 +32,6 @@
       pkgs.gore
       pkgs.devbox
       pkgs.bazel
-      pkgs.kubernetes-helm
       pkgs.amp-cli
     ];
     
@@ -89,7 +88,6 @@
 
       # JS/TS
       pkgs.typescript-language-server
-      pkgs.vscode-langservers-extracted
       pkgs.nodePackages.eslint    # JavaScript/TypeScript linter
       
       # Lua
@@ -183,6 +181,8 @@
       pkgs.stern
       pkgs.awscli2
       pkgs.argo-rollouts
+      pkgs.kubernetes-helm
+      pkgs.kubernetes-helmPlugins.helm-s3
     ];
 
     # Desktop Applications

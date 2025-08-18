@@ -58,7 +58,7 @@ tabline.setup({
 -- Set leader key (CTRL+b like tmux)
 config.leader = { key = "b", mods = "CTRL", timeout_milliseconds = 1000 }
 config.disable_default_key_bindings = true
-config.enable_wayland = true
+config.enable_wayland = false
 
 local direction_keys = {
   h = "Left",
@@ -617,7 +617,6 @@ config.hide_tab_bar_if_only_one_tab = false
 config.show_new_tab_button_in_tab_bar = false
 config.use_fancy_tab_bar = false
 config.tab_bar_at_bottom = true
-config.tab_max_width = 40
 config.tab_bar_style = {
   new_tab = "",
   new_tab_hover = "",
