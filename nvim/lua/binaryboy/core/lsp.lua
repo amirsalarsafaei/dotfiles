@@ -5,7 +5,6 @@ vim.lsp.enable({
 	'pyright',
 	'yamlls',
 	'protobuf-language-server',
-	'eslint',
 	'elixirls',
 	'lexical',
 	'sqls',

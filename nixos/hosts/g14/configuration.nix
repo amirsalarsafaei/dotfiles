@@ -23,10 +23,17 @@
   # Bootloader.
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
-  boot.kernelPatches = [{ 
-    name = "my patch";
-    patch = ./my-changes.patch;
-  }];
+
+  boot.loader.systemd-boot.extraEntries = {
+    # The filename "arch.conf" will be created on the ESP.
+    "arch.conf" = ''
+      title   Arch Linux
+      linux   /vmlinuz-linux
+      initrd  /initramfs-linux.img
+      options root=UUID=cf2d005d-e51b-45b2-a5eb-c4fcdc2d3c4c rw
+    '';
+  };
+
 
   # Use latest kernel.
   boot.kernelPackages = pkgs.linuxPackages_latest;

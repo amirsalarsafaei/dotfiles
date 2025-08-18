@@ -54,9 +54,6 @@ return {
 					filetypes = { "go" },
 					extra_args = { "-company-prefixes", "git.divar.cloud/divar" },
 				}),
-				null_ls.builtins.diagnostics.golangci_lint.with({
-					filetypes = { "go" },
-				}),
 
 				-- python
 				null_ls.builtins.formatting.isort,

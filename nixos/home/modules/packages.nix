@@ -261,6 +261,7 @@
       pkgs.android-studio
       pkgs.discord
       pkgs.insomnia
+      pkgs.blender
     ];
 
   in
