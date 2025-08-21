@@ -122,7 +122,6 @@
 
   environment.sessionVariables = {
     NIXOS_OZONE_WL = "1";
-    SSH_AUTH_SOCK = "$XDG_RUNTIME_DIR/keyring/ssh";
   };
 
   programs.hyprland = {
@@ -234,16 +233,18 @@
     '';
   };
 
-  # Enable GNOME keyring daemon and its components
   security.pam.services.login.enableGnomeKeyring = true;
   services.gnome.gnome-keyring.enable = true;
   security.pam.services = {
     sddm.enableGnomeKeyring = true;
+    hyprlock = {
+      enable = true;
+      enableGnomeKeyring = true;
+    };
   };
 
-  # SSH agent configuration using GNOME Keyring
   programs.ssh = {
-    startAgent = false; # Let GNOME Keyring handle SSH keys
+    startAgent = false; 
     askPassword = "${pkgs.seahorse}/bin/seahorse";
     extraConfig = ''
       AddKeysToAgent yes
@@ -252,22 +253,11 @@
 
   programs.gnupg.agent = {
     enable = true;
-    enableSSHSupport = true;
+    enableSSHSupport = false;
     pinentryPackage = pkgs.pinentry-gnome3;
     settings = {
       default-cache-ttl = 2592000;
       max-cache-ttl = 2592000;
-    };
-  };
-  systemd.user.services.gnome-keyring = {
-    description = "GNOME Keyring SSH Agent";
-    wantedBy = [ "graphical-session.target" ];
-    partOf = [ "graphical-session.target" ];
-    after = [ "graphical-session.target" ];
-    serviceConfig = {
-      Type = "simple";
-      ExecStart = "${pkgs.gnome-keyring}/bin/gnome-keyring-daemon --start --components=ssh,secrets,pkcs11";
-      Restart = "on-failure";
     };
   };
 

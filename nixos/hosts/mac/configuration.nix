@@ -59,8 +59,13 @@
     ifuse
     xdg-desktop-portal
     xdg-desktop-portal-gtk
+    gnome-keyring
+    seahorse
+    libsecret
+    gcr
   ];
 
+  hardware.graphics.enable = true;
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.

@@ -1,6 +1,8 @@
+{pkgs, ...}:
 {
   programs.hyprlock = {
     enable = true;
+    package = pkgs.stable.hyprlock;
     settings = {
       general = {
         disable_loading_bar = false;
@@ -21,10 +23,7 @@
 
       input-field = {
         monitor = "";
-        size = {
-          width = 200;
-          height = 50;
-        };
+        size = "200, 50";
         outline_thickness = 3;
         dots_size = 0.33;
         dots_spacing = 0.15;
@@ -34,12 +33,9 @@
         font_color = "rgb(202, 211, 245)";
         capslock_color = "rgba(255,0,0,1)";
         fade_on_empty = true;
-        placeholder_text = "Password..."; # Removed placeholder text
+        placeholder_text = "Password...";
         hide_input = false;
-        position = {
-          x = 0;
-          y = 0; # Centered vertically
-        };
+        position = "0, 0";
         halign = "center";
         valign = "center";
       };
@@ -63,7 +59,7 @@
     };
     extraConfig = ''
       label {
-          monitor =
+          monitor = 
           text = Hi there, $USER
           color = rgba(200, 200, 200, 1.0)
           font_size = 25
@@ -73,8 +69,9 @@
           halign = center
           valign = center
       }
+      
       label {
-          monitor =
+          monitor = 
           text = $LAYOUT
           color = rgba(200, 200, 200, 1.0)
           font_size = 25
@@ -86,7 +83,7 @@
       }
 
       label {
-          monitor =
+          monitor = 
           text = $TIME
           color = rgba(200, 200, 200, 1.0)
           font_size = 64
@@ -96,7 +93,6 @@
           halign = center
           valign = center
       }
-
     '';
   };
 }
