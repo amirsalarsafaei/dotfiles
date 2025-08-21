@@ -127,10 +127,8 @@
     libglvnd
     mesa
     libva-utils
-
     alsa-utils
     wireplumber
-
   ];
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.

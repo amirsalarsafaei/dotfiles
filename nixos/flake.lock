@@ -201,16 +201,15 @@
         "xdph": "xdph"
       },
       "locked": {
-        "lastModified": 1755608296,
-        "narHash": "sha256-B9w3rUsiMj1yiMIkCALyE0n/0I8d+NcYwQuyFyE3SyQ=",
-        "owner": "gulafaran",
+        "lastModified": 1755687691,
+        "narHash": "sha256-w/5JZD04Z4PoPjev0ZRRlrMSxvqDHYC2MZbliIo3z3Q=",
+        "owner": "hyprwm",
         "repo": "Hyprland",
-        "rev": "6c804441ad9424ac661534e25569e44f7d8dcf85",
+        "rev": "1ac1ff457ab8ef1ae6a8f2ab17ee7965adfa729f",
         "type": "github"
       },
       "original": {
-        "owner": "gulafaran",
-        "ref": "rendernode",
+        "owner": "hyprwm",
         "repo": "Hyprland",
         "type": "github"
       }
