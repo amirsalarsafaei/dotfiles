@@ -54,6 +54,22 @@
         "type": "github"
       }
     },
+    "fast-syntax-highlighting": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1752660993,
+        "narHash": "sha256-ZihUL4JAVk9V+IELSakytlb24BvEEJ161CQEHZYYoSA=",
+        "owner": "zdharma-continuum",
+        "repo": "fast-syntax-highlighting",
+        "rev": "3d574ccf48804b10dca52625df13da5edae7f553",
+        "type": "github"
+      },
+      "original": {
+        "owner": "zdharma-continuum",
+        "repo": "fast-syntax-highlighting",
+        "type": "github"
+      }
+    },
     "flake-compat": {
       "locked": {
         "lastModified": 1746162366,
@@ -476,10 +492,14 @@
     "root": {
       "inputs": {
         "apple-silicon-support": "apple-silicon-support",
+        "fast-syntax-highlighting": "fast-syntax-highlighting",
         "home-manager": "home-manager",
         "hyprland": "hyprland",
         "nixpkgs": "nixpkgs_3",
-        "nixpkgs-stable": "nixpkgs-stable"
+        "nixpkgs-stable": "nixpkgs-stable",
+        "zsh-autocomplete": "zsh-autocomplete",
+        "zsh-syntax-highlighting": "zsh-syntax-highlighting",
+        "zsh-vi-mode": "zsh-vi-mode"
       }
     },
     "systems": {
@@ -556,6 +576,54 @@
       "original": {
         "owner": "hyprwm",
         "repo": "xdg-desktop-portal-hyprland",
+        "type": "github"
+      }
+    },
+    "zsh-autocomplete": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1752058246,
+        "narHash": "sha256-7v8dkrwhEszl8mVIMe8oJdaqK0ZZtODdWaaO1Z4Ldhk=",
+        "owner": "marlonrichert",
+        "repo": "zsh-autocomplete",
+        "rev": "316c588a92e3444e919ca9a341fc8894c82800a2",
+        "type": "github"
+      },
+      "original": {
+        "owner": "marlonrichert",
+        "repo": "zsh-autocomplete",
+        "type": "github"
+      }
+    },
+    "zsh-syntax-highlighting": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1732201766,
+        "narHash": "sha256-KRsQEDRsJdF7LGOMTZuqfbW6xdV5S38wlgdcCM98Y/Q=",
+        "owner": "zsh-users",
+        "repo": "zsh-syntax-highlighting",
+        "rev": "5eb677bb0fa9a3e60f0eff031dc13926e093df92",
+        "type": "github"
+      },
+      "original": {
+        "owner": "zsh-users",
+        "repo": "zsh-syntax-highlighting",
+        "type": "github"
+      }
+    },
+    "zsh-vi-mode": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1745287036,
+        "narHash": "sha256-CkU0qd0ba9QsPaI3rYCgalbRR5kWYWIa0Kn7L07aNUI=",
+        "owner": "jeffreytse",
+        "repo": "zsh-vi-mode",
+        "rev": "f82c4c8f4b2bdd9c914653d8f21fbb32e7f2ea6c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "jeffreytse",
+        "repo": "zsh-vi-mode",
         "type": "github"
       }
     }

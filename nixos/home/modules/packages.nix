@@ -31,7 +31,7 @@
       pkgs.docker-compose
       pkgs.gore
       pkgs.devbox
-      pkgs.bazel
+      pkgs.bazelisk
       pkgs.amp-cli
     ];
     

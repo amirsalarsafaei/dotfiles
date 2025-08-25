@@ -1,4 +1,4 @@
-{ config, homeDir, currentHostname, ... }:
+{ config, homeDir, inputs, pkgs, ... }:
 {
 
   home.username = "amirsalar";
@@ -57,6 +57,25 @@
   };
 
   xdg = {
+    portal = {
+      enable = true;
+      xdgOpenUsePortal = true;
+      extraPortals = [
+        pkgs.xdg-desktop-portal
+        pkgs.xdg-desktop-portal-gtk
+      ];
+      config = {
+        common = {
+          default = [ "hyprland" ];
+          "org.freedesktop.impl.portal.Secret" = [ "gnome-keyring" ];
+        };
+        hyprland = {
+          default = [ "hyprland" "gtk" ];
+          "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
+          "org.freedesktop.impl.portal.OpenURI" = [ "hyprland" ];
+        };
+      };
+    };
     enable = true;
     mimeApps = {
       enable = true;
@@ -64,11 +83,12 @@
         "text/html" = ["chromium.desktop"];
         "x-scheme-handler/http" = ["chromium.desktop"];
         "x-scheme-handler/https" = ["chromium.desktop"];
-        "x-scheme-handler/about" = ["chromium.desktop"];
-        "x-scheme-handler/unknown" = ["chromium.desktop"];
       };
     };
   };
+  
+
+
 
   imports = [ ./modules ];
 }

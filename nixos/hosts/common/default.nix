@@ -1,4 +1,7 @@
 { inputs, pkgs, secrets, ... }: {
+  
+  environment.pathsToLink = [ "/share/xdg-desktop-portal" "/share/applications" ];
+
   networking.hostName = "amirsalar"; # Define your hostname.
   networking.hosts = {
     # "216.239.38.120"= [
@@ -175,13 +178,28 @@
     };
   };
 
+  xdg.autostart.enable = true;
+
   xdg.portal = {
     enable = true;
     extraPortals = [ 
-      inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland
+      pkgs.xdg-desktop-portal
       pkgs.xdg-desktop-portal-gtk
+      inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland
     ];
     xdgOpenUsePortal = true;
+    config = {
+      common = {
+        default = [ "gtk" ];
+        "org.freedesktop.impl.portal.Secret" = [ "gnome-keyring" ];
+      };
+      hyprland = {
+        default = [ "hyprland" "gtk" ];
+        "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
+        "org.freedesktop.impl.portal.OpenURI" = [ "hyprland" ];
+      };
+    };
+
   };
 
   virtualisation.docker = {

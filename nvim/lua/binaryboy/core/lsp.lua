@@ -17,5 +17,6 @@ vim.lsp.enable({
 	'golangci_lint_ls',
 	'dockerls',
 	'docker_compose_language_service',
-	'bashls'
+	'bashls',
+	'clangd'
 })

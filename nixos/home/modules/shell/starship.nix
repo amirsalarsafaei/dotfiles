@@ -7,21 +7,20 @@
     enableZshIntegration = true;
     settings = {
       # Single-line format with concise information
-      format = "$os$username$directory$git_branch$git_status$package$nodejs$python$rust$golang$c$lua$nix_shell$docker_context$kubernetes$cmd_duration$character";
+      format = "$directory$git_status$nodejs$python$rust$golang$c$lua$nix_shell$docker_context$kubernetes$character";
       add_newline = false;
-      right_format = "$sudo$time";
+      # right_format = "$sudo$time";
 
       # Clean character symbols
       character = {
-        success_symbol = "❯(bold bright-green)";
-        error_symbol = "❯(bold bright-red)";
-        vimcmd_symbol = "❮(bold bright-yellow)";
-      };
+        success_symbol = "[❯](bold bright-green)";
+        error_symbol = "[❯](bold bright-red)";
+        vimcmd_symbol = "[❮](bold bright-yellow)"; };
 
       palette = "catppuccin_macchiato";
       
       username = {
-        format = "[ $user ]($style)";
+        format = "[$user]($style) ";
         show_always = false;
         style_user = "bg:blue fg:black";
       };
@@ -31,12 +30,12 @@
 
       # Clean system info
       os = {
-        format = "[$symbol]($style)";
+        format = "[$symbol]($style) ";
         style = "bold bright-white";
         disabled = false;
       };
       sudo = {
-        format = "sudo($style)";
+        format = "sudo($style) ";
         style = "bold bright-red";
       };
       time = {
@@ -66,7 +65,7 @@
         disabled = true;
       };
       c = {
-        format = " $version($style) ";
+        format = "[ $version]($style) ";
         style = "bold bright-blue";
       };
       docker_context = {
@@ -110,7 +109,7 @@
 
       # Simplified git status
       git_status = {
-        format = "($all_status$ahead_behind) ";
+        format = "$all_status$ahead_behind ";
         conflicted = " $count";
         ahead = "[⇡$count](bold green)";
         behind = "[⇣$count](bold yellow)";

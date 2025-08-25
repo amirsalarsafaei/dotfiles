@@ -32,6 +32,21 @@
 
     # Asahi support
     apple-silicon-support.url = "github:nix-community/nixos-apple-silicon/main";
+
+    zsh-autocomplete = {
+      url = "github:marlonrichert/zsh-autocomplete";
+      flake = false;
+    };
+
+    zsh-vi-mode = {
+      url = "github:jeffreytse/zsh-vi-mode";
+      flake = false;
+    };
+
+    fast-syntax-highlighting = {
+      url = "github:zdharma-continuum/fast-syntax-highlighting";
+      flake = false;
+    };
   };
 
   outputs = { self, nixpkgs, nixpkgs-stable, home-manager, apple-silicon-support, ... }@inputs:
