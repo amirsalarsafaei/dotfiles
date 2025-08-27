@@ -2,7 +2,7 @@
 {
   programs.hyprlock = {
     enable = true;
-    package = pkgs.stable.hyprlock;
+    package = pkgs.hyprlock;
     settings = {
       general = {
         disable_loading_bar = false;

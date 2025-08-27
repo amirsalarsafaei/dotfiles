@@ -59,10 +59,6 @@
     ifuse
     xdg-desktop-portal
     xdg-desktop-portal-gtk
-    gnome-keyring
-    seahorse
-    libsecret
-    gcr
   ];
 
   # Some programs need SUID wrappers, can be configured further or are
