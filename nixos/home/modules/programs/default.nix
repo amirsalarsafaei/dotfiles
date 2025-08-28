@@ -7,7 +7,7 @@
     ./hyprlock.nix
     ./waybar.nix
     ./rofi.nix
-    ./wezterm.nix
+    ./ghostty.nix
     ./hyprland.nix
     ./vscode.nix
     ./texlive.nix

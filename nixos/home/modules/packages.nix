@@ -41,6 +41,8 @@
       pkgs.nil                   # Nix LSP
       pkgs.nixpkgs-fmt           # Nix formatter
       pkgs.statix                # Nix linter
+      pkgs.nixfmt
+
       
       # Go
       pkgs.gopls                 # Go LSP
@@ -93,6 +95,7 @@
       # Lua
       pkgs.lua-language-server    # Lua LSP
       pkgs.luaformatter           # Lua formatter
+      pkgs.stylua
       
       # Docker
       pkgs.dockerfile-language-server-nodejs  # Dockerfile LSP

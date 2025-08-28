@@ -498,7 +498,7 @@
         "nixpkgs": "nixpkgs_3",
         "nixpkgs-stable": "nixpkgs-stable",
         "zsh-autocomplete": "zsh-autocomplete",
-        "zsh-syntax-highlighting": "zsh-syntax-highlighting",
+        "zsh-autosuggestions": "zsh-autosuggestions",
         "zsh-vi-mode": "zsh-vi-mode"
       }
     },
@@ -595,19 +595,19 @@
         "type": "github"
       }
     },
-    "zsh-syntax-highlighting": {
+    "zsh-autosuggestions": {
       "flake": false,
       "locked": {
-        "lastModified": 1732201766,
-        "narHash": "sha256-KRsQEDRsJdF7LGOMTZuqfbW6xdV5S38wlgdcCM98Y/Q=",
+        "lastModified": 1750781703,
+        "narHash": "sha256-KmkXgK1J6iAyb1FtF/gOa0adUnh1pgFsgQOUnNngBaE=",
         "owner": "zsh-users",
-        "repo": "zsh-syntax-highlighting",
-        "rev": "5eb677bb0fa9a3e60f0eff031dc13926e093df92",
+        "repo": "zsh-autosuggestions",
+        "rev": "85919cd1ffa7d2d5412f6d3fe437ebdbeeec4fc5",
         "type": "github"
       },
       "original": {
         "owner": "zsh-users",
-        "repo": "zsh-syntax-highlighting",
+        "repo": "zsh-autosuggestions",
         "type": "github"
       }
     },

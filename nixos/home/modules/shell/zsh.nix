@@ -17,6 +17,14 @@
         src = pkgs.zsh-you-should-use;
       }
       {
+        name = "fast-syntax-highlighting";
+        src = inputs.fast-syntax-highlighting;
+      }
+      {
+        name = "zsh-autosuggestions";
+        src = inputs.zsh-autosuggestions;
+      }
+      {
         name = "zsh-autocomplete";
         src = inputs.zsh-autocomplete;
       }
@@ -24,16 +32,11 @@
         name = "zsh-vi-mode";
         src = inputs.zsh-vi-mode;
       }
-      {
-        name = "fast-syntax-highlighting";
-        src = inputs.fast-syntax-highlighting;
-      }
     ];
 
     shellAliases = import ./zsh/aliases.nix;
 
     initContent = ''
-      
       if [ -f "$HOME/zshsecret" ]; then
         source "$HOME/zshsecret"
       fi

@@ -38,6 +38,11 @@
       flake = false;
     };
 
+    zsh-autosuggestions = {
+      url = "github:zsh-users/zsh-autosuggestions";
+      flake = false;
+    };
+
     zsh-vi-mode = {
       url = "github:jeffreytse/zsh-vi-mode";
       flake = false;
