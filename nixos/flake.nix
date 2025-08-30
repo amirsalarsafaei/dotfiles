@@ -27,8 +27,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    hyprland.url = "github:hyprwm/Hyprland";
-    # hyprland.url = "github:gulafaran/Hyprland?ref=rendernode";
+    # hyprland.url = "github:hyprwm/Hyprland";
+    hyprland.url = "github:gulafaran/Hyprland?ref=rendernode";
 
     # Asahi support
     apple-silicon-support.url = "github:nix-community/nixos-apple-silicon/main";
@@ -59,7 +59,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, nixpkgs-stable, home-manager, apple-silicon-support, ... }@inputs:
+  outputs = { nixpkgs, nixpkgs-stable, home-manager, apple-silicon-support, ... }@inputs:
     let
       inherit (nixpkgs) lib;
       
