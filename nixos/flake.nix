@@ -52,6 +52,11 @@
       url = "github:zdharma-continuum/fast-syntax-highlighting";
       flake = false;
     };
+
+    zsh-nix-shell = {
+      url = "github:chisui/zsh-nix-shell";
+      flake = false;
+    };
   };
 
   outputs = { self, nixpkgs, nixpkgs-stable, home-manager, apple-silicon-support, ... }@inputs:

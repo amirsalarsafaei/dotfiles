@@ -8,9 +8,10 @@
 
 
     plugins = [
-      {
+     {
         name = "zsh-nix-shell";
-        src = pkgs.zsh-nix-shell;
+        src = inputs.zsh-nix-shell;
+        file = "nix-shell.plugin.zsh";
       }
       {
         name = "zsh-you-should-use";
