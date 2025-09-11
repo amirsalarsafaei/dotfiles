@@ -1,6 +1,15 @@
-{ inputs, pkgs, secrets, ... }: {
-  
-  environment.pathsToLink = [ "/share/xdg-desktop-portal" "/share/applications" ];
+{
+  inputs,
+  pkgs,
+  secrets,
+  ...
+}:
+{
+
+  environment.pathsToLink = [
+    "/share/xdg-desktop-portal"
+    "/share/applications"
+  ];
 
   networking.hostName = "amirsalar"; # Define your hostname.
   networking.hosts = {
@@ -74,7 +83,10 @@
   services.displayManager.sddm.wayland.enable = true;
   services.resolved = {
     enable = true;
-    fallbackDns = [ "8.8.8.8" "8.8.4.4" ];
+    fallbackDns = [
+      "8.8.8.8"
+      "8.8.4.4"
+    ];
   };
 
   services.xserver.xkb.layout = "us,ir";
@@ -87,22 +99,30 @@
 
   services.libinput.enable = true;
 
-  services.postgresql =
-    {
-      enable = true;
-      package = pkgs.postgresql_16;
-      authentication = pkgs.lib.mkOverride 10 ''
-                #type database  DBuser  auth-method
-                local all       all     trust
-        		host  all      all     127.0.0.1/32   trust
-        		host all       all     ::1/128        trust
-      '';
-    };
+  services.postgresql = {
+    enable = true;
+    package = pkgs.postgresql_16;
+    authentication = pkgs.lib.mkOverride 10 ''
+              #type database  DBuser  auth-method
+              local all       all     trust
+      		host  all      all     127.0.0.1/32   trust
+      		host all       all     ::1/128        trust
+    '';
+  };
 
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.amirsalar = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "input" "sudo" "docker" "video" "kvm" "adbuser" "audio" ];
+    extraGroups = [
+      "wheel"
+      "input"
+      "sudo"
+      "docker"
+      "video"
+      "kvm"
+      "adbuser"
+      "audio"
+    ];
     packages = with pkgs; [
       firefox
       tree
@@ -117,7 +137,6 @@
     bluetooth.powerOnBoot = true;
   };
 
-
   services.usbmuxd = {
     enable = true;
     package = pkgs.usbmuxd2;
@@ -131,7 +150,8 @@
     enable = true;
     withUWSM = true;
     package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
-    portalPackage = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
+    portalPackage =
+      inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
   };
 
   programs.zsh = {
@@ -147,8 +167,8 @@
   programs.dconf.enable = true;
 
   nix.extraOptions = ''
-     extra-substituters = https://devenv.cachix.org
-     extra-trusted-public-keys = devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw= nixpkgs-python.cachix.org-1:hxjI7pFxTyuTHn2NkvWCrAUcNZLNS3ZAvfYNuYifcEU=
+    extra-substituters = https://devenv.cachix.org
+    extra-trusted-public-keys = devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw= nixpkgs-python.cachix.org-1:hxjI7pFxTyuTHn2NkvWCrAUcNZLNS3ZAvfYNuYifcEU=
   '';
 
   services.blueman.enable = true;
@@ -182,7 +202,7 @@
 
   xdg.portal = {
     enable = true;
-    extraPortals = [ 
+    extraPortals = [
       pkgs.xdg-desktop-portal
       pkgs.xdg-desktop-portal-gtk
       inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland
@@ -194,7 +214,10 @@
         "org.freedesktop.impl.portal.Secret" = [ "gnome-keyring" ];
       };
       hyprland = {
-        default = [ "hyprland" "gtk" ];
+        default = [
+          "hyprland"
+          "gtk"
+        ];
         "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
         "org.freedesktop.impl.portal.OpenURI" = [ "hyprland" ];
       };
@@ -213,10 +236,12 @@
   zramSwap.enable = true;
 
   # Create a 16GB swapfile
-  swapDevices = [{
-    device = "/swapfile";
-    size = 16 * 1024; # 16GB
-  }];
+  swapDevices = [
+    {
+      device = "/swapfile";
+      size = 16 * 1024; # 16GB
+    }
+  ];
 
   # Select internationalisation properties.
   i18n.defaultLocale = "en_US.UTF-8";
@@ -236,8 +261,6 @@
 
   # Enable CUPS to print documents.
   services.printing.enable = true;
-
-
 
   # Configure polkit for privilege escalation
   security.polkit = {
@@ -262,7 +285,7 @@
   };
 
   programs.ssh = {
-    startAgent = false; 
+    startAgent = false;
     askPassword = "${pkgs.seahorse}/bin/seahorse";
     extraConfig = ''
       AddKeysToAgent yes
@@ -279,8 +302,54 @@
     };
   };
 
-  services.dbus.packages = [ pkgs.gcr pkgs.gnome-keyring ];
+  services.dbus.packages = [
+    pkgs.gcr
+    pkgs.gnome-keyring
+  ];
   services.dbus.enable = true;
+
+  services.prometheus = {
+    enable = true;
+    port = 9090;
+    globalConfig.scrape_interval = "15s";
+    scrapeConfigs = [
+      {
+        job_name = "local-projects";
+        file_sd_configs = [
+          {
+            files = [
+              "/etc/nixos/prometheus-targets/*.yml"
+              "/etc/nixos/prometheus-targets/*.yaml"
+            ];
+            refresh_interval = "1m";
+          }
+        ];
+      }
+    ];
+  };
+
+  systemd.tmpfiles.rules = [
+    "d /etc/nixos/prometheus-targets 0775 root users - -"
+  ];
+
+  services.grafana = {
+    enable = true;
+    port = 3030;
+
+    provision.datasources.settings.datasources = [
+      {
+        name = "Prometheus-System";
+        type = "prometheus";
+        access = "proxy";
+        url = "http://localhost:9090";
+        isDefault = true;
+        jsonData = {
+          scrapeInterval = "15s";
+          queryTimeout = "60s";
+        };
+      }
+    ];
+  };
 
   environment.variables = {
     GOOGLE_DEFAULT_CLIENT_ID = secrets.google.clientId;
