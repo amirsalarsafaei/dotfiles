@@ -17,10 +17,7 @@
         pkgs.openjdk21
         pkgs.gcc
         pkgs.libgcc
-        (pkgs.python3Full.withPackages (ppkgs: [
-          ppkgs.libtmux
-          ppkgs.pylint-venv
-        ]))
+        pkgs.python312
 
         # Development Utilities
         pkgs.cmake
@@ -128,9 +125,6 @@
         # Shell and Plugins
         pkgs.zsh
         pkgs.oh-my-zsh
-        pkgs.zsh-fast-syntax-highlighting
-        pkgs.zsh-powerlevel10k
-        pkgs.zsh-autocomplete
 
         # Terminal Multiplexers
         pkgs.tmux
@@ -206,19 +200,7 @@
         pkgs.spotify-player
         pkgs.syncthing
         pkgs.texstudio
-        (
-          if currentHostname == "rog" then
-            (pkgs.chromium.override {
-              commandLineArgs = [
-                "--ozone-platform=wayland"
-                "--enable-wayland-ime"
-                "--enable-features=WaylandWindowDecorations"
-                "--disable-gpu-compositing"
-              ];
-            })
-          else
-            pkgs.chromium
-        )
+        pkgs.chromium
       ];
 
       # Wayland and Desktop Environment

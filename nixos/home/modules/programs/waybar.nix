@@ -443,12 +443,9 @@
             icon-size = 20;
           };
           "hyprland/workspaces" = {
-            persistent-workspaces = {
-              "eDP-2" = [ 1 2 3 ];
-              "eDP-1" = [ 1 2 3 ];
-              "DP-1" = [ 6 7 8 9 ];
-              "HDMI-A-1" = [ 6 7 8 9 ];
-            };
+            all-outputs = false;
+            move-to-monitor = false;
+            sort-by = "id";
             format = "{icon} {windows}";
             format-window-separator = " ";
             window-rewrite-default = "";
