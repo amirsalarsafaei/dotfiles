@@ -334,7 +334,8 @@
 
   services.grafana = {
     enable = true;
-    port = 3030;
+    settings.server.http_port = 3000;
+    settings.server.http_addr = "locahost";
 
     provision.datasources.settings.datasources = [
       {

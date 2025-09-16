@@ -38,6 +38,9 @@
         pkgs.devbox
         pkgs.bazelisk
         pkgs.amp-cli
+        pkgs.pnpm
+        pkgs.turbo-unwrapped
+        pkgs.lazygit
       ];
 
       # Language Servers, Formatters, Linters, and Debuggers
