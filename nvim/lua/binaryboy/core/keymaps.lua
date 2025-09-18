@@ -118,3 +118,9 @@ vim.keymap.set(
 -- Quick tab creation shortcuts
 vim.keymap.set("n", "<M-t>", "<cmd>tabnew<CR>", { desc = "Open new tab (Alt+t)", noremap = true, silent = true })
 vim.keymap.set("n", "<M-w>", "<cmd>tabclose<CR>", { desc = "Close current tab (Alt+w)", noremap = true, silent = true })
+
+-- Clipboard
+vim.keymap.set({ "n", "v" }, "<leader>y", '"+y')
+vim.keymap.set({ "n", "v" }, "<leader>p", '"+p')
+vim.keymap.set("n", "<leader>Y", '"+Y')
+vim.keymap.set({ "n", "v" }, "<leader>P", '"+P')
