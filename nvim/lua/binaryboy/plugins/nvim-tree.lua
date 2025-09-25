@@ -8,6 +8,12 @@ return {
 		vim.g.loaded_netrw = 1
 		vim.g.loaded_netrwPlugin = 1
 
+		-- ensure diagnostic signs are available for nvim-tree
+		vim.fn.sign_define("DiagnosticSignError", { text = "", texthl = "DiagnosticSignError" })
+		vim.fn.sign_define("DiagnosticSignWarn", { text = "", texthl = "DiagnosticSignWarn" })
+		vim.fn.sign_define("DiagnosticSignInfo", { text = "", texthl = "DiagnosticSignInfo" })
+		vim.fn.sign_define("DiagnosticSignHint", { text = "", texthl = "DiagnosticSignHint" })
+
 		nvimtree.setup({
 			view = {
 				width = 35,
@@ -72,7 +78,7 @@ return {
 				group_empty = true,
 				full_name = false,
 				highlight_git = "name",
-				highlight_diagnostics = "none",
+				highlight_diagnostics = "name",
 				highlight_opened_files = "icon",
 				highlight_modified = "name",
 				highlight_bookmarks = "name",
@@ -169,7 +175,7 @@ return {
 			},
 			filters = {
 				enable = true,
-				git_ignored = true,
+				git_ignored = false,
 				dotfiles = false,
 				git_clean = false,
 				no_buffer = false,
@@ -198,19 +204,6 @@ return {
 			},
 			diagnostics = {
 				enable = false,
-				show_on_dirs = false,
-				show_on_open_dirs = false,
-				debounce_delay = 50,
-				severity = {
-					min = vim.diagnostic.severity.HINT,
-					max = vim.diagnostic.severity.ERROR,
-				},
-				icons = {
-					hint = "",
-					info = "",
-					warning = "",
-					error = "",
-				},
 			},
 			modified = {
 				enable = true,
