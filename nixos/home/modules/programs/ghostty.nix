@@ -30,9 +30,9 @@
 			# Key Bindings
 			# Disable all default keybindings
 			keybind = [
-				"ctrl+shift+plus=increase_font_size:1"
+				"ctrl+shift+equal=increase_font_size:1"
 				"ctrl+shift+minus=decrease_font_size:1"
-				"ctrl+shift+equal=reset_font_size"
+				"ctrl+equal=reset_font_size"
 				"ctrl+shift+c=copy_to_clipboard"
 				"ctrl+shift+v=paste_from_clipboard"
 			];
