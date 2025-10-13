@@ -116,6 +116,7 @@
         pkgs.nodePackages.prettier # Formatter for many languages
         pkgs.efm-langserver # General purpose LSP
         pkgs.shellcheck # Shell script linter
+        pkgs.jetbrains.idea-community-bin
 
       ];
 
@@ -187,6 +188,7 @@
       infraTools = [
         pkgs.kubectl
         pkgs.kubectl-neat
+        pkgs.kubelogin-oidc
         pkgs.k9s
         pkgs.stern
         pkgs.awscli2
