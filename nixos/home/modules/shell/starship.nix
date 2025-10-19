@@ -7,7 +7,7 @@
     enableZshIntegration = true;
     settings = {
       # Single-line format with concise information
-      format = "$directory$git_status$nodejs$python$rust$golang$c$lua$nix_shell$docker_context$kubernetes$character";
+      format = "$directory$git_branch$git_status$nodejs$python$rust$golang$c$lua$nix_shell$docker_context$kubernetes$character";
       add_newline = false;
       # right_format = "$sudo$time";
 

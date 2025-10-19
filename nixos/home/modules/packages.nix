@@ -41,6 +41,8 @@
         pkgs.pnpm
         pkgs.turbo-unwrapped
         pkgs.lazygit
+        pkgs.argocd
+        pkgs.argocd-vault-plugin
       ];
 
       # Language Servers, Formatters, Linters, and Debuggers
@@ -103,6 +105,7 @@
         pkgs.lua-language-server # Lua LSP
         pkgs.luaformatter # Lua formatter
         pkgs.stylua
+        pkgs.luajitPackages.luarocks_bootstrap
 
         # Java
         pkgs.jdt-language-server

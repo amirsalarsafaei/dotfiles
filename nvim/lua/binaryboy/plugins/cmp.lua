@@ -1,10 +1,10 @@
 return {
 	"saghen/blink.cmp",
 	version = "1.*",
-	lazy = false,                   -- lazy loading handled internally
+	lazy = false, -- lazy loading handled internally
 	dependencies = {
 		"rafamadriz/friendly-snippets", -- useful snippets
-		"folke/lazydev.nvim",         -- better lua completion for neovim config
+		"folke/lazydev.nvim", -- better lua completion for neovim config
 		"giuxtaposition/blink-cmp-copilot",
 	},
 	opts = {
@@ -25,7 +25,7 @@ return {
 					else
 						cmp.show_signature()
 					end
-				end
+				end,
 			},
 			["<C-k>"] = { "scroll_documentation_up", "fallback" },
 			["<C-j>"] = { "scroll_documentation_down", "fallback" },
@@ -41,7 +41,7 @@ return {
 						return cmp.select_next()
 					end
 				end,
-				"fallback"
+				"fallback",
 			},
 			["<C-p>"] = {
 				function(cmp)
@@ -51,7 +51,7 @@ return {
 						return cmp.select_prev()
 					end
 				end,
-				"fallback"
+				"fallback",
 			},
 		},
 
@@ -220,9 +220,11 @@ return {
 			max_typos = function(keyword)
 				return math.floor(#keyword / 4)
 			end,
-			use_frecency = true,
+			frecency = {
+				enabled = true,
+				unsafe_no_lock = false,
+			},
 			use_proximity = true,
-			use_unsafe_no_lock = false,
 			sorts = { "score", "sort_text" },
 			prebuilt_binaries = {
 				download = true,
