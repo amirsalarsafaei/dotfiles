@@ -83,34 +83,42 @@
         overlays = import ./overlays { inherit nixpkgs-stable system; };
       };
 
+      # Host definitions with multi-user support
       allHosts = {
         mac = {
           system = systems.aarch64;
           type = "nixos";
-          username = "amirsalar";
+          users = ["amirsalar"];
           extraModules = [ apple-silicon-support.nixosModules.apple-silicon-support ];
         };
         rog = {
           system = systems.x86_64;
           type = "nixos";
-          username = "amirsalar";
+          users = ["amirsalar"];
           extraModules = [ ];
         };
         g14 = {
           system = systems.x86_64;
           type = "nixos";
-          username = "amirsalar";
+          users = ["amirsalar" "ali"];
           extraModules = [ ];
         };
         g14Arch = {
           system = systems.x86_64;
           type = "home-manager";
-          username = "amirsalar";
+          users = ["amirsalar"];
           extraModules = [ ];
         };
       };
 
-      mkNixOS = { hostname, system, username, extraModules ? [ ], ... }: 
+      # Helper function to normalize users to always be a list
+      normalizeUsers = hostConfig:
+        if hostConfig ? users then hostConfig.users
+        else if hostConfig ? username then [ hostConfig.username ]
+        else throw "Host configuration must have either 'users' or 'username' field";
+
+      # Build NixOS configuration with multi-user home-manager support
+      mkNixOS = { hostname, system, users, extraModules ? [ ], ... }: 
         lib.nixosSystem {
           inherit system;
           specialArgs = { inherit secrets inputs apple-silicon-support; };
@@ -129,15 +137,20 @@
                   inherit secrets inputs;
                   currentHostname = hostname;
                   currentSystem = system;
-                  homeDir = "/home/${username}";
                 };
-                users.${username} = import ./home/default.nix;
+                # Configure home-manager for all users
+                users = lib.genAttrs users (username: {
+                  imports = [ ./home/default.nix ];
+                  # Make homeDir available as a module argument
+                  _module.args.homeDir = "/home/${username}";
+                });
               };
             }
             k0s-nix.nixosModules.default
           ] ++ extraModules;
         };
 
+      # Build standalone home-manager configuration
       mkHomeManager = { hostname, system, username, ... }:
         home-manager.lib.homeManagerConfiguration {
           pkgs = nixpkgs.legacyPackages.${system};
@@ -153,21 +166,41 @@
           ];
         };
 
+      # Filter hosts by type
       nixosHosts = lib.filterAttrs (_: hostConfig: hostConfig.type == "nixos") allHosts;
       homeManagerHosts = lib.filterAttrs (_: hostConfig: hostConfig.type == "home-manager") allHosts;
 
+      # Generate home-manager configurations for standalone hosts
+      standaloneHomeConfigs = lib.flatten (
+        lib.mapAttrsToList (hostname: hostConfig:
+          let 
+            users = normalizeUsers hostConfig;
+          in
+          map (username: 
+            lib.nameValuePair 
+              "${username}@${hostname}" 
+              (mkHomeManager { 
+                inherit hostname username; 
+                system = hostConfig.system; 
+              })
+          ) users
+        ) homeManagerHosts
+      );
+
     in
     {
+      # NixOS configurations (with integrated home-manager for all users)
       nixosConfigurations = lib.mapAttrs 
-        (hostname: hostConfig: mkNixOS (hostConfig // { inherit hostname; }))
+        (hostname: hostConfig: 
+          mkNixOS (hostConfig // { 
+            inherit hostname; 
+            users = normalizeUsers hostConfig;
+          })
+        )
         nixosHosts;
 
-      homeConfigurations = lib.mapAttrs
-        (hostname: hostConfig: mkHomeManager (hostConfig // { inherit hostname; }))
-        homeManagerHosts
-      // lib.mapAttrs'
-        (hostname: hostConfig: lib.nameValuePair "${hostConfig.username}@${hostname}" 
-          (mkHomeManager (hostConfig // { inherit hostname; })))
-        homeManagerHosts;
+      # Standalone home-manager configurations
+      homeConfigurations = builtins.listToAttrs standaloneHomeConfigs;
     };
 }
+

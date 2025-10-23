@@ -191,4 +191,23 @@
   # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
   system.stateVersion = "25.05"; # Did you read the comment?
 
+  users.users.ali = {
+    isNormalUser = true;
+    extraGroups = [
+      "wheel"
+      "input"
+      "sudo"
+      "docker"
+      "video"
+      "kvm"
+      "adbuser"
+      "audio"
+    ];
+    packages = with pkgs; [
+      firefox
+      tree
+    ];
+    shell = pkgs.zsh;
+  };
+
 }

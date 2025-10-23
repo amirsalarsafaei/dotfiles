@@ -1,13 +1,19 @@
-{ config, homeDir, inputs, pkgs, ... }:
+{ config, homeDir ? null, inputs, pkgs, lib, ... }:
 {
-
-  home.username = "amirsalar";
-  home.homeDirectory = homeDir;
+  # Remove the hardcoded username - let it be set by the caller
+  # home.username is automatically set by home-manager based on the user key
+  
+  # Use mkDefault to allow override, and handle homeDir properly
+  home.homeDirectory = lib.mkDefault (
+    if homeDir != null 
+    then homeDir 
+    else "/home/${config.home.username}"
+  );
 
   home.stateVersion = "24.11"; # Please read the comment before changing.
 
   # The home.packages option allows you to install Nix packages into your
-  # enviroent.
+  # environment.
 
   # Home Manager is pretty good at managing dotfiles. The primary way to manage
   # plain files is through 'home.file'.
@@ -17,7 +23,7 @@
       					name = "Amirsalar Safaei"
       					email = "amirsalar.safaei@divar.ir"
             [core]
-                excludesFile = "${homeDir}/.gitignore-work"
+                excludesFile = "${config.home.homeDirectory}/.gitignore-work"
     '';
     ".gitignore-work".text = ''
       shell.nix
@@ -27,9 +33,9 @@
 
   home.sessionVariables = {
     EDITOR = "nvim";
-    GOPATH = "${homeDir}/go";
+    GOPATH = "${config.home.homeDirectory}/go";
     GOPRIVATE = "git.divar.cloud";
-    GOBIN = "${homeDir}/.local/bin";
+    GOBIN = "${config.home.homeDirectory}/.local/bin";
   };
 
   home.sessionPath = [
@@ -38,11 +44,11 @@
 
   xdg.configFile = {
     "tmuxinator" = {
-      source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/personal/dotfiles/tmuxinator";
+      source = config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/personal/dotfiles/tmuxinator";
       recursive = true;
     };
     "nvim" = {
-      source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/personal/dotfiles/nvim";
+      source = config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/personal/dotfiles/nvim";
       recursive = true;
     };
     "yamllint/config".text = ''
@@ -87,8 +93,6 @@
     };
   };
   
-
-
-
   imports = [ ./modules ];
 }
+
