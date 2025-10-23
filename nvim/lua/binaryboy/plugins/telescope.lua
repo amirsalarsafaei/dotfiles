@@ -3,7 +3,7 @@ return {
 		"nvim-telescope/telescope.nvim",
 		dependencies = {
 			"nvim-lua/plenary.nvim",
-			{ "nvim-telescope/telescope-fzf-native.nvim", build = "make" },
+			-- { "nvim-telescope/telescope-fzf-native.nvim", build = "make" },
 			"nvim-tree/nvim-web-devicons",
 		},
 		config = function()
@@ -117,7 +117,7 @@ return {
 				},
 			})
 
-			telescope.load_extension("fzf")
+			-- telescope.load_extension("fzf")
 
 			-- ============================================================================
 			-- HELPER FUNCTIONS

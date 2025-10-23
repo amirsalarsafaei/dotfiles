@@ -13,10 +13,10 @@
 
       background = {
         monitor = "";
-        path = "~/Pictures/lockscreen.png";
+        path = "~/Pictures/lockscreen.jpg";
         blur_passes = 2;
-        blur_size = 7;
-        noise = 0.0117;
+        blur_size = 2;
+        noise = 0.00117;
         contrast = 0.8917;
         brightness = 0.8172;
       };
