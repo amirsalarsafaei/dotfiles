@@ -78,7 +78,7 @@
     };
     enable = true;
     mimeApps = {
-      enable = true;
+      enable = false;
       defaultApplications = {
         "text/html" = ["chromium.desktop"];
         "x-scheme-handler/http" = ["chromium.desktop"];

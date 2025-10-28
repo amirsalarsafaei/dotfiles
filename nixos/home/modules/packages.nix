@@ -196,6 +196,7 @@
         pkgs.stern
         pkgs.awscli2
         pkgs.argo-rollouts
+        pkgs.argocd
         pkgs.kubernetes-helm
         pkgs.kubernetes-helmPlugins.helm-s3
       ];
