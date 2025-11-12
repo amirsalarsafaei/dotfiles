@@ -111,7 +111,7 @@
         pkgs.jdt-language-server
 
         # Docker
-        pkgs.dockerfile-language-server-nodejs # Dockerfile LSP
+        pkgs.dockerfile-language-server # Dockerfile LSP
         pkgs.docker-compose-language-service
         pkgs.hadolint # Dockerfile linter
 
@@ -119,7 +119,6 @@
         pkgs.nodePackages.prettier # Formatter for many languages
         pkgs.efm-langserver # General purpose LSP
         pkgs.shellcheck # Shell script linter
-        pkgs.jetbrains.idea-community-bin
 
       ];
 
@@ -219,8 +218,7 @@
         pkgs.hyprpaper
         pkgs.wl-clipboard
         pkgs.wofi
-        pkgs.rofi-wayland
-        pkgs.rofi-pass-wayland
+        pkgs.rofi-pass
         pkgs.wofi-pass
         pkgs.wtype
         pkgs.libnotify
@@ -265,7 +263,6 @@
       platformSpecific = pkgs.lib.optionals (currentSystem == "x86_64-linux") [
         pkgs.zoom-us
         pkgs.android-studio
-        pkgs.jetbrains.idea-community-bin
 
         pkgs.discord
         pkgs.insomnia

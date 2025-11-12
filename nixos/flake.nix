@@ -21,7 +21,6 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     nixpkgs-stable.url = "github:nixos/nixpkgs/nixos-25.05";
-
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -32,6 +31,8 @@
 
     # Asahi support
     apple-silicon-support.url = "github:nix-community/nixos-apple-silicon/main";
+
+    k0s-nix.url = "github:johbo/k0s-nix"; 
 
     zsh-autocomplete = {
       url = "github:marlonrichert/zsh-autocomplete";
@@ -59,7 +60,7 @@
     };
   };
 
-  outputs = { nixpkgs, nixpkgs-stable, home-manager, apple-silicon-support, ... }@inputs:
+  outputs = { nixpkgs, nixpkgs-stable, home-manager, apple-silicon-support, k0s-nix, ... }@inputs:
     let
       inherit (nixpkgs) lib;
       
@@ -133,6 +134,7 @@
                 users.${username} = import ./home/default.nix;
               };
             }
+            k0s-nix.nixosModules.default
           ] ++ extraModules;
         };
 

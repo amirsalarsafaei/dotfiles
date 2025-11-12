@@ -91,6 +91,12 @@
     SUBSYSTEM=="backlight", ACTION=="add", RUN+="${pkgs.coreutils-full}/bin/chmod 666 /sys/class/backlight/apple-panel-bl/brightness", RUN+="${pkgs.coreutils-full}/bin/chmod 666 /sys/class/leds/kbd_backlight/brightness"
   '';
 
+  services.k0s = {
+    enable = false;
+    role = "controller+worker";  # or "controller" or "worker"
+    tokenFile = "/etc/k0s/k0stoken";
+  };
+
   services.logind = {
     lidSwitch = "suspend";
   };

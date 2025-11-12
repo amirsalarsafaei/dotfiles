@@ -11,8 +11,6 @@
 
 			term = "xterm-256color";
 
-			theme = "catppuccin-mocha";
-
 			shell-integration-features = "no-cursor,no-sudo,no-title";
 			command = "tmux new-session";
 
