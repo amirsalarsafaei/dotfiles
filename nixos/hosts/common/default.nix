@@ -78,9 +78,12 @@
 
   # Enable the X11 windowing system.
   services.xserver.enable = true;
-  services.displayManager.sddm.enable = true;
+  services.displayManager.sddm = {
+    enable = true;
+    wayland.enable = true;
+    theme = "sddm-astronaut-theme";
+  };
   services.desktopManager.plasma6.enable = true;
-  services.displayManager.sddm.wayland.enable = true;
   services.resolved = {
     enable = true;
     fallbackDns = [

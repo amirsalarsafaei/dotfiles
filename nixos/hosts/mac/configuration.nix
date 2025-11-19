@@ -50,7 +50,6 @@
     htop
     netcat
     tcpdump
-    htop
     bluez
     zsh
     coreutils-full
@@ -58,6 +57,9 @@
     ifuse
     xdg-desktop-portal
     xdg-desktop-portal-gtk
+    (sddm-astronaut.override{
+      embeddedTheme = "japanese_aesthetic";
+    })
   ];
 
   # Some programs need SUID wrappers, can be configured further or are

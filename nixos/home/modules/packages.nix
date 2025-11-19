@@ -43,6 +43,7 @@
         pkgs.lazygit
         pkgs.argocd
         pkgs.argocd-vault-plugin
+        pkgs.step-cli
       ];
 
       # Language Servers, Formatters, Linters, and Debuggers
@@ -162,6 +163,7 @@
         pkgs.neofetch
         pkgs.acpi
 
+
         # Fun CLI Tools
         pkgs.cowsay
         pkgs.sl
@@ -184,6 +186,7 @@
         pkgs.telepresence2
         pkgs.ngrok
         pkgs.iptables
+        pkgs.grpcurl
       ];
 
       # Infrastructure and Cloud
