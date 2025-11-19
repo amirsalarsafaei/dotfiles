@@ -38,7 +38,6 @@
   environment.systemPackages = with pkgs; [
     shared-mime-info
     qemu
-    kdePackages.plasma-workspace
     dunst
     xdg-utils
     vim
@@ -60,6 +59,7 @@
     (sddm-astronaut.override{
       embeddedTheme = "japanese_aesthetic";
     })
+    kdePackages.qtmultimedia
   ];
 
   # Some programs need SUID wrappers, can be configured further or are

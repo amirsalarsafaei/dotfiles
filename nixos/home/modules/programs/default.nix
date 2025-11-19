@@ -12,5 +12,6 @@
     ./vscode.nix
     ./texlive.nix
     ./distrobox.nix
+    ./zoxide.nix
   ];
 }

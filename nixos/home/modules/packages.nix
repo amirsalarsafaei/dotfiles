@@ -149,6 +149,7 @@
         pkgs.jq
         pkgs.yq-go
         pkgs.fzf
+        pkgs.zoxide
         pkgs.coreutils-full
         pkgs.ncdu
         pkgs.zip
