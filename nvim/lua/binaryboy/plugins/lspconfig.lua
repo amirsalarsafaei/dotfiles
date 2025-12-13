@@ -1,51 +1,38 @@
 return {
 	{
-		"folke/neodev.nvim",
+		"folke/lazydev.nvim",
 		ft = "lua",
 		opts = {
 			library = {
-				plugins = { "neotest" },
-				types = true,
+				{ path = "luvit-meta/library", words = { "vim%.uv" } },
 			},
 		},
 	},
+	{ "Bilal2453/luvit-meta", lazy = true },
 	{
 		"neovim/nvim-lspconfig",
 		event = { "BufReadPre", "BufNewFile" },
 		dependencies = {
 			"hrsh7th/cmp-nvim-lsp",
-			"folke/neodev.nvim",
+			{ "j-hui/fidget.nvim",                   opts = {} },
 			{ "antosha417/nvim-lsp-file-operations", config = true },
-			{ "j-hui/fidget.nvim", opts = {} },
 		},
 		config = function()
+			local lspconfig = require("lspconfig")
 			local cmp_nvim_lsp = require("cmp_nvim_lsp")
 
 			-----------------------------------------------------------
-			-- Default Capabilities (exported for language configs)
-			-----------------------------------------------------------
-			local capabilities = cmp_nvim_lsp.default_capabilities()
-			capabilities.workspace = {
-				fileOperations = {
-					didCreate = true,
-					didRename = true,
-					didDelete = true,
-					willCreate = true,
-					willRename = true,
-					willDelete = true,
-				},
-			}
-
-			-- Make capabilities globally accessible
-			_G.lsp_capabilities = capabilities
-
-			-----------------------------------------------------------
-			-- Diagnostic Configuration
+			-- 1. General UI & Diagnostics
 			-----------------------------------------------------------
 			local signs = { Error = " ", Warn = " ", Hint = "󰠠 ", Info = " " }
+			for type, icon in pairs(signs) do
+				local hl = "DiagnosticSign" .. type
+				vim.fn.sign_define(hl, { text = icon, texthl = hl, numhl = "" })
+			end
 
 			vim.diagnostic.config({
 				update_in_insert = false,
+				severity_sort = true, -- Added: sorts diagnostics by priority
 				float = {
 					focusable = false,
 					style = "minimal",
@@ -54,23 +41,33 @@ return {
 					header = "",
 					prefix = "",
 				},
-				severity_sort = true,
-				virtual_text = {
-					prefix = "●",
-					source = "if_many",
-				},
-				signs = {
-					text = {
-						[vim.diagnostic.severity.ERROR] = signs.Error,
-						[vim.diagnostic.severity.WARN] = signs.Warn,
-						[vim.diagnostic.severity.HINT] = signs.Hint,
-						[vim.diagnostic.severity.INFO] = signs.Info,
-					},
-				},
 			})
 
+			-- Border adjustments for hover/signature
+			vim.lsp.handlers["textDocument/hover"] = vim.lsp.with(vim.lsp.handlers.hover, { border = "rounded" })
+			vim.lsp.handlers["textDocument/signatureHelp"] =
+					vim.lsp.with(vim.lsp.handlers.signature_help, { border = "rounded" })
+
 			-----------------------------------------------------------
-			-- LSP Keybindings (applied on attach)
+			-- 2. Capabilities (Completion & File Ops)
+			-----------------------------------------------------------
+			local capabilities = vim.tbl_deep_extend(
+				"force",
+				vim.lsp.protocol.make_client_capabilities(),
+				cmp_nvim_lsp.default_capabilities(),
+				{
+					workspace = {
+						fileOperations = {
+							didCreate = true,
+							didRename = true,
+							didDelete = true,
+						},
+					},
+				}
+			)
+
+			-----------------------------------------------------------
+			-- 3. LspAttach (Keymaps & Highlights)
 			-----------------------------------------------------------
 			vim.api.nvim_create_autocmd("LspAttach", {
 				group = vim.api.nvim_create_augroup("UserLspConfig", { clear = true }),
@@ -78,94 +75,63 @@ return {
 					local client = vim.lsp.get_client_by_id(ev.data.client_id)
 					local bufnr = ev.buf
 
-					-- Helper function for setting keymaps
-					local function map(modes, lhs, rhs, desc)
-						vim.keymap.set(modes, lhs, rhs, { buffer = bufnr, silent = true, desc = desc })
+					-- Guard against special buffers
+					if vim.api.nvim_buf_get_name(bufnr):match("^fugitive://") then
+						return
 					end
 
-					-- Navigation
-					map("n", "gR", vim.lsp.buf.references, "LSP: References")
-					map("n", "gD", vim.lsp.buf.declaration, "LSP: Declaration")
-					map("n", "gd", vim.lsp.buf.definition, "LSP: Definitions")
-					map("n", "gi", vim.lsp.buf.implementation, "LSP: Implementations")
-					map("n", "gt", vim.lsp.buf.type_definition, "LSP: Type definitions")
+					local map = function(mode, lhs, rhs, desc)
+						vim.keymap.set(mode, lhs, rhs, { buffer = bufnr, silent = true, desc = "LSP: " .. desc })
+					end
 
-					-- Information
-					map("n", "K", vim.lsp.buf.hover, "LSP: Hover documentation")
-					map("n", "gs", vim.lsp.buf.signature_help, "LSP: Signature help")
+					-- Standard Keymaps
+					map("n", "gd", vim.lsp.buf.definition, "Goto Definition")
+					map("n", "gD", vim.lsp.buf.declaration, "Goto Declaration")
+					map("n", "gr", vim.lsp.buf.references, "References")
+					map("n", "gi", vim.lsp.buf.implementation, "Implementations")
+					map("n", "gt", vim.lsp.buf.type_definition, "Type Definition")
+					map("n", "K", vim.lsp.buf.hover, "Hover Doc")
+					map("n", "gs", vim.lsp.buf.signature_help, "Signature Help")
+					map("n", "<leader>rn", vim.lsp.buf.rename, "Rename")
+					map({ "n", "v" }, "<leader>ca", vim.lsp.buf.code_action, "Code Action")
+					map("n", "<leader>d", vim.diagnostic.open_float, "Line Diagnostics")
+					map("n", "[d", vim.diagnostic.goto_prev, "Prev Diagnostic")
+					map("n", "]d", vim.diagnostic.goto_next, "Next Diagnostic")
 
-					-- Code actions
-					map({ "n", "v" }, "<leader>ca", vim.lsp.buf.code_action, "LSP: Code actions")
-					map("n", "<leader>rn", vim.lsp.buf.rename, "LSP: Rename")
-
-					-- Diagnostics
-					map("n", "<leader>D", "<cmd>Telescope diagnostics bufnr=0<CR>", "LSP: Buffer diagnostics")
-					map("n", "<leader>d", vim.diagnostic.open_float, "LSP: Line diagnostics")
-					map("n", "[d", vim.diagnostic.goto_prev, "LSP: Previous diagnostic")
-					map("n", "]d", vim.diagnostic.goto_next, "LSP: Next diagnostic")
-
-					-- Utility
-					map("n", "<leader>rs", "<cmd>LspRestart<CR>", "LSP: Restart")
-					map("n", "<leader>li", "<cmd>LspInfo<CR>", "LSP: Info")
-
-					-- Inlay hints (Neovim 0.10+)
-					if client and client.supports_method("textDocument/inlayHint") then
-						-- Enable inlay hints by default (optional)
+					-- Inlay Hints (Neovim 0.10+)
+					if client and client.supports_method("textDocument/inlayHint") and vim.lsp.inlay_hint then
 						vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
-
-						map("n", "<leader>ih", function()
-							local enabled = vim.lsp.inlay_hint.is_enabled({ bufnr = bufnr })
-							vim.lsp.inlay_hint.enable(not enabled, { bufnr = bufnr })
-						end, "LSP: Toggle inlay hints")
+						map("n", "<leader>th", function()
+							local current = vim.lsp.inlay_hint.is_enabled({ bufnr = bufnr })
+							vim.lsp.inlay_hint.enable(not current, { bufnr = bufnr })
+						end, "Toggle Inlay Hints")
 					end
 
-					-- Document highlighting
+					-- Document Highlighting (Fixed logic)
 					if client and client.supports_method("textDocument/documentHighlight") then
-						local highlight_augroup = vim.api.nvim_create_augroup("LspDocumentHighlight", { clear = false })
-						vim.api.nvim_clear_autocmds({ buffer = bufnr, group = highlight_augroup })
+						local highlight_augroup = vim.api.nvim_create_augroup("UserLspHighlight", { clear = false })
 
 						vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
-							group = highlight_augroup,
 							buffer = bufnr,
+							group = highlight_augroup,
 							callback = vim.lsp.buf.document_highlight,
 						})
 
 						vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
-							group = highlight_augroup,
 							buffer = bufnr,
+							group = highlight_augroup,
 							callback = vim.lsp.buf.clear_references,
 						})
-					end
 
-					-- Organize imports on save (TypeScript/Go)
-					if client and client.supports_method("textDocument/codeAction") then
-						vim.api.nvim_create_autocmd("BufWritePre", {
-							buffer = bufnr,
-							callback = function()
-								-- Only for specific filetypes
-								local ft = vim.bo[bufnr].filetype
-								if ft == "go" or ft == "typescript" or ft == "typescriptreact" then
-									vim.lsp.buf.code_action({
-										context = { only = { "source.organizeImports" } },
-										apply = true,
-									})
-								end
+						vim.api.nvim_create_autocmd("LspDetach", {
+							group = vim.api.nvim_create_augroup("UserLspDetach", { clear = true }),
+							callback = function(event)
+								vim.lsp.buf.clear_references()
+								vim.api.nvim_clear_autocmds({ group = "UserLspHighlight", buffer = event.buf })
 							end,
 						})
 					end
 				end,
-			})
-
-			-----------------------------------------------------------
-			-- UI Customization
-			-----------------------------------------------------------
-			-- Rounded borders for hover and signature help
-			vim.lsp.handlers["textDocument/hover"] = vim.lsp.with(vim.lsp.handlers.hover, {
-				border = "rounded",
-			})
-
-			vim.lsp.handlers["textDocument/signatureHelp"] = vim.lsp.with(vim.lsp.handlers.signature_help, {
-				border = "rounded",
 			})
 		end,
 	},

@@ -44,21 +44,19 @@ return {
 		},
 	},
 
-	config = function()
-		require("avante").setup({
-			providers = {
-				claude = {
-					endpoint = "https://litellm.data.divar.cloud",
-					model = "claude-sonnet-4-20250514",
-				},
-				openai = {
-					endpoint = "https://litellm.data.divar.cloud",
+	opts = {
+		providers = {
+			claude = {
+				endpoint = "https://litellm.data.divar.cloud",
+				model = "claude-sonnet-4-20250514",
+				extra_request_body = {
+					max_tokens = 200000,
 				},
 			},
-			provider = "claude",
-		})
-
-		vim.keymap.set("n", "<leader>al", "<cmd>AvanteClear<CR><cmd>",
-			{ desc = "clears avante", noremap = true, silent = true })
-	end,
+			openai = {
+				endpoint = "https://litellm.data.divar.cloud",
+			},
+		},
+		provider = "claude",
+	},
 }

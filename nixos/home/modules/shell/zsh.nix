@@ -3,7 +3,7 @@
     enable = true;
     oh-my-zsh = {
       enable = true;
-      plugins = ["git" "kubectl" "docker" "golang" "docker-compose" "git-prompt" "encode64" "command-not-found" "aliases" "history"];
+      plugins = ["git" "kubectl" "docker" "golang" "docker-compose" "git-prompt" "encode64" "command-not-found" "aliases" "history" "argocd"];
     };
 
 

@@ -11,7 +11,7 @@
       devTools = [
         # Languages and Compilers
         pkgs.go
-        pkgs.rustup
+        pkgs.rustc
         pkgs.nodejs_22
         pkgs.kotlin
         pkgs.openjdk21
@@ -115,6 +115,8 @@
         pkgs.dockerfile-language-server # Dockerfile LSP
         pkgs.docker-compose-language-service
         pkgs.hadolint # Dockerfile linter
+
+        pkgs.rust-analyzer
 
         # General
         pkgs.nodePackages.prettier # Formatter for many languages
@@ -261,6 +263,9 @@
         pkgs.w3m
         pkgs.android-tools
         pkgs.obs-studio
+        pkgs.burpsuite
+        pkgs.aichat
+        pkgs.vimPlugins.telescope-fzf-native-nvim
       ];
 
       # Platform-specific packages
