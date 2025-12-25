@@ -32,7 +32,12 @@
     # Asahi support
     apple-silicon-support.url = "github:nix-community/nixos-apple-silicon/main";
 
-    k0s-nix.url = "github:johbo/k0s-nix"; 
+    k0s-nix.url = "github:johbo/k0s-nix";
+
+    argonaut = {
+      url = "github:darksworm/argonaut?ref=v2.7.0";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     zsh-autocomplete = {
       url = "github:marlonrichert/zsh-autocomplete";
@@ -58,22 +63,34 @@
       url = "github:chisui/zsh-nix-shell";
       flake = false;
     };
+
   };
 
-  outputs = { nixpkgs, nixpkgs-stable, home-manager, apple-silicon-support, k0s-nix, ... }@inputs:
+  outputs =
+    {
+      nixpkgs,
+      nixpkgs-stable,
+      home-manager,
+      apple-silicon-support,
+      k0s-nix,
+      ...
+    }@inputs:
     let
       inherit (nixpkgs) lib;
-      
+
       systems = {
         x86_64 = "x86_64-linux";
         aarch64 = "aarch64-linux";
       };
 
-      secrets = 
-        let secretsPath = ./secrets/secrets.json;
-        in if builtins.pathExists secretsPath
-           then builtins.fromJSON (builtins.readFile secretsPath)
-           else builtins.trace "Warning: secrets.json not found, using empty secrets" { };
+      secrets =
+        let
+          secretsPath = ./secrets/secrets.json;
+        in
+        if builtins.pathExists secretsPath then
+          builtins.fromJSON (builtins.readFile secretsPath)
+        else
+          builtins.trace "Warning: secrets.json not found, using empty secrets" { };
 
       commonNixpkgsConfig = system: {
         config = {
@@ -88,37 +105,51 @@
         mac = {
           system = systems.aarch64;
           type = "nixos";
-          users = ["amirsalar"];
+          users = [ "amirsalar" ];
           extraModules = [ apple-silicon-support.nixosModules.apple-silicon-support ];
         };
         rog = {
           system = systems.x86_64;
           type = "nixos";
-          users = ["amirsalar"];
+          users = [ "amirsalar" ];
           extraModules = [ ];
         };
         g14 = {
           system = systems.x86_64;
           type = "nixos";
-          users = ["amirsalar" "ali"];
+          users = [
+            "amirsalar"
+            "ali"
+          ];
           extraModules = [ ];
         };
         g14Arch = {
           system = systems.x86_64;
           type = "home-manager";
-          users = ["amirsalar"];
+          users = [ "amirsalar" ];
           extraModules = [ ];
         };
       };
 
       # Helper function to normalize users to always be a list
-      normalizeUsers = hostConfig:
-        if hostConfig ? users then hostConfig.users
-        else if hostConfig ? username then [ hostConfig.username ]
-        else throw "Host configuration must have either 'users' or 'username' field";
+      normalizeUsers =
+        hostConfig:
+        if hostConfig ? users then
+          hostConfig.users
+        else if hostConfig ? username then
+          [ hostConfig.username ]
+        else
+          throw "Host configuration must have either 'users' or 'username' field";
 
       # Build NixOS configuration with multi-user home-manager support
-      mkNixOS = { hostname, system, users, extraModules ? [ ], ... }: 
+      mkNixOS =
+        {
+          hostname,
+          system,
+          users,
+          extraModules ? [ ],
+          ...
+        }:
         lib.nixosSystem {
           inherit system;
           specialArgs = { inherit secrets inputs apple-silicon-support; };
@@ -147,11 +178,18 @@
               };
             }
             k0s-nix.nixosModules.default
-          ] ++ extraModules;
+          ]
+          ++ extraModules;
         };
 
       # Build standalone home-manager configuration
-      mkHomeManager = { hostname, system, username, ... }:
+      mkHomeManager =
+        {
+          hostname,
+          system,
+          username,
+          ...
+        }:
         home-manager.lib.homeManagerConfiguration {
           pkgs = nixpkgs.legacyPackages.${system};
           extraSpecialArgs = {
@@ -172,17 +210,17 @@
 
       # Generate home-manager configurations for standalone hosts
       standaloneHomeConfigs = lib.flatten (
-        lib.mapAttrsToList (hostname: hostConfig:
-          let 
+        lib.mapAttrsToList (
+          hostname: hostConfig:
+          let
             users = normalizeUsers hostConfig;
           in
-          map (username: 
-            lib.nameValuePair 
-              "${username}@${hostname}" 
-              (mkHomeManager { 
-                inherit hostname username; 
-                system = hostConfig.system; 
-              })
+          map (
+            username:
+            lib.nameValuePair "${username}@${hostname}" (mkHomeManager {
+              inherit hostname username;
+              system = hostConfig.system;
+            })
           ) users
         ) homeManagerHosts
       );
@@ -190,17 +228,18 @@
     in
     {
       # NixOS configurations (with integrated home-manager for all users)
-      nixosConfigurations = lib.mapAttrs 
-        (hostname: hostConfig: 
-          mkNixOS (hostConfig // { 
-            inherit hostname; 
+      nixosConfigurations = lib.mapAttrs (
+        hostname: hostConfig:
+        mkNixOS (
+          hostConfig
+          // {
+            inherit hostname;
             users = normalizeUsers hostConfig;
-          })
+          }
         )
-        nixosHosts;
+      ) nixosHosts;
 
       # Standalone home-manager configurations
       homeConfigurations = builtins.listToAttrs standaloneHomeConfigs;
     };
 }
-

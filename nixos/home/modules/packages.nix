@@ -1,9 +1,25 @@
 {
+  inputs,
   pkgs,
   currentHostname,
   currentSystem,
   ...
 }:
+let
+  argonaut = inputs.argonaut.packages.${pkgs.stdenv.hostPlatform.system}.default;
+  luaPackages = pkgs.lua.withPackages (
+    ps: with ps; [
+      luafilesystem
+      luasocket
+      penlight
+      busted
+      cjson
+      luarocks
+      basexx
+      dkjson
+    ]
+  );
+in
 {
   home.packages =
     # Development Tools
@@ -18,6 +34,7 @@
         pkgs.gcc
         pkgs.libgcc
         pkgs.python312
+        luaPackages
 
         # Development Utilities
         pkgs.cmake
@@ -66,6 +83,8 @@
         # pkgs.rustfmt               # Rust formatter
         # pkgs.clippy                # Rust linter
 
+        pkgs.rust-analyzer # Rust LSP
+        pkgs.cargo
         # C/C++
         pkgs.clang-tools # C/C++ LSP (clangd) and formatter (clang-format)
         pkgs.cppcheck # C/C++ linter
@@ -106,7 +125,6 @@
         pkgs.lua-language-server # Lua LSP
         pkgs.luaformatter # Lua formatter
         pkgs.stylua
-        pkgs.luajitPackages.luarocks_bootstrap
 
         # Java
         pkgs.jdt-language-server
@@ -166,7 +184,6 @@
         pkgs.neofetch
         pkgs.acpi
 
-
         # Fun CLI Tools
         pkgs.cowsay
         pkgs.sl
@@ -198,6 +215,7 @@
         pkgs.kubectl-neat
         pkgs.kubelogin-oidc
         pkgs.k9s
+        argonaut
         pkgs.stern
         pkgs.awscli2
         pkgs.argo-rollouts
