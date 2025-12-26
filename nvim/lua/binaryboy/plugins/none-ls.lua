@@ -65,6 +65,8 @@ return {
 					},
 				}),
 
+				-- rust
+				null_ls.builtins.formatting.rustfmt,
 				-- lua
 				null_ls.builtins.formatting.stylua,
 

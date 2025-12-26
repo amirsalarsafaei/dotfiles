@@ -80,7 +80,7 @@ in
         pkgs.gotestsum
 
         # Rust
-        # pkgs.rustfmt               # Rust formatter
+        pkgs.rustfmt              # Rust formatter
         # pkgs.clippy                # Rust linter
 
         pkgs.rust-analyzer # Rust LSP
