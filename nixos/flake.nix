@@ -7,6 +7,7 @@
       "https://nix-community.cachix.org"
       "https://hyprland.cachix.org"
       "https://devenv.cachix.org"
+      "https://nixos-apple-silicon.cachix.org"
     ];
     trusted-public-keys = [
       "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
@@ -14,6 +15,8 @@
       "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
       "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw="
       "nixpkgs-python.cachix.org-1:hxjI7pFxTyuTHn2NkvWCrAUcNZLNS3ZAvfYNuYifcEU="
+      "nixos-apple-silicon.cachix.org-1:8psDu5SA5dAD7qA0zMy5UT292TxeEPzIz8VVEr2Js20="
+
     ];
     extra-experimental-features = "nix-command flakes";
   };
@@ -26,8 +29,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # hyprland.url = "github:hyprwm/Hyprland";
-    hyprland.url = "github:gulafaran/Hyprland?ref=rendernode";
+    hyprland.url = "github:hyprwm/Hyprland";
 
     # Asahi support
     apple-silicon-support.url = "github:nix-community/nixos-apple-silicon/main";

@@ -361,4 +361,9 @@
     GOOGLE_API_KEY = secrets.google.apiKey;
   };
 
+  services.pcscd.enable = true;
+  
+  services.udev.packages = [ pkgs.yubikey-personalization ];
+
+
 }
