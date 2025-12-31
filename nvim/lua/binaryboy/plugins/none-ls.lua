@@ -1,96 +1,55 @@
 return {
 	"nvimtools/none-ls.nvim",
 	event = { "BufReadPre", "BufNewFile" },
+	dependencies = { "nvim-lua/plenary.nvim" },
 	config = function()
+		local null_ls = require("null-ls")
+		local fmt = null_ls.builtins.formatting
+		local diag = null_ls.builtins.diagnostics
+
 		local function get_sqlfluff_args()
 			local args = { "--dialect", "postgres" }
-			-- Check if .sqlfluff config exists in the project root
-			local root = vim.fn.getcwd()
-			local config_path = root .. "/.sqlfluff"
-
+			local config_path = vim.fn.getcwd() .. "/.sqlfluff"
 			if vim.fn.filereadable(config_path) == 1 then
-				return vim.list_extend(args, { "--config", "$ROOT/.sqlfluff" })
+				vim.list_extend(args, { "--config", "$ROOT/.sqlfluff" })
 			end
-
 			return args
 		end
 
-		local augroup = vim.api.nvim_create_augroup("NullLsLspFormatting", {})
-		local null_ls = require("null-ls")
-
-		local sqlfluff_args = get_sqlfluff_args()
-
 		null_ls.setup({
-			debounce = 150, -- Debounce formatting requests
+			debounce = 150,
 			sources = {
-				-- markdown
-				null_ls.builtins.formatting.prettier.with({
+				fmt.prettier.with({
 					filetypes = { "markdown", "json", "yaml", "markdown.mdx" },
 				}),
 
-				-- shell scripts
-				null_ls.builtins.formatting.shfmt.with({
-					extra_args = { "-i", "2", "-ci" },
-				}),
+				fmt.shfmt.with({ extra_args = { "-i", "2", "-ci" } }),
 
-				-- yaml/json
-				null_ls.builtins.formatting.yamlfmt,
-				null_ls.builtins.diagnostics.yamllint,
+				diag.yamllint,
 
-				-- javascript/typescript
-				-- null_ls.builtins.formatting.eslint,
+				diag.hadolint,
 
-				-- docker
-				null_ls.builtins.diagnostics.hadolint,
-
-				-- git commits
-				null_ls.builtins.diagnostics.commitlint,
-
-				-- golang
-				null_ls.builtins.formatting.gofmt.with({
-					filetypes = { "go" },
-				}),
-				null_ls.builtins.formatting.goimports_reviser.with({
-					filetypes = { "go" },
+				fmt.gofmt,
+				fmt.goimports_reviser.with({
 					extra_args = { "-company-prefixes", "git.divar.cloud/divar" },
 				}),
 
-				-- python
-				null_ls.builtins.formatting.isort,
-				null_ls.builtins.formatting.black,
-				null_ls.builtins.diagnostics.pylint.with({
-					extra_args = {
-						"--init-hook",
-						"import pylint_venv; pylint_venv.inithook(force_venv_activation=True)",
-					},
-				}),
+				fmt.isort,
+				fmt.black,
 
-				-- rust
-				null_ls.builtins.formatting.rustfmt,
-				-- lua
-				null_ls.builtins.formatting.stylua,
+				fmt.rustfmt,
 
-				-- sql
-				null_ls.builtins.diagnostics.sqlfluff.with({ extra_args = sqlfluff_args }),
-				null_ls.builtins.formatting.sqlfluff.with({ extra_args = sqlfluff_args }),
+				fmt.stylua,
 
-				null_ls.builtins.formatting.buf,
+				diag.sqlfluff.with({ extra_args = get_sqlfluff_args() }),
+				fmt.sqlfluff.with({ extra_args = get_sqlfluff_args() }),
+
+				fmt.buf,
 			},
-			on_attach = function(client, bufnr)
-				vim.notify("null-ls attached to buffer: " .. bufnr .. " " .. client.name)
-				if client:supports_method("textDocument/formatting") then
-					vim.api.nvim_clear_autocmds({ group = augroup, buffer = bufnr })
-					vim.api.nvim_create_autocmd("BufWritePre", {
-						group = augroup,
-						buffer = bufnr,
-						callback = function()
-							vim.lsp.buf.format({ async = false })
-						end,
-					})
-				end
-			end,
 		})
 
-		vim.keymap.set("n", "<leader>gf", vim.lsp.buf.format, { desc = "Format buffer", noremap = true, silent = true })
+		vim.keymap.set("n", "<leader>gf", function()
+			vim.lsp.buf.format({ async = true })
+		end, { desc = "Format buffer" })
 	end,
 }

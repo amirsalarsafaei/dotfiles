@@ -1,109 +1,105 @@
 return {
-	"nvim-treesitter/nvim-treesitter",
-	event = { "BufReadPre", "BufNewFile" },
-	build = ":TSUpdate",
-	dependencies = {
-		"windwp/nvim-ts-autotag",
-	},
-	config = function()
-		-- import nvim-treesitter plugin
-		local treesitter = require("nvim-treesitter.configs")
-
-		-- configure treesitter
-		treesitter.setup({ -- enable syntax highlighting
-			highlight = {
-				enable = true,
-			},
-			-- enable indentation
-			indent = { enable = true },
-			-- enable autotagging (w/ nvim-ts-autotag plugin)
-			autotag = {
-				enable = true,
-			},
-			sync_install = false,
-			-- ensure these language parsers are installed
-			ensure_installed = {
-				"go",
-				"json",
-				"javascript",
-				"typescript",
-				"tsx",
-				"yaml",
-				"html",
-				"css",
-				"prisma",
-				"markdown",
-				"markdown_inline",
-				"svelte",
-				"graphql",
-				"bash",
-				"lua",
-				"vim",
-				"dockerfile",
-				"gitignore",
-				"query",
-				"vimdoc",
-				"nix",
-				"gomod",
-				"rust",
-				"sql",
-				"c",
-				"python",
-				"kotlin",
-			},
-			incremental_selection = {
-				enable = true,
-				keymaps = {
-					init_selection = "gn",
-					node_incremental = "gn",
-					scope_incremental = "gr",
-					node_decremental = "gN",
+	{
+		"nvim-treesitter/nvim-treesitter",
+		event = { "BufReadPre", "BufNewFile" },
+		build = ":TSUpdate",
+		dependencies = {
+			"nvim-treesitter/nvim-treesitter-textobjects",
+		},
+		config = function()
+			require("nvim-treesitter.configs").setup({
+				highlight = { enable = true },
+				indent = { enable = true },
+				sync_install = false,
+				auto_install = true,
+				ensure_installed = {
+					"go", "gomod", "gosum",
+					"json", "jsonc",
+					"javascript", "typescript", "tsx",
+					"yaml", "toml",
+					"html", "css", "scss",
+					"markdown", "markdown_inline",
+					"svelte", "vue",
+					"graphql",
+					"bash",
+					"lua", "luadoc",
+					"vim", "vimdoc",
+					"dockerfile",
+					"gitignore", "gitcommit", "diff",
+					"query", "regex",
+					"nix",
+					"rust",
+					"sql",
+					"c", "cpp",
+					"python",
+					"kotlin", "java",
+					"proto",
+					"elixir",
 				},
-			},
-			-- enable textobjects for better code manipulation
-			textobjects = {
-				select = {
+				incremental_selection = {
 					enable = true,
-					lookahead = true, -- Automatically jump forward to textobj
 					keymaps = {
-						["af"] = "@function.outer",
-						["if"] = "@function.inner",
-						["ac"] = "@class.outer",
-						["ic"] = "@class.inner",
+						init_selection = "<C-space>",
+						node_incremental = "<C-space>",
+						scope_incremental = false,
+						node_decremental = "<bs>",
 					},
 				},
-				move = {
-					enable = true,
-					set_jumps = true, -- whether to set jumps in the jumplist
-					goto_next_start = {
-						["]m"] = "@function.outer",
-						["]]"] = "@class.outer",
+				textobjects = {
+					select = {
+						enable = true,
+						lookahead = true,
+						keymaps = {
+							["af"] = { query = "@function.outer", desc = "outer function" },
+							["if"] = { query = "@function.inner", desc = "inner function" },
+							["ac"] = { query = "@class.outer", desc = "outer class" },
+							["ic"] = { query = "@class.inner", desc = "inner class" },
+							["aa"] = { query = "@parameter.outer", desc = "outer argument" },
+							["ia"] = { query = "@parameter.inner", desc = "inner argument" },
+							["ai"] = { query = "@conditional.outer", desc = "outer conditional" },
+							["ii"] = { query = "@conditional.inner", desc = "inner conditional" },
+							["al"] = { query = "@loop.outer", desc = "outer loop" },
+							["il"] = { query = "@loop.inner", desc = "inner loop" },
+						},
 					},
-					goto_next_end = {
-						["]M"] = "@function.outer",
-						["]["] = "@class.outer",
+					move = {
+						enable = true,
+						set_jumps = true,
+						goto_next_start = {
+							["]f"] = { query = "@function.outer", desc = "Next function start" },
+							["]c"] = { query = "@class.outer", desc = "Next class start" },
+							["]a"] = { query = "@parameter.inner", desc = "Next argument" },
+						},
+						goto_next_end = {
+							["]F"] = { query = "@function.outer", desc = "Next function end" },
+							["]C"] = { query = "@class.outer", desc = "Next class end" },
+						},
+						goto_previous_start = {
+							["[f"] = { query = "@function.outer", desc = "Prev function start" },
+							["[c"] = { query = "@class.outer", desc = "Prev class start" },
+							["[a"] = { query = "@parameter.inner", desc = "Prev argument" },
+						},
+						goto_previous_end = {
+							["[F"] = { query = "@function.outer", desc = "Prev function end" },
+							["[C"] = { query = "@class.outer", desc = "Prev class end" },
+						},
 					},
-					goto_previous_start = {
-						["[m"] = "@function.outer",
-						["[["] = "@class.outer",
-					},
-					goto_previous_end = {
-						["[M"] = "@function.outer",
-						["[]"] = "@class.outer",
+					swap = {
+						enable = true,
+						swap_next = {
+							["<leader>a"] = { query = "@parameter.inner", desc = "Swap with next arg" },
+						},
+						swap_previous = {
+							["<leader>A"] = { query = "@parameter.inner", desc = "Swap with prev arg" },
+						},
 					},
 				},
-			},
-			-- enable rainbow parentheses
-			rainbow = {
-				enable = true,
-				extended_mode = true, -- Highlight also non-parentheses delimiters
-				max_file_lines = nil, -- Do not enable for files with more than n lines
-			},
-			-- enable context-based commentstring
-			context_commentstring = {
-				enable = true,
-				enable_autocmd = false,
-			},
-		})
-	end,
+			})
+		end,
+	},
+	{
+		"windwp/nvim-ts-autotag",
+		event = "InsertEnter",
+		opts = {},
+	},
 }

@@ -1,27 +1,38 @@
 return {
 	"folke/which-key.nvim",
 	event = "VeryLazy",
-	init = function()
-		vim.o.timeout = true
-		vim.o.timeoutlen = 500
-	end,
+	opts = {
+		delay = 300,
+		icons = {
+			mappings = true,
+			keys = {},
+		},
+		spec = {
+			{ "<leader>b", group = "buffer" },
+			{ "<leader>c", group = "code" },
+			{ "<leader>e", group = "explorer" },
+			{ "<leader>f", group = "find/file" },
+			{ "<leader>g", group = "git" },
+			{ "<leader>h", group = "git hunks" },
+			{ "<leader>l", group = "lsp" },
+			{ "<leader>r", group = "debug" },
+			{ "<leader>s", group = "split/search" },
+			{ "<leader>t", group = "tab/terminal" },
+			{ "<leader>u", group = "ui/toggle" },
+			{ "<leader>x", group = "trouble" },
+			{ "<leader><leader>", group = "swap buffer" },
+			{ "[", group = "prev" },
+			{ "]", group = "next" },
+			{ "g", group = "goto" },
+		},
+	},
 	keys = {
 		{
 			"<leader>?",
 			function()
 				require("which-key").show({ global = false })
 			end,
-			desc = "Buffer Local Keymaps (which-key)",
+			desc = "Buffer Keymaps",
 		},
 	},
-	config = function()
-		local wk = require("which-key")
-		wk.add({
-			{ "<leader>e", group = "file explorer" },
-			{ "<leader>f", group = "search" },
-			{ "<leader>h", group = "git hunks" },
-			{ "<leader>x", group = "trouble" },
-			{ "<leader>r", group = "debugging" },
-		})
-	end,
 }

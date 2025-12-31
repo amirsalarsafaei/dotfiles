@@ -1,36 +1,61 @@
 local opt = vim.opt
+local g = vim.g
+
+g.mapleader = " "
+g.maplocalleader = "\\"
 
 opt.relativenumber = true
 opt.number = true
 
--- tabs & indentation(spacing in general)
 opt.tabstop = 4
 opt.shiftwidth = 4
+opt.expandtab = true
 opt.smartindent = true
 
 opt.wrap = false
 
--- buffer search settings
 opt.ignorecase = true
 opt.smartcase = true
 
 opt.cursorline = true
 
--- opt.termguitcolors = true
--- opt.background = "dark"
--- opt.signcolumn = "yes"
+opt.termguicolors = true
+opt.background = "dark"
+opt.signcolumn = "yes"
 
 opt.backspace = "indent,eol,start"
 
--- clipboard
 opt.swapfile = false
+opt.backup = false
+opt.undofile = true
+opt.undodir = vim.fn.stdpath("state") .. "/undo"
 
--- split windows
 opt.splitright = true
 opt.splitbelow = true
 
-opt.hidden = true     -- Enable background buffers
-opt.history = 500     -- Remember N lines in history
-opt.lazyredraw = true -- Faster scrolling
-opt.synmaxcol = 240   -- Max column for syntax highlight
-opt.updatetime = 250  -- ms to wait for trigger an event
+opt.hidden = true
+opt.history = 500
+opt.lazyredraw = true
+opt.synmaxcol = 240
+opt.updatetime = 250
+opt.timeoutlen = 300
+
+opt.scrolloff = 8
+opt.sidescrolloff = 8
+
+opt.mouse = "a"
+
+opt.clipboard = "unnamedplus"
+
+opt.list = true
+opt.listchars = { tab = "» ", trail = "·", nbsp = "␣" }
+
+opt.inccommand = "split"
+
+opt.confirm = true
+
+opt.fillchars = { eob = " " }
+
+opt.shortmess:append("sI")
+
+opt.iskeyword:append("-")

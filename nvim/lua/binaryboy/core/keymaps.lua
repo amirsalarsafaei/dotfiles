@@ -1,126 +1,67 @@
-vim.g.mapleader = " "
+local map = vim.keymap.set
 
--- Set default options for keymaps
-local default_opts = { noremap = true, silent = true }
+map("n", "<leader>c", "<cmd>nohl<CR>", { desc = "Clear search highlights" })
+map("n", "<leader>r", "<cmd>so %<CR>", { desc = "Reload current file" })
+map("n", "<leader>s", "<cmd>w<CR>", { desc = "Save file" })
 
--- ========================================
--- GENERAL KEYMAPS
--- ========================================
-vim.keymap.set("n", "<leader>c", ":nohl<CR>", { desc = "Clear search highlights", noremap = true, silent = true })
-vim.keymap.set(
-	"n",
-	"<leader>r",
-	":so %<CR>",
-	{ desc = "Reload configuration without restart nvim", noremap = true, silent = true }
-)
-vim.keymap.set("n", "<leader>s", ":w<CR>", { desc = "Fast saving with <leader> and s", noremap = true, silent = true })
+map("n", "<Esc>", "<cmd>nohl<CR><Esc>", { desc = "Clear highlights on escape" })
 
--- ========================================
--- PANE/SPLIT MANAGEMENT
--- ========================================
+map("n", "j", "v:count == 0 ? 'gj' : 'j'", { expr = true, desc = "Move down (wrapped)" })
+map("n", "k", "v:count == 0 ? 'gk' : 'k'", { expr = true, desc = "Move up (wrapped)" })
 
--- Split creation
-vim.keymap.set(
-	"n",
-	"<leader>sv",
-	"<cmd>vsplit<CR>",
-	{ desc = "Split window vertically", noremap = true, silent = true }
-)
-vim.keymap.set(
-	"n",
-	"<leader>sh",
-	"<cmd>split<CR>",
-	{ desc = "Split window horizontally", noremap = true, silent = true }
-)
+map("n", "<leader>sv", "<cmd>vsplit<CR>", { desc = "Split vertical" })
+map("n", "<leader>sh", "<cmd>split<CR>", { desc = "Split horizontal" })
+map("n", "<leader>se", "<C-w>=", { desc = "Equalize splits" })
+map("n", "<leader>sx", "<cmd>close<CR>", { desc = "Close split" })
+map("n", "<leader>so", "<C-w>o", { desc = "Close other splits" })
 
--- Pane navigation (Ctrl + hjkl for seamless movement)
-vim.keymap.set("n", "<C-h>", "<C-w>h", { desc = "Move to left pane", noremap = true, silent = true })
-vim.keymap.set("n", "<C-j>", "<C-w>j", { desc = "Move to bottom pane", noremap = true, silent = true })
-vim.keymap.set("n", "<C-k>", "<C-w>k", { desc = "Move to top pane", noremap = true, silent = true })
-vim.keymap.set("n", "<C-l>", "<C-w>l", { desc = "Move to right pane", noremap = true, silent = true })
+map("n", "<C-Up>", "<cmd>resize +2<CR>", { desc = "Increase height" })
+map("n", "<C-Down>", "<cmd>resize -2<CR>", { desc = "Decrease height" })
+map("n", "<C-Left>", "<cmd>vertical resize -2<CR>", { desc = "Decrease width" })
+map("n", "<C-Right>", "<cmd>vertical resize +2<CR>", { desc = "Increase width" })
 
--- Pane resizing
-vim.keymap.set("n", "<leader>se", "<C-w>=", { desc = "Make splits equal size", noremap = true, silent = true })
-vim.keymap.set("n", "<leader>s>", "<C-w>5>", { desc = "Increase pane width", noremap = true, silent = true })
-vim.keymap.set("n", "<leader>s<", "<C-w>5<", { desc = "Decrease pane width", noremap = true, silent = true })
-vim.keymap.set("n", "<leader>s+", "<C-w>5+", { desc = "Increase pane height", noremap = true, silent = true })
-vim.keymap.set("n", "<leader>s-", "<C-w>5-", { desc = "Decrease pane height", noremap = true, silent = true })
+map("n", "<leader>sr", "<C-w>r", { desc = "Rotate splits" })
+map("n", "<leader>sH", "<C-w>H", { desc = "Move split left" })
+map("n", "<leader>sJ", "<C-w>J", { desc = "Move split down" })
+map("n", "<leader>sK", "<C-w>K", { desc = "Move split up" })
+map("n", "<leader>sL", "<C-w>L", { desc = "Move split right" })
 
--- Alternative pane resizing with arrow keys (more intuitive)
-vim.keymap.set("n", "<C-Up>", "<cmd>resize +2<CR>", { desc = "Increase pane height", noremap = true, silent = true })
-vim.keymap.set("n", "<C-Down>", "<cmd>resize -2<CR>", { desc = "Decrease pane height", noremap = true, silent = true })
-vim.keymap.set(
-	"n",
-	"<C-Left>",
-	"<cmd>vertical resize -2<CR>",
-	{ desc = "Decrease pane width", noremap = true, silent = true }
-)
-vim.keymap.set(
-	"n",
-	"<C-Right>",
-	"<cmd>vertical resize +2<CR>",
-	{ desc = "Increase pane width", noremap = true, silent = true }
-)
+map("n", "<leader>tn", "<cmd>tabnew<CR>", { desc = "New tab" })
+map("n", "<leader>tx", "<cmd>tabclose<CR>", { desc = "Close tab" })
+map("n", "<leader>to", "<cmd>tabonly<CR>", { desc = "Close other tabs" })
+map("n", "<leader>tl", "<cmd>tabnext<CR>", { desc = "Next tab" })
+map("n", "<leader>th", "<cmd>tabprev<CR>", { desc = "Previous tab" })
 
--- Pane management
-vim.keymap.set("n", "<leader>sx", "<cmd>close<CR>", { desc = "Close active pane", noremap = true, silent = true })
-vim.keymap.set("n", "<leader>so", "<C-w>o", { desc = "Close all other panes", noremap = true, silent = true })
+for i = 1, 9 do
+	map("n", "<M-" .. i .. ">", i .. "gt", { desc = "Go to tab " .. i })
+end
+map("n", "<M-t>", "<cmd>tabnew<CR>", { desc = "New tab" })
+map("n", "<M-w>", "<cmd>tabclose<CR>", { desc = "Close tab" })
 
--- Pane swapping/moving
-vim.keymap.set("n", "<leader>sr", "<C-w>r", { desc = "Rotate panes", noremap = true, silent = true })
-vim.keymap.set("n", "<leader>sH", "<C-w>H", { desc = "Move pane to far left", noremap = true, silent = true })
-vim.keymap.set("n", "<leader>sJ", "<C-w>J", { desc = "Move pane to bottom", noremap = true, silent = true })
-vim.keymap.set("n", "<leader>sK", "<C-w>K", { desc = "Move pane to top", noremap = true, silent = true })
-vim.keymap.set("n", "<leader>sL", "<C-w>L", { desc = "Move pane to far right", noremap = true, silent = true })
+map("v", "<", "<gv", { desc = "Indent left and reselect" })
+map("v", ">", ">gv", { desc = "Indent right and reselect" })
 
--- ========================================
--- TAB MANAGEMENT
--- ========================================
+map("v", "J", ":m '>+1<CR>gv=gv", { desc = "Move selection down" })
+map("v", "K", ":m '<-2<CR>gv=gv", { desc = "Move selection up" })
 
--- Tab creation and navigation
-vim.keymap.set("n", "<leader>tn", "<cmd>tabnew<CR>", { desc = "Open new tab", noremap = true, silent = true })
-vim.keymap.set("n", "<leader>tx", "<cmd>tabclose<CR>", { desc = "Close current tab", noremap = true, silent = true })
-vim.keymap.set("n", "<leader>to", "<cmd>tabonly<CR>", { desc = "Close all other tabs", noremap = true, silent = true })
+map("n", "J", "mzJ`z", { desc = "Join lines (keep cursor)" })
+map("n", "<C-d>", "<C-d>zz", { desc = "Page down (centered)" })
+map("n", "<C-u>", "<C-u>zz", { desc = "Page up (centered)" })
+map("n", "n", "nzzzv", { desc = "Next search (centered)" })
+map("n", "N", "Nzzzv", { desc = "Prev search (centered)" })
 
--- Quick tab navigation (easier than leader+number)
-vim.keymap.set("n", "gt", "<cmd>tabnext<CR>", { desc = "Go to next tab", noremap = true, silent = true })
-vim.keymap.set("n", "gT", "<cmd>tabprev<CR>", { desc = "Go to previous tab", noremap = true, silent = true })
+map("x", "<leader>p", [["_dP]], { desc = "Paste without yanking" })
+map({ "n", "v" }, "<leader>d", [["_d]], { desc = "Delete without yanking" })
 
--- Alternative tab navigation with leader
-vim.keymap.set("n", "<leader>tl", "<cmd>tabnext<CR>", { desc = "Go to next tab", noremap = true, silent = true })
-vim.keymap.set("n", "<leader>th", "<cmd>tabprev<CR>", { desc = "Go to previous tab", noremap = true, silent = true })
+map("n", "<leader>bn", "<cmd>bnext<CR>", { desc = "Next buffer" })
+map("n", "<leader>bp", "<cmd>bprevious<CR>", { desc = "Previous buffer" })
+map("n", "<leader>bd", "<cmd>bdelete<CR>", { desc = "Delete buffer" })
 
--- Tab navigation with numbers (Alt + number for quick access)
-vim.keymap.set("n", "<M-1>", "1gt", { desc = "Go to tab 1", noremap = true, silent = true })
-vim.keymap.set("n", "<M-2>", "2gt", { desc = "Go to tab 2", noremap = true, silent = true })
-vim.keymap.set("n", "<M-3>", "3gt", { desc = "Go to tab 3", noremap = true, silent = true })
-vim.keymap.set("n", "<M-4>", "4gt", { desc = "Go to tab 4", noremap = true, silent = true })
-vim.keymap.set("n", "<M-5>", "5gt", { desc = "Go to tab 5", noremap = true, silent = true })
-vim.keymap.set("n", "<M-6>", "6gt", { desc = "Go to tab 6", noremap = true, silent = true })
-vim.keymap.set("n", "<M-7>", "7gt", { desc = "Go to tab 7", noremap = true, silent = true })
-vim.keymap.set("n", "<M-8>", "8gt", { desc = "Go to tab 8", noremap = true, silent = true })
-vim.keymap.set("n", "<M-9>", "9gt", { desc = "Go to tab 9", noremap = true, silent = true })
+map("n", "[q", "<cmd>cprev<CR>zz", { desc = "Previous quickfix" })
+map("n", "]q", "<cmd>cnext<CR>zz", { desc = "Next quickfix" })
+map("n", "[l", "<cmd>lprev<CR>zz", { desc = "Previous loclist" })
+map("n", "]l", "<cmd>lnext<CR>zz", { desc = "Next loclist" })
 
--- Tab movement
-vim.keymap.set(
-	"n",
-	"<leader>tm>",
-	"<cmd>tabmove +1<CR>",
-	{ desc = "Move tab to the right", noremap = true, silent = true }
-)
-vim.keymap.set(
-	"n",
-	"<leader>tm<",
-	"<cmd>tabmove -1<CR>",
-	{ desc = "Move tab to the left", noremap = true, silent = true }
-)
+map("n", "Q", "@q", { desc = "Replay macro q" })
 
--- Quick tab creation shortcuts
-vim.keymap.set("n", "<M-t>", "<cmd>tabnew<CR>", { desc = "Open new tab (Alt+t)", noremap = true, silent = true })
-vim.keymap.set("n", "<M-w>", "<cmd>tabclose<CR>", { desc = "Close current tab (Alt+w)", noremap = true, silent = true })
-
--- Clipboard
-vim.keymap.set({ "n", "v" }, "<leader>y", '"+y')
-vim.keymap.set({ "n", "v" }, "<leader>p", '"+p')
-vim.keymap.set("n", "<leader>Y", '"+Y')
-vim.keymap.set({ "n", "v" }, "<leader>P", '"+P')
+map("i", "<C-c>", "<Esc>", { desc = "Exit insert mode" })
