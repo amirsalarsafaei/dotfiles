@@ -158,7 +158,8 @@
       inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
   };
 
-  programs.uwsm.waylandCompositors.hyprland.binPath = lib.mkForce "/run/current-system/sw/bin/start-hyprland";
+  programs.uwsm.waylandCompositors.hyprland.binPath =
+    lib.mkForce "/run/current-system/sw/bin/start-hyprland";
 
   programs.zsh = {
     enable = true;
@@ -341,7 +342,7 @@
   services.grafana = {
     enable = true;
     settings.server.http_port = 3000;
-    settings.server.http_addr = "locahost";
+    settings.server.http_addr = "127.0.0.1";
 
     provision.datasources.settings.datasources = [
       {
@@ -365,8 +366,7 @@
   };
 
   services.pcscd.enable = true;
-  
-  services.udev.packages = [ pkgs.yubikey-personalization ];
 
+  services.udev.packages = [ pkgs.yubikey-personalization ];
 
 }

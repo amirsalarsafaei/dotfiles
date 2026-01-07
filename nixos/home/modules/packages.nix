@@ -19,6 +19,21 @@ let
       dkjson
     ]
   );
+  python = pkgs.python312.withPackages (
+    ps: with ps; [
+      jupyter
+      jupyterlab
+      notebook
+      ipython
+      ipykernel
+      # Your packages
+      numpy
+      pandas
+      matplotlib
+      seaborn
+      scikit-learn
+    ]
+  );
 in
 {
   home.packages =
@@ -33,7 +48,7 @@ in
         pkgs.openjdk21
         pkgs.gcc
         pkgs.libgcc
-        pkgs.python312
+        python
         luaPackages
 
         # Development Utilities
@@ -80,7 +95,7 @@ in
         pkgs.gotestsum
 
         # Rust
-        pkgs.rustfmt              # Rust formatter
+        pkgs.rustfmt # Rust formatter
         # pkgs.clippy                # Rust linter
 
         pkgs.rust-analyzer # Rust LSP
@@ -252,8 +267,10 @@ in
 
       # Security and Authentication
       securityTools = [
+        pkgs.yubikey-manager
         pkgs.totp-cli
         (pkgs.pass.withExtensions (exts: [ exts.pass-otp ]))
+        pkgs.burpsuite
       ];
 
       # Fonts
@@ -281,10 +298,8 @@ in
         pkgs.w3m
         pkgs.android-tools
         pkgs.obs-studio
-        pkgs.burpsuite
         pkgs.aichat
         pkgs.vimPlugins.telescope-fzf-native-nvim
-        pkgs.yubikey-manager
       ];
 
       # Platform-specific packages
