@@ -6,6 +6,7 @@ return {
 		"rafamadriz/friendly-snippets",
 		"folke/lazydev.nvim",
 		"giuxtaposition/blink-cmp-copilot",
+		"milanglacier/minuet-ai.nvim",
 	},
 	opts = {
 		keymap = {
@@ -52,7 +53,7 @@ return {
 		},
 
 		sources = {
-			default = { "lazydev", "lsp", "path", "buffer", "copilot", "snippets" },
+			default = { "lazydev", "lsp", "path", "buffer", "minuet", "snippets" },
 			per_filetype = {
 				toggleterm = { "buffer", "path" },
 			},
@@ -61,6 +62,12 @@ return {
 					name = "LazyDev",
 					module = "lazydev.integrations.blink",
 					score_offset = 100,
+				},
+				minuet = {
+					name = "minuet",
+					module = "minuet.blink",
+					score_offset = 80,
+					async = true,
 				},
 				copilot = {
 					name = "copilot",

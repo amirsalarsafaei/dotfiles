@@ -210,6 +210,13 @@ in
       # Network Tools
       networkTools = [
         pkgs.mtr
+        pkgs.wireshark
+        pkgs.xray
+        pkgs.v2ray
+        pkgs.tcpdump
+        pkgs.socat
+        pkgs.net-tools
+        pkgs.inetutils
         pkgs.iperf3
         pkgs.dnsutils
         pkgs.ldns
@@ -266,6 +273,7 @@ in
         pkgs.libnotify
         pkgs.pavucontrol
         pkgs.xorg.xwininfo
+        pkgs.brightnessctl
       ];
 
       # Security and Authentication
@@ -293,6 +301,10 @@ in
 
       # Miscellaneous
       miscTools = [
+
+        pkgs.parted
+        pkgs.tparted
+        pkgs.openvpn
         pkgs.jemalloc
         pkgs.ffmpeg_7-full
         pkgs.libimobiledevice

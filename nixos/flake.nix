@@ -127,7 +127,6 @@
           type = "nixos";
           users = [
             "amirsalar"
-            "ali"
           ];
           extraModules = [ ];
         };

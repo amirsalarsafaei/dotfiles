@@ -4,474 +4,288 @@
     systemd.enable = true;
     style = ''
       /* =============================================================================
-       *
-       * Waybar configuration
-       *
-       * Configuration reference: https://github.com/Alexays/Waybar/wiki/Configuration
-       *
+       * CLASSY DARK GLASS THEME - REFINED
        * =========================================================================== */
 
-      /* -----------------------------------------------------------------------------
-       * Keyframes
-       * -------------------------------------------------------------------------- */
-
-      @keyframes blink-warning {
-        70% {
-          color: white;
-        }
-
-        to {
-          color: white;
-          background-color: orange;
-        }
-      }
-
-      @keyframes blink-critical {
-        70% {
-          color: white;
-        }
-
-        to {
-          color: white;
-          background-color: red;
-        }
-      }
-
-
-      /* -----------------------------------------------------------------------------
-       * Base styles
-       * -------------------------------------------------------------------------- */
-
-      /* Reset all styles */
       * {
+        font-family: 'JetBrains Mono Nerd Font', 'Font Awesome 6 Free', sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        min-height: 0;
         border: none;
         border-radius: 0;
-        min-height: 0;
-        margin: 0;
-        padding: 0;
-        transition: all 0.3s ease;
       }
 
-      /* The whole bar */
-      #waybar {
+      window#waybar {
         background: transparent;
-        color: #c0caf5;
-        font-family: 'JetBrains Mono Nerd Font', Cantarell, Noto Sans, sans-serif;
-        font-size: 13px;
-        margin: 5px 5px;
+        /* No global background, allows transparency */
+      }
+
+      tooltip {
+        background: #11111b;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+      }
+      tooltip label {
+        color: #cdd6f4;
+      }
+
+      /* -----------------------------------------------------------------------------
+       * Module Islands (The "Pills")
+       * -------------------------------------------------------------------------- */
+      .modules-left, .modules-right {
+        background-color: rgba(17, 17, 27, 0.90); /* Deep matte black/grey */
+        border: 1px solid rgba(255, 255, 255, 0.08); /* Very subtle border */
+        border-radius: 20px; /* Fully rounded pill shape */
+        padding: 4px 10px;
+        margin-top: 6px; 
+      }
+
+      .modules-left {
+        margin-left: 12px;
       }
 
       .modules-right {
-      padding-right: 30px;
-        margin-right: 10px;
-        border-radius: 12px;
-        background: linear-gradient(45deg, #1a1b26 0%, #24283b 100%);
-        box-shadow: rgba(0, 0, 0, 0.116) 2px 2px 4px 2px;
-      padding: 3px;
-      margin: 5px;
-            }
-      
-            .modules-left {
-      margin-left: 10px;
-      border-radius: 12px;
-      background: linear-gradient(45deg, #1a1b26 0%, #24283b 100%);
-      box-shadow: rgba(0, 0, 0, 0.116) 2px 2px 4px 2px;
-      padding: 3px;
-      margin: 5px;
+        margin-right: 12px;
       }
-
-      /* Each module */
-      #battery,
-      #clock,
-      #cpu,
-      #custom-keyboard-layout,
-      #memory,
-      #mode,
-      #network,
-      #pulseaudio,
-      #temperature,
-      #tray,
-      #keyboard-state,
-      #keyboard-state label,
-      #hyprland-language {
-        padding: 0 8px;
-        margin: 3px;
-        border-radius: 12px;
-        background: rgba(36, 40, 59, 0.4);
-        color: #c0caf5;
-      font-weight: bold;
-            }
-      
-            /* Add separators between modules */
-            #battery,
-            #cpu,
-            #memory,
-            #temperature,
-            #wireplumber,
-            #keyboard-state,
-            #hyprland-language {
-      border-right: 1px solid rgba(192, 202, 245, 0.1);
-      padding-right: 10px;
-      margin-right: 5px;
-      }
-
-      #battery:hover,
-      #clock:hover,
-      #cpu:hover,
-      #custom-keyboard-layout:hover,
-      #memory:hover,
-      #network:hover,
-      #pulseaudio:hover,
-      #temperature:hover {
-        background: rgba(36, 40, 59, 0.8);
-        box-shadow: rgba(0, 0, 0, 0.116) 2px 2px 4px 2px;
-      }
-
 
       /* -----------------------------------------------------------------------------
-       * Module styles
+       * Workspaces
        * -------------------------------------------------------------------------- */
-
-      #battery {
-        animation-timing-function: linear;
-        animation-iteration-count: infinite;
-        animation-direction: alternate;
-      }
-
-      #battery.warning {
-        color: #e0af68;
-        background: rgba(224, 175, 104, 0.2);
-      }
-
-      #battery.critical {
-        color: #f7768e;
-        background: rgba(247, 118, 142, 0.2);
-      }
-
-      #battery.warning.discharging {
-        animation-name: blink-warning;
-        animation-duration: 3s;
-      }
-
-      #battery.critical.discharging {
-        animation-name: blink-critical;
-        animation-duration: 2s;
-      }
-
-      #clock {
-        font-weight: bold;
-        color: #7aa2f7;
-        background: rgba(122, 162, 247, 0.2);
-      }
-
-      #cpu {
-        /* No styles */
-      }
-
-      #cpu.warning {
-        color: orange;
-      }
-
-      #cpu.critical {
-        color: red;
-      }
-
-      #memory {
-        animation-timing-function: linear;
-        animation-iteration-count: infinite;
-        animation-direction: alternate;
-      }
-
-      #memory.warning {
-        color: orange;
-      }
-
-      #memory.critical {
-        color: red;
-        animation-name: blink-critical;
-        animation-duration: 2s;
-      }
-
-      #mode {
-        background: #64727D;
-        border-top: 2px solid white;
-        /* To compensate for the top border and still have vertical centering */
-        padding-bottom: 2px;
-      }
-
-      #network {
-        /* No styles */
-      }
-
-      #network.disconnected {
-        color: orange;
-      }
-
-      #pulseaudio {
-        /* No styles */
-      }
-
-      #pulseaudio.muted {
-        /* No styles */
-      }
-
-      #custom-spotify {
-        color: #9ece6a;
-        background: rgba(158, 206, 106, 0.2);
-        border-radius: 8px;
-        padding: 0 12px;
-        margin: 4px 4px;
-      }
-
-      #custom-spotify:hover {
-        background: rgba(158, 206, 106, 0.3);
-        box-shadow: rgba(0, 0, 0, 0.116) 2px 2px 4px 2px;
-      }
-
-      #temperature {
-        /* No styles */
-      }
-
-      #temperature.critical {
-        color: red;
-      }
-
-      #keyboard-state {
-        background: rgba(122, 162, 247, 0.2);
-        color: #7aa2f7;
-        margin-right: 8px;
-        padding: 0 8px;
-        min-width: 16px;
-      }
-
-      #keyboard-state label {
-        padding: 0 2px;
-      }
-
-      #keyboard-state label.locked {
-        background: rgba(247, 118, 142, 0.2);
-        color: #f7768e;
-      }
-
-      #hyprland-language {
-        background: rgba(158, 206, 106, 0.2);
-        color: #9ece6a;
-        padding: 0 8px;
-        margin: 4px 4px;
-      }
-
-      #tray {
-        background: rgba(36, 40, 59, 0.4);
-        margin: 4px 4px;
-        padding: 0 8px;
-      }
-
-      #window {
-        font-weight: bold;
-        padding: 0 10px;
-        margin: 4px 4px;
-        border-radius: 12px;
-        background: rgba(36, 40, 59, 0.4);
-        color: #c0caf5;
-      }
-
-      #window:hover {
-        background: rgba(36, 40, 59, 0.8);
-        box-shadow: rgba(0, 0, 0, 0.116) 2px 2px 4px 2px;
-      }
-
       #workspaces button {
         padding: 0 10px;
-        margin: 4px 4px;
-        border-radius: 12px;
-        background: rgba(36, 40, 59, 0.4);
-        color: #565f89;
-        font-weight: bold;
+        margin: 0 2px;
+        background-color: transparent;
+        color: #6c7086; /* Muted grey for inactive */
+        border-radius: 15px;
         transition: all 0.3s ease;
-        min-width: 35px;
-        font-size: 15px;
-      }
-
-      #workspaces button .windows {
-        margin-left: 4px;
-        color: #7aa2f7;
-      }
-
-      #workspaces button.empty .windows {
-        color: #565f89;
-      }
-
-      #workspaces button.active {
-        background: rgba(122, 162, 247, 0.2);
-        color: #7aa2f7;
-        box-shadow: inset 0 0 0 2px rgba(122, 162, 247, 0.2);
-      }
-
-      #workspaces button.focused {
-        background: rgba(122, 162, 247, 0.7);
-        color: #ffffff;
-        text-shadow: 0 0 5px rgba(122, 162, 247, 0.7);
-        box-shadow: rgba(122, 162, 247, 0.25) 0px 4px 8px;
-        padding: 0 15px;
-        box-shadow: inset 0 0 0 2px rgba(122, 162, 247, 0.4);
-      }
-
-      #workspaces button.urgent {
-        background: rgba(247, 118, 142, 0.7);
-        color: #ffffff;
-        text-shadow: 0 0 5px rgba(247, 118, 142, 0.7);
-        box-shadow: rgba(247, 118, 142, 0.25) 0px 4px 8px;
       }
 
       #workspaces button:hover {
-        background: rgba(36, 40, 59, 0.8);
-        color: #c0caf5;
-        box-shadow: inset 0 0 0 2px rgba(192, 202, 245, 0.3),
-                    rgba(0, 0, 0, 0.15) 0px 4px 8px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+      }
+
+      #workspaces button.active {
+        background-color: #cdd6f4; /* Bright White/Silver */
+        color: #11111b; /* Dark text */
+        font-weight: bold;
+        min-width: 20px;
+        box-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+      }
+
+      #workspaces button.urgent {
+        background-color: #eba0ac; /* Soft Red */
+        color: #11111b;
+      }
+
+      /* -----------------------------------------------------------------------------
+       * Individual Modules - RESET COLORS
+       * This section ensures we override the "rainbow" colors from the screenshot
+       * -------------------------------------------------------------------------- */
+
+      #clock, #network, #wireplumber, #tray, #hyprland-language, #hardware, #custom-power {
+        background-color: transparent; /* IMPORTANT: Removes the blue/green/pink boxes */
+        color: #cdd6f4; /* Unified text color */
+        padding: 0 10px;
+        margin: 0;
+      }
+
+      /* Specific Tweaks for visual hierarchy */
+
+      #clock {
+        font-weight: 800;
+        color: #ffffff;
+        margin-right: 4px;
+      }
+
+      #network {
+        color: #a6adc8;
+      }
+
+      #network.disconnected {
+        color: #f38ba8;
+      }
+
+      #wireplumber {
+        color: #cdd6f4;
+      }
+
+      #wireplumber.muted {
+        color: #9399b2;
+      }
+
+      /* -----------------------------------------------------------------------------
+       * Hardware Group
+       * -------------------------------------------------------------------------- */
+      #hardware {
+        /* Optional: a subtle background for the hardware stats specifically */
+        background-color: rgba(255, 255, 255, 0.05); 
+        border-radius: 10px;
+        padding: 2px 8px;
+        margin: 0 8px;
+      }
+
+      #cpu, #memory, #temperature, #battery {
+        background-color: transparent;
+        padding: 0 6px;
+        color: #bac2de;
+      }
+
+      #battery.charging, #battery.plugged {
+        color: #a6e3a1; /* Green hint when charging */
+      }
+
+      #battery.critical:not(.charging) {
+        color: #f38ba8;
+        animation-name: blink;
+        animation-duration: 0.5s;
+        animation-iteration-count: infinite;
+      }
+
+      @keyframes blink {
+        to { color: #ffffff; }
+      }
+
+      #hyprland-window {
+        color: #a6adc8; /* Subtext color */
         padding: 0 15px;
+        font-weight: 500;
       }
     '';
+
     settings = {
-      mainBar =
-        {
-          layer = "top";
-          exclusive = true;
-          battery = {
-            format = "  {capacity}%";
-            format-charging = "󰢝  {capacity}%";
-            format-plugged = "  {capacity}%";
-            interval = 30;
-          };
-          clock = {
-            format = "{:%H:%M:%S}";
-            interval = 1;
-          };
-          cpu = {
-            format = "  {usage}%";
-            interval = 5;
-          };
-          "custom/absclock" = {
-            exec = "date +%s";
-            format = "{}";
-            interval = 1;
-            return-type = "{}";
-          };
-          "custom/loadavg" = {
-            exec = "cat /proc/loadavg | head -c 14";
-            format = "Load average: {}";
-            interval = 1;
-            return-type = "{}";
-          };
-          "custom/uptime" = {
-            exec = "uptime -p | sed 's/up //g' -";
-            format = "Uptime: {}";
-            interval = 60;
-            return-type = "{}";
-          };
-          height = 33;
-          idle_inhibitor = {
-            format = "{icon}";
-            format-icons = {
-              activated = "Don't idle";
-              deactivated = "Idling";
-            };
-          };
-          memory = {
-            format = "  {}%";
-            interval = 5;
-          };
-          modules-center = [ ];
-          modules-left = [ "hyprland/workspaces" "network" "hyprland/window" "tray" ];
-          modules-right = [
-            "group/hardware"
-            "group/indicators"
+      mainBar = {
+        layer = "top";
+        position = "top";
+        height = 40; # Slightly taller for elegance
+        spacing = 0;
+        margin-top = 0;
+        margin-bottom = 0;
+
+        # --- LEFT SIDE ---
+        modules-left = [
+          "hyprland/workspaces"
+          "hyprland/window"
+        ];
+
+        # --- CENTER ---
+        modules-center = [ ];
+
+        # --- RIGHT SIDE ---
+        modules-right = [
+          "clock"
+          "network"
+          "wireplumber"
+          "group/hardware"
+          "hyprland/language"
+          "tray"
+        ];
+
+        # -- Network --
+        network = {
+          interval = 2;
+          # Simplified format for cleaner look
+          format-wifi = "   {essid}";
+          format-ethernet = "󰈀  Ethernet";
+          format-disconnected = "  Offline";
+          tooltip-format = "IP: {ipaddr}\nDOWN: {bandwidthDownBytes} | UP: {bandwidthUpBytes}";
+        };
+
+        # -- Hardware Group --
+        "group/hardware" = {
+          orientation = "horizontal";
+          modules = [
+            "cpu"
+            "memory"
+            "battery"
           ];
-          "group/hardware" = {
-            orientation = "horizontal";
-            modules = [
-              "temperature"
-              "cpu"
-              "memory"
-              "battery"
-            ];
-          };
-          "group/indicators" = {
-            orientation = "horizontal";
-            modules = [
-              "wireplumber"
-              "keyboard-state"
-              "hyprland/language"
-              "clock"
-            ];
-          };
-          network = {
-            format = "Net via {ifname}";
-            format-disconnected = "No net";
-            format-wifi = "{essid} ({signalStrength}%)  ";
-            tooltip-format = "{ipaddr}/{cidr}";
-          };
-          position = "top";
-          temperature = {
-            format = " {temperatureC}°C";
-            interval = 1;
-          };
-          tray = {
-            spacing = 10;
-          };
-          wireplumber = {
-            format = "  {volume}%";
-            format-muted = " mute";
-            on-click = "pavucontrol";
-            scroll-step = 1;
-          };
-          keyboard-state = {
-            capslock = true;
-            numlock = false;
-            format = {
-              capslock = "󰪛 {name}";
-            };
-            format-icons = {
-              locked = "";
-              unlocked = "";
-            };
-          };
-          "hyprland/window" = {
-            separate-outputs = true;
-            format = "{title}";
-            icon = true;
-            max-length = 10;
-            icon-size = 20;
-          };
-          "hyprland/workspaces" = {
-            all-outputs = false;
-            move-to-monitor = false;
-            sort-by = "id";
-            format = "{icon} {windows}";
-            format-window-separator = " ";
-            window-rewrite-default = "";
-            window-rewrite = {
-              "chromium" = "";
-              "wezterm" = "󰆍";
-              "dolphin" = "󰉋";
-              "firefox" = "󰈹";
-              "code" = "󰨞";
-              "title<.*youtube.*>" = "󰗃";
-              "title<.*GitLab.*>" = "";
-              "title<.*Cliq.*>" = "";
-              "spotify" = "󰓇";
-              "discord" = "󰙯";
-              "steam" = "󰓓";
-              "org.pwmt.zathura" = "󰈙";
-              "mpv" = "󰕧";
-              "vlc" = "󰕧";
-              "foot" = "󰆍";
-              "postman" = "";
-              "telegram" = "";
-            };
-            max-length = 30;
+        };
+
+        # -- Modules --
+        "hyprland/workspaces" = {
+          disable-scroll = true;
+          all-outputs = true;
+          format = "{icon}";
+          format-icons = {
+            "1" = "1";
+            "2" = "2";
+            "3" = "3";
+            "4" = "4";
+            "5" = "5";
+            "default" = "";
           };
         };
 
+        "hyprland/window" = {
+          max-length = 40;
+          separate-outputs = true;
+        };
+
+        clock = {
+          format = "{:%H:%M}";
+          tooltip-format = "<tt><small>{calendar}</small></tt>";
+          calendar = {
+            mode = "year";
+            mode-mon-col = 3;
+            format = {
+              months = "<span color='#ffffff'><b>{}</b></span>";
+              days = "<span color='#cdd6f4'><b>{}</b></span>";
+              weekdays = "<span color='#89b4fa'><b>{}</b></span>";
+              today = "<span color='#f38ba8'><b><u>{}</u></b></span>";
+            };
+          };
+        };
+
+        wireplumber = {
+          format = "{icon} {volume}%";
+          format-muted = " Muted";
+          on-click = "pavucontrol";
+          format-icons = [
+            ""
+            ""
+            ""
+          ];
+        };
+
+        cpu = {
+          interval = 5;
+          format = " {usage}%";
+        };
+
+        memory = {
+          interval = 5;
+          format = " {percentage}%";
+        };
+
+        battery = {
+          states = {
+            warning = 30;
+            critical = 15;
+          };
+          format = "{icon} {capacity}%";
+          format-charging = " {capacity}%";
+          format-plugged = " {capacity}%";
+          format-icons = [
+            ""
+            ""
+            ""
+            ""
+            ""
+          ];
+        };
+
+        "hyprland/language" = {
+          format = " {}";
+          format-en = "EN";
+          format-fa = "FA";
+        };
+
+        tray = {
+          icon-size = 18;
+          spacing = 10;
+        };
+      };
     };
   };
 }

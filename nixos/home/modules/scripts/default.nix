@@ -53,29 +53,38 @@
       #!/usr/bin/env bash
       case $1 in
       	up)
-      	xbacklight  -inc 10
+      	brightnessctl set +10%
       	;;
       	down)
-      	xbacklight  -dec 10
+      	brightnessctl set 10%-
       	;;
       esac
 
-      notify-send -h int:value:$(xbacklight  -get) "Brightness"
+      current=$(brightnessctl -m | cut -d',' -f4 | tr -d '%')
+      notify-send -h int:value:$current "Brightness"
     '')
 
-    (writeShellScriptBin "backlight" ''
+    (writeShellScriptBin "kbdbacklight" ''
       #!/usr/bin/env bash
+      # Find keyboard backlight device (works across different systems)
+      KBD_DEV=$(brightnessctl -l | grep -i kbd | head -1 | cut -d"'" -f2)
+
+      if [ -z "$KBD_DEV" ]; then
+        notify-send "Keyboard Backlight" "No keyboard backlight found"
+        exit 1
+      fi
+
       case $1 in
       	up)
-      	xbacklight -ctrl kbd_backlight -inc 20
+      	brightnessctl -d "$KBD_DEV" set +20%
       	;;
       	down)
-      	xbacklight -ctrl kbd_backlight -dec 20
+      	brightnessctl -d "$KBD_DEV" set 20%-
       	;;
       esac
 
-      notify-send -h int:value:$(xbacklight -ctrl kbd_backlight -get) "Backlight"
-
+      current=$(brightnessctl -d "$KBD_DEV" -m | cut -d',' -f4 | tr -d '%')
+      notify-send -h int:value:$current "Keyboard Backlight"
     '')
   ];
 }
