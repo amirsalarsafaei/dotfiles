@@ -6,6 +6,11 @@
   ...
 }:
 {
+  sops = {
+    defaultSopsFile = ../../secrets/secrets.yaml;
+    age.keyFile = "/var/lib/sops-nix/key.txt";
+    secrets.tailscale_key = { };
+  };
 
   environment.pathsToLink = [
     "/share/xdg-desktop-portal"
@@ -40,6 +45,7 @@
   # Pick only one of the below networking options.
   # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
   # networking.networkmanager.enable = true;  # Easiest to use and most distros use this by default.
+
   programs.openvpn3.enable = true;
 
   networking = {

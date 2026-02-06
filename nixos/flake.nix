@@ -66,6 +66,11 @@
       flake = false;
     };
 
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
   };
 
   outputs =
@@ -75,6 +80,7 @@
       home-manager,
       apple-silicon-support,
       k0s-nix,
+      sops-nix,
       ...
     }@inputs:
     let
@@ -180,6 +186,7 @@
               };
             }
             k0s-nix.nixosModules.default
+            sops-nix.nixosModules.sops
           ]
           ++ extraModules;
         };

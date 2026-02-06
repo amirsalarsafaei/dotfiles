@@ -1,0 +1,7 @@
+keys:
+  - &admin age1x7t6p9vgyns4g0cfqnfx6axcxy489jxas2qdjyac698csfd2hdfq5zldch
+creation_rules:
+  - path_regex: nixos/secrets/secrets\.yaml$
+    key_groups:
+      - age:
+          - *admin

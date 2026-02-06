@@ -224,6 +224,7 @@ in
         pkgs.iptables
         pkgs.grpcurl
         pkgs.wireguard-tools
+        pkgs.tailscale
       ];
 
       # Infrastructure and Cloud
