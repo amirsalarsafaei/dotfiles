@@ -223,6 +223,7 @@ in
         pkgs.ngrok
         pkgs.iptables
         pkgs.grpcurl
+        pkgs.wireguard-tools
       ];
 
       # Infrastructure and Cloud
