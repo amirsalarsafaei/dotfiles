@@ -40,6 +40,8 @@
   # Pick only one of the below networking options.
   # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
   # networking.networkmanager.enable = true;  # Easiest to use and most distros use this by default.
+  programs.openvpn3.enable = true;
+
   networking = {
     networkmanager = {
       enable = true;
@@ -47,6 +49,11 @@
         backend = "iwd";
         powersave = false;
       };
+      plugins = with pkgs; [
+        networkmanager-fortisslvpn
+        networkmanager-openconnect
+        networkmanager-openvpn
+      ];
     };
     wireless.enable = false;
     wireless.iwd = {
@@ -185,16 +192,16 @@
   fonts.fontconfig.enable = true;
 
   services.acpid.enable = true;
-  systemd.services.nix-cleanup = {
-    description = "NixOS generation cleanup";
-    serviceConfig = {
-      Type = "oneshot";
-      ExecStart = "${pkgs.writeShellScript "nix-cleanup" ''
-        ${pkgs.nix}/bin/nix-env --delete-generations +5 --profile /nix/var/nix/profiles/system
-        ${pkgs.nix}/bin/nix-collect-garbage
-      ''}";
-    };
-  };
+  # systemd.services.nix-cleanup = {
+  #   description = "NixOS generation cleanup";
+  #   serviceConfig = {
+  #     Type = "oneshot";
+  #     ExecStart = "${pkgs.writeShellScript "nix-cleanup" ''
+  #       ${pkgs.nix}/bin/nix-env --delete-generations +5 --profile /nix/var/nix/profiles/system
+  #       ${pkgs.nix}/bin/nix-collect-garbage
+  #     ''}";
+  #   };
+  # };
 
   systemd.timers.nix-cleanup = {
     wantedBy = [ "timers.target" ];

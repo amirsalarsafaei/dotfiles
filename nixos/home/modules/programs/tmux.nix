@@ -1,4 +1,5 @@
-{ pkgs, ... }: {
+{ pkgs, ... }:
+{
   programs.tmux = {
     enable = true;
     baseIndex = 1;
@@ -15,6 +16,7 @@
       set -s focus-events on
       set -g default-terminal "xterm-256color"
       set -ag terminal-overrides ",xterm-256color:RGB"
+      set -g set-clipboard on                 # use system clipboard
 
       set -g prefix2 C-a                        # GNU-Screen compatible prefix
       bind C-a send-prefix -2
@@ -55,7 +57,6 @@
 
       set-option -g automatic-rename-format "#{?#{==:#{pane_current_command},zsh},#{b:pane_current_path},#{b:pane_current_path}:#{pane_current_command}}"
     '';
-
 
     plugins = [
       {

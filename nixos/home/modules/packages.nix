@@ -32,6 +32,7 @@ let
       matplotlib
       seaborn
       scikit-learn
+      pyarrow
     ]
   );
 in
@@ -300,6 +301,8 @@ in
         pkgs.obs-studio
         pkgs.aichat
         pkgs.vimPlugins.telescope-fzf-native-nvim
+        pkgs.openvpn
+        pkgs.openvpn3
       ];
 
       # Platform-specific packages
