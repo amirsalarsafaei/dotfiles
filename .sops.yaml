@@ -1,7 +1,7 @@
 keys:
-  - &admin age1x7t6p9vgyns4g0cfqnfx6axcxy489jxas2qdjyac698csfd2hdfq5zldch
+  - &amirsalar age1vj60v84ue8p4epkvyxw559jwy22zqjz8a5qgg2fmn35wjzl7ryms9euqy5
 creation_rules:
-  - path_regex: nixos/secrets/secrets\.yaml$
+  - path_regex: nixos/secrets/.*\.yaml$
     key_groups:
       - age:
-          - *admin
+          - *amirsalar
