@@ -25,6 +25,15 @@
       "/share/applications"
     ];
 
+    services.tailscale = {
+      enable = true;
+      authKeyFile = "/run/secrets/tailscale_key";
+      extraUpFlags = [
+        "--login-server"
+        secrets.tailscale.loginServer
+      ];
+    };
+
     networking.hostName = "amirsalar"; # Define your hostname.
     networking.hosts = {
       # "216.239.38.120"= [
