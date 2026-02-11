@@ -209,6 +209,7 @@ in
 
       # Network Tools
       networkTools = [
+        pkgs.nethogs
         pkgs.mtr
         pkgs.wireshark
         pkgs.xray
@@ -272,7 +273,7 @@ in
         pkgs.wtype
         pkgs.libnotify
         pkgs.pavucontrol
-        pkgs.xorg.xwininfo
+        pkgs.xwininfo
         pkgs.brightnessctl
       ];
 
@@ -301,7 +302,6 @@ in
 
       # Miscellaneous
       miscTools = [
-
         pkgs.parted
         pkgs.tparted
         pkgs.openvpn
@@ -329,6 +329,11 @@ in
         pkgs.blender
       ];
 
+      g14Specific = pkgs.lib.optionals (currentHostname == "g14") [
+        pkgs.aseprite
+        pkgs.godot
+      ];
+
     in
     devTools
     ++ devTooling
@@ -341,5 +346,6 @@ in
     ++ securityTools
     ++ fonts
     ++ miscTools
-    ++ platformSpecific;
+    ++ platformSpecific
+    ++ g14Specific;
 }

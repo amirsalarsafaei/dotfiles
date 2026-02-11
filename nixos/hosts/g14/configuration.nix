@@ -152,6 +152,8 @@ in
     enable = true;
     loadModels = ollamaModels;
     package = pkgs.ollama-cuda;
+    openFirewall = true;
+    host = "[::]";
   };
 
   environment.systemPackages = systemPkgs;
@@ -162,6 +164,9 @@ in
       offload.enable = lib.mkForce true;
       offload.enableOffloadCmd = lib.mkForce true;
       sync.enable = lib.mkForce false;
+    };
+    environment.sessionVariables = {
+      AQ_DRM_DEVICES = "/dev/dri/card2:/dev/dri/card1";
     };
     services.grafana.enable = lib.mkForce false;
     services.prometheus.enable = lib.mkForce false;

@@ -3,7 +3,7 @@
   services.cliphist = {
     enable = true;
     # Automatically store clipboard history
-    systemdTarget = "hyprland-session.target";
+    systemdTargets = [ "hyprland-session.target" ];
   };
 
   # Add helper scripts for cliphist integration with rofi

@@ -1,13 +1,18 @@
-{ config, homeDir ? null, inputs, pkgs, lib, ... }:
+{
+  config,
+  homeDir ? null,
+  inputs,
+  pkgs,
+  lib,
+  ...
+}:
 {
   # Remove the hardcoded username - let it be set by the caller
   # home.username is automatically set by home-manager based on the user key
-  
+
   # Use mkDefault to allow override, and handle homeDir properly
   home.homeDirectory = lib.mkDefault (
-    if homeDir != null 
-    then homeDir 
-    else "/home/${config.home.username}"
+    if homeDir != null then homeDir else "/home/${config.home.username}"
   );
 
   home.stateVersion = "24.11"; # Please read the comment before changing.
@@ -76,7 +81,10 @@
           "org.freedesktop.impl.portal.Secret" = [ "gnome-keyring" ];
         };
         hyprland = {
-          default = [ "hyprland" "gtk" ];
+          default = [
+            "hyprland"
+            "gtk"
+          ];
           "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
           "org.freedesktop.impl.portal.OpenURI" = [ "hyprland" ];
         };
@@ -86,13 +94,21 @@
     mimeApps = {
       enable = false;
       defaultApplications = {
-        "text/html" = ["chromium.desktop"];
-        "x-scheme-handler/http" = ["chromium.desktop"];
-        "x-scheme-handler/https" = ["chromium.desktop"];
+        "text/html" = [ "chromium.desktop" ];
+        "x-scheme-handler/http" = [ "chromium.desktop" ];
+        "x-scheme-handler/https" = [ "chromium.desktop" ];
       };
     };
   };
-  
-  imports = [ ./modules ];
-}
 
+  sops = {
+    secrets.ssh_config = {
+      path = "${config.home.homeDirectory}/.ssh/config";
+    };
+  };
+
+  imports = [
+    ./modules
+  ];
+
+}

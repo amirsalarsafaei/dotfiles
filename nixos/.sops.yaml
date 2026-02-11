@@ -1,0 +1,7 @@
+keys:
+  - &amirsalar age1vj60v84ue8p4epkvyxw559jwy22zqjz8a5qgg2fmn35wjzl7ryms9euqy5
+creation_rules:
+  - path_regex: secrets/.*\.yaml$
+    key_groups:
+      - age:
+          - *amirsalar

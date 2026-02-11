@@ -4,15 +4,10 @@
   pkgs,
   secrets,
   config,
+  hostname,
   ...
 }:
 {
-
-  sops = {
-    defaultSopsFile = ../../secrets/secrets.yaml;
-    age.keyFile = "/var/lib/sops-nix/key.txt";
-    secrets.tailscale_key = { };
-  };
   options.custom.hyprland.monitorConfig = lib.mkOption {
     type = lib.types.str;
     default = ",preferred,auto,auto";
@@ -20,6 +15,10 @@
   };
 
   config = {
+    sops = {
+      secrets.tailscale_key = { };
+    };
+
     environment.pathsToLink = [
       "/share/xdg-desktop-portal"
       "/share/applications"
@@ -31,6 +30,8 @@
       extraUpFlags = [
         "--login-server"
         secrets.tailscale.loginServer
+        "--hostname"
+        hostname
       ];
     };
 
@@ -116,7 +117,7 @@
     services.desktopManager.plasma6.enable = true;
     services.resolved = {
       enable = true;
-      fallbackDns = [
+      settings.Resolve.FallbackDNS = [
         "8.8.8.8"
         "8.8.4.4"
       ];
@@ -187,9 +188,6 @@
       portalPackage =
         inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
     };
-
-    programs.uwsm.waylandCompositors.hyprland.binPath =
-      lib.mkForce "/run/current-system/sw/bin/start-hyprland";
 
     programs.zsh = {
       enable = true;
@@ -286,7 +284,6 @@
     # Enable the X11 windowing system.
     # You can disable this if you're only using the Wayland session.
 
-    # Enable the KDE Plasma Desktop Environment.
     services.displayManager = {
       defaultSession = "hyprland-uwsm";
     };

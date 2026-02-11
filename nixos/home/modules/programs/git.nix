@@ -1,9 +1,10 @@
-{ homeDir, ... }: {
+{ homeDir, ... }:
+{
   programs.git = {
     enable = true;
-    userName = "Amirsalar Safaei";
-    userEmail = "amirs.s.g.o@gmail.com";
-    extraConfig = {
+    settings = {
+      user.name = "Amirsalar Safaei";
+      user.email = "amirs.s.g.o@gmail.com";
       url."ssh://git@git.divar.cloud/".insteadOf = "https://git.divar.cloud/";
     };
     includes = [

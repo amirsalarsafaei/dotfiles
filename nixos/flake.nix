@@ -23,7 +23,7 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    nixpkgs-stable.url = "github:nixos/nixpkgs/nixos-25.05";
+    nixpkgs-stable.url = "github:nixos/nixpkgs/nixos-25.11";
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -33,8 +33,6 @@
 
     # Asahi support
     apple-silicon-support.url = "github:nix-community/nixos-apple-silicon/main";
-
-    k0s-nix.url = "github:johbo/k0s-nix";
 
     argonaut = {
       url = "github:darksworm/argonaut?ref=v2.7.0";
@@ -79,7 +77,6 @@
       nixpkgs-stable,
       home-manager,
       apple-silicon-support,
-      k0s-nix,
       sops-nix,
       ...
     }@inputs:
@@ -116,12 +113,7 @@
           users = [ "amirsalar" ];
           extraModules = [ apple-silicon-support.nixosModules.apple-silicon-support ];
         };
-        rog = {
-          system = systems.x86_64;
-          type = "nixos";
-          users = [ "amirsalar" ];
-          extraModules = [ ];
-        };
+
         g14 = {
           system = systems.x86_64;
           type = "nixos";
@@ -159,33 +151,44 @@
         }:
         lib.nixosSystem {
           inherit system;
-          specialArgs = { inherit secrets inputs apple-silicon-support; };
+          specialArgs = {
+            inherit
+              secrets
+              inputs
+              apple-silicon-support
+              hostname
+              ;
+          };
           modules = [
+            sops-nix.nixosModules.sops
+            ./modules/sops.nix
+            { nixpkgs = commonNixpkgsConfig system; }
             ./hosts/common/default.nix
             ./hosts/${hostname}/configuration.nix
             ./hosts/${hostname}/hardware-configuration.nix
-            { nixpkgs = commonNixpkgsConfig system; }
             home-manager.nixosModules.home-manager
             {
               home-manager = {
                 useGlobalPkgs = true;
                 useUserPackages = true;
-                backupFileExtension = "backup-1";
+                backupFileExtension = "backup";
                 extraSpecialArgs = {
                   inherit secrets inputs;
                   currentHostname = hostname;
                   currentSystem = system;
                 };
-                # Configure home-manager for all users
+                sharedModules = [
+                  sops-nix.homeManagerModules.sops
+                  ./modules/sops.nix
+                ];
                 users = lib.genAttrs users (username: {
-                  imports = [ ./home/default.nix ];
-                  # Make homeDir available as a module argument
+                  imports = [
+                    ./home/default.nix
+                  ];
                   _module.args.homeDir = "/home/${username}";
                 });
               };
             }
-            k0s-nix.nixosModules.default
-            sops-nix.nixosModules.sops
           ]
           ++ extraModules;
         };

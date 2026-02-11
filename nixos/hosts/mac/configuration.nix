@@ -99,7 +99,5 @@
     tokenFile = "/etc/k0s/k0stoken";
   };
 
-  services.logind = {
-    lidSwitch = "suspend";
-  };
+  services.logind.settings.Login.HandleLidSwitch = "suspend";
 }
