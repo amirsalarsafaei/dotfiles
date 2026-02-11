@@ -167,6 +167,7 @@ in
     };
     environment.sessionVariables = {
       AQ_DRM_DEVICES = "/dev/dri/card2:/dev/dri/card1";
+      WLR_DRM_DEVICES = "/dev/dri/card2:/dev/dri/card1";
     };
     services.grafana.enable = lib.mkForce false;
     services.prometheus.enable = lib.mkForce false;

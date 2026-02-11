@@ -316,6 +316,7 @@ in
         pkgs.aichat
         pkgs.vimPlugins.telescope-fzf-native-nvim
         pkgs.openvpn
+        pkgs.age
         pkgs.openvpn3
       ];
 
