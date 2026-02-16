@@ -2,17 +2,13 @@
 # your system. Help is available in the configuration.nix(5) man page, on
 # https://search.nixos.org/options and in the NixOS manual (`nixos-help`).
 
-{ config, lib, apple-silicon-support, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 {
   imports =
     [
       # Include the results of the hardware scan.
       ./hardware-configuration.nix
-        apple-silicon-support.nixosModules.default
-
     ];
-
-  nixpkgs.overlays = [ apple-silicon-support.overlays.apple-silicon-overlay ];
 
   # Use the systemd-boot EFI boot loader.
   boot = {

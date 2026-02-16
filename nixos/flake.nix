@@ -16,7 +16,6 @@
       "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw="
       "nixpkgs-python.cachix.org-1:hxjI7pFxTyuTHn2NkvWCrAUcNZLNS3ZAvfYNuYifcEU="
       "nixos-apple-silicon.cachix.org-1:8psDu5SA5dAD7qA0zMy5UT292TxeEPzIz8VVEr2Js20="
-
     ];
     extra-experimental-features = "nix-command flakes";
   };
@@ -31,7 +30,7 @@
 
     hyprland.url = "github:hyprwm/Hyprland";
 
-    # Asahi support
+    # Asahi support - don't follow nixpkgs to get cache hits
     apple-silicon-support.url = "github:nix-community/nixos-apple-silicon/main";
 
     argonaut = {

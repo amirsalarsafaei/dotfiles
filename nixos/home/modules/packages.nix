@@ -233,6 +233,7 @@ in
         pkgs.grpcurl
         pkgs.wireguard-tools
         pkgs.tailscale
+        pkgs.proxychains
       ];
 
       # Infrastructure and Cloud
