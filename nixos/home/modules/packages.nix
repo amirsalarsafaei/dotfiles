@@ -6,6 +6,7 @@
   ...
 }:
 let
+  pkgsStable = inputs.nixpkgs-stable.legacyPackages.${pkgs.stdenv.hostPlatform.system};
   argonaut = inputs.argonaut.packages.${pkgs.stdenv.hostPlatform.system}.default;
   luaPackages = pkgs.lua.withPackages (
     ps: with ps; [
@@ -268,9 +269,7 @@ in
         pkgs.slurp
         pkgs.hyprpaper
         pkgs.wl-clipboard
-        pkgs.wofi
         pkgs.rofi-pass
-        pkgs.wofi-pass
         pkgs.wtype
         pkgs.libnotify
         pkgs.pavucontrol
@@ -293,12 +292,6 @@ in
         pkgs.nerd-fonts.hack
         pkgs.nerd-fonts.meslo-lg
         pkgs.nerd-fonts.ubuntu-mono
-        pkgs.nerd-fonts.inconsolata
-        pkgs.nerd-fonts.fantasque-sans-mono
-        pkgs.nerd-fonts.victor-mono
-        pkgs.nerd-fonts.iosevka-term-slab
-        pkgs.nerd-fonts.iosevka
-        pkgs.meslo-lgs-nf
       ];
 
       # Miscellaneous

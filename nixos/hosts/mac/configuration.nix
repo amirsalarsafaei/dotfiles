@@ -2,23 +2,26 @@
 # your system. Help is available in the configuration.nix(5) man page, on
 # https://search.nixos.org/options and in the NixOS manual (`nixos-help`).
 
-{ config, lib, pkgs, ... }:
 {
-  imports =
-    [
-      # Include the results of the hardware scan.
-      ./hardware-configuration.nix
-    ];
+  config,
+  lib,
+  pkgs,
+  ...
+}:
+{
+  imports = [
+    # Include the results of the hardware scan.
+    ./hardware-configuration.nix
+  ];
 
   # Use the systemd-boot EFI boot loader.
   boot = {
     loader.systemd-boot.enable = true;
     loader.efi.canTouchEfiVariables = false;
     binfmt.emulatedSystems = [ "x86_64-linux" ];
-    extraModprobeConfig = ''
-      options hid_apple swap_fn_leftctrl=1 iso_layout=0 swap_opt_cmd=1 '';
+    extraModprobeConfig = "options hid_apple swap_fn_leftctrl=1 iso_layout=0 swap_opt_cmd=1 ";
     m1n1CustomLogo = ./boot-logo.png;
-    kernelParams = [ "apple_dcp.show_notch=1" ];
+    kernelParams = [ "appledrm.show_notch=1" ];
   };
 
   hardware = {
@@ -27,7 +30,6 @@
       setupAsahiSound = true;
     };
   };
-
 
   # List packages installed in system profile. To search, run:
   # $ nix search wget
@@ -52,7 +54,7 @@
     ifuse
     xdg-desktop-portal
     xdg-desktop-portal-gtk
-    (sddm-astronaut.override{
+    (sddm-astronaut.override {
       embeddedTheme = "japanese_aesthetic";
     })
     kdePackages.qtmultimedia
@@ -61,8 +63,6 @@
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
   # programs.mtr.enable = true;
-
-
 
   # This option defines the first version of NixOS you have installed on this particular machine,
   # and is used to maintain compatibility with application data (e.g. databases) created on older NixOS versions.
@@ -83,17 +83,19 @@
   # For more information, see `man configuration.nix` or https://nixos.org/manual/nixos/stable/options#opt-system.stateVersion .
   system.stateVersion = "24.05"; # Did you read the comment?
 
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  nix.settings.experimental-features = [
+    "nix-command"
+    "flakes"
+  ];
+
+  systemd.services.nix-daemon.environment.TMPDIR = "/data/nix-build-tmp";
+
+  # For user nix commands
+  environment.variables.TMPDIR = "/data/nix-build-tmp";
 
   services.udev.extraRules = ''
     SUBSYSTEM=="backlight", ACTION=="add", RUN+="${pkgs.coreutils-full}/bin/chmod 666 /sys/class/backlight/apple-panel-bl/brightness", RUN+="${pkgs.coreutils-full}/bin/chmod 666 /sys/class/leds/kbd_backlight/brightness"
   '';
-
-  services.k0s = {
-    enable = false;
-    role = "controller+worker";  # or "controller" or "worker"
-    tokenFile = "/etc/k0s/k0stoken";
-  };
 
   services.logind.settings.Login.HandleLidSwitch = "suspend";
 }
