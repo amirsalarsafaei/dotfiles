@@ -14,6 +14,11 @@
     description = "Hyprland monitor configuration string";
   };
 
+  imports = [
+    # hyprland.nixosModules.default causes git build issues in v0.53.3
+    # Using nixpkgs hyprland instead
+  ];
+
   config = {
     sops = {
       secrets.tailscale_key = { };
@@ -184,9 +189,8 @@
     programs.hyprland = {
       enable = true;
       withUWSM = true;
-      package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
-      portalPackage =
-        inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
+      package = pkgs.hyprland;
+      portalPackage = pkgs.xdg-desktop-portal-hyprland;
     };
 
     programs.zsh = {
@@ -240,7 +244,7 @@
       extraPortals = [
         pkgs.xdg-desktop-portal
         pkgs.xdg-desktop-portal-gtk
-        inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland
+        pkgs.xdg-desktop-portal-hyprland
       ];
       xdgOpenUsePortal = true;
       config = {
