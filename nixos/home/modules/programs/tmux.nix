@@ -25,10 +25,19 @@
       bind C-c new-session
       bind C-f command-prompt -p find-session 'switch-client -t %%'
       bind BTab switch-client -l  
-      bind - split-window -c '#{pane_current_path}' -v
-      bind _ split-window -c '#{pane_current_path}' -h
-      bind = split-window -c '#{pane_current_path}' -v -l '20%'
-      bind + split-window -c '#{pane_current_path}' -h -l '20%'
+      
+      # Smart splits that detect SSH sessions
+      # Vertical split (Prefix + -)
+      bind - run-shell "cmd=\$(ps -o command= -t #{pane_tty} | grep -E '^ssh ' | head -n 1); if [ -n \"\$cmd\" ]; then tmux split-window -v \"\$cmd\"; else tmux split-window -v -c \"#{pane_current_path}\"; fi"
+      
+      # Horizontal split (Prefix + _)
+      bind _ run-shell "cmd=\$(ps -o command= -t #{pane_tty} | grep -E '^ssh ' | head -n 1); if [ -n \"\$cmd\" ]; then tmux split-window -h \"\$cmd\"; else tmux split-window -h -c \"#{pane_current_path}\"; fi"
+      
+      # Vertical split 20% (Prefix + =)
+      bind = run-shell "cmd=\$(ps -o command= -t #{pane_tty} | grep -E '^ssh ' | head -n 1); if [ -n \"\$cmd\" ]; then tmux split-window -v \"\$cmd\" -l '20%'; else tmux split-window -v -c \"#{pane_current_path}\" -l '20%'; fi"
+      
+      # Horizontal split 20% (Prefix + +)
+      bind + run-shell "cmd=\$(ps -o command= -t #{pane_tty} | grep -E '^ssh ' | head -n 1); if [ -n \"\$cmd\" ]; then tmux split-window -h \"\$cmd\" -l '20%'; else tmux split-window -h -c \"#{pane_current_path}\" -l '20%'; fi"
       # pane navigation
       bind -r h select-pane -L # move left 
       bind -r j select-pane -D # move down 

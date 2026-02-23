@@ -3,6 +3,7 @@
     ./git.nix
     ./alacritty.nix
     ./kitty.nix
+    ./ssh.nix
     ./tmux.nix
     ./hyprlock.nix
     ./waybar.nix
