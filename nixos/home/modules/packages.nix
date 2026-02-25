@@ -312,6 +312,7 @@ in
         pkgs.openvpn
         pkgs.age
         pkgs.openvpn3
+        pkgs.code-cursor-fhs
       ];
 
       # Platform-specific packages

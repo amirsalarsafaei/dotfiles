@@ -199,7 +199,16 @@
       enableGlobalCompInit = false;
     };
 
-    networking.firewall.enable = false;
+    networking.firewall = {
+      enable = true;
+      allowedTCPPorts = [
+        22     # SSH
+      ];
+      allowedUDPPorts = [
+        5353   # mDNS for service discovery
+      ];
+      checkReversePath = "loose";
+    };
 
     nixpkgs.config.allowUnfree = true;
     programs.nix-ld.enable = true;
