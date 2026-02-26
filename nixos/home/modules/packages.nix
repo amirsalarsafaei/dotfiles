@@ -267,7 +267,8 @@ in
       waylandTools = [
         pkgs.grim
         pkgs.slurp
-        pkgs.hyprpaper
+        pkgs.waypaper
+        pkgs.swww
         pkgs.wl-clipboard
         pkgs.rofi-pass
         pkgs.wtype

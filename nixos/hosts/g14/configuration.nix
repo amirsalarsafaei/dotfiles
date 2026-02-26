@@ -21,6 +21,7 @@ let
   };
 
   ollamaModels = [
+    "qwen3-coder-next:q4_K_M"
     "gpt-oss:20b"
     "danielsheep/Qwen3-Coder-30B-A3B-Instruct-1M-Unsloth:UD-IQ3_XXS"
     "ministral-3:14b"

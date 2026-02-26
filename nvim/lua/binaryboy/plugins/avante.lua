@@ -58,7 +58,17 @@ return {
         api_key_name = "",
         endpoint = "http://127.0.0.1:11434/v1",
         model = "qwen3-coder:30b",
-      }
+        timeout = 40000,
+        disable_tools = false,
+        extra_request_body = {
+          temperature = 0.2,
+          top_k = 40,
+          top_p = 0.9,
+          max_tokens = 8192,
+        },
+      },
     },
+    mode = "agentic",
+    disabled_tools = { "web_search" },
   },
 }

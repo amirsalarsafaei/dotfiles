@@ -63,16 +63,16 @@ return {
 					module = "lazydev.integrations.blink",
 					score_offset = 100,
 				},
-				minuet = {
-					name = "minuet",
-					module = "minuet.blink",
-					score_offset = 80,
-					async = true,
-				},
 				copilot = {
 					name = "copilot",
 					module = "blink-cmp-copilot",
 					score_offset = 90,
+					async = true,
+				},
+				minuet = {
+					name = "minuet",
+					module = "minuet.blink",
+					score_offset = 80,
 					async = true,
 				},
 			},

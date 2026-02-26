@@ -37,6 +37,7 @@
         secrets.tailscale.loginServer
         "--hostname"
         hostname
+        "--accept-routes"
       ];
     };
 

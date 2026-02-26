@@ -159,6 +159,8 @@ in
       bind = SUPER, R, submap, reset
       submap = reset
 
+      # Workspace navigation - per monitor (clean model)
+      # These work on current monitor context
       bind = SUPER, 1, workspace, 1
       bind = SUPER, 2, workspace, 2
       bind = SUPER, 3, workspace, 3
@@ -170,6 +172,7 @@ in
       bind = SUPER, 9, workspace, 9
       bind = SUPER, 0, workspace, 10
 
+      # Move window to workspace
       bind = SUPER_SHIFT, 1, movetoworkspace, 1
       bind = SUPER_SHIFT, 2, movetoworkspace, 2
       bind = SUPER_SHIFT, 3, movetoworkspace, 3
@@ -181,47 +184,40 @@ in
       bind = SUPER_SHIFT, 9, movetoworkspace, 9
       bind = SUPER_SHIFT, 0, movetoworkspace, 10
 
+      # Workspace cycling
+      bind = SUPER_CTRL, n, workspace, e+1
+      bind = SUPER_CTRL, p, workspace, e-1
+      bind = SUPER, mouse_down, workspace, e+1
+      bind = SUPER, mouse_up, workspace, e-1
+
+      # Special workspace (scratchpad)
       bind = SUPER, S, togglespecialworkspace, magic
       bind = SUPER_SHIFT, S, movetoworkspace, special:magic
 
+      # Clipboard
       bind = SUPER, v, exec, $clipboard
       bind = SUPER_SHIFT, v, exec, rofi-cliphist-delete
       bind = SUPER_CTRL, v, exec, cliphist-clear
 
-      bind = SUPER, mouse_down, workspace, e+1
-      bind = SUPER, mouse_up, workspace, e-1
+      # Monitor-focused workspace switching (SUPER_CTRL reserved for this)
+      # Jump to workspace 1-5 on left monitor
+      bind = SUPER_CTRL, 1, focusworkspaceoncurrentmonitor, 1
+      bind = SUPER_CTRL, 2, focusworkspaceoncurrentmonitor, 2
+      bind = SUPER_CTRL, 3, focusworkspaceoncurrentmonitor, 3
+      bind = SUPER_CTRL, 4, focusworkspaceoncurrentmonitor, 4
+      bind = SUPER_CTRL, 5, focusworkspaceoncurrentmonitor, 5
+      # Extended workspaces
+      bind = SUPER_CTRL, 6, focusworkspaceoncurrentmonitor, 6
+      bind = SUPER_CTRL, 7, focusworkspaceoncurrentmonitor, 7
+      bind = SUPER_CTRL, 8, focusworkspaceoncurrentmonitor, 8
+      bind = SUPER_CTRL, 9, focusworkspaceoncurrentmonitor, 9
+      bind = SUPER_CTRL, 0, focusworkspaceoncurrentmonitor, 10
 
-      bind = SUPER_CTRL, 1, workspace, 1
-      bind = SUPER_CTRL, 2, workspace, 2
-      bind = SUPER_CTRL, 3, workspace, 3
-      bind = SUPER_CTRL, 4, workspace, 4
-      bind = SUPER_CTRL, 5, workspace, 5
-      bind = SUPER_CTRL, 6, workspace, 6
-      bind = SUPER_CTRL, 7, workspace, 7
-      bind = SUPER_CTRL, 8, workspace, 8
-      bind = SUPER_CTRL, 9, workspace, 9
-      bind = SUPER_CTRL, 0, workspace, 10
-
-      bind = SUPER_CTRL, F1, workspace, 11
-      bind = SUPER_CTRL, F2, workspace, 12
-      bind = SUPER_CTRL, F3, workspace, 13
-
-      bind = SUPER, comma, focusmonitor, -1
-      bind = SUPER, period, focusmonitor, +1
-
-      bind = SUPER_SHIFT, comma, movecurrentworkspacetomonitor, -1
-      bind = SUPER_SHIFT, period, movecurrentworkspacetomonitor, +1
-
-      bind = SUPER_ALT, 1, focusworkspaceoncurrentmonitor, 1
-      bind = SUPER_ALT, 2, focusworkspaceoncurrentmonitor, 2
-      bind = SUPER_ALT, 3, focusworkspaceoncurrentmonitor, 3
-      bind = SUPER_ALT, 4, focusworkspaceoncurrentmonitor, 4
-      bind = SUPER_ALT, 5, focusworkspaceoncurrentmonitor, 5
-      bind = SUPER_ALT, 6, focusworkspaceoncurrentmonitor, 6
-      bind = SUPER_ALT, 7, focusworkspaceoncurrentmonitor, 7
-      bind = SUPER_ALT, 8, focusworkspaceoncurrentmonitor, 8
-      bind = SUPER_ALT, 9, focusworkspaceoncurrentmonitor, 9
-      bind = SUPER_ALT, 0, focusworkspaceoncurrentmonitor, 10
+      # Monitor switching - arrow keys for intuitive nav
+      bind = SUPER, left, focusmonitor, -1
+      bind = SUPER, right, focusmonitor, +1
+      bind = SUPER_CTRL, left, swapactiveworkspaces, current -1
+      bind = SUPER_CTRL, right, swapactiveworkspaces, current +1
 
       bindel = , XF86AudioRaiseVolume, exec, volume up
       bindel = , XF86AudioLowerVolume, exec, volume down

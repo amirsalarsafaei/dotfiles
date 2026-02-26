@@ -6,26 +6,38 @@ return {
   config = function()
     require("minuet").setup({
       provider = "openai_compatible",
+      request_timeout = 30,
+      throttle = 100,
+      debounce = 100,
+      context_window = 1024,
+      after_cursor_filter_length = 10,
+      add_single_line_entry = true,
+      n_completions = 2,
       blink = {
         enable_auto_complete = true,
       },
       provider_options = {
         openai_compatible = {
-          api_key = "NONE",
+          api_key = function() return "ollama" end,
           end_point = "http://127.0.0.1:11434/v1/chat/completions",
           model = "danielsheep/Qwen3-Coder-30B-A3B-Instruct-1M-Unsloth:UD-IQ3_XXS",
           name = "Ollama",
           optional = {
-            max_tokens = 256,
+            max_tokens = 200,
+            temperature = 0.3,
             top_p = 0.9,
+            top_k = 40,
           },
         },
       },
       virtualtext = {
-        auto_trigger_ft = {},
+        auto_trigger_ft = { "python", "lua", "go", "rust", "typescript", "javascript", "c", "cpp", "java", "bash", "sh", "json", "yaml", "vim" },
+        auto_trigger_ignore_ft = { "markdown", "help", "text", "toggleterm" },
+        show_on_completion_menu = false,
         keymap = {
           accept = "<A-a>",
           accept_line = "<A-l>",
+          accept_n_lines = "<A-z>",
           prev = "<A-[>",
           next = "<A-]>",
           dismiss = "<A-e>",
@@ -33,46 +45,45 @@ return {
       },
     })
 
-    -- Toggle minuet virtual text on/off
-    vim.keymap.set("n", "<leader>me", function()
-      vim.cmd("Minuet virtualtext toggle")
-    end, { desc = "Toggle Minuet virtualtext" })
+    -- AI provider state tracking
+    local ai_state = {
+      current = "copilot",
+    }
 
-    -- Toggle minuet blink source on/off
-    vim.keymap.set("n", "<leader>mb", function()
-      vim.cmd("Minuet blink toggle")
-    end, { desc = "Toggle Minuet in blink" })
+    vim.schedule(function()
+      local map = vim.keymap.set
 
-    -- Switch to local (Ollama)
-    vim.keymap.set("n", "<leader>ml", function()
-      require("minuet").change_provider("openai_compatible")
-      vim.notify("Minuet: Switched to Local (Ollama)", vim.log.levels.INFO)
-    end, { desc = "Minuet: Local provider" })
-
-    -- Show current provider
-    vim.keymap.set("n", "<leader>ms", function()
-      local provider = require("minuet.config").config.provider
-      vim.notify("Minuet provider: " .. provider, vim.log.levels.INFO)
-    end, { desc = "Minuet: Show provider" })
-
-    -- Toggle blink.cmp source between minuet (Ollama) and copilot
-    vim.keymap.set("n", "<leader>mo", function()
-      local blink = require("blink.cmp")
-      local sources = blink.config.sources.default
-      local has_minuet = vim.tbl_contains(sources, "minuet")
-      local has_copilot = vim.tbl_contains(sources, "copilot")
-
-      if has_minuet and not has_copilot then
-        for i, v in ipairs(sources) do
-          if v == "minuet" then sources[i] = "copilot" break end
+      map("n", "<leader>mo", function()
+        local blink = require("blink.cmp")
+        if not (blink.config and blink.config.sources and blink.config.sources.default) then
+          return
         end
-        vim.notify("Switched to Copilot", vim.log.levels.INFO)
-      else
-        for i, v in ipairs(sources) do
-          if v == "copilot" then sources[i] = "minuet" break end
+
+        local sources = blink.config.sources.default
+        if ai_state.current == "copilot" then
+          for i, v in ipairs(sources) do
+            if v == "copilot" then
+              sources[i] = "minuet"
+              ai_state.current = "ollama"
+              vim.notify("AI: Ollama", vim.log.levels.INFO)
+              break
+            end
+          end
+        else
+          for i, v in ipairs(sources) do
+            if v == "minuet" then
+              sources[i] = "copilot"
+              ai_state.current = "copilot"
+              vim.notify("AI: Copilot", vim.log.levels.INFO)
+              break
+            end
+          end
         end
-        vim.notify("Switched to Ollama (minuet)", vim.log.levels.INFO)
-      end
-    end, { desc = "Toggle Ollama/Copilot source" })
+      end, { desc = "Toggle AI provider" })
+
+      map("n", "<leader>ms", function()
+        vim.notify("AI: " .. (ai_state.current == "copilot" and "Copilot" or "Ollama"), vim.log.levels.INFO)
+      end, { desc = "Show AI provider" })
+    end)
   end,
 }
