@@ -12,7 +12,6 @@ let
     powerManagement.finegrained = false;
     open = true;
     nvidiaSettings = true;
-    package = config.boot.kernelPackages.nvidiaPackages.production;
     prime = {
       sync.enable = true;
       amdgpuBusId = "PCI:101:0:0";

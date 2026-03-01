@@ -46,6 +46,9 @@
       if [ -f "$HOME/.jetbrains.vmoptions.sh" ]; then
         source "$HOME/.jetbrains.vmoptions.sh"
       fi
+
+      # Enable completions for cmake and make (NixOS)
+      autoload -Uz compinit && compinit -C
     '';
   };
 

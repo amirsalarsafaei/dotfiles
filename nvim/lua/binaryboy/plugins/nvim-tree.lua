@@ -19,6 +19,7 @@ return {
 		},
 		filters = {
 			dotfiles = false,
+			git_ignored = false,
 			custom = { "^.git$", "^node_modules$", "^__pycache__$", "^\\.DS_Store$" },
 		},
 		git = {

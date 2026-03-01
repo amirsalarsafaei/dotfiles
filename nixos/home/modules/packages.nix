@@ -73,7 +73,6 @@ in
         pkgs.bazelisk
         pkgs.amp-cli
         pkgs.pnpm
-        pkgs.turbo-unwrapped
         pkgs.lazygit
         pkgs.argocd
         pkgs.argocd-vault-plugin
