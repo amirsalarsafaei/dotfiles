@@ -97,12 +97,17 @@ let
   ];
 in
 {
-  imports = [ ./hardware-configuration.nix ];
+  imports = [
+    ./hardware-configuration.nix
+    ./virtual-services.nix
+    ../../modules/laptop.nix
+  ];
+
+  isLaptop = true;
 
   # ASUS/ROG
   services.asusd = {
     enable = true;
-    enableUserService = true;
   };
   services.supergfxd.enable = true;
   systemd.services.supergfxd.path = [ pkgs.pciutils ];
@@ -147,13 +152,19 @@ in
 
   # Apps
   programs.firefox.enable = true;
-  services.open-webui.enable = true;
+
   services.ollama = {
     enable = true;
     loadModels = ollamaModels;
     package = pkgs.ollama-cuda;
-    openFirewall = true;
-    host = "[::]";
+  };
+
+  services.open-webui = {
+    enable = true;
+    environment = {
+      OLLAMA_API_BASE_URL = "http://127.0.0.1:11434";
+      OFFLINE_MODE = "true";
+    };
   };
 
   environment.systemPackages = systemPkgs;
@@ -183,8 +194,7 @@ in
     boot.blacklistedKernelModules = blacklistNvidia;
     boot.extraModprobeConfig = lib.concatMapStringsSep "\n" (m: "blacklist ${m}") blacklistNvidia;
 
-    # 60Hz for power saving
-    custom.hyprland.monitorConfig = "eDP-1,2880x1800@60,0x0,1.6";
+    hyprland.monitorConfig = "eDP-1,2880x1800@60,0x0,1.6";
 
     # Power management
     services.power-profiles-daemon.enable = lib.mkForce false;

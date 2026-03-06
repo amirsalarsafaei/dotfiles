@@ -5,13 +5,16 @@
   ...
 }:
 let
-  monitorConfig = osConfig.custom.hyprland.monitorConfig or ",preferred,auto,auto";
+  monitorConfig = osConfig.hyprland.monitorConfig or ",preferred,auto,auto";
 in
 {
   wayland.windowManager.hyprland = {
     enable = true;
     systemd.enable = false;
-    package = pkgs.hyprland;
+    # Use null to defer to the NixOS module's packages, avoiding duplicate
+    # portal services between NixOS and Home Manager
+    package = null;
+    portalPackage = null;
     extraConfig = ''
       # Hyprland Configuration
 

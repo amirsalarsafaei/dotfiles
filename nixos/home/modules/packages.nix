@@ -209,6 +209,10 @@ in
 
       # Network Tools
       networkTools = [
+        pkgs.dhcpcd
+        pkgs.rustscan
+        pkgs.arp-scan
+        pkgs.nftables
         pkgs.nethogs
         pkgs.mtr
         pkgs.wireshark
@@ -296,6 +300,7 @@ in
 
       # Miscellaneous
       miscTools = [
+        pkgs.htop
         pkgs.parted
         pkgs.tparted
         pkgs.openvpn
@@ -313,6 +318,7 @@ in
         pkgs.age
         pkgs.openvpn3
         pkgs.code-cursor-fhs
+        pkgs.lm_sensors
       ];
 
       # Platform-specific packages

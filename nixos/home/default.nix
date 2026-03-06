@@ -81,7 +81,7 @@
 
   sops = {
     secrets.ssh_config = {
-      path = "${config.home.homeDirectory}/.ssh/config";
+      path = "${config.home.homeDirectory}/.ssh/config.d/sops";
     };
   };
 

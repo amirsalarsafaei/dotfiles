@@ -8,10 +8,18 @@
   ...
 }:
 {
-  options.custom.hyprland.monitorConfig = lib.mkOption {
-    type = lib.types.str;
-    default = ",preferred,auto,auto";
-    description = "Hyprland monitor configuration string";
+  options = {
+    hyprland.monitorConfig = lib.mkOption {
+      type = lib.types.str;
+      default = ",preferred,auto,auto";
+      description = "Hyprland monitor configuration string";
+    };
+
+    isLaptop = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Enable laptop-specific configuration";
+    };
   };
 
   imports = [
@@ -41,7 +49,7 @@
       ];
     };
 
-    networking.hostName = "amirsalar"; # Define your hostname.
+    networking.hostName = hostname; # Define your hostname.
     networking.hosts = {
       # "216.239.38.120"= [
       #    "google.com"
@@ -76,20 +84,27 @@
         enable = true;
         wifi = {
           backend = "iwd";
-          powersave = false;
+          powersave = true;
         };
         plugins = with pkgs; [
           networkmanager-fortisslvpn
           networkmanager-openconnect
           networkmanager-openvpn
         ];
+        dns = "systemd-resolved";
+        settings = {
+          logging = {
+            level = "TRACE";
+            domains = "ALL";
+          };
+        };
       };
       wireless.enable = false;
       wireless.iwd = {
         enable = true;
         settings = {
           General = {
-            EnableNetworkConfiguration = true;
+            EnableNetworkConfiguration = false;
           };
           Network = {
             ConnectTimeout = 60;
@@ -129,6 +144,21 @@
       ];
     };
 
+    services.avahi = {
+      enable = true;
+      nssmdns4 = true;
+      nssmdns6 = true;
+      openFirewall = true;
+      publish = {
+        enable = true;
+        addresses = true;
+        domain = true;
+        hinfo = true;
+        userServices = true;
+        workstation = true;
+      };
+    };
+
     services.xserver.xkb.layout = "us,ir";
     services.xserver.xkb.options = "grp:win_space_toggle";
 
@@ -154,15 +184,20 @@
     users.users.amirsalar = {
       isNormalUser = true;
       extraGroups = [
-        "wheel"
-        "input"
-        "sudo"
-        "docker"
-        "video"
-        "kvm"
-        "adbuser"
-        "audio"
-        "networkmanager"
+        "wheel" # sudo access
+        "input" # input devices
+        "sudo" # sudo
+        "docker" # docker access
+        "video" # GPU/graphics access
+        "kvm" # KVM virtualization
+        "adbuser" # Android Debug Bridge
+        "audio" # audio device access
+        "networkmanager" # network configuration
+        "dialout" # serial port access (ttyS*, ttyUSB*, etc.)
+        "disk" # direct disk access
+        "render" # GPU rendering without root
+        "libvirt" # libvirt virtualization
+        "podman" # podman container access
       ];
       packages = with pkgs; [
         firefox
@@ -200,15 +235,18 @@
       enableGlobalCompInit = false;
     };
 
-    networking.firewall = {
-      enable = true;
-      allowedTCPPorts = [
-        22     # SSH
-      ];
-      allowedUDPPorts = [
-        5353   # mDNS for service discovery
-      ];
-      checkReversePath = "loose";
+    networking = {
+      firewall = {
+        enable = true;
+        allowedTCPPorts = [ ];
+        allowedUDPPorts = [
+          5353
+        ];
+        checkReversePath = "loose";
+        logRefusedConnections = true;
+        logRefusedPackets = true;
+      };
+      nftables.enable = true;
     };
 
     nixpkgs.config.allowUnfree = true;
@@ -251,10 +289,10 @@
 
     xdg.portal = {
       enable = true;
+      # xdg-desktop-portal-hyprland is already added by programs.hyprland.portalPackage
+      # xdg-desktop-portal (base) is already added by xdg.portal.enable
       extraPortals = [
-        pkgs.xdg-desktop-portal
         pkgs.xdg-desktop-portal-gtk
-        pkgs.xdg-desktop-portal-hyprland
       ];
       xdgOpenUsePortal = true;
       config = {
@@ -271,7 +309,6 @@
           "org.freedesktop.impl.portal.OpenURI" = [ "hyprland" ];
         };
       };
-
     };
 
     virtualisation.docker = {
@@ -354,7 +391,6 @@
       pkgs.gcr
       pkgs.gnome-keyring
     ];
-    services.dbus.enable = true;
 
     services.prometheus = {
       enable = true;

@@ -12,7 +12,11 @@
   imports = [
     # Include the results of the hardware scan.
     ./hardware-configuration.nix
+    # Laptop configuration
+    ../../modules/laptop.nix
   ];
+
+  isLaptop = true;
 
   # Use the systemd-boot EFI boot loader.
   boot = {
@@ -52,8 +56,6 @@
     coreutils-full
     libimobiledevice
     ifuse
-    xdg-desktop-portal
-    xdg-desktop-portal-gtk
     (sddm-astronaut.override {
       embeddedTheme = "japanese_aesthetic";
     })
@@ -88,14 +90,8 @@
     "flakes"
   ];
 
-  systemd.services.nix-daemon.environment.TMPDIR = "/data/nix-build-tmp";
-
-  # For user nix commands
-  environment.variables.TMPDIR = "/data/nix-build-tmp";
-
   services.udev.extraRules = ''
     SUBSYSTEM=="backlight", ACTION=="add", RUN+="${pkgs.coreutils-full}/bin/chmod 666 /sys/class/backlight/apple-panel-bl/brightness", RUN+="${pkgs.coreutils-full}/bin/chmod 666 /sys/class/leds/kbd_backlight/brightness"
   '';
 
-  services.logind.settings.Login.HandleLidSwitch = "suspend";
 }
