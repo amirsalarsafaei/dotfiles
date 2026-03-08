@@ -294,7 +294,6 @@
       extraPortals = [
         pkgs.xdg-desktop-portal-gtk
       ];
-      xdgOpenUsePortal = true;
       config = {
         common = {
           default = [ "gtk" ];
@@ -306,7 +305,6 @@
             "gtk"
           ];
           "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
-          "org.freedesktop.impl.portal.OpenURI" = [ "hyprland" ];
         };
       };
     };

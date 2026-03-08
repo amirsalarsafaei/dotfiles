@@ -94,6 +94,7 @@ in
         pkgs.goimports-reviser
         pkgs.golangci-lint-langserver
         pkgs.gotestsum
+        pkgs.sqlc
 
         # Rust
         pkgs.rustfmt # Rust formatter
