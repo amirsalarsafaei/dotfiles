@@ -7,21 +7,13 @@
   ...
 }:
 {
-  # Remove the hardcoded username - let it be set by the caller
-  # home.username is automatically set by home-manager based on the user key
 
-  # Use mkDefault to allow override, and handle homeDir properly
   home.homeDirectory = lib.mkDefault (
     if homeDir != null then homeDir else "/home/${config.home.username}"
   );
 
   home.stateVersion = "24.11"; # Please read the comment before changing.
 
-  # The home.packages option allows you to install Nix packages into your
-  # environment.
-
-  # Home Manager is pretty good at managing dotfiles. The primary way to manage
-  # plain files is through 'home.file'.
   home.file = {
     ".gitconfig-work".text = ''
             [user]

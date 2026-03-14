@@ -13,13 +13,14 @@ in
     systemd.enable = false;
     # Use null to defer to the NixOS module's packages, avoiding duplicate
     # portal services between NixOS and Home Manager
-    package = null;
-    portalPackage = null;
+    package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
+    plugins = [
+      inputs.split-monitor-workspaces.packages.${pkgs.stdenv.hostPlatform.system}.split-monitor-workspaces
+      inputs.hyprland-plugins.packages.${pkgs.stdenv.hostPlatform.system}.hyprexpo
+    ];
     extraConfig = ''
-      # Hyprland Configuration
-
-      $terminal = ghostty
-      $fileManager = dolphin
+      $terminal = uwsm app -- ghostty
+      $fileManager = uwsm app -- dolphin
       $menu = rofi -show drun -run-command 'uwsm app -- {cmd}'
       $clipboard = rofi-cliphist-paste
 
@@ -29,6 +30,26 @@ in
 
       # Monitor configuration
       monitor = ${monitorConfig}
+
+      # ── Plugins ────────────────────────────────────────────────
+      plugin = hyprexpo
+      plugin = split-monitor-workspaces
+
+      plugin {
+          hyprexpo {
+              columns = 3
+              gap_size = 5
+              bg_col = rgba(111111ff)
+              workspace_method = center current   # center | first | last | number
+
+          }
+
+          split-monitor-workspaces {
+              count = 5              # workspaces per monitor
+              keep_focused = 0       # keep focus on current monitor when switching
+              enable_notifications = 0
+          }
+      }
 
       general {
           gaps_in = 5
@@ -82,10 +103,10 @@ in
 
       input {
           kb_layout = us,ir
-          kb_options = grp:win_space_toggle
+          kb_options = grp:alt_shift_toggle
           follow_mouse = 0
           sensitivity = 0
-          
+
           touchpad {
               natural_scroll = false
           }
@@ -101,13 +122,16 @@ in
 
       bind = SUPER, RETURN, exec, $terminal
       bind = SUPER, w, killactive
-      bind = SUPER, x, exec, hyprlock
+      bind = SUPER, x, exec, loginctl lock-session
       bind = SUPER_SHIFT, Q, exit
-      bind = SUPER_SHIFT, f, togglefloating
+      # bind = SUPER_SHIFT, f, togglefloating
       bind = SUPER, f, fullscreen, 1
-      bind = CTRL, SPACE, exec, $menu
+      bind = SUPER_SHIFT, F, fullscreen, 0
+      bind = SUPER, SPACE, exec, $menu
       bind = SUPER, P, pseudo
-      bind = SUPER, t, togglesplit
+
+      # hyprexpo overview toggle
+      bind = SUPER, grave, hyprexpo:expo, toggle   # SUPER + ` to open/close overview
 
       bind = SUPER, h, movefocus, l
       bind = SUPER, l, movefocus, r
@@ -162,36 +186,26 @@ in
       bind = SUPER, R, submap, reset
       submap = reset
 
-      # Workspace navigation - per monitor (clean model)
-      # These work on current monitor context
-      bind = SUPER, 1, workspace, 1
-      bind = SUPER, 2, workspace, 2
-      bind = SUPER, 3, workspace, 3
-      bind = SUPER, 4, workspace, 4
-      bind = SUPER, 5, workspace, 5
-      bind = SUPER, 6, workspace, 6
-      bind = SUPER, 7, workspace, 7
-      bind = SUPER, 8, workspace, 8
-      bind = SUPER, 9, workspace, 9
-      bind = SUPER, 0, workspace, 10
+      # ── Workspace navigation (split-monitor-workspaces) ────────
+      # These now operate per-monitor thanks to the plugin
+      bind = SUPER, 1, split-workspace, 1
+      bind = SUPER, 2, split-workspace, 2
+      bind = SUPER, 3, split-workspace, 3
+      bind = SUPER, 4, split-workspace, 4
+      bind = SUPER, 5, split-workspace, 5
 
-      # Move window to workspace
-      bind = SUPER_SHIFT, 1, movetoworkspace, 1
-      bind = SUPER_SHIFT, 2, movetoworkspace, 2
-      bind = SUPER_SHIFT, 3, movetoworkspace, 3
-      bind = SUPER_SHIFT, 4, movetoworkspace, 4
-      bind = SUPER_SHIFT, 5, movetoworkspace, 5
-      bind = SUPER_SHIFT, 6, movetoworkspace, 6
-      bind = SUPER_SHIFT, 7, movetoworkspace, 7
-      bind = SUPER_SHIFT, 8, movetoworkspace, 8
-      bind = SUPER_SHIFT, 9, movetoworkspace, 9
-      bind = SUPER_SHIFT, 0, movetoworkspace, 10
+      # Move window to workspace (per-monitor)
+      bind = SUPER_SHIFT, 1, split-movetoworkspace, 1
+      bind = SUPER_SHIFT, 2, split-movetoworkspace, 2
+      bind = SUPER_SHIFT, 3, split-movetoworkspace, 3
+      bind = SUPER_SHIFT, 4, split-movetoworkspace, 4
+      bind = SUPER_SHIFT, 5, split-movetoworkspace, 5
 
       # Workspace cycling
-      bind = SUPER_CTRL, n, workspace, e+1
-      bind = SUPER_CTRL, p, workspace, e-1
-      bind = SUPER, mouse_down, workspace, e+1
-      bind = SUPER, mouse_up, workspace, e-1
+      bind = SUPER_CTRL, n, split-workspace, e+1
+      bind = SUPER_CTRL, p, split-workspace, e-1
+      bind = SUPER, mouse_down, split-workspace, e+1
+      bind = SUPER, mouse_up, split-workspace, e-1
 
       # Special workspace (scratchpad)
       bind = SUPER, S, togglespecialworkspace, magic
@@ -202,29 +216,12 @@ in
       bind = SUPER_SHIFT, v, exec, rofi-cliphist-delete
       bind = SUPER_CTRL, v, exec, cliphist-clear
 
-      # Monitor-focused workspace switching (SUPER_CTRL reserved for this)
-      # Jump to workspace 1-5 on left monitor
-      bind = SUPER_CTRL, 1, focusworkspaceoncurrentmonitor, 1
-      bind = SUPER_CTRL, 2, focusworkspaceoncurrentmonitor, 2
-      bind = SUPER_CTRL, 3, focusworkspaceoncurrentmonitor, 3
-      bind = SUPER_CTRL, 4, focusworkspaceoncurrentmonitor, 4
-      bind = SUPER_CTRL, 5, focusworkspaceoncurrentmonitor, 5
-      # Extended workspaces
-      bind = SUPER_CTRL, 6, focusworkspaceoncurrentmonitor, 6
-      bind = SUPER_CTRL, 7, focusworkspaceoncurrentmonitor, 7
-      bind = SUPER_CTRL, 8, focusworkspaceoncurrentmonitor, 8
-      bind = SUPER_CTRL, 9, focusworkspaceoncurrentmonitor, 9
-      bind = SUPER_CTRL, 0, focusworkspaceoncurrentmonitor, 10
-
-      # Monitor switching - arrow keys for intuitive nav
       bind = SUPER, left, focusmonitor, -1
       bind = SUPER, right, focusmonitor, +1
       bind = SUPER_CTRL, left, swapactiveworkspaces, current -1
       bind = SUPER_CTRL, right, swapactiveworkspaces, current +1
 
       bindel = , XF86AudioRaiseVolume, exec, volume up
-      bindel = , XF86AudioLowerVolume, exec, volume down
-      bindel = , XF86AudioMute, exec, volume mute
       bindel = , XF86AudioMicMute, exec, wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
       bindel = , XF86MonBrightnessUp, exec, brightness up
       bindel = , XF86MonBrightnessDown, exec, brightness down
@@ -244,14 +241,6 @@ in
       xwayland {
           force_zero_scaling = true
       }
-
-      # windowrule = suppressevent maximize, match:class:.*
-      # windowrule = opacity 1.0 override 1.0 override, match:class:^(vlc|firefox|chromium-browser|jetbrains-.*)$
-      # windowrule = bordercolor rgba(87ceebee) rgba(87ceebee), match:class:^(jetbrains-.*)$
-      # windowrule = animation none, match:class:^(jetbrains-.*)$
-      # windowrule = nofocus, match:class:^jetbrains-(?!toolbox), floating:1, title:^win\d+$
-      # windowrule = float, match:class:^(jetbrains-.*)$, title:^(win[0-9]+)$
-      # windowrule = nofocus, match:class:^(jetbrains-.*)$, title:^(win[0-9]+)$
 
     '';
   };

@@ -10,12 +10,16 @@
       listener = [
         {
           timeout = 500;
-          on-timeout = "hyprlock";
+          on-timeout = "loginctl lock-session";
+        }
+        {
+          timeout = 600;
+          on-timeout = "hyprctl dispatch dpms off";
+          on-resume = "hyprctl dispatch dpms on && pidof hyprlock || hyprlock";
         }
         {
           timeout = 1200;
-          on-timeout = "hyprctl dispatch dpms off";
-          on-resume = "hyprctl dispatch dpms on";
+          on-timeout = "systemctl suspend";
         }
       ];
     };

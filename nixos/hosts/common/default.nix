@@ -23,7 +23,7 @@
   };
 
   imports = [
-    # hyprland.nixosModules.default causes git build issues in v0.53.3
+    inputs.hyprland.nixosModules.default
     # Using nixpkgs hyprland instead
   ];
 
@@ -160,7 +160,7 @@
     };
 
     services.xserver.xkb.layout = "us,ir";
-    services.xserver.xkb.options = "grp:win_space_toggle";
+    services.xserver.xkb.options = "grp:alt_shift_toggle";
 
     services.pipewire = {
       enable = true;
@@ -444,5 +444,10 @@
     services.pcscd.enable = true;
 
     services.udev.packages = [ pkgs.yubikey-personalization ];
+
+    nix.settings.trusted-users = [
+      "root"
+      "@wheel"
+    ];
   };
 }

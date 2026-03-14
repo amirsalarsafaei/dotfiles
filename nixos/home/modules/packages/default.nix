@@ -3,10 +3,10 @@
   pkgs,
   currentHostname,
   currentSystem,
+  secrets,
   ...
 }:
 let
-  pkgsStable = inputs.nixpkgs-stable.legacyPackages.${pkgs.stdenv.hostPlatform.system};
   argonaut = inputs.argonaut.packages.${pkgs.stdenv.hostPlatform.system}.default;
   luaPackages = pkgs.lua.withPackages (
     ps: with ps; [
@@ -36,6 +36,16 @@ let
       pyarrow
     ]
   );
+  gapClaudeCode = pkgs.symlinkJoin {
+    name = "gap-claude-code";
+    paths = [ pkgs.claude-code ];
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+    postBuild = ''
+      wrapProgram $out/bin/claude \
+        --set ANTHROPIC_API_KEY "${secrets.gapgpt.apiKey}" \
+        --set ANTHROPIC_BASE_URL "https://api.gapgpt.app/"
+    '';
+  };
 in
 {
   home.packages =
@@ -77,6 +87,8 @@ in
         pkgs.argocd
         pkgs.argocd-vault-plugin
         pkgs.step-cli
+        gapClaudeCode
+        pkgs.gapcode
       ];
 
       # Language Servers, Formatters, Linters, and Debuggers
@@ -96,9 +108,7 @@ in
         pkgs.gotestsum
         pkgs.sqlc
 
-        # Rust
         pkgs.rustfmt # Rust formatter
-        # pkgs.clippy                # Rust linter
 
         pkgs.rust-analyzer # Rust LSP
         pkgs.cargo
@@ -157,7 +167,7 @@ in
         pkgs.nodePackages.prettier # Formatter for many languages
         pkgs.efm-langserver # General purpose LSP
         pkgs.shellcheck # Shell script linter
-
+        pkgs.copilot-language-server
       ];
 
       # Terminal and Shell
@@ -315,11 +325,18 @@ in
         pkgs.obs-studio
         pkgs.aichat
         pkgs.vimPlugins.telescope-fzf-native-nvim
+        pkgs.television
         pkgs.openvpn
         pkgs.age
         pkgs.openvpn3
         pkgs.code-cursor-fhs
         pkgs.lm_sensors
+      ];
+
+      nixTools = with pkgs; [
+        nurl
+        nix-init
+        nix-search-tv
       ];
 
       # Platform-specific packages
@@ -349,6 +366,7 @@ in
     ++ securityTools
     ++ fonts
     ++ miscTools
+    ++ nixTools
     ++ platformSpecific
     ++ g14Specific;
 }

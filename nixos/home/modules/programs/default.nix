@@ -15,4 +15,6 @@
     ./distrobox.nix
     ./zoxide.nix
   ];
+
+  programs.nix-search-tv.enableTelevisionIntegration = true;
 }

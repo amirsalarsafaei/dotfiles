@@ -1,6 +1,7 @@
 {
   imports = [
-    ./packages.nix
+    ./dev-environment.nix
+    ./packages
     ./programs
     ./services
     ./shell

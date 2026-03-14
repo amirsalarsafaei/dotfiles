@@ -64,6 +64,19 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    hyprland.url = "github:hyprwm/Hyprland/8685fd7b";
+    split-monitor-workspaces = {
+      url = "github:zjeffer/split-monitor-workspaces";
+      inputs.hyprland.follows = "hyprland";
+    };
+    hyprland-plugins = {
+      url = "github:hyprwm/hyprland-plugins";
+      inputs.hyprland.follows = "hyprland";
+    };
+
+    claude-code.url = "github:sadjow/claude-code-nix";
+
+    gapcode.url = "path:../gapcode";
   };
 
   outputs =
@@ -73,6 +86,7 @@
       home-manager,
       apple-silicon-support,
       sops-nix,
+      claude-code,
       ...
     }@inputs:
     let
@@ -97,7 +111,10 @@
           android_sdk.accept_license = true;
           allowUnfree = true;
         };
-        overlays = import ./overlays { inherit nixpkgs-stable system; };
+        overlays = import ./overlays { inherit nixpkgs-stable system; } ++ [
+          claude-code.overlays.default
+          inputs.gapcode.overlays.default
+        ];
       };
 
       # Host definitions with multi-user support
@@ -125,7 +142,6 @@
         };
       };
 
-      # Helper function to normalize users to always be a list
       normalizeUsers =
         hostConfig:
         if hostConfig ? users then
@@ -135,7 +151,6 @@
         else
           throw "Host configuration must have either 'users' or 'username' field";
 
-      # Build NixOS configuration with multi-user home-manager support
       mkNixOS =
         {
           hostname,
@@ -214,7 +229,6 @@
       nixosHosts = lib.filterAttrs (_: hostConfig: hostConfig.type == "nixos") allHosts;
       homeManagerHosts = lib.filterAttrs (_: hostConfig: hostConfig.type == "home-manager") allHosts;
 
-      # Generate home-manager configurations for standalone hosts
       standaloneHomeConfigs = lib.flatten (
         lib.mapAttrsToList (
           hostname: hostConfig:
@@ -245,7 +259,6 @@
         )
       ) nixosHosts;
 
-      # Standalone home-manager configurations
       homeConfigurations = builtins.listToAttrs standaloneHomeConfigs;
     };
 }

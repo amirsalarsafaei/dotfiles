@@ -7,7 +7,7 @@
   # compress it, and store the backup SQL in /root/backups inside this machine. #
   ######################################################################
   systemd.user.services."vps-dbbackup" = {
-    Unit.Description = ''Backup the VPS Postgres Database to local system'';
+    Unit.Description = "Backup the VPS Postgres Database to local system";
     Install.WantedBy = [ "multi-user.target" ];
     Service = {
       Type = "oneshot";
@@ -15,7 +15,7 @@
         export BACKUP_DIR="${homeDir}/backups"
         mkdir -p "$BACKUP_DIR"
 
-        ssh vps "pg_dump -U amirsalarsafaeicom amirsalarsafaeicom" \
+        ssh finRoot "pg_dump -U amirsalarsafaeicom amirsalarsafaeicom" \
           | gzip > "$BACKUP_DIR/vps-dbbackup-$(date '+%Y-%m-%d_%H-%M-%S').sql.gz"
       ''}";
     };

@@ -74,9 +74,18 @@
         box-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
       }
 
+      #workspaces button.visible {
+        background-color: rgba(205, 214, 244, 0.3);
+        color: #cdd6f4;
+      }
+
       #workspaces button.urgent {
         background-color: #eba0ac; /* Soft Red */
         color: #11111b;
+      }
+
+      #workspaces button.empty {
+        color: #45475a;
       }
 
       /* -----------------------------------------------------------------------------
@@ -204,17 +213,17 @@
 
         # -- Modules --
         "hyprland/workspaces" = {
-          disable-scroll = true;
-          all-outputs = true;
           format = "{icon}";
           format-icons = {
-            "1" = "1";
-            "2" = "2";
-            "3" = "3";
-            "4" = "4";
-            "5" = "5";
-            "default" = "";
+            urgent = "";
+            active = "";
+            visible = "";
+            default = "";
+            empty = "";
           };
+          on-scroll-up = "hyprctl dispatch split-cycleworkspaces -1";
+          on-scroll-down = "hyprctl dispatch split-cycleworkspaces +1";
+          all-outputs = false;
         };
 
         "hyprland/window" = {
