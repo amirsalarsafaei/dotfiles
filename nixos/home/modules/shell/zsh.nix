@@ -1,4 +1,4 @@
-{ pkgs, inputs, config, ... }: {
+{ pkgs, inputs, config, lib, ... }: {
   programs.zsh = {
     enable = true;
     dotDir = "${config.xdg.configHome}/zsh";
@@ -7,6 +7,13 @@
       plugins = ["git" "kubectl" "docker" "golang" "docker-compose" "git-prompt" "encode64" "command-not-found" "aliases" "history" "argocd"];
     };
 
+    history = {
+      size = 100000;
+      save = 100000;
+      extended = true;
+      ignoreDups = true;
+      share = true;
+    };
 
     plugins = [
      {
@@ -27,12 +34,8 @@
         src = inputs.zsh-autosuggestions;
       }
       {
-        name = "zsh-autocomplete";
-        src = inputs.zsh-autocomplete;
-      }
-      {
-        name = "zsh-vi-mode";
-        src = inputs.zsh-vi-mode;
+        name = "fzf-tab";
+        src = inputs.fzf-tab;
       }
     ];
 
@@ -47,8 +50,35 @@
         source "$HOME/.jetbrains.vmoptions.sh"
       fi
 
-      # Enable completions for cmake and make (NixOS)
       autoload -Uz compinit && compinit -C
+
+      # ── fzf-tab config ────────────────────────────────────────────────────
+      # preview directory contents on cd completion
+      zstyle ':fzf-tab:complete:cd:*' fzf-preview 'ls --color=always $realpath'
+      # use fzf for all completions
+      zstyle ':completion:*' menu no
+      # show group descriptions
+      zstyle ':fzf-tab:*' fzf-flags --height=50% --layout=reverse --border
+
+      # ── Up/Down arrows: history prefix search ────────────────────────────
+      autoload -Uz up-line-or-beginning-search down-line-or-beginning-search
+      zle -N up-line-or-beginning-search
+      zle -N down-line-or-beginning-search
+      bindkey '^[[A' up-line-or-beginning-search
+      bindkey '^[OA'  up-line-or-beginning-search
+      bindkey '^[[B' down-line-or-beginning-search
+      bindkey '^[OB'  down-line-or-beginning-search
+
+      # ── Edit current command line in neovim (Ctrl-E) ─────────────────────
+      autoload -Uz edit-command-line
+      zle -N edit-command-line
+      bindkey '^G' edit-command-line
+
+      # ── zsh-autosuggestions config ─────────────────────────────────────────
+      # Accept suggestion with Ctrl-Space or right arrow
+      bindkey '^ ' autosuggest-accept
+      ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+      ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
     '';
   };
 

@@ -13,4 +13,11 @@ in
   home.sessionVariables = {
     PKG_CONFIG_PATH = lib.makeSearchPath "lib/pkgconfig" (map (p: p.dev) devLibs);
   };
+  home.file.".config/clangd/config.yaml".text = ''
+    CompileFlags:
+      Add:
+        - "-I${pkgs.glibc.dev}/include"
+        - "-I${pkgs.gcc}/include"
+      Compiler: ${pkgs.gcc}/bin/gcc
+  '';
 }

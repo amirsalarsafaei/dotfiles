@@ -2,4 +2,5 @@
 { nixpkgs-stable, system }:
 [
   (import ./stable-packages.nix nixpkgs-stable system)
+  (import ./gapcode.nix)
 ]

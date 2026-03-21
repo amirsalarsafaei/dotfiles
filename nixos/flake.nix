@@ -34,18 +34,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    zsh-autocomplete = {
-      url = "github:marlonrichert/zsh-autocomplete";
+    fzf-tab = {
+      url = "github:Aloxaf/fzf-tab";
       flake = false;
     };
 
     zsh-autosuggestions = {
       url = "github:zsh-users/zsh-autosuggestions";
-      flake = false;
-    };
-
-    zsh-vi-mode = {
-      url = "github:jeffreytse/zsh-vi-mode";
       flake = false;
     };
 
@@ -75,8 +70,6 @@
     };
 
     claude-code.url = "github:sadjow/claude-code-nix";
-
-    gapcode.url = "path:../gapcode";
   };
 
   outputs =
@@ -113,7 +106,6 @@
         };
         overlays = import ./overlays { inherit nixpkgs-stable system; } ++ [
           claude-code.overlays.default
-          inputs.gapcode.overlays.default
         ];
       };
 

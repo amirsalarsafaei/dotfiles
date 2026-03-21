@@ -253,10 +253,25 @@
     programs.nix-ld.enable = true;
     programs.dconf.enable = true;
 
-    nix.extraOptions = ''
-      extra-substituters = https://devenv.cachix.org
-      extra-trusted-public-keys = devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw= nixpkgs-python.cachix.org-1:hxjI7pFxTyuTHn2NkvWCrAUcNZLNS3ZAvfYNuYifcEU=
-    '';
+    nix.settings = {
+      extra-substituters = [
+        "https://devenv.cachix.org"
+      ];
+      extra-trusted-public-keys = [
+        "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw="
+        "nixpkgs-python.cachix.org-1:hxjI7pFxTyuTHn2NkvWCrAUcNZLNS3ZAvfYNuYifcEU="
+      ];
+      keep-outputs = true;
+      keep-derivations = true;
+      fallback = true;
+      tarball-ttl = 2419200;
+      min-free = 1073741824;
+      max-free = 5368709120;
+      trusted-users = [
+        "root"
+        "@wheel"
+      ];
+    };
 
     services.blueman.enable = true;
     hardware.keyboard.qmk.enable = true;
@@ -270,8 +285,8 @@
       serviceConfig = {
         Type = "oneshot";
         ExecStart = "${pkgs.writeShellScript "nix-cleanup" ''
-          ${pkgs.nix}/bin/nix-env --delete-generations +5 --profile /nix/var/nix/profiles/system
-          ${pkgs.nix}/bin/nix-collect-garbage
+          ${pkgs.nix}/bin/nix-env --delete-generations 30d --profile /nix/var/nix/profiles/system
+          ${pkgs.nix}/bin/nix-collect-garbage --delete-older-than 30d
         ''}";
       };
     };
@@ -443,11 +458,10 @@
 
     services.pcscd.enable = true;
 
-    services.udev.packages = [ pkgs.yubikey-personalization ];
-
-    nix.settings.trusted-users = [
-      "root"
-      "@wheel"
+    services.udev.packages = [
+      pkgs.yubikey-personalization
+      pkgs.platformio-core.udev
     ];
+
   };
 }
