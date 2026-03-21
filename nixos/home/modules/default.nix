@@ -1,5 +1,6 @@
 {
   imports = [
+    ./neovim.nix
     ./dev-environment.nix
     ./packages
     ./programs

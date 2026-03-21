@@ -185,7 +185,7 @@ in
         pkgs.tmuxinator
 
         # Terminal Editors
-        pkgs.neovim
+        # neovim is managed by custom.neovim module
       ];
 
       # CLI Tools

@@ -1,5 +1,8 @@
+local hostconfig = require("binaryboy.core.hostconfig")
+
 return {
 	"zbirenbaum/copilot.lua",
+	enabled = hostconfig.ai,
 	event = "InsertEnter",
 	config = function()
 		require("copilot").setup({

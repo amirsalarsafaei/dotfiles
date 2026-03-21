@@ -1,13 +1,42 @@
+local hostconfig = require("binaryboy.core.hostconfig")
+
+local deps = {
+	"rafamadriz/friendly-snippets",
+	"folke/lazydev.nvim",
+}
+
+local sources_default = { "lazydev", "lsp", "path", "buffer", "snippets" }
+local source_providers = {
+	lazydev = {
+		name = "LazyDev",
+		module = "lazydev.integrations.blink",
+		score_offset = 100,
+	},
+}
+
+if hostconfig.ai then
+	table.insert(deps, "giuxtaposition/blink-cmp-copilot")
+	table.insert(deps, "milanglacier/minuet-ai.nvim")
+	table.insert(sources_default, "minuet")
+	source_providers.copilot = {
+		name = "copilot",
+		module = "blink-cmp-copilot",
+		score_offset = 90,
+		async = true,
+	}
+	source_providers.minuet = {
+		name = "minuet",
+		module = "minuet.blink",
+		score_offset = 80,
+		async = true,
+	}
+end
+
 return {
 	"saghen/blink.cmp",
 	version = "1.*",
 	event = "InsertEnter",
-	dependencies = {
-		"rafamadriz/friendly-snippets",
-		"folke/lazydev.nvim",
-		"giuxtaposition/blink-cmp-copilot",
-		"milanglacier/minuet-ai.nvim",
-	},
+	dependencies = deps,
 	opts = {
 		keymap = {
 			preset = "default",
@@ -53,29 +82,11 @@ return {
 		},
 
 		sources = {
-			default = { "lazydev", "lsp", "path", "buffer", "minuet", "snippets" },
+			default = sources_default,
 			per_filetype = {
 				toggleterm = { "buffer", "path" },
 			},
-			providers = {
-				lazydev = {
-					name = "LazyDev",
-					module = "lazydev.integrations.blink",
-					score_offset = 100,
-				},
-				copilot = {
-					name = "copilot",
-					module = "blink-cmp-copilot",
-					score_offset = 90,
-					async = true,
-				},
-				minuet = {
-					name = "minuet",
-					module = "minuet.blink",
-					score_offset = 80,
-					async = true,
-				},
-			},
+			providers = source_providers,
 		},
 
 		completion = {

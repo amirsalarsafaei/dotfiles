@@ -1,5 +1,8 @@
+local hostconfig = require("binaryboy.core.hostconfig")
+
 return {
   "wakatime/vim-wakatime",
+  enabled = hostconfig.wakatime,
   lazy = false,
   config = function()
     -- Only enable wakatime if API key is set

@@ -1,5 +1,8 @@
+local hostconfig = require("binaryboy.core.hostconfig")
+
 return {
   "yetone/avante.nvim",
+  enabled = hostconfig.ai,
   event = "VeryLazy",
   lazy = false,
   version = false, -- set this if you want to always pull the latest change

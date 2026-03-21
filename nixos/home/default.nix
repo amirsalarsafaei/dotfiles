@@ -44,10 +44,6 @@
       source = config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/personal/dotfiles/tmuxinator";
       recursive = true;
     };
-    "nvim" = {
-      source = config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/personal/dotfiles/nvim";
-      recursive = true;
-    };
     "yamllint/config".text = ''
       extends: relaxed
     '';
@@ -76,6 +72,8 @@
       path = "${config.home.homeDirectory}/.ssh/config.d/sops";
     };
   };
+
+  custom.neovim.enable = true;
 
   imports = [
     ./modules
