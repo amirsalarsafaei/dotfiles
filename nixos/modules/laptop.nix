@@ -2,7 +2,7 @@
 
 lib.mkIf config.isLaptop {
   services.logind.settings = {
-    Login.HandleLidSwitch = "ignore";
+    Login.HandleLidSwitch = "suspend";
     Login.HandleLidSwitchExternalPower = "ignore";
     Login.HandlePowerKey = "ignore";
   };

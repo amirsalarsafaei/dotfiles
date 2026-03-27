@@ -1,15 +1,24 @@
+{ config, ... }:
+let
+  t = config.theme;
+  hexByteToInt = byte: (builtins.fromTOML "value = 0x${byte}").value;
+  hexToRgb = hex:
+    let
+      r = hexByteToInt (builtins.substring 1 2 hex);
+      g = hexByteToInt (builtins.substring 3 2 hex);
+      b = hexByteToInt (builtins.substring 5 2 hex);
+    in
+    "${toString r}, ${toString g}, ${toString b}";
+  rgba = hex: a: "rgba(${hexToRgb hex}, ${toString a})";
+in
 {
   programs.waybar = {
     enable = true;
     systemd.enable = true;
     style = ''
-      /* =============================================================================
-       * CLASSY DARK GLASS THEME - REFINED
-       * =========================================================================== */
-
       * {
         font-family: 'JetBrains Mono Nerd Font', 'Font Awesome 6 Free', sans-serif;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 600;
         min-height: 0;
         border: none;
@@ -18,147 +27,142 @@
 
       window#waybar {
         background: transparent;
-        /* No global background, allows transparency */
+        color: ${t.fg};
       }
 
       tooltip {
-        background: #11111b;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: ${rgba t.glassStrong 0.95};
+        border: 1px solid ${rgba t.glassBorder 0.4};
         border-radius: 10px;
       }
       tooltip label {
-        color: #cdd6f4;
+        color: ${t.fgBright};
       }
 
-      /* -----------------------------------------------------------------------------
-       * Module Islands (The "Pills")
-       * -------------------------------------------------------------------------- */
       .modules-left, .modules-right {
-        background-color: rgba(17, 17, 27, 0.90); /* Deep matte black/grey */
-        border: 1px solid rgba(255, 255, 255, 0.08); /* Very subtle border */
-        border-radius: 20px; /* Fully rounded pill shape */
-        padding: 4px 10px;
-        margin-top: 6px; 
+        background: ${rgba t.glassStrong 0.82};
+        border: 1px solid ${rgba t.glassBorder 0.28};
+        border-radius: 12px;
+        padding: 3px 8px;
+        margin-top: 6px;
+        box-shadow: 0 6px 18px ${rgba t.shadow 0.35};
       }
 
-      .modules-left {
-        margin-left: 12px;
+      .modules-left { margin-left: 10px; }
+      .modules-right { margin-right: 10px; }
+
+      #workspaces {
+        margin-right: 6px;
       }
 
-      .modules-right {
-        margin-right: 12px;
-      }
-
-      /* -----------------------------------------------------------------------------
-       * Workspaces
-       * -------------------------------------------------------------------------- */
       #workspaces button {
-        padding: 0 10px;
-        margin: 0 2px;
+        padding: 0 8px;
+        margin: 0 1px;
         background-color: transparent;
-        color: #6c7086; /* Muted grey for inactive */
-        border-radius: 15px;
-        transition: all 0.3s ease;
+        color: ${t.muted};
+        border-radius: 8px;
+        transition: all 0.2s ease;
       }
 
       #workspaces button:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: #ffffff;
+        background: ${rgba t.surface 0.5};
+        color: ${t.fgBright};
       }
 
       #workspaces button.active {
-        background-color: #cdd6f4; /* Bright White/Silver */
-        color: #11111b; /* Dark text */
-        font-weight: bold;
-        min-width: 20px;
-        box-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+        background-color: ${rgba t.accent 0.24};
+        border: 1px solid ${rgba t.accent 0.72};
+        color: ${t.fgBright};
+        font-weight: 700;
+        min-width: 18px;
       }
 
       #workspaces button.visible {
-        background-color: rgba(205, 214, 244, 0.3);
-        color: #cdd6f4;
+        background-color: ${rgba t.accentAlt 0.16};
+        color: ${t.fgBright};
       }
 
       #workspaces button.urgent {
-        background-color: #eba0ac; /* Soft Red */
-        color: #11111b;
+        background-color: ${t.urgent};
+        color: ${t.bgDark};
       }
 
       #workspaces button.empty {
-        color: #45475a;
+        color: ${t.surface1};
       }
 
-      /* -----------------------------------------------------------------------------
-       * Individual Modules - RESET COLORS
-       * This section ensures we override the "rainbow" colors from the screenshot
-       * -------------------------------------------------------------------------- */
-
-      #clock, #network, #wireplumber, #tray, #hyprland-language, #hardware, #custom-power {
-        background-color: transparent; /* IMPORTANT: Removes the blue/green/pink boxes */
-        color: #cdd6f4; /* Unified text color */
-        padding: 0 10px;
-        margin: 0;
+      #clock, #network, #wireplumber, #tray,
+      #hyprland-language, #hardware, #custom-power,
+      #cpu, #memory, #temperature, #battery {
+        background-color: transparent;
+        color: ${t.fg};
+        padding: 0 8px;
+        margin: 0 1px;
+        border-radius: 8px;
+        transition: all 0.2s ease;
       }
-
-      /* Specific Tweaks for visual hierarchy */
 
       #clock {
         font-weight: 800;
-        color: #ffffff;
-        margin-right: 4px;
+        color: ${t.fgBright};
+        background-color: ${rgba t.surface 0.24};
+      }
+
+      #clock:hover,
+      #network:hover,
+      #wireplumber:hover,
+      #custom-power:hover {
+        background-color: ${rgba t.surface 0.34};
       }
 
       #network {
-        color: #a6adc8;
+        color: ${t.subtle};
       }
+      #network.disconnected { color: ${t.urgent}; }
 
-      #network.disconnected {
-        color: #f38ba8;
-      }
+      #wireplumber         { color: ${t.fg}; }
+      #wireplumber.muted   { color: ${t.muted}; }
 
-      #wireplumber {
-        color: #cdd6f4;
-      }
-
-      #wireplumber.muted {
-        color: #9399b2;
-      }
-
-      /* -----------------------------------------------------------------------------
-       * Hardware Group
-       * -------------------------------------------------------------------------- */
       #hardware {
-        /* Optional: a subtle background for the hardware stats specifically */
-        background-color: rgba(255, 255, 255, 0.05); 
+        background-color: ${rgba t.surface 0.14};
+        border: 1px solid ${rgba t.glassBorder 0.22};
         border-radius: 10px;
-        padding: 2px 8px;
-        margin: 0 8px;
+        padding: 0 4px;
+        margin: 0 6px;
       }
 
       #cpu, #memory, #temperature, #battery {
-        background-color: transparent;
-        padding: 0 6px;
-        color: #bac2de;
+        padding: 0 7px;
+        color: ${t.subtext1};
       }
 
-      #battery.charging, #battery.plugged {
-        color: #a6e3a1; /* Green hint when charging */
+      #temperature.critical,
+      #battery.warning:not(.charging) {
+        color: ${t.warning};
       }
+
+      #battery.charging, #battery.plugged { color: ${t.ok}; }
 
       #battery.critical:not(.charging) {
-        color: #f38ba8;
+        color: ${t.urgent};
         animation-name: blink;
         animation-duration: 0.5s;
         animation-iteration-count: infinite;
       }
 
       @keyframes blink {
-        to { color: #ffffff; }
+        to { color: ${t.fgBright}; }
+      }
+
+      #custom-power {
+        color: ${t.accent};
+        font-size: 14px;
+        padding: 0 7px;
       }
 
       #hyprland-window {
-        color: #a6adc8; /* Subtext color */
-        padding: 0 15px;
+        color: ${t.subtle};
+        padding: 0 10px;
         font-weight: 500;
       }
     '';
@@ -167,21 +171,13 @@
       mainBar = {
         layer = "top";
         position = "top";
-        height = 40; # Slightly taller for elegance
-        spacing = 0;
+        height = 34;
+        spacing = 4;
         margin-top = 0;
         margin-bottom = 0;
 
-        # --- LEFT SIDE ---
-        modules-left = [
-          "hyprland/workspaces"
-          "hyprland/window"
-        ];
-
-        # --- CENTER ---
-        modules-center = [ ];
-
-        # --- RIGHT SIDE ---
+        modules-left = [ "hyprland/workspaces" "hyprland/window" ];
+        modules-center = [];
         modules-right = [
           "clock"
           "network"
@@ -189,35 +185,28 @@
           "group/hardware"
           "hyprland/language"
           "tray"
+          "custom/power"
         ];
 
-        # -- Network --
         network = {
           interval = 2;
-          # Simplified format for cleaner look
-          format-wifi = "   {essid}";
-          format-ethernet = "󰈀  Ethernet";
-          format-disconnected = "  Offline";
+          format-wifi = "  {essid}";
+          format-ethernet = "󰈀  LAN";
+          format-disconnected = "󰖪  Offline";
           tooltip-format = "IP: {ipaddr}\nDOWN: {bandwidthDownBytes} | UP: {bandwidthUpBytes}";
         };
 
-        # -- Hardware Group --
         "group/hardware" = {
           orientation = "horizontal";
-          modules = [
-            "cpu"
-            "memory"
-            "battery"
-          ];
+          modules = [ "cpu" "memory" "temperature" "battery" ];
         };
 
-        # -- Modules --
         "hyprland/workspaces" = {
           format = "{icon}";
           format-icons = {
             urgent = "";
             active = "";
-            visible = "";
+            visible = "󰮯";
             default = "";
             empty = "";
           };
@@ -227,28 +216,28 @@
         };
 
         "hyprland/window" = {
-          max-length = 40;
+          max-length = 48;
           separate-outputs = true;
         };
 
         clock = {
-          format = "{:%H:%M}";
+          format = "󰅐 {:%H:%M}";
           tooltip-format = "<tt><small>{calendar}</small></tt>";
           calendar = {
             mode = "year";
             mode-mon-col = 3;
             format = {
-              months = "<span color='#ffffff'><b>{}</b></span>";
-              days = "<span color='#cdd6f4'><b>{}</b></span>";
-              weekdays = "<span color='#89b4fa'><b>{}</b></span>";
-              today = "<span color='#f38ba8'><b><u>{}</u></b></span>";
+              months = "<span color='${t.fgBright}'><b>{}</b></span>";
+              days = "<span color='${t.fg}'><b>{}</b></span>";
+              weekdays = "<span color='${t.accent}'><b>{}</b></span>";
+              today = "<span color='${t.urgent}'><b><u>{}</u></b></span>";
             };
           };
         };
 
         wireplumber = {
-          format = "{icon} {volume}%";
-          format-muted = " Muted";
+          format = "{icon}  {volume}%";
+          format-muted = "󰝟  Muted";
           on-click = "pavucontrol";
           format-icons = [
             ""
@@ -259,40 +248,55 @@
 
         cpu = {
           interval = 5;
-          format = " {usage}%";
+          format = "  {usage}%";
         };
 
         memory = {
           interval = 5;
-          format = " {percentage}%";
+          format = "  {percentage}%";
+        };
+
+        temperature = {
+          critical-threshold = 80;
+          format = "{icon} {temperatureC}°C";
+          format-icons = [
+            ""
+            ""
+            ""
+          ];
         };
 
         battery = {
-          states = {
-            warning = 30;
-            critical = 15;
-          };
+          states = { warning = 30; critical = 15; };
           format = "{icon} {capacity}%";
-          format-charging = " {capacity}%";
-          format-plugged = " {capacity}%";
+          format-charging = "󱐋 {capacity}%";
+          format-plugged = "󰚥 {capacity}%";
           format-icons = [
-            ""
-            ""
-            ""
-            ""
-            ""
+            "󰂎"
+            "󰁻"
+            "󰁽"
+            "󰁿"
+            "󰂁"
           ];
         };
 
         "hyprland/language" = {
-          format = " {}";
+          format = "󰌌 {}";
           format-en = "EN";
           format-fa = "FA";
         };
 
         tray = {
-          icon-size = 18;
-          spacing = 10;
+          icon-size = 15;
+          spacing = 6;
+        };
+
+        "custom/power" = {
+          format = "";
+          tooltip = true;
+          tooltip-format = "Lock with click · Suspend with right click";
+          on-click = "loginctl lock-session";
+          on-click-right = "systemctl suspend";
         };
       };
     };

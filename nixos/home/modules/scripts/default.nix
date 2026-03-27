@@ -51,17 +51,32 @@
 
     (writeShellScriptBin "brightness" ''
       #!/usr/bin/env bash
-      case $1 in
-      	up)
-      	brightnessctl set +10%
-      	;;
-      	down)
-      	brightnessctl set 10%-
-      	;;
+      DEVICES=$(brightnessctl -l -m | awk -F',' '$2 == "backlight" {print $1}')
+
+      case "$1" in
+        up)
+          SET="+10%"
+          ;;
+        down)
+          SET="10%-"
+          ;;
+        *)
+          echo "Usage: brightness {up|down}"
+          exit 1
+          ;;
       esac
 
-      current=$(brightnessctl -m | cut -d',' -f4 | tr -d '%')
-      notify-send -h int:value:$current "Brightness"
+      for DEV in $DEVICES; do
+        brightnessctl -d "$DEV" set "$SET" > /dev/null
+      done
+
+      FIRST_DEV=$(echo "$DEVICES" | head -n 1)
+
+      if [ -n "$FIRST_DEV" ]; then
+        current=$(brightnessctl -d "$FIRST_DEV" -m | cut -d',' -f4 | tr -d '%')
+        
+        notify-send -h string:x-canonical-private-synchronous:brightness -h int:value:"$current" "Brightness: $current%"
+      fi
     '')
 
     (writeShellScriptBin "kbdbacklight" ''
@@ -86,5 +101,16 @@
       current=$(brightnessctl -d "$KBD_DEV" -m | cut -d',' -f4 | tr -d '%')
       notify-send -h int:value:$current "Keyboard Backlight"
     '')
+    (writeShellScriptBin "hypr-lid-close" ''
+      #!/usr/bin/env bash
+      hyprctl dispatch dpms off eDP-1
+    '')
+
+    (writeShellScriptBin "hypr-lid-open" ''
+      #!/usr/bin/env bash
+      # Re-enable eDP-1 with its last known preferred mode
+      hyprctl keyword monitor "eDP-1, preferred, auto, auto"
+    '')
+
   ];
 }

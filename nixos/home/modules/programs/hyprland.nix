@@ -2,10 +2,13 @@
   inputs,
   pkgs,
   osConfig,
+  config,
   ...
 }:
 let
   monitorConfig = osConfig.hyprland.monitorConfig or ",preferred,auto,auto";
+  t = config.theme;
+  hex = c: builtins.substring 1 (builtins.stringLength c - 1) c;
 in
 {
   wayland.windowManager.hyprland = {
@@ -22,7 +25,7 @@ in
       $terminal = uwsm app -- ghostty
       $fileManager = uwsm app -- dolphin
       $menu = rofi -show drun -run-command 'uwsm app -- {cmd}'
-      $clipboard = rofi-cliphist-paste
+      $clipboard = rofi-cliphist
 
       env = XCURSOR_SIZE,24
       env = HYPRCURSOR_SIZE,24
@@ -39,7 +42,7 @@ in
           hyprexpo {
               columns = 3
               gap_size = 5
-              bg_col = rgba(111111ff)
+              bg_col = rgba(${hex t.crust}ff)
               workspace_method = center current   # center | first | last | number
 
           }
@@ -52,11 +55,11 @@ in
       }
 
       general {
-          gaps_in = 5
-          gaps_out = 10
+          gaps_in = 4
+          gaps_out = 12
           border_size = 2
-          col.active_border = rgba(4a90e2ee) rgba(6bb6ffee) 45deg
-          col.inactive_border = rgba(b0c4debb)
+          col.active_border = rgba(${hex t.accent}ff) rgba(${hex t.accentAlt}ff) 35deg
+          col.inactive_border = rgba(${hex t.surface}80)
           resize_on_border = false
           allow_tearing = false
           layout = dwindle
@@ -65,26 +68,38 @@ in
       gesture = 3, horizontal, workspace
 
       decoration {
-          rounding = 5
-          active_opacity = 1.0
-          inactive_opacity = 1
+          rounding = 10
+          active_opacity = 0.94
+          inactive_opacity = 0.86
+          fullscreen_opacity = 1.0
+          dim_inactive = true
+          dim_strength = 0.10
 
           blur {
               enabled = true
-              size = 4
+              size = 8
               passes = 2
+              new_optimizations = true
+              xray = false
               special = true
-              vibrancy = 0.15
+              vibrancy = 0.14
+          }
+
+          shadow {
+              enabled = true
+              range = 18
+              render_power = 3
+              color = rgba(${hex t.shadow}66)
           }
       }
 
       animations {
           enabled = true
-          animation = windows, 1, 4, default
-          animation = windowsOut, 1, 4, default, popin 90%
-          animation = border, 1, 6, default
+          animation = windows, 1, 4, default, popin 85%
+          animation = windowsOut, 1, 3, default, popin 88%
+          animation = border, 1, 8, default
           animation = fade, 1, 4, default
-          animation = workspaces, 1, 4, default
+          animation = workspaces, 1, 5, default
       }
 
       dwindle {
@@ -98,7 +113,8 @@ in
 
       misc {
           force_default_wallpaper = -1
-          disable_hyprland_logo = false
+          disable_hyprland_logo = true
+          disable_splash_rendering = true
       }
 
       input {
@@ -213,8 +229,9 @@ in
 
       # Clipboard
       bind = SUPER, v, exec, $clipboard
-      bind = SUPER_SHIFT, v, exec, rofi-cliphist-delete
-      bind = SUPER_CTRL, v, exec, cliphist-clear
+      bind = SUPER, y, exec, rofi-cliphist-copy
+      bind = SUPER, d, exec, rofi-cliphist-delete
+      bind = SUPER_SHIFT, d, exec, cliphist-clear
 
       bind = SUPER, left, focusmonitor, -1
       bind = SUPER, right, focusmonitor, +1
@@ -222,7 +239,8 @@ in
       bind = SUPER_CTRL, right, swapactiveworkspaces, current +1
 
       bindel = , XF86AudioRaiseVolume, exec, volume up
-      bindel = , XF86AudioMicMute, exec, wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+      bindel = , XF86AudioLowerVolume, exec, volume down
+      bindel = , XF86AudioMute, exec, volume mute
       bindel = , XF86MonBrightnessUp, exec, brightness up
       bindel = , XF86MonBrightnessDown, exec, brightness down
       bindel = , XF86LaunchA, exec, kbdbacklight down
@@ -237,6 +255,10 @@ in
       bindel = SHIFT, XF86Print, exec, grim - | wl-copy
       bindel = SHIFT_ALT, F3, exec, grim - | wl-copy
       bindel = SHIFT_ALT, F4, exec, grim -g "$(slurp)" - | wl-copy
+
+      # ── Lid switch ─────────────────────────────────────────────
+      bindl = , switch:on:Lid Switch, exec, hypr-lid-close
+      bindl = , switch:off:Lid Switch, exec, hypr-lid-open
 
       xwayland {
           force_zero_scaling = true

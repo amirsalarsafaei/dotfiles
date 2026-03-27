@@ -69,6 +69,18 @@ autocmd("FileType", {
 
 autocmd("FileType", {
   group = filetype,
+  desc = "4-space indent for C/C++",
+  pattern = { "c", "cpp", "objc", "objcpp", "cuda" },
+  callback = function()
+    vim.opt_local.shiftwidth = 4
+    vim.opt_local.tabstop = 4
+    vim.opt_local.expandtab = true
+    vim.opt_local.cinoptions = ":0,l1,g0,N-s,E-s,(0,w1,Ws"
+  end,
+})
+
+autocmd("FileType", {
+  group = filetype,
   desc = "Enable wrap for prose",
   pattern = { "markdown", "text", "gitcommit" },
   callback = function()

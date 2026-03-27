@@ -1,12 +1,16 @@
-{ config, lib, pkgs, ... }:
+{ config, pkgs, ... }:
+let
+  t = config.theme;
+in
 {
   programs.rofi = {
     enable = true;
-    font = "JetBrainsMono Nerd Font 12";
-    terminal = "${pkgs.wezterm}/bin/wezterm";
+    package = pkgs.rofi;
+    font = "JetBrainsMono Nerd Font 11";
+    terminal = "${pkgs.ghostty}/bin/ghostty";
     theme = "catppuccin-mocha";
     extraConfig = {
-      modi = "run,drun,ssh,window,filebrowser,clipboard:${pkgs.cliphist}/bin/cliphist list";
+      modi = "run,drun,ssh,window,filebrowser";
       icon-theme = "Papirus-Dark";
       show-icons = true;
       drun-display-format = "{icon} {name}";
@@ -14,149 +18,158 @@
       hide-scrollbar = true;
       window-format = "{w} · {c} · {t}";
 
-      # Display Settings
       display-drun = "󰣆 Apps";
       display-ssh = "󰣀 SSH";
       display-window = "󱂬 Windows";
       display-filebrowser = "󰉋 Files";
-      display-clipboard = "󰅌 Clipboard";
 
-      # Behavior
-      sidebar-mode = true;
       sort = true;
       sorting-method = "fzf";
+      matching = "fuzzy";
       case-sensitive = false;
       cycle = true;
-      hover-select = true;
+      hover-select = false;
       eh = 1;
       auto-select = false;
+      click-to-exit = true;
 
-      # Appearance
       lines = 8;
-      columns = 2;
+      columns = 1;
       fullscreen = false;
       show-match = true;
-      separator-style = "solid";
+      separator-style = "none";
+      sidebar-mode = false;
 
-      # Menu navigation
       "kb-mode-next" = "Alt+l";
       "kb-mode-previous" = "Alt+h";
-      # List navigation
       "kb-row-up" = "Up,Alt+k";
       "kb-row-down" = "Down,Alt+j";
     };
-
   };
 
-  # Ensure the Catppuccin theme is available
   xdg.configFile."rofi/catppuccin-mocha.rasi".text = ''
     * {
-      bg-col: #1e1e2e;
-      bg-col-light: #313244;
-      border-col: #89b4fa;
-      selected-col: #313244;
-      blue: #89b4fa;
-      fg-col: #cdd6f4;
-      fg-col2: #f38ba8;
-      grey: #6c7086;
+      bg-col: ${t.glassStrong}f2;
+      bg-col-light: ${t.surface}52;
+      bg-col-lighter: ${t.surface}75;
+      border-col: ${t.glassBorder}80;
+      selected-col: ${t.accent}2f;
+      selected-border: ${t.accent}b8;
+      blue: ${t.accent};
+      blue-alt: ${t.accentAlt};
+      fg-col: ${t.fg};
+      fg-col2: ${t.fgBright};
+      grey: ${t.muted};
+      urgent: ${t.urgent};
     }
 
-    element-text, element-icon , mode-switcher {
+    element-text, element-icon, mode-switcher {
       background-color: inherit;
       text-color: inherit;
     }
 
     window {
-      height: 500px;
-      border: 3px;
+      transparency: "real";
+      location: center;
+      anchor: center;
+      width: 42%;
+      border: 1px;
       border-color: @border-col;
       background-color: @bg-col;
-      border-radius: 8px;
+      border-radius: 14px;
     }
 
     mainbox {
-      background-color: @bg-col;
+      spacing: 12px;
+      padding: 14px;
+      background-color: transparent;
     }
 
     inputbar {
-      children: [prompt,entry];
-      background-color: @bg-col;
-      border-radius: 5px;
-      padding: 2px;
+      children: [prompt, entry];
+      border: 1px;
+      border-color: @border-col;
+      background-color: @bg-col-light;
+      border-radius: 10px;
+      padding: 9px 12px;
     }
 
     prompt {
-      background-color: @blue;
-      padding: 6px;
-      text-color: @bg-col;
-      border-radius: 3px;
-      margin: 20px 0px 0px 20px;
+      background-color: transparent;
+      text-color: @blue;
+      font: "JetBrainsMono Nerd Font Bold 11";
+      margin: 0px 10px 0px 0px;
+      padding: 0px;
     }
 
     textbox-prompt-colon {
       expand: false;
-      str: ":";
+      str: " ::";
     }
 
     entry {
-      padding: 6px;
-      margin: 20px 0px 0px 10px;
+      placeholder: "Search apps, files, windows...";
       text-color: @fg-col;
-      background-color: @bg-col;
+      background-color: transparent;
+      padding: 0px;
     }
 
     listview {
-      border: 0px 0px 0px;
-      padding: 6px 0px 0px;
-      margin: 10px 0px 0px 20px;
-      columns: 2;
-      lines: 5;
-      background-color: @bg-col;
+      border: 0px;
+      spacing: 6px;
+      scrollbar: false;
+      lines: 8;
+      columns: 1;
+      dynamic: true;
+      background-color: transparent;
     }
 
     element {
-      padding: 5px;
-      background-color: @bg-col;
+      padding: 9px 11px;
+      border-radius: 9px;
+      background-color: transparent;
       text-color: @fg-col;
     }
 
-    element-icon {
-      size: 25px;
-    }
+    element-icon { size: 22px; }
 
     element selected {
       background-color: @selected-col;
+      border: 1px;
+      border-color: @selected-border;
       text-color: @fg-col2;
     }
 
     mode-switcher {
-      spacing: 0;
+      spacing: 6px;
+      background-color: transparent;
     }
 
     button {
-      padding: 10px;
-      background-color: @bg-col-light;
+      padding: 7px 10px;
+      border-radius: 9px;
+      border: 1px;
+      border-color: transparent;
+      background-color: @bg-col-lighter;
       text-color: @grey;
-      vertical-align: 0.5; 
+      vertical-align: 0.5;
       horizontal-align: 0.5;
     }
 
     button selected {
-      background-color: @bg-col;
-      text-color: @blue;
+      background-color: @selected-col;
+      border-color: @selected-border;
+      text-color: @fg-col2;
     }
 
     message {
       background-color: @bg-col-light;
-      margin: 2px;
-      padding: 2px;
-      border-radius: 5px;
+      border-radius: 9px;
+      padding: 9px;
     }
 
     textbox {
-      padding: 6px;
-      margin: 20px 0px 0px 20px;
-      text-color: @blue;
+      text-color: @blue-alt;
       background-color: @bg-col-light;
     }
   '';

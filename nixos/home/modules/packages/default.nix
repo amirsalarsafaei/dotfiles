@@ -311,6 +311,8 @@ in
 
       # Miscellaneous
       miscTools = [
+        pkgs.esphome
+        pkgs.hyperion-ng
         pkgs.htop
         pkgs.parted
         pkgs.tparted

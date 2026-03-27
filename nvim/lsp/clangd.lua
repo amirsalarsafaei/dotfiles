@@ -3,6 +3,7 @@ return {
     "clangd",
     "--background-index",
     "--clang-tidy",
+    "--fallback-style={BasedOnStyle: LLVM, IndentWidth: 4, UseTab: Never}",
     -- Nix store toolchains (ESP-IDF Xtensa/RISC-V)
     "--query-driver="
     .. "/nix/store/*/bin/xtensa-*,"

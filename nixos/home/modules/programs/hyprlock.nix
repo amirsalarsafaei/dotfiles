@@ -1,7 +1,7 @@
-{pkgs, ...}:
+{ pkgs, config, ... }:
 let
-  # Import the default hyprlock style
-  styleConfig = import ./hyprlock/styles/default.nix { inherit pkgs; };
+  t = config.theme;
+  styleConfig = import ./hyprlock/styles/default.nix { inherit pkgs t; };
 in
 {
   programs.hyprlock = {
