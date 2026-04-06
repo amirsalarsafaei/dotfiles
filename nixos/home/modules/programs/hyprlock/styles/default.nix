@@ -5,66 +5,62 @@ let
   # hyprlock expects colours as "rgba(r, g, b, a)" or "rgb(r,g,b)".
   # We expose Catppuccin hex via t, and build the rgba strings here.
   # Helper: hex #rrggbb → "r, g, b"
-  hexByteToInt = byte: (builtins.fromTOML "value = 0x${byte}").value;
-  hexToRgb = hex:
+  hexByteToInt = byte: (fromTOML "value = 0x${byte}").value;
+  hexToRgb =
+    hex:
     let
       r = hexByteToInt (builtins.substring 1 2 hex);
       g = hexByteToInt (builtins.substring 3 2 hex);
       b = hexByteToInt (builtins.substring 5 2 hex);
-    in "${toString r}, ${toString g}, ${toString b}";
+    in
+    "${toString r}, ${toString g}, ${toString b}";
 
   rgba = hex: a: "rgba(${hexToRgb hex}, ${a})";
 
 in
 {
   settings = {
-    general = {
-      no_fade_in         = false;
-      grace              = 1200;
-      disable_loading_bar = true;
-    };
-
     background = {
-      monitor          = "";
-      path             = "${hyprlock-assets}/hyprlock.png";
-      blur_passes      = 2;
-      contrast         = 0.95;
-      brightness       = 0.85;
-      vibrancy         = 0.20;
+      monitor = "";
+      path = "${hyprlock-assets}/hyprlock.png";
+      blur_passes = 2;
+      contrast = 0.95;
+      brightness = 0.85;
+      vibrancy = 0.20;
       vibrancy_darkness = 0.0;
     };
 
     input-field = {
-      monitor           = "";
-      size              = "340, 58";
+      monitor = "";
+      size = "340, 58";
       outline_thickness = 2;
-      dots_size         = 0.2;
-      dots_spacing      = 0.2;
-      dots_center       = true;
-      outer_color       = "${rgba t.accent "0.40"}";
-      inner_color       = "${rgba t.glass "0.52"}";
-      font_color        = "${rgba t.fg "0.9"}";
-      fade_on_empty     = false;
-      font_family       = "SF Pro Display Bold";
-      placeholder_text  = "<i><span foreground=\"#f7f9ff99\">🔒  Enter Password</span></i>";
-      hide_input        = false;
-      position          = "155, -210";
-      halign            = "left";
-      valign            = "center";
+      dots_size = 0.2;
+      dots_spacing = 0.2;
+      dots_center = true;
+      outer_color = "${rgba t.accent "0.40"}";
+      inner_color = "${rgba t.glass "0.52"}";
+      font_color = "${rgba t.fg "0.9"}";
+      fade_on_empty = false;
+      font_family = "SF Pro Display Bold";
+      placeholder_text = "🔒  Enter Password";
+      hide_input = false;
+      position = "155, -210";
+      halign = "left";
+      valign = "center";
     };
 
     shape = {
-      monitor      = "";
-      size         = "340, 58";
-      color        = "${rgba t.glassStrong "0.38"}";
-      rounding     = -1;
-      border_size  = 1;
+      monitor = "";
+      size = "340, 58";
+      color = "${rgba t.glassStrong "0.38"}";
+      rounding = -1;
+      border_size = 1;
       border_color = "${rgba t.accentAlt "0.55"}";
-      rotate       = 0;
-      xray         = false;
-      position     = "155, -132";
-      halign       = "left";
-      valign       = "center";
+      rotate = 0;
+      xray = false;
+      position = "155, -132";
+      halign = "left";
+      valign = "center";
     };
   };
 
@@ -106,10 +102,6 @@ in
         monitor =
         text =     $USER
         color = ${rgba t.fgBright "0.92"}
-        outline_thickness = 0
-        dots_size = 0.2
-        dots_spacing = 0.2
-        dots_center = true
         font_size = 16
         font_family = SF Pro Display Bold
         position = 270, -130

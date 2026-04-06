@@ -73,6 +73,7 @@ let
     # Desktop
     kdePackages.qtmultimedia
     sddm-astronaut
+    esptool
   ];
 
   tlpPowerSave = {
@@ -108,6 +109,7 @@ in
   # ASUS/ROG
   services.asusd = {
     enable = true;
+    enableUserService = true;
   };
   services.supergfxd.enable = true;
   systemd.services.supergfxd.path = [ pkgs.pciutils ];

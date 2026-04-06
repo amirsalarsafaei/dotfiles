@@ -40,6 +40,7 @@
     services.tailscale = {
       enable = true;
       authKeyFile = "/run/secrets/tailscale_key";
+      extraDaemonFlags = [ "--no-logs-no-support" ];
       extraUpFlags = [
         "--login-server"
         secrets.tailscale.loginServer

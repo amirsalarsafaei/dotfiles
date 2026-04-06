@@ -101,16 +101,6 @@
       current=$(brightnessctl -d "$KBD_DEV" -m | cut -d',' -f4 | tr -d '%')
       notify-send -h int:value:$current "Keyboard Backlight"
     '')
-    (writeShellScriptBin "hypr-lid-close" ''
-      #!/usr/bin/env bash
-      hyprctl dispatch dpms off eDP-1
-    '')
-
-    (writeShellScriptBin "hypr-lid-open" ''
-      #!/usr/bin/env bash
-      # Re-enable eDP-1 with its last known preferred mode
-      hyprctl keyword monitor "eDP-1, preferred, auto, auto"
-    '')
 
   ];
 }

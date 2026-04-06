@@ -70,6 +70,11 @@
     };
 
     claude-code.url = "github:sadjow/claude-code-nix";
+
+    system-bridge = {
+      url = "path:/home/amirsalar/personal/system-bridge";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -163,6 +168,7 @@
           };
           modules = [
             sops-nix.nixosModules.sops
+            inputs."system-bridge".nixosModules.default
             ./modules/sops.nix
             { nixpkgs = commonNixpkgsConfig system; }
             ./hosts/common/default.nix

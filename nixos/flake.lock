@@ -717,6 +717,7 @@
         "nixpkgs-stable": "nixpkgs-stable",
         "sops-nix": "sops-nix",
         "split-monitor-workspaces": "split-monitor-workspaces",
+        "system-bridge": "system-bridge",
         "zsh-autosuggestions": "zsh-autosuggestions",
         "zsh-nix-shell": "zsh-nix-shell"
       }
@@ -760,6 +761,23 @@
         "owner": "zjeffer",
         "repo": "split-monitor-workspaces",
         "type": "github"
+      }
+    },
+    "system-bridge": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1775400516,
+        "narHash": "sha256-gJDBap2wd/EyvQGwGJDjh/z+8SzvSMq0MikxCtvDCQQ=",
+        "path": "/home/amirsalar/personal/system-bridge",
+        "type": "path"
+      },
+      "original": {
+        "path": "/home/amirsalar/personal/system-bridge",
+        "type": "path"
       }
     },
     "systems": {

@@ -3,59 +3,64 @@
   services.cliphist = {
     enable = true;
     # Automatically store clipboard history
-    systemdTargets = [ "graphical-session.target" ];
+    systemdTargets = [
+      "hyprland-session.target"
+      "graphical-session.target"
+    ];
   };
 
-  # Add helper scripts for cliphist integration with rofi
+  # Helper command for cliphist integration with rofi
   home.packages = [
     (pkgs.writeShellScriptBin "rofi-cliphist" ''
       #!/usr/bin/env bash
       set -euo pipefail
 
-      selected_entry="$(
-        cliphist list | rofi -dmenu -i -p "Paste from Clipboard" -theme catppuccin-mocha
-      )"
-      [ -n "$selected_entry" ] || exit 0
+      theme="catppuccin-mocha"
 
-      printf '%s' "$selected_entry" | cliphist decode | wl-copy
-      (
-        sleep 0.15
-        wtype -M ctrl -k v -m ctrl
-      ) >/dev/null 2>&1 &
-      notify-send "Clipboard" "Pasted selection"
-    '')
-    (pkgs.writeShellScriptBin "rofi-cliphist-paste" ''
-      # Compatibility wrapper
-      exec rofi-cliphist
-    '')
-    (pkgs.writeShellScriptBin "rofi-cliphist-copy" ''
-      #!/usr/bin/env bash
-      set -euo pipefail
+      pick_entry() {
+        local prompt="$1"
+        cliphist list | rofi -dmenu -i -no-custom -p "$prompt" -theme "$theme" || true
+      }
 
-      selected_entry="$(
-        cliphist list | rofi -dmenu -i -p "Copy from Clipboard" -theme catppuccin-mocha
-      )"
-      [ -n "$selected_entry" ] || exit 0
-      printf '%s' "$selected_entry" | cliphist decode | wl-copy
-      notify-send "Clipboard" "Copied to clipboard"
-    '')
-    (pkgs.writeShellScriptBin "rofi-cliphist-delete" ''
-      #!/usr/bin/env bash
-      set -euo pipefail
+      action="''${1:-paste}"
+      case "$action" in
+        paste)
+          selected_entry="$(pick_entry "Paste from Clipboard")"
+          [ -n "$selected_entry" ] || exit 0
+          printf '%s' "$selected_entry" | cliphist decode | wl-copy
 
-      selected_entry="$(
-        cliphist list | rofi -dmenu -i -p "Delete from Clipboard" -theme catppuccin-mocha
-      )"
-      [ -n "$selected_entry" ] || exit 0
-      printf '%s' "$selected_entry" | cliphist delete
-      notify-send "Clipboard" "Deleted entry"
-    '')
-    (pkgs.writeShellScriptBin "cliphist-clear" ''
-      choice="$(printf "No\nYes" | rofi -dmenu -p "Clear clipboard history?" -theme catppuccin-mocha)"
-      if [ "$choice" = "Yes" ]; then
-        cliphist wipe
-        notify-send "Clipboard" "Clipboard history cleared"
-      fi
+          (
+            sleep 0.15
+            if wtype -M ctrl -k v -m ctrl >/dev/null 2>&1; then
+              notify-send "Clipboard" "Pasted selection"
+            else
+              notify-send "Clipboard" "Copied selection (press Ctrl+V)"
+            fi
+          ) &
+          ;;
+        copy)
+          selected_entry="$(pick_entry "Copy from Clipboard")"
+          [ -n "$selected_entry" ] || exit 0
+          printf '%s' "$selected_entry" | cliphist decode | wl-copy
+          notify-send "Clipboard" "Copied to clipboard"
+          ;;
+        delete)
+          selected_entry="$(pick_entry "Delete from Clipboard")"
+          [ -n "$selected_entry" ] || exit 0
+          printf '%s' "$selected_entry" | cliphist delete
+          notify-send "Clipboard" "Deleted entry"
+          ;;
+        clear)
+          choice="$(printf "No\nYes" | rofi -dmenu -p "Clear clipboard history?" -theme "$theme" || true)"
+          [ "$choice" = "Yes" ] || exit 0
+          cliphist wipe
+          notify-send "Clipboard" "Clipboard history cleared"
+          ;;
+        *)
+          echo "Usage: rofi-cliphist [paste|copy|delete|clear]" >&2
+          exit 1
+          ;;
+      esac
     '')
   ];
 }

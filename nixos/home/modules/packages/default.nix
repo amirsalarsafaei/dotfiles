@@ -87,6 +87,7 @@ in
         pkgs.argocd
         pkgs.argocd-vault-plugin
         pkgs.step-cli
+        pkgs.bun
         gapClaudeCode
         pkgs.gapcode
       ];
@@ -275,6 +276,7 @@ in
         pkgs.syncthing
         pkgs.texstudio
         pkgs.chromium
+        pkgs.tigervnc
       ];
 
       # Wayland and Desktop Environment
@@ -311,8 +313,10 @@ in
 
       # Miscellaneous
       miscTools = [
+        pkgs.platformio-core
         pkgs.esphome
-        pkgs.hyperion-ng
+        pkgs.esptool
+        pkgs.hyperhdr
         pkgs.htop
         pkgs.parted
         pkgs.tparted
@@ -330,7 +334,6 @@ in
         pkgs.television
         pkgs.openvpn
         pkgs.age
-        pkgs.openvpn3
         pkgs.code-cursor-fhs
         pkgs.lm_sensors
       ];

@@ -14,8 +14,6 @@ in
   wayland.windowManager.hyprland = {
     enable = true;
     systemd.enable = false;
-    # Use null to defer to the NixOS module's packages, avoiding duplicate
-    # portal services between NixOS and Home Manager
     package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
     plugins = [
       inputs.split-monitor-workspaces.packages.${pkgs.stdenv.hostPlatform.system}.split-monitor-workspaces
@@ -228,10 +226,10 @@ in
       bind = SUPER_SHIFT, S, movetoworkspace, special:magic
 
       # Clipboard
-      bind = SUPER, v, exec, $clipboard
-      bind = SUPER, y, exec, rofi-cliphist-copy
-      bind = SUPER, d, exec, rofi-cliphist-delete
-      bind = SUPER_SHIFT, d, exec, cliphist-clear
+      bind = SUPER, v, exec, $clipboard paste
+      bind = SUPER, y, exec, $clipboard copy
+      bind = SUPER, d, exec, $clipboard delete
+      bind = SUPER_SHIFT, d, exec, $clipboard clear
 
       bind = SUPER, left, focusmonitor, -1
       bind = SUPER, right, focusmonitor, +1
