@@ -89,7 +89,6 @@ in
         pkgs.step-cli
         pkgs.bun
         gapClaudeCode
-        pkgs.gapcode
       ];
 
       # Language Servers, Formatters, Linters, and Debuggers
@@ -317,6 +316,7 @@ in
         pkgs.esphome
         pkgs.esptool
         pkgs.hyperhdr
+        pkgs.ledfx
         pkgs.htop
         pkgs.parted
         pkgs.tparted

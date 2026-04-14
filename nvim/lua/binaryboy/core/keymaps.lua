@@ -26,17 +26,11 @@ map("n", "<leader>sJ", "<C-w>J", { desc = "Move split down" })
 map("n", "<leader>sK", "<C-w>K", { desc = "Move split up" })
 map("n", "<leader>sL", "<C-w>L", { desc = "Move split right" })
 
-map("n", "<leader>tn", "<cmd>tabnew<CR>", { desc = "New tab" })
-map("n", "<leader>tx", "<cmd>tabclose<CR>", { desc = "Close tab" })
-map("n", "<leader>to", "<cmd>tabonly<CR>", { desc = "Close other tabs" })
-map("n", "<leader>tl", "<cmd>tabnext<CR>", { desc = "Next tab" })
-map("n", "<leader>th", "<cmd>tabprev<CR>", { desc = "Previous tab" })
-
-for i = 1, 9 do
-	map("n", "<M-" .. i .. ">", i .. "gt", { desc = "Go to tab " .. i })
-end
-map("n", "<M-t>", "<cmd>tabnew<CR>", { desc = "New tab" })
-map("n", "<M-w>", "<cmd>tabclose<CR>", { desc = "Close tab" })
+map("n", "<leader>tn", "<cmd>tabnew<CR>", { desc = "Tab new" })
+map("n", "<leader>tc", "<cmd>tabclose<CR>", { desc = "Tab close" })
+map("n", "<leader>to", "<cmd>tabonly<CR>", { desc = "Tab only" })
+map("n", "<leader>t]", "<cmd>tabnext<CR>", { desc = "Tab next" })
+map("n", "<leader>t[", "<cmd>tabprevious<CR>", { desc = "Tab previous" })
 
 map("v", "<", "<gv", { desc = "Indent left and reselect" })
 map("v", ">", ">gv", { desc = "Indent right and reselect" })

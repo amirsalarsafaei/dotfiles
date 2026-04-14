@@ -1,27 +1,40 @@
+local hostconfig = require("binaryboy.core.hostconfig")
+
+local dependencies = {
+	"rcarriga/nvim-dap-ui",
+	"nvim-neotest/nvim-nio",
+	"leoluz/nvim-dap-go",
+	"mxsdev/nvim-dap-vscode-js",
+	"theHamsta/nvim-dap-virtual-text",
+}
+
+if hostconfig.mason then
+	table.insert(dependencies, 1, "jay-babu/mason-nvim-dap.nvim")
+	table.insert(dependencies, 1, "williamboman/mason.nvim")
+end
+
 return {
 	"mfussenegger/nvim-dap",
-	dependencies = {
-		"williamboman/mason.nvim",
-		"jay-babu/mason-nvim-dap.nvim",
-		"rcarriga/nvim-dap-ui",
-		"nvim-neotest/nvim-nio",
-		"leoluz/nvim-dap-go",
-		"mxsdev/nvim-dap-vscode-js",
-		"theHamsta/nvim-dap-virtual-text",
-	},
+	dependencies = dependencies,
 	config = function()
 		local dap = require("dap")
 		local dapui = require("dapui")
 		local dap_go = require("dap-go")
 		local dap_js = require("dap-vscode-js")
 		local dap_vt = require("nvim-dap-virtual-text")
+		local delve_path = "dlv"
+		local mason_dlv = vim.fn.stdpath("data") .. "/mason/bin/dlv"
+
+		if hostconfig.mason and vim.fn.executable(mason_dlv) == 1 then
+			delve_path = mason_dlv
+		end
 
 		dap_vt.setup({})
 
 		dap_go.setup({
 			delve = {
 				initialize_timeout_sec = 30,
-				path = vim.fn.stdpath("data") .. "/mason/bin/dlv",
+				path = delve_path,
 			},
 			dap_configurations = {
 				type = "go",

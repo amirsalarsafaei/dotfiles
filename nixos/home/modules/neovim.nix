@@ -22,6 +22,11 @@ in
         default = true;
         description = "Enable WakaTime time tracking";
       };
+      mason = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "Enable Mason-managed tooling in Neovim";
+      };
     };
   };
 
@@ -37,6 +42,7 @@ in
       return {
         ai = ${boolToLua cfg.features.ai},
         wakatime = ${boolToLua cfg.features.wakatime},
+        mason = ${boolToLua cfg.features.mason},
       }
     '';
   };

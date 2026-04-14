@@ -1,6 +1,7 @@
 local M = {
   ai = false,
   wakatime = false,
+  mason = true,
 }
 
 local xdg_config = vim.env.XDG_CONFIG_HOME or (vim.env.HOME .. "/.config")

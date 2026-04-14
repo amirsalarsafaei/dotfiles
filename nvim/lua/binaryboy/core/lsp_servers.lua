@@ -1,0 +1,51 @@
+local M = {}
+
+M.server_bins = {
+	lua_ls = { "lua-language-server" },
+	gopls = { "gopls" },
+	golangci_lint_ls = { "golangci-lint-langserver" },
+	nixd = { "nixd" },
+	pyright = { "pyright-langserver", "pyright" },
+	yamlls = { "yaml-language-server" },
+	["protobuf-language-server"] = { "protobuf-language-server" },
+	elixirls = { "elixir-ls", "elixirls" },
+	lexical = { "lexical" },
+	sqls = { "sqls" },
+	ts_ls = { "typescript-language-server" },
+	rust_analyzer = { "rust-analyzer" },
+	sourcekit = { "sourcekit-lsp" },
+	cssls = { "vscode-css-language-server" },
+	html = { "vscode-html-language-server" },
+	dockerls = { "docker-langserver" },
+	docker_compose_language_service = { "docker-compose-langserver" },
+	bashls = { "bash-language-server" },
+	clangd = { "clangd" },
+	jdtls = { "jdtls", "jdt-language-server" },
+	systemd_ls = { "systemd-language-server" },
+}
+
+M.all_servers = {
+	"lua_ls",
+	"gopls",
+	"golangci_lint_ls",
+	"nixd",
+	"pyright",
+	"yamlls",
+	"protobuf-language-server",
+	"elixirls",
+	"lexical",
+	"sqls",
+	"ts_ls",
+	"rust_analyzer",
+	"sourcekit",
+	"cssls",
+	"html",
+	"dockerls",
+	"docker_compose_language_service",
+	"bashls",
+	"clangd",
+	"jdtls",
+	"systemd_ls",
+}
+
+return M
