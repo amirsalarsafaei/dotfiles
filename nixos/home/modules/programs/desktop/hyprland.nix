@@ -14,11 +14,7 @@ in
   wayland.windowManager.hyprland = {
     enable = true;
     systemd.enable = false;
-    package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
-    plugins = [
-      inputs.split-monitor-workspaces.packages.${pkgs.stdenv.hostPlatform.system}.split-monitor-workspaces
-      inputs.hyprland-plugins.packages.${pkgs.stdenv.hostPlatform.system}.hyprexpo
-    ];
+    package = pkgs.hyprland;
     extraConfig = ''
       $terminal = uwsm app -- ghostty
       $fileManager = uwsm app -- dolphin
@@ -32,20 +28,6 @@ in
       # Monitor configuration
       monitor = ${monitorConfig}
 
-      plugin {
-          hyprexpo {
-              columns = 3
-              gap_size = 5
-              bg_col = rgba(${hex t.crust}ff)
-              workspace_method = center current   # center | first | last | number
-          }
-
-          split-monitor-workspaces {
-              count = 5              # workspaces per monitor
-              keep_focused = 0       # keep focus on current monitor when switching
-              enable_notifications = 0
-          }
-      }
 
       general {
           gaps_in = 4
@@ -139,8 +121,6 @@ in
       bind = SUPER, SPACE, exec, $menu
       bind = SUPER, P, pseudo
 
-      # hyprexpo overview toggle
-      bind = SUPER, grave, hyprexpo:expo, toggle   # SUPER + ` to open/close overview
 
       bind = SUPER, h, movefocus, l
       bind = SUPER, l, movefocus, r
@@ -195,26 +175,25 @@ in
       bind = SUPER, R, submap, reset
       submap = reset
 
-      # ── Workspace navigation (split-monitor-workspaces) ────────
-      # These now operate per-monitor thanks to the plugin
-      bind = SUPER, 1, split-workspace, 1
-      bind = SUPER, 2, split-workspace, 2
-      bind = SUPER, 3, split-workspace, 3
-      bind = SUPER, 4, split-workspace, 4
-      bind = SUPER, 5, split-workspace, 5
+      # ── Workspace navigation ─────────────────────────────────
+      bind = SUPER, 1, workspace, 1
+      bind = SUPER, 2, workspace, 2
+      bind = SUPER, 3, workspace, 3
+      bind = SUPER, 4, workspace, 4
+      bind = SUPER, 5, workspace, 5
 
-      # Move window to workspace (per-monitor)
-      bind = SUPER_SHIFT, 1, split-movetoworkspace, 1
-      bind = SUPER_SHIFT, 2, split-movetoworkspace, 2
-      bind = SUPER_SHIFT, 3, split-movetoworkspace, 3
-      bind = SUPER_SHIFT, 4, split-movetoworkspace, 4
-      bind = SUPER_SHIFT, 5, split-movetoworkspace, 5
+      # Move window to workspace
+      bind = SUPER_SHIFT, 1, movetoworkspace, 1
+      bind = SUPER_SHIFT, 2, movetoworkspace, 2
+      bind = SUPER_SHIFT, 3, movetoworkspace, 3
+      bind = SUPER_SHIFT, 4, movetoworkspace, 4
+      bind = SUPER_SHIFT, 5, movetoworkspace, 5
 
       # Workspace cycling
-      bind = SUPER_CTRL, n, split-workspace, e+1
-      bind = SUPER_CTRL, p, split-workspace, e-1
-      bind = SUPER, mouse_down, split-workspace, e+1
-      bind = SUPER, mouse_up, split-workspace, e-1
+      bind = SUPER_CTRL, n, workspace, e+1
+      bind = SUPER_CTRL, p, workspace, e-1
+      bind = SUPER, mouse_down, workspace, e+1
+      bind = SUPER, mouse_up, workspace, e-1
 
       # Special workspace (scratchpad)
       bind = SUPER, S, togglespecialworkspace, magic

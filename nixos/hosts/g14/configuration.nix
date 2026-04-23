@@ -128,11 +128,6 @@ in
   ];
   hardware.nvidia = nvidia;
 
-  # Nix
-  nix.settings.experimental-features = [
-    "nix-command"
-    "flakes"
-  ];
 
   # Audio
   services.pulseaudio.enable = false;

@@ -59,7 +59,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    hyprland.url = "github:hyprwm/Hyprland/8685fd7b";
+    hyprland.url = "github:hyprwm/Hyprland";
     split-monitor-workspaces = {
       url = "github:zjeffer/split-monitor-workspaces";
       inputs.hyprland.follows = "hyprland";
@@ -71,10 +71,10 @@
 
     claude-code.url = "github:sadjow/claude-code-nix";
 
-    system-bridge = {
-      url = "path:/home/amirsalar/personal/system-bridge";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # system-bridge = {
+    #   url = "path:/home/amirsalar/personal/system-bridge";
+    #   inputs.nixpkgs.follows = "nixpkgs";
+    # };
   };
 
   outputs =
@@ -172,7 +172,6 @@
           };
           modules = [
             sops-nix.nixosModules.sops
-            inputs."system-bridge".nixosModules.default
             ./modules/sops.nix
             { nixpkgs = commonNixpkgsConfig system; }
             ./hosts/common/default.nix

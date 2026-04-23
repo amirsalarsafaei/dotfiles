@@ -23,8 +23,6 @@
   };
 
   imports = [
-    inputs.hyprland.nixosModules.default
-    # Using nixpkgs hyprland instead
   ];
 
   config = {
@@ -49,6 +47,8 @@
         "--accept-routes"
       ];
     };
+
+    systemd.services.tailscaled-autoconnect.serviceConfig.TimeoutStartSec = "5s";
 
     networking.hostName = hostname; # Define your hostname.
     networking.hosts = {
@@ -257,10 +257,12 @@
     nix.settings = {
       extra-substituters = [
         "https://devenv.cachix.org"
+        "https://nixos-apple-silicon.cachix.org"
       ];
       extra-trusted-public-keys = [
         "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw="
         "nixpkgs-python.cachix.org-1:hxjI7pFxTyuTHn2NkvWCrAUcNZLNS3ZAvfYNuYifcEU="
+        "nixos-apple-silicon.cachix.org-1:8psDu5SA5dAD7qA0zMy5UT292TxeEPzIz8VVEr2Js20="
       ];
       keep-outputs = true;
       keep-derivations = true;
@@ -272,6 +274,7 @@
         "root"
         "@wheel"
       ];
+      experimental-features = [ "nix-command" "flakes" ];
     };
 
     services.blueman.enable = true;

@@ -91,6 +91,21 @@ in
         color: ${t.surface1};
       }
 
+      #idle_inhibitor {
+        background-color: transparent;
+        color: ${t.muted};
+        padding: 0 8px;
+        margin: 0 1px;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+      }
+      #idle_inhibitor:hover {
+        background-color: ${rgba t.surface 0.34};
+      }
+      #idle_inhibitor.activated {
+        color: ${t.accent};
+      }
+
       #clock, #network, #wireplumber, #tray,
       #hyprland-language, #hardware, #custom-power,
       #cpu, #memory, #temperature, #battery {
@@ -179,6 +194,7 @@ in
         modules-left = [ "hyprland/workspaces" "hyprland/window" ];
         modules-center = [];
         modules-right = [
+          "idle_inhibitor"
           "clock"
           "network"
           "wireplumber"
@@ -284,6 +300,16 @@ in
           format = "󰌌 {}";
           format-en = "EN";
           format-fa = "FA";
+        };
+
+        idle_inhibitor = {
+          format = "{icon}";
+          format-icons = {
+            activated = "󰛊";
+            deactivated = "󰾪";
+          };
+          tooltip-format-activated = "Idle inhibitor: ON";
+          tooltip-format-deactivated = "Idle inhibitor: OFF";
         };
 
         tray = {

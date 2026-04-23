@@ -138,7 +138,7 @@ in
 
         # YAML/JSON
         pkgs.yaml-language-server # YAML LSP
-        pkgs.nodePackages.vscode-json-languageserver # JSON LSP
+        pkgs.vscode-json-languageserver # JSON LSP
         pkgs.yamllint # YAML linter
         pkgs.yamlfmt
         pkgs.yq-go # YAML processor
@@ -146,7 +146,7 @@ in
 
         # JS/TS
         pkgs.typescript-language-server
-        pkgs.nodePackages.eslint # JavaScript/TypeScript linter
+        pkgs.eslint # JavaScript/TypeScript linter
 
         # Lua
         pkgs.lua-language-server # Lua LSP
@@ -164,7 +164,7 @@ in
         pkgs.rust-analyzer
 
         # General
-        pkgs.nodePackages.prettier # Formatter for many languages
+        pkgs.prettier # Formatter for many languages
         pkgs.efm-langserver # General purpose LSP
         pkgs.shellcheck # Shell script linter
         pkgs.copilot-language-server
@@ -208,7 +208,7 @@ in
         pkgs.bat
 
         # System Information
-        pkgs.neofetch
+        pkgs.fastfetch
         pkgs.acpi
 
         # Fun CLI Tools

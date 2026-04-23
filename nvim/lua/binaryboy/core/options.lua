@@ -59,3 +59,5 @@ opt.fillchars = { eob = " " }
 opt.shortmess:append("sI")
 
 opt.iskeyword:append("-")
+opt.shell = "zsh"
+opt.shellcmdflag = "-ic"

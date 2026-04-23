@@ -7,10 +7,4 @@ lib.mkIf config.isLaptop {
     Login.HandlePowerKey = "ignore";
   };
 
-  systemd.sleep.extraConfig = ''
-    AllowSuspend=yes
-    AllowHibernation=no
-    AllowHybridSleep=no
-    AllowSuspendThenHibernate=no
-  '';
 }

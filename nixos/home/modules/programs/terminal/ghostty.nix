@@ -34,13 +34,10 @@ in
 
       unfocused-split-opacity = 0.9;
 
-      # Cursor
       cursor-style = "block";
       cursor-style-blink = false;
 
       confirm-close-surface = false;
-      # Key Bindings
-      # Disable all default keybindings
       keybind = [
         "ctrl+shift+equal=increase_font_size:1"
         "ctrl+shift+minus=decrease_font_size:1"
