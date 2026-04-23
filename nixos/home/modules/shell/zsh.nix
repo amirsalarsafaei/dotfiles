@@ -52,6 +52,12 @@
 
       autoload -Uz compinit && compinit -C
 
+      if command -v navi >/dev/null 2>&1; then
+        eval "$(navi widget zsh)"
+
+        bindkey '^N' _navi_widget
+      fi
+
       # ── fzf-tab config ────────────────────────────────────────────────────
       # preview directory contents on cd completion
       zstyle ':fzf-tab:complete:cd:*' fzf-preview 'ls --color=always $realpath'

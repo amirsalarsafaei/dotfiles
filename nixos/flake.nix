@@ -79,6 +79,7 @@
 
   outputs =
     {
+      self,
       nixpkgs,
       nixpkgs-stable,
       home-manager,
@@ -113,6 +114,8 @@
           claude-code.overlays.default
         ];
       };
+
+      dotfilesRoot = self.sourceInfo;
 
       # Host definitions with multi-user support
       allHosts = {
@@ -164,6 +167,7 @@
               inputs
               apple-silicon-support
               hostname
+              dotfilesRoot
               ;
           };
           modules = [
@@ -181,7 +185,11 @@
                 useUserPackages = true;
                 backupFileExtension = "backup";
                 extraSpecialArgs = {
-                  inherit secrets inputs;
+                  inherit
+                    secrets
+                    inputs
+                    dotfilesRoot
+                    ;
                   currentHostname = hostname;
                   currentSystem = system;
                 };

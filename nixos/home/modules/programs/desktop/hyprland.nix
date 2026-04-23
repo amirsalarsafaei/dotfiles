@@ -32,17 +32,12 @@ in
       # Monitor configuration
       monitor = ${monitorConfig}
 
-      # ── Plugins ────────────────────────────────────────────────
-      plugin = hyprexpo
-      plugin = split-monitor-workspaces
-
       plugin {
           hyprexpo {
               columns = 3
               gap_size = 5
               bg_col = rgba(${hex t.crust}ff)
               workspace_method = center current   # center | first | last | number
-
           }
 
           split-monitor-workspaces {

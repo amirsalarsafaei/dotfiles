@@ -21,18 +21,11 @@ let
 
   ollamaModels = [
     "VladimirGav/gemma4-26b-16GB-VRAM"
-    "qwen3-coder-next:q4_K_M"
     "gpt-oss:20b"
-    "danielsheep/Qwen3-Coder-30B-A3B-Instruct-1M-Unsloth:UD-IQ3_XXS"
-    "ministral-3:14b"
-    "aliafshar/gemma3-it-qat-tools:27b"
-    "llama3.1:70b-instruct-q2_K"
-    "qwq:32b"
-    "phi4-reasoning:plus"
-    "gemma3:27b"
     "qwen3-coder:30b"
-    "devstral-small-2:24b"
-    "glm-4.7-flash:q4_K_M"
+    "qwen3.6:35b-a3b-coding-nvfp4"
+    "gemma4:26b"
+    "n27/gemma-4-26B-A4B-it-UD-Q4_K_M-32k"
   ];
 
   systemPkgs = with pkgs; [

@@ -1,9 +1,6 @@
 {
   imports = [
-    ./waypaper.nix
-    ./hypridle.nix
-    ./dunst.nix
-    ./cliphist.nix
+    ./desktop
     ./spotifyd.nix
   ];
 }

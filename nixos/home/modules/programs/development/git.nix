@@ -14,4 +14,18 @@
       }
     ];
   };
+
+  home.file = {
+    ".gitconfig-work".text = ''
+            [user]
+      					name = "Amirsalar Safaei"
+      					email = "amirsalar.safaei@divar.ir"
+            [core]
+                excludesFile = "${homeDir}/.gitignore-work"
+    '';
+    ".gitignore-work".text = ''
+      shell.nix
+      .wakatime-project
+    '';
+  };
 }

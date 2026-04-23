@@ -1,4 +1,5 @@
-{ ... }: {
+{ ... }:
+{
   programs.texlive.enable = true;
   programs.texlive.extraPackages = tpkgs: {
     inherit (tpkgs)
@@ -17,6 +18,7 @@
       xstring
       framed
       csquotes
-      scheme-medium;
+      scheme-medium
+      ;
   };
 }

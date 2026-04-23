@@ -1,8 +1,6 @@
 {
   config,
   homeDir ? null,
-  inputs,
-  pkgs,
   lib,
   ...
 }:
@@ -13,20 +11,6 @@
   );
 
   home.stateVersion = "24.11"; # Please read the comment before changing.
-
-  home.file = {
-    ".gitconfig-work".text = ''
-            [user]
-      					name = "Amirsalar Safaei"
-      					email = "amirsalar.safaei@divar.ir"
-            [core]
-                excludesFile = "${config.home.homeDirectory}/.gitignore-work"
-    '';
-    ".gitignore-work".text = ''
-      shell.nix
-      .wakatime-project
-    '';
-  };
 
   home.sessionVariables = {
     EDITOR = "nvim";
@@ -57,14 +41,6 @@
 
   xdg = {
     enable = true;
-    mimeApps = {
-      enable = false;
-      defaultApplications = {
-        "text/html" = [ "chromium.desktop" ];
-        "x-scheme-handler/http" = [ "chromium.desktop" ];
-        "x-scheme-handler/https" = [ "chromium.desktop" ];
-      };
-    };
   };
 
   sops = {
