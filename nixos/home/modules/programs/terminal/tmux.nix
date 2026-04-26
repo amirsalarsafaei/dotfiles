@@ -77,27 +77,39 @@ in
       # Theme (aligned with system palette)
       set -g status on
       set -g status-position top
+      set -g status-justify left
       set -g status-style "bg=${t.bgDark},fg=${t.fg}"
       set -g message-style "bg=${t.surface},fg=${t.fgBright}"
       set -g message-command-style "bg=${t.surface},fg=${t.fgBright}"
       set -g pane-border-style "fg=${t.surface}"
       set -g pane-active-border-style "fg=${t.accent}"
+      set -g pane-border-status top
+      set -g pane-border-format " #{pane_index} #{?pane_active,*,}#{?#{==:#{pane_current_command},zsh},#{b:pane_current_path},#{pane_current_command}} "
       set -g mode-style "bg=${t.accentAlt},fg=${t.bgDarker}"
       set -g display-panes-active-colour "${t.accent}"
       set -g display-panes-colour "${t.muted}"
+      set -g clock-mode-colour "${t.accent}"
+      set -g renumber-windows on
+
+      # Use readable labels instead of Nerd Font-only icons.
+      set -g @batt_icon_status_charged "AC"
+      set -g @batt_icon_status_charging "AC"
+      set -g @batt_icon_status_discharging "BAT"
+      set -g @batt_icon_status_attached "WARN"
+      set -g @batt_icon_status_unknown "?"
 
       setw -g window-status-style "fg=${t.muted},bg=${t.bgDark}"
       setw -g window-status-current-style "fg=${t.bgDarker},bg=${t.accent},bold"
       setw -g window-status-activity-style "fg=${t.warning},bg=${t.bgDark},bold"
       setw -g window-status-bell-style "fg=${t.bgDarker},bg=${t.urgent},bold"
       setw -g window-status-separator " "
-      setw -g window-status-format "#[fg=${t.subtle}]#I #[fg=${t.muted}]#W"
-      setw -g window-status-current-format "#[fg=${t.accent},bg=${t.bgDark}]#[fg=${t.bgDarker},bg=${t.accent},bold] #I #[fg=${t.fgBright},bg=${t.accent},bold]#W #[fg=${t.accent},bg=${t.bgDark}]"
+      setw -g window-status-format "#[fg=${t.subtle},bg=${t.surface}] #I:#W#{?window_zoomed_flag, [Z],} #[default]"
+      setw -g window-status-current-format "#[fg=${t.bgDarker},bg=${t.accent},bold] #I:#W#{?window_zoomed_flag, [Z],} #[default]"
 
-      set -g status-left-length 48
-      set -g status-right-length 120
-      set -g status-left "#[fg=${t.bgDarker},bg=${t.accent}]  #S #[fg=${t.accent},bg=${t.bgDark}]"
-      set -g status-right "#[fg=${t.subtle},bg=${t.bgDark}] #{cpu_percentage}  #[fg=${t.subtle},bg=${t.bgDark}]󰁹 #{battery_percentage}  #[fg=${t.fgBright},bg=${t.bgDark}]%a %d %b %H:%M "
+      set -g status-left-length 72
+      set -g status-right-length 160
+      set -g status-left "#[fg=${t.bgDarker},bg=${t.accent},bold] TMUX #[fg=${t.fgBright},bg=${t.surface},bold] #S #[fg=${t.subtle},bg=${t.surface}] #H #[default]"
+      set -g status-right "#{?client_prefix,#[fg=${t.bgDarker},bg=${t.warning},bold] PREFIX #[default] ,}#{?pane_synchronized,#[fg=${t.bgDarker},bg=${t.urgent},bold] SYNC #[default] ,}#[fg=${t.subtle},bg=${t.surface}] CPU #[fg=${t.fgBright},bg=${t.surface}]#{cpu_percentage} #[default] #[fg=${t.subtle},bg=${t.surface}]#{battery_icon_status} #[fg=${t.fgBright},bg=${t.surface}]#{battery_percentage} #[default] #[fg=${t.bgDarker},bg=${t.accentAlt},bold] %a %d %b #[fg=${t.bgDarker},bg=${t.accent},bold] %H:%M #[default]"
 
       set-option -g status-interval 5
       set-option -g automatic-rename on

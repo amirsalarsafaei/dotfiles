@@ -312,6 +312,7 @@ in
 
       # Miscellaneous
       miscTools = [
+        pkgs.yt-dlp
         pkgs.platformio-core
         pkgs.esphome
         pkgs.esptool
