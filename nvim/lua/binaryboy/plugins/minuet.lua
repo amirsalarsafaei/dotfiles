@@ -1,8 +1,6 @@
-local hostconfig = require("binaryboy.core.hostconfig")
-
 return {
   "milanglacier/minuet-ai.nvim",
-  enabled = hostconfig.ai,
+  enabled = false,
   dependencies = {
     "nvim-lua/plenary.nvim",
   },

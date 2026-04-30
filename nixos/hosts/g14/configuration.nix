@@ -26,6 +26,8 @@ let
     "qwen3.6:35b-a3b-coding-nvfp4"
     "gemma4:26b"
     "n27/gemma-4-26B-A4B-it-UD-Q4_K_M-32k"
+    "VladimirGav/Qwen3.6-27B-16GB-VRAM-Uncensored"
+    "yanjia/Qwen3.6-35B-A3B-Opus4.7-Reasoning-Distilled:q4km"
   ];
 
   systemPkgs = with pkgs; [
@@ -103,7 +105,6 @@ in
   # ASUS/ROG
   services.asusd = {
     enable = true;
-    enableUserService = true;
   };
   services.supergfxd.enable = true;
   systemd.services.supergfxd.path = [ pkgs.pciutils ];
@@ -127,7 +128,6 @@ in
     "nvidia"
   ];
   hardware.nvidia = nvidia;
-
 
   # Audio
   services.pulseaudio.enable = false;
