@@ -1,10 +1,28 @@
-{ pkgs, inputs, config, lib, ... }: {
+{
+  pkgs,
+  inputs,
+  config,
+  ...
+}:
+{
   programs.zsh = {
     enable = true;
     dotDir = "${config.xdg.configHome}/zsh";
     oh-my-zsh = {
       enable = true;
-      plugins = ["git" "kubectl" "docker" "golang" "docker-compose" "git-prompt" "encode64" "command-not-found" "aliases" "history" "argocd"];
+      plugins = [
+        "git"
+        "kubectl"
+        "docker"
+        "golang"
+        "docker-compose"
+        "git-prompt"
+        "encode64"
+        "command-not-found"
+        "aliases"
+        "history"
+        "argocd"
+      ];
     };
 
     history = {
@@ -16,7 +34,7 @@
     };
 
     plugins = [
-     {
+      {
         name = "zsh-nix-shell";
         src = inputs.zsh-nix-shell;
         file = "nix-shell.plugin.zsh";
@@ -50,12 +68,14 @@
         source "$HOME/.jetbrains.vmoptions.sh"
       fi
 
+      ${builtins.readFile ./zsh/functions.sh}
+
       autoload -Uz compinit && compinit -C
 
       if command -v navi >/dev/null 2>&1; then
         eval "$(navi widget zsh)"
-
-        bindkey '^N' _navi_widget
+        bindkey '^n' _navi_widget
+        bindkey -r '^g'
       fi
 
       # ── fzf-tab config ────────────────────────────────────────────────────
@@ -75,7 +95,7 @@
       bindkey '^[[B' down-line-or-beginning-search
       bindkey '^[OB'  down-line-or-beginning-search
 
-      # ── Edit current command line in neovim (Ctrl-E) ─────────────────────
+      # ── Edit current command line in neovim (Ctrl-G) ─────────────────────
       autoload -Uz edit-command-line
       zle -N edit-command-line
       bindkey '^G' edit-command-line

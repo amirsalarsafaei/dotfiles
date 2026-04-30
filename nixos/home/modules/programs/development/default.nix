@@ -12,6 +12,7 @@
 
   programs.navi = {
     enable = true;
+    enableZshIntegration = false;
     settings = {
       cheats = {
         path = "${dotfilesRoot}/navi-cheats";
