@@ -1,14 +1,15 @@
 { config, pkgs, ... }:
 let
-  t = config.theme;
+  theme = config.custom.theme.resolved;
+  t = theme.colors;
 in
 {
   programs.rofi = {
     enable = true;
     package = pkgs.rofi;
-    font = "JetBrainsMono Nerd Font 11";
+    font = "${theme.fonts.mono} 11";
     terminal = "${pkgs.ghostty}/bin/ghostty";
-    theme = "catppuccin-mocha";
+    theme = theme.rofiThemeName;
     extraConfig = {
       modi = "run,drun,ssh,window,filebrowser";
       icon-theme = "Papirus-Dark";
@@ -47,20 +48,20 @@ in
     };
   };
 
-  xdg.configFile."rofi/catppuccin-mocha.rasi".text = ''
+  xdg.configFile."rofi/${theme.rofiThemeName}.rasi".text = ''
     * {
-      bg-col: ${t.glassStrong}f2;
-      bg-col-light: ${t.surface}52;
-      bg-col-lighter: ${t.surface}75;
-      border-col: ${t.glassBorder}80;
-      selected-col: ${t.accent}2f;
-      selected-border: ${t.accent}b8;
-      blue: ${t.accent};
-      blue-alt: ${t.accentAlt};
-      fg-col: ${t.fg};
-      fg-col2: ${t.fgBright};
-      grey: ${t.muted};
-      urgent: ${t.urgent};
+      bg-col: ${t.base00}f2;
+      bg-col-light: ${t.base02}52;
+      bg-col-lighter: ${t.base02}75;
+      border-col: ${t.base03}80;
+      selected-col: ${t.base0D}2f;
+      selected-border: ${t.base0D}b8;
+      blue: ${t.base0D};
+      blue-alt: ${t.base0E};
+      fg-col: ${t.base05};
+      fg-col2: ${t.base07};
+      grey: ${t.base04};
+      urgent: ${t.base08};
     }
 
     element-text, element-icon, mode-switcher {
@@ -97,7 +98,7 @@ in
     prompt {
       background-color: transparent;
       text-color: @blue;
-      font: "JetBrainsMono Nerd Font Bold 11";
+      font: "${theme.fonts.mono} Bold 11";
       margin: 0px 10px 0px 0px;
       padding: 0px;
     }

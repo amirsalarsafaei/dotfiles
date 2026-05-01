@@ -1,6 +1,6 @@
 {
   imports = [
-    ./waypaper.nix
+    ./hyprpaper.nix
     ./hypridle.nix
     ./dunst.nix
     ./cliphist.nix

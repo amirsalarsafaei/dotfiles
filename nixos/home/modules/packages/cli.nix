@@ -1,0 +1,24 @@
+{ pkgs, ... }:
+[
+  pkgs.fd
+  pkgs.ripgrep
+  pkgs.jq
+  pkgs.yq-go
+  pkgs.fzf
+  pkgs.zoxide
+  pkgs.coreutils-full
+  pkgs.ncdu
+  pkgs.zip
+  pkgs.p7zip
+  pkgs.gzip
+  pkgs.bzip2
+  pkgs.xz
+  pkgs.tree
+  pkgs.bat
+  pkgs.fastfetch
+  pkgs.acpi
+  pkgs.htop
+  pkgs.w3m
+  pkgs.television
+  pkgs.aichat
+]

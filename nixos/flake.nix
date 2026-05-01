@@ -59,6 +59,16 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    stylix = {
+      url = "github:danth/stylix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    spicetify-nix = {
+      url = "github:Gerg-L/spicetify-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     hyprland.url = "github:hyprwm/Hyprland";
     split-monitor-workspaces = {
       url = "github:zjeffer/split-monitor-workspaces";
@@ -86,6 +96,7 @@
       apple-silicon-support,
       sops-nix,
       claude-code,
+      stylix,
       ...
     }@inputs:
     let
@@ -172,6 +183,7 @@
           };
           modules = [
             sops-nix.nixosModules.sops
+            stylix.nixosModules.stylix
             ./modules/sops.nix
             { nixpkgs = commonNixpkgsConfig system; }
             ./hosts/common/default.nix
@@ -194,6 +206,9 @@
                 };
                 sharedModules = [
                   sops-nix.homeManagerModules.sops
+                  ./home/modules/theme/opencode-compat.nix
+                  stylix.homeModules.stylix
+                  inputs.spicetify-nix.homeManagerModules.default
                   ./modules/sops.nix
                 ];
                 users = lib.genAttrs users (username: {
@@ -226,6 +241,9 @@
           };
           modules = [
             ./home/default.nix
+            ./home/modules/theme/opencode-compat.nix
+            stylix.homeModules.stylix
+            inputs.spicetify-nix.homeManagerModules.default
             { nixpkgs = commonNixpkgsConfig system; }
           ];
         };

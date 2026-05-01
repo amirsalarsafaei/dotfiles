@@ -1,18 +1,10 @@
-{ config, ... }:
-let
-  t = config.theme;
-in
+{ ... }:
 {
   programs.ghostty = {
     enable = true;
     enableZshIntegration = true;
     clearDefaultKeybinds = true;
     settings = {
-      # Font Configuration
-      font-family = "JetBrains Mono Nerd Font";
-      font-size = 13;
-      font-style = "normal";
-
       term = "xterm-256color";
 
       shell-integration-features = "no-cursor,no-sudo,no-title";
@@ -20,12 +12,6 @@ in
       clipboard-write = "allow";
 
       command = "tmux new-session";
-      background = t.bgDarker;
-      foreground = t.fg;
-      background-opacity = 0.88;
-      cursor-color = t.accent;
-      selection-background = t.surface;
-      selection-foreground = t.fgBright;
 
       window-decoration = false;
       window-padding-x = 8;

@@ -1,0 +1,33 @@
+{ pkgs, ... }:
+[
+  pkgs.dhcpcd
+  pkgs.rustscan
+  pkgs.arp-scan
+  pkgs.nftables
+  pkgs.nethogs
+  pkgs.mtr
+  pkgs.wireshark
+  pkgs.xray
+  pkgs.v2ray
+  pkgs.tcpdump
+  pkgs.socat
+  pkgs.net-tools
+  pkgs.inetutils
+  pkgs.iperf3
+  pkgs.dnsutils
+  pkgs.ldns
+  pkgs.ipcalc
+  pkgs.nmap
+  pkgs.nload
+  pkgs.sing-box
+  pkgs.openfortivpn
+  pkgs.openconnect
+  pkgs.telepresence2
+  pkgs.ngrok
+  pkgs.iptables
+  pkgs.grpcurl
+  pkgs.wireguard-tools
+  pkgs.tailscale
+  pkgs.proxychains
+  pkgs.openvpn
+]

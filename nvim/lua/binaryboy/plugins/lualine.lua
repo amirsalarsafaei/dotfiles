@@ -7,7 +7,7 @@ return {
 
 		return {
 			options = {
-				theme = "catppuccin",
+				theme = "auto",
 				globalstatus = true,
 				disabled_filetypes = { statusline = { "dashboard", "alpha", "starter" } },
 			},
@@ -31,7 +31,6 @@ return {
 					{
 						lazy_status.updates,
 						cond = lazy_status.has_updates,
-						color = { fg = "#ff9e64" },
 					},
 					{
 						"diff",

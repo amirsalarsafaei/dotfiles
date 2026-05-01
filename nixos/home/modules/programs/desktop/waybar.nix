@@ -1,15 +1,10 @@
-{ config, ... }:
+{
+  config,
+  themeLib,
+  ...
+}:
 let
-  t = config.theme;
-  hexByteToInt = byte: (builtins.fromTOML "value = 0x${byte}").value;
-  hexToRgb = hex:
-    let
-      r = hexByteToInt (builtins.substring 1 2 hex);
-      g = hexByteToInt (builtins.substring 3 2 hex);
-      b = hexByteToInt (builtins.substring 5 2 hex);
-    in
-    "${toString r}, ${toString g}, ${toString b}";
-  rgba = hex: a: "rgba(${hexToRgb hex}, ${toString a})";
+  t = config.custom.theme.resolved.colors;
 in
 {
   programs.waybar = {
@@ -17,9 +12,9 @@ in
     systemd.enable = true;
     style = ''
       * {
-        font-family: 'JetBrains Mono Nerd Font', 'Font Awesome 6 Free', sans-serif;
-        font-size: 12px;
-        font-weight: 600;
+        font-family: 'Inter', 'Maple Mono NF', 'Font Awesome 6 Free', sans-serif;
+        font-size: 14px;
+        font-weight: 700;
         min-height: 0;
         border: none;
         border-radius: 0;
@@ -27,158 +22,158 @@ in
 
       window#waybar {
         background: transparent;
-        color: ${t.fg};
+        color: ${t.base05};
       }
 
       tooltip {
-        background: ${rgba t.glassStrong 0.95};
-        border: 1px solid ${rgba t.glassBorder 0.4};
+        background: ${themeLib.rgba t.base00 0.95};
+        border: 1px solid ${themeLib.rgba t.base03 0.4};
         border-radius: 10px;
       }
       tooltip label {
-        color: ${t.fgBright};
+        color: ${t.base07};
       }
 
       .modules-left, .modules-right {
-        background: ${rgba t.glassStrong 0.82};
-        border: 1px solid ${rgba t.glassBorder 0.28};
+        background: ${themeLib.rgba t.base00 0.82};
+        border: 1px solid ${themeLib.rgba t.base03 0.32};
         border-radius: 12px;
-        padding: 3px 8px;
-        margin-top: 6px;
-        box-shadow: 0 6px 18px ${rgba t.shadow 0.35};
+        padding: 5px 12px;
+        margin-top: 8px;
+        box-shadow: 0 6px 18px ${themeLib.rgba t.base00 0.38};
       }
 
-      .modules-left { margin-left: 10px; }
-      .modules-right { margin-right: 10px; }
+      .modules-left { margin-left: 12px; }
+      .modules-right { margin-right: 12px; }
 
       #workspaces {
         margin-right: 6px;
       }
 
       #workspaces button {
-        padding: 0 8px;
-        margin: 0 1px;
+        padding: 0 10px;
+        margin: 0 2px;
         background-color: transparent;
-        color: ${t.muted};
-        border-radius: 8px;
+        color: ${t.base04};
+        border-radius: 9px;
         transition: all 0.2s ease;
       }
 
       #workspaces button:hover {
-        background: ${rgba t.surface 0.5};
-        color: ${t.fgBright};
+        background: ${themeLib.rgba t.base02 0.5};
+        color: ${t.base07};
       }
 
       #workspaces button.active {
-        background-color: ${rgba t.accent 0.24};
-        border: 1px solid ${rgba t.accent 0.72};
-        color: ${t.fgBright};
+        background-color: ${themeLib.rgba t.base0D 0.24};
+        border: 1px solid ${themeLib.rgba t.base0D 0.72};
+        color: ${t.base07};
         font-weight: 700;
-        min-width: 18px;
+        min-width: 22px;
       }
 
       #workspaces button.visible {
-        background-color: ${rgba t.accentAlt 0.16};
-        color: ${t.fgBright};
+        background-color: ${themeLib.rgba t.base0E 0.16};
+        color: ${t.base07};
       }
 
       #workspaces button.urgent {
-        background-color: ${t.urgent};
-        color: ${t.bgDark};
+        background-color: ${t.base08};
+        color: ${t.base00};
       }
 
       #workspaces button.empty {
-        color: ${t.surface1};
+        color: ${t.base03};
       }
 
       #idle_inhibitor {
         background-color: transparent;
-        color: ${t.muted};
-        padding: 0 8px;
-        margin: 0 1px;
-        border-radius: 8px;
+        color: ${t.base04};
+        padding: 0 10px;
+        margin: 0 2px;
+        border-radius: 9px;
         transition: all 0.2s ease;
       }
       #idle_inhibitor:hover {
-        background-color: ${rgba t.surface 0.34};
+        background-color: ${themeLib.rgba t.base02 0.34};
       }
       #idle_inhibitor.activated {
-        color: ${t.accent};
+        color: ${t.base0D};
       }
 
       #clock, #network, #wireplumber, #tray,
       #hyprland-language, #hardware, #custom-power,
       #cpu, #memory, #temperature, #battery {
         background-color: transparent;
-        color: ${t.fg};
-        padding: 0 8px;
-        margin: 0 1px;
-        border-radius: 8px;
+        color: ${t.base05};
+        padding: 0 10px;
+        margin: 0 2px;
+        border-radius: 9px;
         transition: all 0.2s ease;
       }
 
       #clock {
         font-weight: 800;
-        color: ${t.fgBright};
-        background-color: ${rgba t.surface 0.24};
+        color: ${t.base07};
+        background-color: ${themeLib.rgba t.base02 0.24};
       }
 
       #clock:hover,
       #network:hover,
       #wireplumber:hover,
       #custom-power:hover {
-        background-color: ${rgba t.surface 0.34};
+        background-color: ${themeLib.rgba t.base02 0.34};
       }
 
       #network {
-        color: ${t.subtle};
+        color: ${t.base04};
       }
-      #network.disconnected { color: ${t.urgent}; }
+      #network.disconnected { color: ${t.base08}; }
 
-      #wireplumber         { color: ${t.fg}; }
-      #wireplumber.muted   { color: ${t.muted}; }
+      #wireplumber         { color: ${t.base05}; }
+      #wireplumber.muted   { color: ${t.base04}; }
 
       #hardware {
-        background-color: ${rgba t.surface 0.14};
-        border: 1px solid ${rgba t.glassBorder 0.22};
+        background-color: ${themeLib.rgba t.base02 0.14};
+        border: 1px solid ${themeLib.rgba t.base03 0.22};
         border-radius: 10px;
         padding: 0 4px;
         margin: 0 6px;
       }
 
       #cpu, #memory, #temperature, #battery {
-        padding: 0 7px;
-        color: ${t.subtext1};
+        padding: 0 9px;
+        color: ${t.base05};
       }
 
       #temperature.critical,
       #battery.warning:not(.charging) {
-        color: ${t.warning};
+        color: ${t.base0A};
       }
 
-      #battery.charging, #battery.plugged { color: ${t.ok}; }
+      #battery.charging, #battery.plugged { color: ${t.base0B}; }
 
       #battery.critical:not(.charging) {
-        color: ${t.urgent};
+        color: ${t.base08};
         animation-name: blink;
         animation-duration: 0.5s;
         animation-iteration-count: infinite;
       }
 
       @keyframes blink {
-        to { color: ${t.fgBright}; }
+        to { color: ${t.base07}; }
       }
 
       #custom-power {
-        color: ${t.accent};
-        font-size: 14px;
-        padding: 0 7px;
+        color: ${t.base0D};
+        font-size: 16px;
+        padding: 0 9px;
       }
 
       #hyprland-window {
-        color: ${t.subtle};
-        padding: 0 10px;
-        font-weight: 500;
+        color: ${t.base04};
+        padding: 0 12px;
+        font-weight: 600;
       }
     '';
 
@@ -186,13 +181,16 @@ in
       mainBar = {
         layer = "top";
         position = "top";
-        height = 34;
-        spacing = 4;
+        height = 42;
+        spacing = 6;
         margin-top = 0;
         margin-bottom = 0;
 
-        modules-left = [ "hyprland/workspaces" "hyprland/window" ];
-        modules-center = [];
+        modules-left = [
+          "hyprland/workspaces"
+          "hyprland/window"
+        ];
+        modules-center = [ ];
         modules-right = [
           "idle_inhibitor"
           "clock"
@@ -214,7 +212,12 @@ in
 
         "group/hardware" = {
           orientation = "horizontal";
-          modules = [ "cpu" "memory" "temperature" "battery" ];
+          modules = [
+            "cpu"
+            "memory"
+            "temperature"
+            "battery"
+          ];
         };
 
         "hyprland/workspaces" = {
@@ -243,10 +246,10 @@ in
             mode = "year";
             mode-mon-col = 3;
             format = {
-              months = "<span color='${t.fgBright}'><b>{}</b></span>";
-              days = "<span color='${t.fg}'><b>{}</b></span>";
-              weekdays = "<span color='${t.accent}'><b>{}</b></span>";
-              today = "<span color='${t.urgent}'><b><u>{}</u></b></span>";
+              months = "<span color='${t.base07}'><b>{}</b></span>";
+              days = "<span color='${t.base05}'><b>{}</b></span>";
+              weekdays = "<span color='${t.base0D}'><b>{}</b></span>";
+              today = "<span color='${t.base08}'><b><u>{}</u></b></span>";
             };
           };
         };
@@ -283,7 +286,10 @@ in
         };
 
         battery = {
-          states = { warning = 30; critical = 15; };
+          states = {
+            warning = 30;
+            critical = 15;
+          };
           format = "{icon} {capacity}%";
           format-charging = "󱐋 {capacity}%";
           format-plugged = "󰚥 {capacity}%";
@@ -313,8 +319,8 @@ in
         };
 
         tray = {
-          icon-size = 15;
-          spacing = 6;
+          icon-size = 18;
+          spacing = 8;
         };
 
         "custom/power" = {

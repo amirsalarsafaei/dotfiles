@@ -1,0 +1,41 @@
+{
+  pkgs,
+  python,
+  luaPackages,
+  gapClaudeCode,
+  ...
+}:
+[
+  pkgs.go
+  pkgs.rustc
+  pkgs.nodejs_22
+  pkgs.kotlin
+  pkgs.openjdk21
+  pkgs.gcc
+  pkgs.libgcc
+  python
+  luaPackages
+
+  pkgs.cmake
+  pkgs.pkg-config
+  pkgs.openssl_3
+  pkgs.gnumake
+  pkgs.just
+  pkgs.devenv
+  pkgs.gh
+  pkgs.git-crypt
+  pkgs.sops
+  pkgs.unzip
+  pkgs.postman
+  pkgs.docker
+  pkgs.docker-compose
+  pkgs.gore
+  pkgs.devbox
+  pkgs.bazelisk
+  pkgs.amp-cli
+  pkgs.pnpm
+  pkgs.lazygit
+  pkgs.step-cli
+  pkgs.bun
+  gapClaudeCode
+]

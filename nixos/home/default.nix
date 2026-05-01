@@ -13,7 +13,6 @@
   home.stateVersion = "24.11"; # Please read the comment before changing.
 
   home.sessionVariables = {
-    EDITOR = "nvim";
     GOPATH = "${config.home.homeDirectory}/go";
     GOPRIVATE = "git.divar.cloud";
     GOBIN = "${config.home.homeDirectory}/.local/bin";

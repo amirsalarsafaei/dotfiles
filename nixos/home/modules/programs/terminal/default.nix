@@ -4,5 +4,6 @@
     ./ghostty.nix
     ./kitty.nix
     ./tmux.nix
+    ./yazi.nix
   ];
 }

@@ -27,7 +27,6 @@ let
       notebook
       ipython
       ipykernel
-      # Your packages
       numpy
       pandas
       matplotlib
@@ -46,345 +45,39 @@ let
         --set ANTHROPIC_BASE_URL "https://api.gapgpt.app/"
     '';
   };
+
+  categoryArgs = {
+    inherit
+      argonaut
+      currentHostname
+      currentSystem
+      gapClaudeCode
+      luaPackages
+      pkgs
+      python
+      ;
+  };
+
+  categories = [
+    ./dev.nix
+    ./tooling.nix
+    ./terminals.nix
+    ./cli.nix
+    ./fun.nix
+    ./network.nix
+    ./infra.nix
+    ./desktop.nix
+    ./wayland-tools.nix
+    ./security-tools.nix
+    ./fonts.nix
+    ./system.nix
+    ./hardware.nix
+    ./media.nix
+    ./nix.nix
+    ./platform.nix
+    ./host.nix
+  ];
 in
 {
-  home.packages =
-    # Development Tools
-    let
-      devTools = [
-        # Languages and Compilers
-        pkgs.go
-        pkgs.rustc
-        pkgs.nodejs_22
-        pkgs.kotlin
-        pkgs.openjdk21
-        pkgs.gcc
-        pkgs.libgcc
-        python
-        luaPackages
-
-        # Development Utilities
-        pkgs.cmake
-        pkgs.pkg-config
-        pkgs.openssl_3
-        pkgs.gnumake
-        pkgs.just
-        pkgs.devenv
-        pkgs.nixd
-        pkgs.gh
-        pkgs.git-crypt
-        pkgs.sops
-        pkgs.unzip
-        pkgs.postman
-        pkgs.docker
-        pkgs.docker-compose
-        pkgs.gore
-        pkgs.devbox
-        pkgs.bazelisk
-        pkgs.amp-cli
-        pkgs.pnpm
-        pkgs.lazygit
-        pkgs.argocd
-        pkgs.argocd-vault-plugin
-        pkgs.step-cli
-        pkgs.bun
-        gapClaudeCode
-      ];
-
-      # Language Servers, Formatters, Linters, and Debuggers
-      devTooling = [
-        # Nix
-        pkgs.nil # Nix LSP
-        pkgs.nixpkgs-fmt # Nix formatter
-        pkgs.statix # Nix linter
-        pkgs.nixfmt
-
-        # Go
-        pkgs.gopls # Go LSP
-        pkgs.golangci-lint # Go linter
-        pkgs.delve # Go debugger
-        pkgs.goimports-reviser
-        pkgs.golangci-lint-langserver
-        pkgs.gotestsum
-        pkgs.sqlc
-
-        pkgs.rustfmt # Rust formatter
-
-        pkgs.rust-analyzer # Rust LSP
-        pkgs.cargo
-        # C/C++
-        pkgs.clang-tools # C/C++ LSP (clangd) and formatter (clang-format)
-        pkgs.cppcheck # C/C++ linter
-        pkgs.gdb # C/C++ debugger
-        pkgs.lldb # Alternative C/C++ debugger
-
-        # Kotlin
-        pkgs.kotlin-language-server # Kotlin LSP
-        pkgs.ktlint # Kotlin linter and formatter
-
-        # SQL
-        pkgs.sqls
-
-        # Python
-        pkgs.pyright # Python LSP
-        pkgs.black # Python formatter
-        pkgs.ruff # Fast Python linter
-        pkgs.mypy # Python type checker
-
-        # Protobuf
-        pkgs.buf # Protobuf toolkit
-        pkgs.protobuf # Protocol Buffers compiler
-        pkgs.protolint # Protobuf linter
-
-        # YAML/JSON
-        pkgs.yaml-language-server # YAML LSP
-        pkgs.vscode-json-languageserver # JSON LSP
-        pkgs.yamllint # YAML linter
-        pkgs.yamlfmt
-        pkgs.yq-go # YAML processor
-        pkgs.jq # JSON processor
-
-        # JS/TS
-        pkgs.typescript-language-server
-        pkgs.eslint # JavaScript/TypeScript linter
-
-        # Lua
-        pkgs.lua-language-server # Lua LSP
-        pkgs.luaformatter # Lua formatter
-        pkgs.stylua
-
-        # Java
-        pkgs.jdt-language-server
-
-        # Docker
-        pkgs.dockerfile-language-server # Dockerfile LSP
-        pkgs.docker-compose-language-service
-        pkgs.hadolint # Dockerfile linter
-
-        pkgs.rust-analyzer
-
-        # General
-        pkgs.prettier # Formatter for many languages
-        pkgs.efm-langserver # General purpose LSP
-        pkgs.shellcheck # Shell script linter
-        pkgs.copilot-language-server
-      ];
-
-      # Terminal and Shell
-      terminalTools = [
-        # Terminal Emulators
-        pkgs.kitty
-        pkgs.wezterm
-
-        # Shell and Plugins
-        pkgs.zsh
-        pkgs.oh-my-zsh
-
-        # Terminal Multiplexers
-        pkgs.tmux
-        pkgs.tmuxinator
-
-        # Terminal Editors
-        # neovim is managed by custom.neovim module
-      ];
-
-      # CLI Tools
-      cliTools = [
-        # File and Text Processing
-        pkgs.fd
-        pkgs.ripgrep
-        pkgs.jq
-        pkgs.yq-go
-        pkgs.fzf
-        pkgs.zoxide
-        pkgs.coreutils-full
-        pkgs.ncdu
-        pkgs.zip
-        pkgs.p7zip
-        pkgs.gzip
-        pkgs.bzip2
-        pkgs.xz
-        pkgs.tree
-        pkgs.bat
-
-        # System Information
-        pkgs.fastfetch
-        pkgs.acpi
-
-        # Fun CLI Tools
-        pkgs.fortune
-        pkgs.cowsay
-        pkgs.ponysay
-        pkgs.lolcat
-        pkgs.figlet
-        pkgs.toilet
-        pkgs.boxes
-        pkgs.cmatrix
-        pkgs.sl
-        pkgs.asciiquarium
-        pkgs.xcowsay
-        pkgs.cbonsai
-        pkgs.tty-clock
-        pkgs.pipes-rs
-        pkgs.oneko
-      ];
-
-      # Network Tools
-      networkTools = [
-        pkgs.dhcpcd
-        pkgs.rustscan
-        pkgs.arp-scan
-        pkgs.nftables
-        pkgs.nethogs
-        pkgs.mtr
-        pkgs.wireshark
-        pkgs.xray
-        pkgs.v2ray
-        pkgs.tcpdump
-        pkgs.socat
-        pkgs.net-tools
-        pkgs.inetutils
-        pkgs.iperf3
-        pkgs.dnsutils
-        pkgs.ldns
-        pkgs.ipcalc
-        pkgs.nmap
-        pkgs.nload
-        pkgs.sing-box
-        pkgs.openfortivpn
-        pkgs.openconnect
-        pkgs.telepresence2
-        pkgs.ngrok
-        pkgs.iptables
-        pkgs.grpcurl
-        pkgs.wireguard-tools
-        pkgs.tailscale
-        pkgs.proxychains
-      ];
-
-      # Infrastructure and Cloud
-      infraTools = [
-        pkgs.kubectl
-        pkgs.kubectl-neat
-        pkgs.kubelogin-oidc
-        pkgs.k9s
-        argonaut
-        pkgs.stern
-        pkgs.awscli2
-        pkgs.argo-rollouts
-        pkgs.argocd
-        pkgs.kubernetes-helm
-        pkgs.kubernetes-helmPlugins.helm-s3
-      ];
-
-      # Desktop Applications
-      desktopApps = [
-        pkgs.obsidian
-        pkgs.vlc
-        pkgs.telegram-desktop
-        pkgs.spotify-player
-        pkgs.syncthing
-        pkgs.texstudio
-        pkgs.chromium
-        pkgs.tigervnc
-      ];
-
-      # Wayland and Desktop Environment
-      waylandTools = [
-        pkgs.grim
-        pkgs.slurp
-        pkgs.waypaper
-        pkgs.swww
-        pkgs.wl-clipboard
-        pkgs.rofi-pass
-        pkgs.wtype
-        pkgs.libnotify
-        pkgs.pavucontrol
-        pkgs.xwininfo
-        pkgs.brightnessctl
-      ];
-
-      # Security and Authentication
-      securityTools = [
-        pkgs.yubikey-manager
-        pkgs.totp-cli
-        (pkgs.pass.withExtensions (exts: [ exts.pass-otp ]))
-        pkgs.burpsuite
-      ];
-
-      # Fonts
-      fonts = [
-        pkgs.nerd-fonts.fira-code
-        pkgs.nerd-fonts.jetbrains-mono
-        pkgs.nerd-fonts.hack
-        pkgs.nerd-fonts.meslo-lg
-        pkgs.nerd-fonts.ubuntu-mono
-      ];
-
-      # Miscellaneous
-      miscTools = [
-        pkgs.yt-dlp
-        pkgs.remmina
-        pkgs.platformio-core
-        pkgs.esphome
-        pkgs.esptool
-        pkgs.hyperhdr
-        pkgs.ledfx
-        pkgs.htop
-        pkgs.parted
-        pkgs.tparted
-        pkgs.openvpn
-        pkgs.jemalloc
-        pkgs.ffmpeg_7-full
-        pkgs.libimobiledevice
-        pkgs.ifuse
-        pkgs.xdg-utils
-        pkgs.w3m
-        pkgs.android-tools
-        pkgs.obs-studio
-        pkgs.aichat
-        pkgs.vimPlugins.telescope-fzf-native-nvim
-        pkgs.television
-        pkgs.openvpn
-        pkgs.age
-        pkgs.code-cursor-fhs
-        pkgs.lm_sensors
-      ];
-
-      nixTools = with pkgs; [
-        nurl
-        nix-init
-        nix-search-tv
-      ];
-
-      # Platform-specific packages
-      platformSpecific = pkgs.lib.optionals (currentSystem == "x86_64-linux") [
-        pkgs.zoom-us
-        pkgs.android-studio
-
-        pkgs.discord
-        pkgs.insomnia
-        pkgs.blender
-      ];
-
-      g14Specific = pkgs.lib.optionals (currentHostname == "g14") [
-        pkgs.aseprite
-        pkgs.godot
-      ];
-
-    in
-    devTools
-    ++ devTooling
-    ++ terminalTools
-    ++ cliTools
-    ++ networkTools
-    ++ infraTools
-    ++ desktopApps
-    ++ waylandTools
-    ++ securityTools
-    ++ fonts
-    ++ miscTools
-    ++ nixTools
-    ++ platformSpecific
-    ++ g14Specific;
+  home.packages = pkgs.lib.concatMap (category: import category categoryArgs) categories;
 }

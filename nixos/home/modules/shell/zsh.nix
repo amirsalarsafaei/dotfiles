@@ -59,6 +59,8 @@
 
     shellAliases = import ./zsh/aliases.nix;
 
+    siteFunctions = import ./zsh/functions.nix;
+
     initContent = ''
       if [ -f "$HOME/zshsecret" ]; then
         source "$HOME/zshsecret"
@@ -68,7 +70,6 @@
         source "$HOME/.jetbrains.vmoptions.sh"
       fi
 
-      ${builtins.readFile ./zsh/functions.sh}
 
       autoload -Uz compinit && compinit -C
 

@@ -1,14 +1,13 @@
 {
-  inputs,
   pkgs,
   osConfig,
   config,
+  themeLib,
   ...
 }:
 let
   monitorConfig = osConfig.hyprland.monitorConfig or ",preferred,auto,auto";
-  t = config.theme;
-  hex = c: builtins.substring 1 (builtins.stringLength c - 1) c;
+  t = config.custom.theme.resolved.colors;
 in
 {
   wayland.windowManager.hyprland = {
@@ -21,8 +20,6 @@ in
       $menu = rofi -show drun -run-command 'uwsm app -- {cmd}'
       $clipboard = rofi-cliphist
 
-      env = XCURSOR_SIZE,24
-      env = HYPRCURSOR_SIZE,24
       env = XDG_MENU_PREFIX,plasma-
 
       # Monitor configuration
@@ -33,8 +30,8 @@ in
           gaps_in = 4
           gaps_out = 12
           border_size = 2
-          col.active_border = rgba(${hex t.accent}ff) rgba(${hex t.accentAlt}ff) 35deg
-          col.inactive_border = rgba(${hex t.surface}80)
+          col.active_border = rgba(${themeLib.stripHash t.base0D}ff) rgba(${themeLib.stripHash t.base0E}ff) 35deg
+          col.inactive_border = rgba(${themeLib.stripHash t.base02}80)
           resize_on_border = false
           allow_tearing = false
           layout = dwindle
@@ -64,9 +61,10 @@ in
               enabled = true
               range = 18
               render_power = 3
-              color = rgba(${hex t.shadow}66)
+              color = rgba(${themeLib.stripHash t.base00}66)
           }
       }
+
 
       animations {
           enabled = true
@@ -115,7 +113,7 @@ in
       bind = SUPER, w, killactive
       bind = SUPER, x, exec, loginctl lock-session
       bind = SUPER_SHIFT, Q, exit
-      # bind = SUPER_SHIFT, f, togglefloating
+      bind = SUPER_SHIFT, t, togglefloating
       bind = SUPER, f, fullscreen, 1
       bind = SUPER_SHIFT, F, fullscreen, 0
       bind = SUPER, SPACE, exec, $menu
@@ -135,7 +133,7 @@ in
       binde = SUPER_ALT, h, resizeactive, -40 0
       binde = SUPER_ALT, l, resizeactive, 40 0
       binde = SUPER_ALT, k, resizeactive, 0 -40
-      binde = SUPER_ALT, j, resizeactive, 0 40
+      binde = SUPER_ALT,  j, resizeactive, 0 40
 
       bind = SUPER, M, submap, move
       submap = move
@@ -175,7 +173,7 @@ in
       bind = SUPER, R, submap, reset
       submap = reset
 
-      # ── Workspace navigation ─────────────────────────────────
+      # Workspace navigation
       bind = SUPER, 1, workspace, 1
       bind = SUPER, 2, workspace, 2
       bind = SUPER, 3, workspace, 3
@@ -218,24 +216,6 @@ in
       bindel = , XF86LaunchA, exec, kbdbacklight down
       bindel = SUPER, XF86LaunchA, exec, kbdbacklight up
       bindel = , XF86KbdBrightnessDown, exec, kbdbacklight down
-      bindel = , XF86KbdBrightnessUp, exec, kbdbacklight up
-      bindel = , XF86Launch1, exec, rog-control-center
-
-      bindel = , Print, exec, grim -g "$(slurp)" - | wl-copy
-      bindel = , XF86Print, exec, grim -g "$(slurp)" - | wl-copy
-      bindel = SHIFT, Print, exec, grim - | wl-copy
-      bindel = SHIFT, XF86Print, exec, grim - | wl-copy
-      bindel = SHIFT_ALT, F3, exec, grim - | wl-copy
-      bindel = SHIFT_ALT, F4, exec, grim -g "$(slurp)" - | wl-copy
-
-      # ── Lid switch ─────────────────────────────────────────────
-      bindl = , switch:on:Lid Switch, exec, hypr-lid-close
-      bindl = , switch:off:Lid Switch, exec, hypr-lid-open
-
-      xwayland {
-          force_zero_scaling = true
-      }
-
     '';
   };
 }

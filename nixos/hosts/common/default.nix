@@ -250,7 +250,6 @@
       nftables.enable = true;
     };
 
-    nixpkgs.config.allowUnfree = true;
     programs.nix-ld.enable = true;
     programs.dconf.enable = true;
 
