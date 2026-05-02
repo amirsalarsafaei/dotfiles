@@ -23,22 +23,11 @@ return {
     opts = {},
   },
 
-
   {
     "RaafatTurki/hex.nvim",
     cmd = { "HexToggle", "HexDump", "HexAssemble" },
     keys = {
       { "<leader>hx", "<cmd>HexToggle<CR>", desc = "Toggle hex view" },
-    },
-    opts = {},
-  },
-
-  {
-    "tversteeg/registers.nvim",
-    cmd = "Registers",
-    keys = {
-      { '"',     mode = { "n", "v" } },
-      { "<C-r>", mode = "i" },
     },
     opts = {},
   },

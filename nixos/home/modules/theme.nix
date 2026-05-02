@@ -70,7 +70,7 @@ in
 
     wallpaper = lib.mkOption {
       type = lib.types.path;
-      default = ./programs/desktop/hyprlock/hyprlock.png;
+      default = ./theme/japan.png;
       description = "Primary wallpaper shared by Stylix, Hyprlock, and wallpaper tools.";
     };
 
@@ -156,7 +156,6 @@ in
         rofi.enable = false;
         dunst.enable = false;
         neovim.enable = false;
-        spicetify.enable = true;
         kde.enable = true;
       };
     };

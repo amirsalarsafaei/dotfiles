@@ -4,6 +4,5 @@
     ./hyprlock.nix
     ./rofi.nix
     ./waybar.nix
-    ./spicetify.nix
   ];
 }
