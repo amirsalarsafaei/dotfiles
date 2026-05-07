@@ -41,6 +41,9 @@ return {
 					height = 0.80,
 				},
 				path_display = { "truncate" },
+				buffer_previewer_maker = require("telescope.previewers").buffer_previewer_maker,
+				-- Disable treesitter highlighting to avoid ft_to_lang error
+				preview = { treesitter = false },
 				mappings = {
 					i = {
 						["<C-k>"] = actions.move_selection_previous,
