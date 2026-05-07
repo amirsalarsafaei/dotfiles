@@ -1,6 +1,5 @@
 {
   pkgs,
-  python,
   luaPackages,
   ...
 }:
@@ -12,7 +11,6 @@
   pkgs.openjdk21
   pkgs.gcc
   pkgs.libgcc
-  python
   luaPackages
 
   pkgs.cmake

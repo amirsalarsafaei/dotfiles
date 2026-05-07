@@ -1,8 +1,1 @@
-return {
-	cmd = { "protobuf-language-server" },
-	filetypes = { "proto" },
-	single_file_support = true,
-	settings = {
-		["additional-proto-dirs"] = { "third_party/proto", "src/proto" },
-	},
-}
+/nix/store/k6d0m48ywai3mz8ix76wfq0frrwqaaxq-home-manager-files/.config/nvim/lsp/protobuf-language-server.lua

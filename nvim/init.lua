@@ -1,2 +1,1 @@
-require("binaryboy.core")
-require("binaryboy.lazy")
+/nix/store/k6d0m48ywai3mz8ix76wfq0frrwqaaxq-home-manager-files/.config/nvim/init.lua

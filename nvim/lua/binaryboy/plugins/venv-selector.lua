@@ -1,13 +1,1 @@
-return {
-	"linux-cultist/venv-selector.nvim",
-	dependencies = {
-		"neovim/nvim-lspconfig",
-		"mfussenegger/nvim-dap",
-		{ "nvim-telescope/telescope.nvim", branch = "0.1.x", dependencies = { "nvim-lua/plenary.nvim" } },
-	},
-	lazy = false,
-	keys = {
-		{ ",v", "<cmd>VenvSelect<cr>" },
-	},
-	opts = {},
-}
+/nix/store/k6d0m48ywai3mz8ix76wfq0frrwqaaxq-home-manager-files/.config/nvim/lua/binaryboy/plugins/venv-selector.lua

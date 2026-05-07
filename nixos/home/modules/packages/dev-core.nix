@@ -20,24 +20,8 @@ let
     ]
   );
 
-  python = pkgs.python312.withPackages (
-    ps: with ps; [
-      jupyter
-      jupyterlab
-      notebook
-      ipython
-      ipykernel
-      numpy
-      pandas
-      matplotlib
-      seaborn
-      scikit-learn
-      pyarrow
-    ]
-  );
-
   categoryArgs = {
-    inherit pkgs luaPackages python;
+    inherit pkgs luaPackages;
   };
 
   categories = [

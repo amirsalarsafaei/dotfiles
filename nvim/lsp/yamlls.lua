@@ -1,10 +1,1 @@
-return {
-	settings = {
-		yaml = {
-			validate = true,
-			schemas = {
-				kubernetes = { "k8s**.yaml", "kube*/*.yaml" },
-			},
-		},
-	},
-}
+/nix/store/k6d0m48ywai3mz8ix76wfq0frrwqaaxq-home-manager-files/.config/nvim/lsp/yamlls.lua

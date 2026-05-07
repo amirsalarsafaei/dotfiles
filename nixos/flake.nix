@@ -135,8 +135,8 @@
         full = ./home/profiles/full.nix;
       };
 
-      mkHomeImports = hostConfig:
-        map (name: homeProfileModules.${name}) (hostConfig.homeProfiles or [ "full" ]);
+      mkHomeImports =
+        hostConfig: map (name: homeProfileModules.${name}) (hostConfig.homeProfiles or [ "full" ]);
 
       # Host definitions with multi-user support
       allHosts = {
@@ -160,7 +160,11 @@
           system = systems.aarch64;
           type = "home-manager";
           users = [ "amirsalar" ];
-          homeProfiles = [ "base" "dev" "theme" ];
+          homeProfiles = [
+            "base"
+            "dev"
+            "theme"
+          ];
         };
       };
 
@@ -223,8 +227,9 @@
                 sharedModules = [
                   sops-nix.homeManagerModules.sops
                   ./modules/sops.nix
-                ] ++ commonHomeModules
-                  ++ mkHomeImports hostConfig;
+                ]
+                ++ commonHomeModules
+                ++ mkHomeImports hostConfig;
                 users = lib.genAttrs users (username: {
                   _module.args.homeDir = "/home/${username}";
                 });
@@ -253,8 +258,9 @@
           modules = [
             { home.username = username; }
             { nixpkgs = commonNixpkgsConfig system; }
-          ] ++ commonHomeModules
-            ++ mkHomeImports hostConfig;
+          ]
+          ++ commonHomeModules
+          ++ mkHomeImports hostConfig;
         };
 
       # Filter hosts by type
@@ -269,9 +275,9 @@
           in
           map (
             username:
-            lib.nameValuePair "${username}@${hostname}" (mkHomeManager (
-              hostConfig // { inherit hostname username; }
-            ))
+            lib.nameValuePair "${username}@${hostname}" (
+              mkHomeManager (hostConfig // { inherit hostname username; })
+            )
           ) users
         ) homeManagerHosts
       );

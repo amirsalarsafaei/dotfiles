@@ -1,10 +1,1 @@
-return {
-	"ThePrimeagen/refactoring.nvim",
-	dependencies = {
-		"nvim-lua/plenary.nvim",
-		"nvim-treesitter/nvim-treesitter",
-	},
-	config = function()
-		require("refactoring").setup({})
-	end,
-}
+/nix/store/k6d0m48ywai3mz8ix76wfq0frrwqaaxq-home-manager-files/.config/nvim/lua/binaryboy/plugins/refactoring.lua

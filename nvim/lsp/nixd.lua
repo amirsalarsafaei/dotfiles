@@ -1,18 +1,1 @@
-return {
-	settings = {
-		nixpkgs = {
-			expr = "import <nixpkgs> { }",
-		},
-		formatting = {
-			command = { "nixfmt" },
-		},
-		options = {
-			nixos = {
-				expr = '(builtins.getFlake ("git+file://" + toString ./.)).nixosConfigurations.k-on.options',
-			},
-			home_manager = {
-				expr = '(builtins.getFlake ("git+file://" + toString ./.)).homeConfigurations."ruixi@k-on".options',
-			},
-		},
-	},
-}
+/nix/store/k6d0m48ywai3mz8ix76wfq0frrwqaaxq-home-manager-files/.config/nvim/lsp/nixd.lua
