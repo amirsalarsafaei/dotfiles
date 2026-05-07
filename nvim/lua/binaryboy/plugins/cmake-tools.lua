@@ -1,1 +1,1 @@
-/nix/store/k6d0m48ywai3mz8ix76wfq0frrwqaaxq-home-manager-files/.config/nvim/lua/binaryboy/plugins/cmake-tools.lua
+return { "Civitasv/cmake-tools.nvim", opts = {} }

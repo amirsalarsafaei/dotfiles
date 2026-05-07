@@ -1,1 +1,4 @@
-/nix/store/k6d0m48ywai3mz8ix76wfq0frrwqaaxq-home-manager-files/.config/nvim/lua/binaryboy/core/init.lua
+require('binaryboy.core.options')
+require('binaryboy.core.keymaps')
+require('binaryboy.core.autocmds')
+require('binaryboy.core.lsp')

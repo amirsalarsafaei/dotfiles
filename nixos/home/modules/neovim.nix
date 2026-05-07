@@ -85,7 +85,6 @@ in
 
     xdg.configFile."nvim" = lib.mkIf (cfg.source != null) {
       source = config.lib.file.mkOutOfStoreSymlink cfg.source;
-      recursive = true;
     };
 
     xdg.configFile."nvim-host.lua".text = ''

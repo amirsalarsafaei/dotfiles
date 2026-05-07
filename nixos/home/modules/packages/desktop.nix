@@ -12,4 +12,5 @@
   pkgs.code-cursor-fhs
   pkgs.nwg-displays
   pkgs.input-leap
+  pkgs.postman
 ]

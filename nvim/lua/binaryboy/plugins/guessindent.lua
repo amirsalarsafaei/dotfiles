@@ -1,1 +1,11 @@
-/nix/store/k6d0m48ywai3mz8ix76wfq0frrwqaaxq-home-manager-files/.config/nvim/lua/binaryboy/plugins/guessindent.lua
+return {
+	"nmac427/guess-indent.nvim",
+	config = function()
+		require("guess-indent").setup({
+			filetype_exclude = {
+				"c", "cpp", "objc", "objcpp", "cuda",
+				"netrw", "tutor",
+			},
+		})
+	end,
+}

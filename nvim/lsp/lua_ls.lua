@@ -1,1 +1,15 @@
-/nix/store/k6d0m48ywai3mz8ix76wfq0frrwqaaxq-home-manager-files/.config/nvim/lsp/lua_ls.lua
+return {
+	settings = {
+		Lua = {
+			diagnostics = {
+				globals = { "vim" },
+			},
+			completion = {
+				callSnippet = "Replace",
+			},
+			runtime = {
+				version = "LuaJIT",
+			},
+		},
+	},
+}

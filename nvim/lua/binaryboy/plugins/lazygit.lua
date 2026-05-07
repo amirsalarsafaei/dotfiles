@@ -1,1 +1,17 @@
-/nix/store/k6d0m48ywai3mz8ix76wfq0frrwqaaxq-home-manager-files/.config/nvim/lua/binaryboy/plugins/lazygit.lua
+return {
+	"kdheepak/lazygit.nvim",
+	lazy = true,
+	cmd = {
+		"LazyGit",
+		"LazyGitConfig",
+		"LazyGitCurrentFile",
+		"LazyGitFilter",
+		"LazyGitFilterCurrentFile",
+	},
+	dependencies = {
+		"nvim-lua/plenary.nvim",
+	},
+	keys = {
+		{ "<leader>lg", "<cmd>LazyGit<cr>", desc = "LazyGit" },
+	},
+}

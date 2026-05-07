@@ -7,10 +7,9 @@
   pkgs.go
   pkgs.rustc
   pkgs.nodejs_22
-  pkgs.kotlin
-  pkgs.openjdk21
   pkgs.gcc
   pkgs.libgcc
+  pkgs.python3
   luaPackages
 
   pkgs.cmake
@@ -23,9 +22,6 @@
   pkgs.git-crypt
   pkgs.sops
   pkgs.unzip
-  pkgs.postman
-  pkgs.docker
-  pkgs.docker-compose
   pkgs.gore
   pkgs.devbox
   pkgs.bazelisk
@@ -35,5 +31,4 @@
   pkgs.step-cli
   pkgs.bun
   pkgs.luaPackages.tree-sitter-cli
-
 ]

@@ -23,9 +23,6 @@
   pkgs.gdb
   pkgs.lldb
 
-  pkgs.kotlin-language-server
-  pkgs.ktlint
-
   pkgs.sqls
 
   pkgs.pyright
@@ -48,8 +45,6 @@
   pkgs.lua-language-server
   pkgs.luaformatter
   pkgs.stylua
-
-  pkgs.jdt-language-server
 
   pkgs.dockerfile-language-server
   pkgs.docker-compose-language-service

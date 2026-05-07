@@ -1,1 +1,3 @@
-/nix/store/k6d0m48ywai3mz8ix76wfq0frrwqaaxq-home-manager-files/.config/nvim/lua/binaryboy/plugins/init.lua
+return {
+  "nvim-lua/plenary.nvim", -- async lua functions
+}
