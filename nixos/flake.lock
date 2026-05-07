@@ -162,23 +162,6 @@
         "type": "github"
       }
     },
-    "dev-home": {
-      "inputs": {
-        "fast-syntax-highlighting": "fast-syntax-highlighting",
-        "fzf-tab": "fzf-tab",
-        "zsh-autosuggestions": "zsh-autosuggestions",
-        "zsh-nix-shell": "zsh-nix-shell"
-      },
-      "locked": {
-        "path": "../dev-home",
-        "type": "path"
-      },
-      "original": {
-        "path": "../dev-home",
-        "type": "path"
-      },
-      "parent": []
-    },
     "fast-syntax-highlighting": {
       "flake": false,
       "locked": {
@@ -887,7 +870,8 @@
         "apple-silicon-support": "apple-silicon-support",
         "argonaut": "argonaut",
         "claude-code": "claude-code",
-        "dev-home": "dev-home",
+        "fast-syntax-highlighting": "fast-syntax-highlighting",
+        "fzf-tab": "fzf-tab",
         "home-manager": "home-manager",
         "hyprland": "hyprland",
         "hyprland-plugins": "hyprland-plugins",
@@ -896,7 +880,9 @@
         "sops-nix": "sops-nix",
         "spicetify-nix": "spicetify-nix",
         "split-monitor-workspaces": "split-monitor-workspaces",
-        "stylix": "stylix"
+        "stylix": "stylix",
+        "zsh-autosuggestions": "zsh-autosuggestions",
+        "zsh-nix-shell": "zsh-nix-shell"
       }
     },
     "sops-nix": {

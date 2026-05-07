@@ -2,7 +2,6 @@
   pkgs,
   python,
   luaPackages,
-  gapClaudeCode,
   ...
 }:
 [
@@ -37,7 +36,6 @@
   pkgs.lazygit
   pkgs.step-cli
   pkgs.bun
-  gapClaudeCode
   pkgs.luaPackages.tree-sitter-cli
 
 ]

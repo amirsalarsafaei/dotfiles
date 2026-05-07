@@ -34,10 +34,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    dev-home = {
-      url = "path:../dev-home";
-    };
-
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -65,6 +61,24 @@
 
     claude-code.url = "github:sadjow/claude-code-nix";
 
+    # Zsh plugins (formerly in dev-home)
+    fzf-tab = {
+      url = "github:Aloxaf/fzf-tab";
+      flake = false;
+    };
+    zsh-autosuggestions = {
+      url = "github:zsh-users/zsh-autosuggestions";
+      flake = false;
+    };
+    fast-syntax-highlighting = {
+      url = "github:zdharma-continuum/fast-syntax-highlighting";
+      flake = false;
+    };
+    zsh-nix-shell = {
+      url = "github:chisui/zsh-nix-shell";
+      flake = false;
+    };
+
     # system-bridge = {
     #   url = "path:/home/amirsalar/personal/system-bridge";
     #   inputs.nixpkgs.follows = "nixpkgs";
@@ -80,7 +94,6 @@
       apple-silicon-support,
       sops-nix,
       claude-code,
-      dev-home,
       stylix,
       ...
     }@inputs:
@@ -113,6 +126,18 @@
 
       dotfilesRoot = self.sourceInfo;
 
+      # Profile modules that hosts can compose
+      homeProfileModules = {
+        base = ./home/profiles/base.nix;
+        dev = ./home/profiles/dev.nix;
+        theme = ./home/profiles/theme.nix;
+        desktop = ./home/profiles/desktop.nix;
+        full = ./home/profiles/full.nix;
+      };
+
+      mkHomeImports = hostConfig:
+        map (name: homeProfileModules.${name}) (hostConfig.homeProfiles or [ "full" ]);
+
       # Host definitions with multi-user support
       allHosts = {
         mac = {
@@ -130,11 +155,12 @@
           ];
           extraModules = [ ];
         };
-        g14Arch = {
-          system = systems.x86_64;
+
+        orangepi = {
+          system = systems.aarch64;
           type = "home-manager";
           users = [ "amirsalar" ];
-          extraModules = [ ];
+          homeProfiles = [ "base" "dev" "theme" ];
         };
       };
 
@@ -147,6 +173,11 @@
         else
           throw "Host configuration must have either 'users' or 'username' field";
 
+      # Common home-manager shared modules (compat shims, nixpkgs config)
+      commonHomeModules = [
+        ./home/modules/theme/opencode-compat.nix
+      ];
+
       mkNixOS =
         {
           hostname,
@@ -154,7 +185,7 @@
           users,
           extraModules ? [ ],
           ...
-        }:
+        }@hostConfig:
         lib.nixosSystem {
           inherit system;
           specialArgs = {
@@ -191,17 +222,10 @@
                 };
                 sharedModules = [
                   sops-nix.homeManagerModules.sops
-                  ./home/modules/theme/opencode-compat.nix
-                  stylix.homeModules.stylix
-                  inputs.spicetify-nix.homeManagerModules.default
-                  dev-home.homeManagerModules.default
-                  ./home/modules/dev-home-adapter.nix
                   ./modules/sops.nix
-                ];
+                ] ++ commonHomeModules
+                  ++ mkHomeImports hostConfig;
                 users = lib.genAttrs users (username: {
-                  imports = [
-                    ./home/default.nix
-                  ];
                   _module.args.homeDir = "/home/${username}";
                 });
               };
@@ -217,24 +241,20 @@
           system,
           username,
           ...
-        }:
+        }@hostConfig:
         home-manager.lib.homeManagerConfiguration {
           pkgs = nixpkgs.legacyPackages.${system};
           extraSpecialArgs = {
-            inherit secrets inputs;
+            inherit secrets inputs dotfilesRoot;
             currentSystem = system;
             currentHostname = hostname;
             homeDir = "/home/${username}";
           };
           modules = [
-            ./home/default.nix
-            ./home/modules/theme/opencode-compat.nix
-            stylix.homeModules.stylix
-            inputs.spicetify-nix.homeManagerModules.default
-            dev-home.homeManagerModules.default
-            ./home/modules/dev-home-adapter.nix
+            { home.username = username; }
             { nixpkgs = commonNixpkgsConfig system; }
-          ];
+          ] ++ commonHomeModules
+            ++ mkHomeImports hostConfig;
         };
 
       # Filter hosts by type
@@ -249,10 +269,9 @@
           in
           map (
             username:
-            lib.nameValuePair "${username}@${hostname}" (mkHomeManager {
-              inherit hostname username;
-              system = hostConfig.system;
-            })
+            lib.nameValuePair "${username}@${hostname}" (mkHomeManager (
+              hostConfig // { inherit hostname username; }
+            ))
           ) users
         ) homeManagerHosts
       );
