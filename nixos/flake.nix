@@ -34,24 +34,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    fzf-tab = {
-      url = "github:Aloxaf/fzf-tab";
-      flake = false;
-    };
-
-    zsh-autosuggestions = {
-      url = "github:zsh-users/zsh-autosuggestions";
-      flake = false;
-    };
-
-    fast-syntax-highlighting = {
-      url = "github:zdharma-continuum/fast-syntax-highlighting";
-      flake = false;
-    };
-
-    zsh-nix-shell = {
-      url = "github:chisui/zsh-nix-shell";
-      flake = false;
+    dev-home = {
+      url = "path:../dev-home";
     };
 
     sops-nix = {
@@ -96,6 +80,7 @@
       apple-silicon-support,
       sops-nix,
       claude-code,
+      dev-home,
       stylix,
       ...
     }@inputs:
@@ -209,6 +194,8 @@
                   ./home/modules/theme/opencode-compat.nix
                   stylix.homeModules.stylix
                   inputs.spicetify-nix.homeManagerModules.default
+                  dev-home.homeManagerModules.default
+                  ./home/modules/dev-home-adapter.nix
                   ./modules/sops.nix
                 ];
                 users = lib.genAttrs users (username: {
@@ -244,6 +231,8 @@
             ./home/modules/theme/opencode-compat.nix
             stylix.homeModules.stylix
             inputs.spicetify-nix.homeManagerModules.default
+            dev-home.homeManagerModules.default
+            ./home/modules/dev-home-adapter.nix
             { nixpkgs = commonNixpkgsConfig system; }
           ];
         };

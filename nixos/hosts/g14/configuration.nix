@@ -202,5 +202,5 @@ in
   };
 
   system.stateVersion = "25.05";
-  programs.wireshark.enable = true;
+  # programs.wireshark.enable = true; # temporarily disabled: upstream hash mismatch
 }

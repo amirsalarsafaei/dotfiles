@@ -162,6 +162,23 @@
         "type": "github"
       }
     },
+    "dev-home": {
+      "inputs": {
+        "fast-syntax-highlighting": "fast-syntax-highlighting",
+        "fzf-tab": "fzf-tab",
+        "zsh-autosuggestions": "zsh-autosuggestions",
+        "zsh-nix-shell": "zsh-nix-shell"
+      },
+      "locked": {
+        "path": "../dev-home",
+        "type": "path"
+      },
+      "original": {
+        "path": "../dev-home",
+        "type": "path"
+      },
+      "parent": []
+    },
     "fast-syntax-highlighting": {
       "flake": false,
       "locked": {
@@ -803,11 +820,11 @@
     },
     "nixpkgs_4": {
       "locked": {
-        "lastModified": 1776169885,
-        "narHash": "sha256-l/iNYDZ4bGOAFQY2q8y5OAfBBtrDAaPuRQqWaFHVRXM=",
+        "lastModified": 1777578337,
+        "narHash": "sha256-Ad49moKWeXtKBJNy2ebiTQUEgdLyvGmTeykAQ9xM+Z4=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "4bd9165a9165d7b5e33ae57f3eecbcb28fb231c9",
+        "rev": "15f4ee454b1dce334612fa6843b3e05cf546efab",
         "type": "github"
       },
       "original": {
@@ -870,8 +887,7 @@
         "apple-silicon-support": "apple-silicon-support",
         "argonaut": "argonaut",
         "claude-code": "claude-code",
-        "fast-syntax-highlighting": "fast-syntax-highlighting",
-        "fzf-tab": "fzf-tab",
+        "dev-home": "dev-home",
         "home-manager": "home-manager",
         "hyprland": "hyprland",
         "hyprland-plugins": "hyprland-plugins",
@@ -880,9 +896,7 @@
         "sops-nix": "sops-nix",
         "spicetify-nix": "spicetify-nix",
         "split-monitor-workspaces": "split-monitor-workspaces",
-        "stylix": "stylix",
-        "zsh-autosuggestions": "zsh-autosuggestions",
-        "zsh-nix-shell": "zsh-nix-shell"
+        "stylix": "stylix"
       }
     },
     "sops-nix": {

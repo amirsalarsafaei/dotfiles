@@ -2,7 +2,5 @@
   imports = [
     ./terminal
     ./desktop
-    ./development
   ];
-
 }

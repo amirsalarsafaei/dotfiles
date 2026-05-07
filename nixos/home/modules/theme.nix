@@ -11,10 +11,10 @@ let
     scheme = "Slate";
     author = "Amirsalar";
     base00 = "0d1117"; # background - deep charcoal
-    base01 = "161b22"; # lighter background
-    base02 = "21262d"; # selection background
-    base03 = "484f58"; # comments, invisibles
-    base04 = "6e7681"; # dark foreground
+    base01 = "1c2128"; # lighter background (panels, sidebars)
+    base02 = "30363d"; # selection / hover background
+    base03 = "586069"; # comments, invisibles, muted text
+    base04 = "8b949e"; # dark foreground (inactive / placeholder)
     base05 = "c9d1d9"; # default foreground
     base06 = "d1d9e0"; # light foreground
     base07 = "e6edf3"; # lightest foreground
@@ -25,7 +25,7 @@ let
     base0C = "4fc3f7"; # cyan - support, regex
     base0D = "5b9cf6"; # blue - functions, methods
     base0E = "5b9cf6"; # blue (no purple) - keywords
-    base0F = "8b949e"; # gray - deprecated, special
+    base0F = "6e7681"; # gray - deprecated, special
   };
 
   colors = lib.mapAttrs (_: value: "#${value}") (

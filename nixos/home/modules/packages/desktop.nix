@@ -10,4 +10,6 @@
   pkgs.tigervnc
   pkgs.remmina
   pkgs.code-cursor-fhs
+  pkgs.nwg-displays
+  pkgs.input-leap
 ]

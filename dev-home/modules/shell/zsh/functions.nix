@@ -1,0 +1,3 @@
+{
+  gavgo = "fortune | cowsay | lolcat";
+}
