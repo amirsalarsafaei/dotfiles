@@ -162,6 +162,22 @@
         "type": "github"
       }
     },
+    "dotfiles": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1778181269,
+        "narHash": "sha256-Zug3IFSEUXWMJOgeaUG5g9ZLTrhUUy45f/LO2fBd+3c=",
+        "owner": "amirsalarsafaei",
+        "repo": "dotfiles",
+        "rev": "2a82ac50701f12fe390fc9ec456ab32d7b648187",
+        "type": "github"
+      },
+      "original": {
+        "owner": "amirsalarsafaei",
+        "repo": "dotfiles",
+        "type": "github"
+      }
+    },
     "fast-syntax-highlighting": {
       "flake": false,
       "locked": {
@@ -870,6 +886,7 @@
         "apple-silicon-support": "apple-silicon-support",
         "argonaut": "argonaut",
         "claude-code": "claude-code",
+        "dotfiles": "dotfiles",
         "fast-syntax-highlighting": "fast-syntax-highlighting",
         "fzf-tab": "fzf-tab",
         "home-manager": "home-manager",

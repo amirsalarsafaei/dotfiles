@@ -79,6 +79,11 @@
       flake = false;
     };
 
+    dotfiles = {
+      url = "github:amirsalarsafaei/dotfiles";
+      flake = false;
+    };
+
     # system-bridge = {
     #   url = "path:/home/amirsalar/personal/system-bridge";
     #   inputs.nixpkgs.follows = "nixpkgs";
@@ -124,7 +129,7 @@
         ];
       };
 
-      dotfilesRoot = self.sourceInfo;
+      dotfilesRoot = inputs.dotfiles;
 
       # Profile modules that hosts can compose
       homeProfileModules = {
@@ -258,6 +263,7 @@
           modules = [
             { home.username = username; }
             { nixpkgs = commonNixpkgsConfig system; }
+            { programs.home-manager.enable = true; }
           ]
           ++ commonHomeModules
           ++ mkHomeImports hostConfig;
