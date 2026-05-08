@@ -23,7 +23,8 @@
       };
 
       hostname = {
-        disabled = true;
+        disabled = false;
+        ssh_only = true;
       };
 
       os = {
