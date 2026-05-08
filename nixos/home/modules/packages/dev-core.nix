@@ -29,6 +29,7 @@ let
     ./tooling.nix
     ./cli.nix
     ./nix.nix
+    ./infra.nix
   ];
 in
 {
@@ -48,7 +49,6 @@ in
 
   config = {
     home.packages =
-      pkgs.lib.concatMap (category: import category categoryArgs) categories
-      ++ cfg.extraPackages;
+      pkgs.lib.concatMap (category: import category categoryArgs) categories ++ cfg.extraPackages;
   };
 }
