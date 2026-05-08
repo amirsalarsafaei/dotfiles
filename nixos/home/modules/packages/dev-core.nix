@@ -2,6 +2,7 @@
   pkgs,
   config,
   lib,
+  inputs,
   ...
 }:
 let
@@ -21,7 +22,7 @@ let
   );
 
   categoryArgs = {
-    inherit pkgs luaPackages;
+    inherit pkgs luaPackages inputs;
   };
 
   categories = [

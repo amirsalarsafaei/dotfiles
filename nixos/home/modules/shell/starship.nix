@@ -6,7 +6,7 @@
     enableBashIntegration = true;
     enableZshIntegration = true;
     settings = {
-      format = "$directory$git_branch$git_status$nodejs$python$rust$golang$c$lua$nix_shell$docker_context$kubernetes$character";
+      format = "$hostname$directory$git_branch$git_status$nodejs$python$rust$golang$c$lua$nix_shell$docker_context$kubernetes$character";
       right_format = "$cmd_duration$time";
       add_newline = false;
 

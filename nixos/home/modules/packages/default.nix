@@ -3,15 +3,13 @@
   pkgs,
   currentHostname,
   currentSystem,
-  secrets,
   ...
 }:
 let
-  argonaut = inputs.argonaut.packages.${pkgs.stdenv.hostPlatform.system}.default;
 
   categoryArgs = {
     inherit
-      argonaut
+      inputs
       currentHostname
       currentSystem
       pkgs
@@ -22,7 +20,6 @@ let
     ./terminals.nix
     ./fun.nix
     ./network.nix
-    ./infra.nix
     ./desktop.nix
     ./wayland-tools.nix
     ./security-tools.nix
