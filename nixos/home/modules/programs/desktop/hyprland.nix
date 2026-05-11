@@ -208,6 +208,10 @@ in
       bind = SUPER_CTRL, left, swapactiveworkspaces, current -1
       bind = SUPER_CTRL, right, swapactiveworkspaces, current +1
 
+      # Screenshot (region select → clipboard)
+      bind = , Print, exec, grim -g "$(slurp)" - | wl-copy
+      bind = SUPER_SHIFT, P, exec, grim -g "$(slurp)" - | wl-copy
+
       bindel = , XF86AudioRaiseVolume, exec, volume up
       bindel = , XF86AudioLowerVolume, exec, volume down
       bindel = , XF86AudioMute, exec, volume mute

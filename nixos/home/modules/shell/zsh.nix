@@ -79,6 +79,12 @@
         bindkey -r '^g'
       fi
 
+      if command kubectl-argo-rollouts version > /dev/null 2>&1; then
+        eval "$(kubectl-argo-rollouts completion zsh)"
+
+
+      fi
+
       # ── fzf-tab config ────────────────────────────────────────────────────
       # preview directory contents on cd completion
       zstyle ':fzf-tab:complete:cd:*' fzf-preview 'ls --color=always $realpath'
