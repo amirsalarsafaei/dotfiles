@@ -77,7 +77,7 @@ in
     fonts = {
       sans = lib.mkOption {
         type = lib.types.str;
-        default = "Inter";
+        default = "JetBrainsMono Nerd Font";
         description = "Sans font for desktop surfaces and headings.";
       };
 
@@ -89,7 +89,7 @@ in
 
       display = lib.mkOption {
         type = lib.types.str;
-        default = "Inter";
+        default = "JetBrainsMono Nerd Font";
         description = "Display font for lockscreen and large UI elements.";
       };
     };
@@ -113,8 +113,8 @@ in
 
       fonts = {
         sansSerif = {
-          package = pkgs.inter;
-          name = "Inter";
+          package = pkgs.nerd-fonts.jetbrains-mono;
+          name = "JetBrainsMono Nerd Font";
         };
         monospace = {
           package = pkgs.nerd-fonts.jetbrains-mono;

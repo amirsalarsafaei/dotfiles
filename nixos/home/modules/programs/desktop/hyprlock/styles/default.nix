@@ -1,4 +1,5 @@
 {
+  pkgs,
   theme,
   themeLib,
   ...
@@ -11,43 +12,36 @@ in
     background = {
       monitor = "";
       path = toString theme.wallpaper;
-      blur_passes = 2;
-      contrast = 0.95;
-      brightness = 0.85;
-      vibrancy = 0.20;
+      blur_passes = 4;
+      blur_size = 8;
+      contrast = 0.85;
+      brightness = 0.55;
+      vibrancy = 0.10;
       vibrancy_darkness = 0.0;
     };
 
     input-field = {
       monitor = "";
-      size = "340, 58";
-      outline_thickness = 2;
+      size = "280, 44";
+      outline_thickness = 1;
       dots_size = 0.2;
-      dots_spacing = 0.2;
+      dots_spacing = 0.25;
       dots_center = true;
-      outer_color = themeLib.rgba t.base0D 0.40;
-      inner_color = themeLib.rgba t.base01 0.52;
-      font_color = themeLib.rgba t.base05 0.9;
+      dots_rounding = -1;
+      outer_color = themeLib.rgba t.base03 0.30;
+      inner_color = themeLib.rgba t.base00 0.35;
+      font_color = themeLib.rgba t.base05 0.80;
       fade_on_empty = false;
-      font_family = theme.fonts.display;
-      placeholder_text = "🔒  Enter Password";
+      font_family = theme.fonts.mono;
+      placeholder_text = "<span foreground='##${themeLib.stripHash t.base03}'>...</span>";
       hide_input = false;
-      position = "155, -210";
-      halign = "left";
-      valign = "center";
-    };
-
-    shape = {
-      monitor = "";
-      size = "340, 58";
-      color = themeLib.rgba t.base00 0.38;
-      rounding = -1;
-      border_size = 1;
-      border_color = themeLib.rgba t.base0E 0.55;
-      rotate = 0;
-      xray = false;
-      position = "155, -132";
-      halign = "left";
+      rounding = 8;
+      check_color = themeLib.rgba t.base0B 0.50;
+      fail_color = themeLib.rgba t.base08 0.60;
+      fail_text = "<span foreground='##${themeLib.stripHash t.base08}'>$FAIL ($ATTEMPTS)</span>";
+      capslock_color = themeLib.rgba t.base0A 0.50;
+      position = "0, -30";
+      halign = "center";
       valign = "center";
     };
   };
@@ -55,56 +49,79 @@ in
   extraConfig = ''
     label {
         monitor =
-        text = Welcome back
-        color = ${themeLib.rgba t.base05 0.82}
-        font_size = 50
-        font_family = ${theme.fonts.display}
-        position = 148, 320
-        halign = left
+        text = cmd[update:1000] echo "$(date +"%H:%M")"
+        color = ${themeLib.rgba t.base07 0.95}
+        font_size = 96
+        font_family = ${theme.fonts.mono}
+        position = 0, 260
+        halign = center
         valign = center
     }
 
     label {
         monitor =
-        text = cmd[update:1000] echo "<span>$(date +"%I:%M")</span>"
-        color = ${themeLib.rgba t.base07 0.88}
-        font_size = 40
-        font_family = ${theme.fonts.display}
-        position = 240, 240
-        halign = left
+        text = cmd[update:60000] echo "$(date +"%a %b %-d" | tr '[:lower:]' '[:upper:]')"
+        color = ${themeLib.rgba t.base04 0.60}
+        font_size = 14
+        font_family = ${theme.fonts.mono}
+        position = 0, 185
+        halign = center
         valign = center
     }
 
     label {
         monitor =
-        text = cmd[update:1000] echo -e "$(date +"%A, %B %d")"
-        color = ${themeLib.rgba t.base04 0.85}
-        font_size = 19
-        font_family = ${theme.fonts.display}
-        position = 217, 175
-        halign = left
+        text = $USER
+        color = ${themeLib.rgba t.base05 0.55}
+        font_size = 13
+        font_family = ${theme.fonts.mono}
+        position = 0, 30
+        halign = center
         valign = center
     }
 
     label {
         monitor =
-        text =     $USER
-        color = ${themeLib.rgba t.base07 0.92}
-        font_size = 16
-        font_family = ${theme.fonts.display}
-        position = 270, -130
-        halign = left
+        text = cmd[update:100] bash -c 'if [ "$(cat /sys/class/leds/*capslock*/brightness 2>/dev/null || echo 0)" = "1" ]; then echo "CAPS"; fi'
+        color = ${themeLib.rgba t.base0A 0.70}
+        font_size = 11
+        font_family = ${theme.fonts.mono}
+        position = 0, -80
+        halign = center
+        valign = center
+    }
+
+    label {
+        monitor =
+        text = $LAYOUT[!]
+        color = ${themeLib.rgba t.base03 0.50}
+        font_size = 11
+        font_family = ${theme.fonts.mono}
+        position = 0, -100
+        halign = center
+        valign = center
+    }
+
+    label {
+        monitor =
+        text = cmd[update:0] ${pkgs.fortune}/bin/fortune -s | ${pkgs.cowsay}/bin/cowsay -W 36 -n
+        color = ${themeLib.rgba t.base03 0.35}
+        font_size = 14
+        font_family = ${theme.fonts.mono}
+        text_align = left
+        position = 0, -260
+        halign = center
         valign = center
     }
 
     label {
         monitor =
         text = cmd[update:1000] echo "$(${../Scripts/songdetail.sh})"
-        color = ${themeLib.rgba t.base04 0.65}
-        font_size = 14
+        color = ${themeLib.rgba t.base03 0.40}
+        font_size = 11
         font_family = ${theme.fonts.mono}
-        position = 210, 45
-        halign = left
+        position = 0, 40
+        halign = center
         valign = bottom
     }
   '';
