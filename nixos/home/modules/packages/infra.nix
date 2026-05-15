@@ -4,6 +4,7 @@
   pkgs.kubectl-neat
   pkgs.kubelogin-oidc
   pkgs.k9s
+  pkgs.kubeseal
   inputs.argonaut.packages.${pkgs.stdenv.hostPlatform.system}.default
   pkgs.stern
   pkgs.awscli2
