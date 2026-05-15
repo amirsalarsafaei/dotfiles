@@ -21,4 +21,5 @@
   pkgs.w3m
   pkgs.television
   pkgs.aichat
+  pkgs.jcal
 ]

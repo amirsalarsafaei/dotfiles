@@ -71,18 +71,14 @@
       fi
 
 
-      autoload -Uz compinit && compinit -C
-
       if command -v navi >/dev/null 2>&1; then
         eval "$(navi widget zsh)"
         bindkey '^n' _navi_widget
         bindkey -r '^g'
       fi
 
-      if command kubectl-argo-rollouts version > /dev/null 2>&1; then
+      if command -v kubectl-argo-rollouts >/dev/null 2>&1; then
         eval "$(kubectl-argo-rollouts completion zsh)"
-
-
       fi
 
       # ── fzf-tab config ────────────────────────────────────────────────────

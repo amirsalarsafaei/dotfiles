@@ -12,7 +12,7 @@ in
     systemd.enable = true;
     style = ''
       * {
-        font-family: 'Inter', 'Maple Mono NF', 'Font Awesome 6 Free', sans-serif;
+        font-family: 'JetBrainsMono Nerd Font', 'Font Awesome 6 Free', monospace;
         font-size: 14px;
         font-weight: 700;
         min-height: 0;
