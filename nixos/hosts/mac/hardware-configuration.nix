@@ -43,6 +43,19 @@
     options = [ "defaults" ];
   };
 
+  fileSystems."/data2" = {
+    device = "/dev/disk/by-uuid/70ab5951-69bf-4696-b7b4-0e8e36be6105";
+    fsType = "ext4";
+    options = [ "defaults" ];
+  };
+
+  fileSystems."/nix/var" = {
+    device = "/data2/nix-var";
+    options = [ "bind" ];
+    depends = [ "/data2" ];
+    fsType = "none";
+  };
+
   swapDevices = lib.mkForce [
     {
       device = "/data/swapfile";

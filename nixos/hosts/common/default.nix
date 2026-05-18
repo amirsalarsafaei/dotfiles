@@ -387,7 +387,7 @@
 
     programs.ssh = {
       startAgent = false;
-      askPassword = "${pkgs.seahorse}/bin/seahorse";
+      askPassword = "${pkgs.lxqt.lxqt-openssh-askpass}/bin/lxqt-openssh-askpass";
       extraConfig = ''
         AddKeysToAgent yes
       '';

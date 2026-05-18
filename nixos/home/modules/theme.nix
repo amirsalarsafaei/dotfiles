@@ -49,7 +49,6 @@ let
 in
 {
   imports = [
-    ./theme/opencode-compat.nix
   ];
 
   options.custom.theme = {

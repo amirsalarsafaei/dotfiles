@@ -189,16 +189,16 @@ in
         modules-left = [
           "hyprland/workspaces"
           "hyprland/window"
+          "tray"
+          "network"
+          "idle_inhibitor"
         ];
         modules-center = [ ];
         modules-right = [
-          "idle_inhibitor"
           "clock"
-          "network"
           "wireplumber"
           "group/hardware"
           "hyprland/language"
-          "tray"
           "custom/power"
         ];
 
@@ -320,7 +320,7 @@ in
 
         tray = {
           icon-size = 18;
-          spacing = 8;
+          spacing = 4;
         };
 
         "custom/power" = {

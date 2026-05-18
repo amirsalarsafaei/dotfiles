@@ -44,7 +44,7 @@ let
     mesa-demos
 
     # Secrets/keyring
-    seahorse
+    lxqt.lxqt-openssh-askpass
     gnome-keyring
     libsecret
     libgnome-keyring

@@ -184,7 +184,6 @@
 
       # Common home-manager shared modules (compat shims, nixpkgs config)
       commonHomeModules = [
-        ./home/modules/theme/opencode-compat.nix
       ];
 
       mkNixOS =
