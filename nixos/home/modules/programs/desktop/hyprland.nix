@@ -3,6 +3,7 @@
   osConfig,
   config,
   themeLib,
+  inputs,
   ...
 }:
 let
@@ -13,7 +14,7 @@ in
   wayland.windowManager.hyprland = {
     enable = true;
     systemd.enable = false;
-    package = pkgs.hyprland;
+    package = inputs.hyprland.packages.${pkgs.system}.hyprland;
     extraConfig = ''
       $terminal = uwsm app -- ghostty
       $fileManager = uwsm app -- dolphin

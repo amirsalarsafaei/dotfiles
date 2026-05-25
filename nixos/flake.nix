@@ -61,6 +61,18 @@
 
     claude-code.url = "github:sadjow/claude-code-nix";
 
+    # Declarative Agent Skills (SKILL.md catalogs) — loaded on-demand by the
+    # `skill` tool, not auto-pushed into the agent context.
+    agent-skills.url = "github:Kyure-A/agent-skills-nix";
+
+    # Skill packs (raw SKILL.md repos — `flake = false`).
+    # Wire them up under `custom.agentSkills.sources` and opt-in per skill
+    # ID via `custom.agentSkills.skills`.
+    samber-go-skills = {
+      url = "github:samber/cc-skills-golang";
+      flake = false;
+    };
+
     # Zsh plugins (formerly in dev-home)
     fzf-tab = {
       url = "github:Aloxaf/fzf-tab";
@@ -184,6 +196,7 @@
 
       # Common home-manager shared modules (compat shims, nixpkgs config)
       commonHomeModules = [
+        inputs.agent-skills.homeManagerModules.default
       ];
 
       mkNixOS =

@@ -18,6 +18,9 @@
 
   isLaptop = true;
 
+  # Work-only Claude variant lives on this host.
+  home-manager.users.amirsalar.custom.claudeCode.enableWork = true;
+
   # Use the systemd-boot EFI boot loader.
   boot = {
     loader.systemd-boot.enable = true;

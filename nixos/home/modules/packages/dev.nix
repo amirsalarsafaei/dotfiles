@@ -31,4 +31,6 @@
   pkgs.step-cli
   pkgs.bun
   pkgs.luaPackages.tree-sitter-cli
+  pkgs.buildah
+  pkgs.podman
 ]

@@ -13,4 +13,5 @@
   pkgs.nwg-displays
   pkgs.input-leap
   pkgs.postman
+  pkgs.mattermost-desktop
 ]
