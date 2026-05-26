@@ -106,7 +106,6 @@ in
         local = {
           path = cfg.localPath;
           subdir = ".";
-          idPrefix = "local";
           filter.maxDepth = 2;
         };
       }

@@ -22,7 +22,6 @@
         samber-go = {
           input = "samber-go-skills";
           subdir = "skills";
-          idPrefix = "samber-go";
         };
       };
       targets = {
@@ -39,8 +38,8 @@
         };
       };
       skills = [
-        "samber-go/golang-code-style"
-        "samber-go/golang-design-patterns"
+        "golang-code-style"
+        "golang-design-patterns"
       ];
     };
   };

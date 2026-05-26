@@ -50,12 +50,12 @@ in
 
           blur {
               enabled = true
-              size = 8
+              size = 10
               passes = 2
               new_optimizations = true
-              xray = false
+              xray = true
               special = true
-              vibrancy = 0.14
+              vibrancy = 0.05
           }
 
           shadow {
