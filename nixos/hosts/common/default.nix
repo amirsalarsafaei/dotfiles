@@ -23,11 +23,39 @@
   };
 
   imports = [
+    ../../modules/home-network.nix
   ];
 
   config = {
     sops = {
       secrets.tailscale_key = { };
+    };
+
+    # Shared facts about "home" (used by custom.homeNetwork detection and by
+    # any at-home.target consumer). Per-host config only needs to flip
+    # `custom.homeNetwork.enable` (and any host-specific mqtt bits).
+    custom.homeNetwork = {
+      ssids = [
+        "Amir"
+        "Amir-5G-VIP"
+        "Amir-2G-VIP"
+        "Amir-5G"
+        "Amir-2G"
+      ];
+      mqtt = {
+        host = "mq.amirpi.top";
+        port = 1883;
+      };
+      # Nexus / Gitea mirrors from ~/personal/home-apps/README.md.
+      # Exported into the shell only while on the home network.
+      envVars = {
+        DOCKER_REGISTRY = "docker.amirpi.top";
+        NPM_CONFIG_REGISTRY = "https://repos.amirpi.top/repository/npm-proxy/";
+        GOPROXY = "https://repos.amirpi.top/repository/go-proxy/,direct";
+        GONOSUMDB = "gitea.amirpi.top/*";
+        GONOSUMCHECK = "gitea.amirpi.top/*";
+        GOPRIVATE = "gitea.amirpi.top/*";
+      };
     };
 
     environment.pathsToLink = [
@@ -273,7 +301,10 @@
         "root"
         "@wheel"
       ];
-      experimental-features = [ "nix-command" "flakes" ];
+      experimental-features = [
+        "nix-command"
+        "flakes"
+      ];
     };
 
     services.blueman.enable = true;
@@ -334,7 +365,6 @@
       };
     };
 
-    # Zswap configuration
     zramSwap.enable = true;
 
     # Create a 16GB swapfile

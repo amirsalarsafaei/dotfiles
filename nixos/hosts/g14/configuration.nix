@@ -9,6 +9,7 @@ let
   nvidia = {
     modesetting.enable = true;
     powerManagement.enable = true;
+    dynamicBoost.enable = true;
     powerManagement.finegrained = false;
     open = true;
     nvidiaSettings = true;
@@ -96,11 +97,29 @@ in
 {
   imports = [
     ./hardware-configuration.nix
-    ./virtual-services.nix
     ../../modules/laptop.nix
+    ../../modules/home-network.nix
   ];
 
   isLaptop = true;
+
+  # SSIDs and mqtt broker live in hosts/common/default.nix.
+  custom.homeNetwork = {
+    enable = true;
+    mqtt = {
+      enable = true;
+      deviceName = "G14";
+      credentialsFile = config.sops.secrets.mqtt-credentials.path;
+    };
+  };
+
+  sops.secrets.mqtt-credentials = {
+    # Add to secrets/secrets.yaml via `sops secrets/secrets.yaml`:
+    #   mqtt-credentials: |
+    #     MQTT_USER=mqtt
+    #     MQTT_PASS=<password>
+    mode = "0400";
+  };
 
   # ASUS/ROG
   services.asusd = {
@@ -144,10 +163,35 @@ in
   # Apps
   programs.firefox.enable = true;
 
+  services.openssh = {
+    enable = true;
+    openFirewall = true;
+  };
+
+  users.users.amirsalar.openssh.authorizedKeys.keys = [
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO9y7n+5m+M6/J2Pz/UGcuyNZMzJD9NCisQIkdfZW7W8 fateme.tamehri@divar.ir"
+    "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAICVq4DEEEBwMgLxVL4v2Dxw2M5smhg33VR+zjKsKjF6/AAAABHNzaDo= amirsalar.safaei@divar.ir
+  ];
+
   services.ollama = {
     enable = true;
     loadModels = ollamaModels;
     package = pkgs.ollama-cuda;
+  };
+
+  services.llama-cpp = {
+    enable = true;
+    host = "127.0.0.1";
+    port = 5888;
+    openFirewall = false;
+    package = pkgs.llama-cpp;
+  };
+
+  services.llama-swap = {
+    enable = true;
+    openFirewall = false;
+    port = 18080;
+    package = pkgs.llama-swap;
   };
 
   services.open-webui = {
@@ -157,6 +201,9 @@ in
       OFFLINE_MODE = "true";
     };
   };
+
+  # face unlock
+  services.howdy.enable = false;
 
   environment.systemPackages = systemPkgs;
 
@@ -182,6 +229,7 @@ in
     services.xserver.videoDrivers = lib.mkForce [ "amdgpu" ];
     hardware.nvidia.prime.sync.enable = lib.mkForce false;
     hardware.nvidia.prime.offload.enable = lib.mkForce false;
+    hardware.nvidia-container-toolkit.enable = lib.mkForce false;
     boot.blacklistedKernelModules = blacklistNvidia;
     boot.extraModprobeConfig = lib.concatMapStringsSep "\n" (m: "blacklist ${m}") blacklistNvidia;
 
@@ -200,6 +248,8 @@ in
     services.ollama.enable = lib.mkForce false;
     services.open-webui.enable = lib.mkForce false;
   };
+
+  hardware.nvidia-container-toolkit.enable = true;
 
   system.stateVersion = "25.05";
   # programs.wireshark.enable = true; # temporarily disabled: upstream hash mismatch

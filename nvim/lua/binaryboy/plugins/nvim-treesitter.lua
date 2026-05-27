@@ -2,13 +2,13 @@ return {
   {
     "nvim-treesitter/nvim-treesitter",
     branch = "main",
-    event = { "BufReadPre", "BufNewFile" },
     build = ":TSUpdate",
     lazy = false,
     config = function()
-      require("nvim-treesitter").setup({})
+      local nvim_treesiter = require("nvim-treesitter")
+      nvim_treesiter.setup()
 
-      require("nvim-treesitter").install({
+      nvim_treesiter.install({
         "go",
         "gomod",
         "gosum",

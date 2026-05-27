@@ -19,7 +19,9 @@ return {
       },
       provider_options = {
         openai_compatible = {
-          api_key = function() return "ollama" end,
+          api_key = function()
+            return "ollama"
+          end,
           end_point = "http://127.0.0.1:11434/v1/chat/completions",
           model = "danielsheep/Qwen3-Coder-30B-A3B-Instruct-1M-Unsloth:UD-IQ3_XXS",
           name = "Ollama",
@@ -32,7 +34,22 @@ return {
         },
       },
       virtualtext = {
-        auto_trigger_ft = { "python", "lua", "go", "rust", "typescript", "javascript", "c", "cpp", "java", "bash", "sh", "json", "yaml", "vim" },
+        auto_trigger_ft = {
+          "python",
+          "lua",
+          "go",
+          "rust",
+          "typescript",
+          "javascript",
+          "c",
+          "cpp",
+          "java",
+          "bash",
+          "sh",
+          "json",
+          "yaml",
+          "vim",
+        },
         auto_trigger_ignore_ft = { "markdown", "help", "text", "toggleterm" },
         show_on_completion_menu = false,
         keymap = {

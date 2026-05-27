@@ -91,6 +91,13 @@
       flake = false;
     };
 
+    agent-skills.url = "github:Kyure-A/agent-skills-nix";
+
+    commas-claude = {
+      url = "github:3commas-io/commas-claude";
+      flake = false;
+    };
+
     dotfiles = {
       url = "github:amirsalarsafaei/dotfiles";
       flake = false;
@@ -111,6 +118,7 @@
       apple-silicon-support,
       sops-nix,
       claude-code,
+      agent-skills,
       stylix,
       ...
     }@inputs:
@@ -196,7 +204,8 @@
 
       # Common home-manager shared modules (compat shims, nixpkgs config)
       commonHomeModules = [
-        inputs.agent-skills.homeManagerModules.default
+        agent-skills.homeManagerModules.default
+        ./home/modules/agent-skills.nix
       ];
 
       mkNixOS =

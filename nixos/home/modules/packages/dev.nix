@@ -26,6 +26,8 @@
   pkgs.devbox
   pkgs.bazelisk
   pkgs.amp-cli
+  pkgs.codex
+  pkgs.opencode
   pkgs.pnpm
   pkgs.lazygit
   pkgs.step-cli

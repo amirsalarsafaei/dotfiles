@@ -108,6 +108,25 @@
       bindkey '^ ' autosuggest-accept
       ZSH_AUTOSUGGEST_STRATEGY=(history completion)
       ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
+
+      # ── at-home env: re-source /run/at-home/env each prompt so existing ──
+      # shells reflect dispatcher transitions without needing a relaunch.
+      _athome_load() {
+        if [[ -r /run/at-home/env ]]; then
+          # Unset any names the previous load registered (registry/Go/etc.)
+          # so transitioning away cleanly clears the home-only env vars.
+          if [[ -n "''${AT_HOME_VARS-}" ]]; then
+            for _v in ''${=AT_HOME_VARS}; do unset "$_v"; done
+          fi
+          unset AT_HOME AT_HOME_STATE AT_HOME_SSID AT_HOME_IFACE AT_HOME_VARS
+          set -a
+          source /run/at-home/env
+          set +a
+        fi
+      }
+      _athome_load
+      autoload -Uz add-zsh-hook
+      add-zsh-hook precmd _athome_load
     '';
   };
 

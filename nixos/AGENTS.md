@@ -26,6 +26,9 @@ There is no separate unit-test suite here; validation is done by evaluation, bui
 ## Commit & Pull Request Guidelines
 Recent history favors short, imperative commit subjects such as `unify theme` and `better neovim`; keep the same style, but make the message specific to the change. In pull requests, include: the host or module touched, the reason for the change, any manual steps needed after switching, and screenshots for UI-facing changes like Hyprland, Waybar, or Rofi updates.
 
+## Agent Skills
+Agent skills are managed declaratively via `agent-skills-nix` in `home/modules/agent-skills.nix`. To add a new skill repo: (1) add it as a `flake = false` input in `flake.nix`, (2) reference it in `sources` inside `agent-skills.nix` with `input = "<input-name>";` and optionally `subdir`, (3) list skill IDs in `skills.enable` or set `skills.enableAll = true`. Enabled targets (`agents`, `claude`) are already configured; add more under `targets.<name>.enable = true`. Do not add skill source repos anywhere else — keep all skill wiring in `agent-skills.nix`.
+
 ## Security & Configuration Tips
 Do not commit plaintext secrets. Keep SOPS-managed values in `secrets/` and preserve references to `/var/lib/sops-nix/keys.txt` unless you are intentionally rotating keys. Review cache, overlay, and flake input changes carefully because they affect every host.
 

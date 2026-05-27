@@ -55,4 +55,6 @@
   pkgs.shellcheck
   pkgs.copilot-language-server
   pkgs.vimPlugins.telescope-fzf-native-nvim
+
+  pkgs.helm-ls
 ]

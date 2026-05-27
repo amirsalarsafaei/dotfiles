@@ -65,6 +65,12 @@
     kdePackages.qtmultimedia
   ];
 
+  # mac power button is touch sooo
+  services.logind.settings = {
+    Login.HandlePowerKey = "ignore";
+    Login.PowerKeyLongPress = "poweroff";
+  };
+
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
   # programs.mtr.enable = true;
