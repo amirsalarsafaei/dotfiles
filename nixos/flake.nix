@@ -61,10 +61,6 @@
 
     claude-code.url = "github:sadjow/claude-code-nix";
 
-    # Declarative Agent Skills (SKILL.md catalogs) — loaded on-demand by the
-    # `skill` tool, not auto-pushed into the agent context.
-    agent-skills.url = "github:Kyure-A/agent-skills-nix";
-
     # Skill packs (raw SKILL.md repos — `flake = false`).
     # Wire them up under `custom.agentSkills.sources` and opt-in per skill
     # ID via `custom.agentSkills.skills`.
