@@ -87,8 +87,6 @@
       flake = false;
     };
 
-    agent-skills.url = "github:Kyure-A/agent-skills-nix";
-
     commas-claude = {
       url = "github:3commas-io/commas-claude";
       flake = false;

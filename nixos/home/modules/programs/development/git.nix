@@ -1,11 +1,15 @@
-{ homeDir, ... }:
+{
+  homeDir,
+  currentHostname,
+  ...
+}:
 {
   programs.git = {
     enable = true;
     settings = {
       user.name = "Amirsalar Safaei";
       user.email = "amirs.s.g.o@gmail.com";
-      user.signingkey = "A105BF23339D1DE6";
+      user.signingkey = if (currentHostname == "g14") then "C4586B386C780CCC" else "A105BF23339D1DE6"; # if g14 host C4586B386C780CCC
       commit.gpgsign = true;
       tag.gpgsign = true;
       url."ssh://git@git.divar.cloud/".insteadOf = "https://git.divar.cloud/";

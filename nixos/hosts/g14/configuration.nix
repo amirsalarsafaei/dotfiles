@@ -121,6 +121,8 @@ in
     mode = "0400";
   };
 
+  home-manager.users.amirsalar.custom.claudeCode.enableWork = true;
+
   # ASUS/ROG
   services.asusd = {
     enable = true;
@@ -162,16 +164,6 @@ in
 
   # Apps
   programs.firefox.enable = true;
-
-  services.openssh = {
-    enable = true;
-    openFirewall = true;
-  };
-
-  users.users.amirsalar.openssh.authorizedKeys.keys = [
-    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO9y7n+5m+M6/J2Pz/UGcuyNZMzJD9NCisQIkdfZW7W8 fateme.tamehri@divar.ir"
-    "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAICVq4DEEEBwMgLxVL4v2Dxw2M5smhg33VR+zjKsKjF6/AAAABHNzaDo= amirsalar.safaei@divar.ir
-  ];
 
   services.ollama = {
     enable = true;

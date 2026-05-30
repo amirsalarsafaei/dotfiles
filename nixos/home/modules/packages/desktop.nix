@@ -14,4 +14,5 @@
   pkgs.input-leap
   pkgs.postman
   pkgs.mattermost-desktop
+  pkgs.xournalpp
 ]

@@ -221,6 +221,9 @@ in
       bindel = , XF86LaunchA, exec, kbdbacklight down
       bindel = SUPER, XF86LaunchA, exec, kbdbacklight up
       bindel = , XF86KbdBrightnessDown, exec, kbdbacklight down
+
+      hl.window_rule({ match = { class = "Godot", title = "^(Godot)(.*)$" }, tile = true })
+      hl.window_rule({ match = { class = "Godot", title = "^(?!Godot)(.*)$" }, float = true })
     '';
   };
 }
