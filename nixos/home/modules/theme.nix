@@ -103,9 +103,16 @@ in
   config = {
     _module.args.themeLib = import ./theme/lib.nix { };
 
+    # Adopt the new home-manager default (gtk4 themes no longer inherit gtk.theme)
+    # and silence the 26.05 deprecation warning.
+    gtk.gtk4.theme = null;
+
     stylix = {
       enable = true;
       autoEnable = true;
+      # Disable stylix's nixpkgs overlay injection at the home-manager level;
+      # home-manager.useGlobalPkgs = true means overlays must come from the system.
+      overlays.enable = false;
       image = cfg.wallpaper;
       polarity = cfg.polarity;
       base16Scheme = base16Scheme;

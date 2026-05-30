@@ -103,6 +103,13 @@
       flake = false;
     };
 
+    # Private skill pack — not in any public repo. The directory must
+    # exist (can be empty) on the host that evaluates this flake.
+    work-skills = {
+      url = "path:/home/amirsalar/work-skills";
+      flake = false;
+    };
+
     # system-bridge = {
     #   url = "path:/home/amirsalar/personal/system-bridge";
     #   inputs.nixpkgs.follows = "nixpkgs";

@@ -84,20 +84,35 @@ in
     enable = lib.mkEnableOption "Install claude-code and the gap-claude wrapper";
     enableWork = lib.mkEnableOption "Install the claude-work variant (work-host only)";
 
+    defaultSkillMode = lib.mkOption {
+      type = with lib.types; nullOr (enum [ "on" "user-invocable-only" "name-only" "off" ]);
+      default = "user-invocable-only";
+      description = ''
+        Default visibility applied to every skill installed via
+        `custom.agentSkills` (work skills, samber, local — anything in the
+        catalog). The agent-skills module computes the installed skill set and
+        writes one `skillOverrides` entry per skill at this mode.
+
+        Per-skill entries in `skillOverrides` take precedence over this
+        default. Set to null to disable the automatic default entirely.
+      '';
+    };
+
     skillOverrides = lib.mkOption {
       type = with lib.types; attrsOf (enum [ "on" "user-invocable-only" "name-only" "off" ]);
       default = { };
       example = lib.literalExpression ''
         {
-          golang-design-patterns = "user-invocable-only";
+          golang-design-patterns = "on";
         }
       '';
       description = ''
         Per-skill visibility overrides written to settings.json under
-        `skillOverrides`. Applies to all enabled Claude Code variants.
+        `skillOverrides`. Applies to all enabled Claude Code variants. Entries
+        here win over the `defaultSkillMode` auto-default.
 
         Values:
-          - "on"                  : default; auto-listed to the model
+          - "on"                  : auto-listed to the model
           - "user-invocable-only" : installed and `/skill-name` works, hidden from model
           - "name-only"           : name listed, description hidden
           - "off"                 : fully hidden

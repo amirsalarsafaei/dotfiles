@@ -1,10 +1,52 @@
 {
   config,
   lib,
+  inputs,
   ...
 }:
 let
   cfg = config.custom.agentSkills;
+
+  # Default Claude Code visibility for every skill we install. Lives on the
+  # claudeCode module; null disables the auto-default.
+  claudeMode = config.custom.claudeCode.defaultSkillMode or null;
+
+  # Re-import the upstream discovery lib with *our* flake inputs so source
+  # `input = "..."` names resolve against this flake (the exposed
+  # `inputs.agent-skills.lib` is bound to the upstream flake's own inputs).
+  agentLib = import (inputs.agent-skills.outPath + "/lib") {
+    inherit lib inputs;
+  };
+
+  # The same source set the config block below hands to programs.agent-skills.
+  resolvedSources =
+    lib.optionalAttrs (cfg.localPath != null) {
+      local = {
+        path = cfg.localPath;
+        subdir = ".";
+        filter.maxDepth = 2;
+      };
+    }
+    // cfg.sources;
+
+  # Every skill id agent-skills will actually install, computed exactly the
+  # way the upstream module does: discover catalog -> allowlist -> select.
+  # Skill ids equal Claude Code skill names here since no source sets idPrefix.
+  installedSkillIds =
+    let
+      catalog = agentLib.discoverCatalog resolvedSources;
+      allowlist = agentLib.allowlistFor {
+        inherit catalog;
+        sources = resolvedSources;
+        enableAll = cfg.enableAll;
+        enable = cfg.skills;
+      };
+      selection = agentLib.selectSkills {
+        inherit catalog allowlist;
+        sources = resolvedSources;
+      };
+    in
+    builtins.attrNames selection;
 in
 {
   options.custom.agentSkills = {
@@ -99,6 +141,12 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    # Default every installed skill to `claudeMode` in Claude Code. Per-key
+    # mkDefault lets explicit `custom.claudeCode.skillOverrides` entries win.
+    custom.claudeCode.skillOverrides = lib.mkIf (claudeMode != null) (
+      lib.genAttrs installedSkillIds (_: lib.mkDefault claudeMode)
+    );
+
     programs.agent-skills = {
       enable = true;
 

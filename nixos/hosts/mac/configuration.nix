@@ -14,12 +14,12 @@
     ./hardware-configuration.nix
     # Laptop configuration
     ../../modules/laptop.nix
+    # Work host configuration (claude-work variant, private skills)
+    ../../modules/work.nix
   ];
 
   isLaptop = true;
-
-  # Work-only Claude variant lives on this host.
-  home-manager.users.amirsalar.custom.claudeCode.enableWork = true;
+  isWork = true;
 
   # Use the systemd-boot EFI boot loader.
   boot = {

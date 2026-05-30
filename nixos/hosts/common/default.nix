@@ -20,6 +20,12 @@
       default = false;
       description = "Enable laptop-specific configuration";
     };
+
+    isWork = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Enable work-specific configuration (claude-work variant, private skills, etc.)";
+    };
   };
 
   imports = [

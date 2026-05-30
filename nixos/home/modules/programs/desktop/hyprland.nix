@@ -14,7 +14,8 @@ in
   wayland.windowManager.hyprland = {
     enable = true;
     systemd.enable = false;
-    package = inputs.hyprland.packages.${pkgs.system}.hyprland;
+    configType = "hyprlang";
+    package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
     extraConfig = ''
       $terminal = uwsm app -- ghostty
       $fileManager = uwsm app -- dolphin

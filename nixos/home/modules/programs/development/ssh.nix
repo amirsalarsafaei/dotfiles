@@ -1,34 +1,34 @@
-{ config, ... }:
+{ ... }:
 {
   programs.ssh = {
     enable = true;
-    
+
     # Don't use old defaults - we'll define our own
     enableDefaultConfig = false;
-    
+
     # Include sops-managed secrets
     includes = [ "~/.ssh/config.d/sops" ];
-    
+
     # Global match block for all hosts
-    matchBlocks."*" = {
+    settings."*" = {
       # Connection pooling for better performance
-      controlMaster = "auto";
-      controlPath = "~/.ssh/sockets/%r@%h-%p";
-      controlPersist = "10m";
-      
+      ControlMaster = "auto";
+      ControlPath = "~/.ssh/sockets/%r@%h-%p";
+      ControlPersist = "10m";
+
       # Keep connections alive
-      serverAliveInterval = 60;
-      serverAliveCountMax = 3;
-      
+      ServerAliveInterval = 60;
+      ServerAliveCountMax = 3;
+
       # Add keys to agent automatically
-      addKeysToAgent = "yes";
-      
+      AddKeysToAgent = "yes";
+
       # Security defaults
-      hashKnownHosts = true;
-      userKnownHostsFile = "~/.ssh/known_hosts";
-      
+      HashKnownHosts = "yes";
+      UserKnownHostsFile = "~/.ssh/known_hosts";
+
       # Use identity file explicitly configured
-      identitiesOnly = true;
+      IdentitiesOnly = "yes";
     };
   };
 
@@ -36,4 +36,3 @@
   home.file.".ssh/config.d/.gitkeep".text = "";
   home.file.".ssh/sockets/.gitkeep".text = "";
 }
-
