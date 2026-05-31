@@ -25,13 +25,10 @@
       };
     };
 
-    # Which skills to install
-    skills = {
-      enable = [ ];
-      enableAll = false;
-    };
-
-    # Sync targets – enable the agents you use
+    # Sync targets – enable the agents you use. Skill selection
+    # (`skills.enable` / `skills.enableAll`) is driven by the
+    # `custom.agentSkills` wrapper in dev profile to avoid conflicting
+    # definitions of `skills.enableAll` (bool vs list-of-string).
     targets = {
       agents.enable = true; # ~/.agents/skills (Amp)
       claude.enable = true;
