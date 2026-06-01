@@ -23,6 +23,7 @@
   pkgs.devenv
   pkgs.gh
   pkgs.git-crypt
+  pkgs.git
   pkgs.sops
   pkgs.unzip
   pkgs.postman

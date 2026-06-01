@@ -1,4 +1,9 @@
-{ config, dotfilesRoot, inputs, ... }:
+{
+  config,
+  dotfilesRoot,
+  inputs,
+  ...
+}:
 {
   imports = [
     ../modules/shell
@@ -13,8 +18,6 @@
   custom = {
     neovim.enable = true;
     neovim.source = "${dotfilesRoot}/nvim";
-    # Installed skills default to `user-invocable-only` (claudeCode.defaultSkillMode):
-    # every `/<skill>` works, but none are surfaced to the model or auto-injected.
     claudeCode.enable = true;
 
     agentSkills = {
@@ -39,8 +42,6 @@
           structure = "symlink-tree";
         };
       };
-      # Install the entire samber Go pack; visibility is handled by the
-      # claudeCode.skillOverrides above.
       enableAll = [ "samber-go" ];
     };
   };
