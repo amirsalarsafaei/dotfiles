@@ -98,4 +98,9 @@
     SUBSYSTEM=="backlight", ACTION=="add", RUN+="${pkgs.coreutils-full}/bin/chmod 666 /sys/class/backlight/apple-panel-bl/brightness", RUN+="${pkgs.coreutils-full}/bin/chmod 666 /sys/class/leds/kbd_backlight/brightness"
   '';
 
+  specialisation.low-power.configuration = {
+    system.nixos.tags = [ "low-power" ];
+    custom.powerProfile = "low-power";
+  };
+
 }

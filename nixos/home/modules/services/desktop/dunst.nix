@@ -1,10 +1,11 @@
 { config, ... }:
 let
   t = config.custom.theme.resolved.colors;
+  isLowPower = config.custom.powerProfile == "low-power";
 in
 {
   services.dunst = {
-    enable = true;
+    enable = isLowPower;
     settings = {
       global = {
         origin = "top-right";

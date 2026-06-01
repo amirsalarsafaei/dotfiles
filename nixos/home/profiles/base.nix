@@ -5,6 +5,10 @@
   ...
 }:
 {
+  imports = [
+    ../modules/power-profile.nix
+  ];
+
   home.homeDirectory = lib.mkDefault (
     if homeDir != null then homeDir else "/home/${config.home.username}"
   );

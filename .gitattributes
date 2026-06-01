@@ -1,1 +1,3 @@
 nixos/secrets/** filter=git-crypt diff=git-crypt
+nixos/private/** filter=git-crypt diff=git-crypt
+

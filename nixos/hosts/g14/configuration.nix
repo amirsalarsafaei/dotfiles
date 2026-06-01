@@ -73,20 +73,6 @@ let
     esptool
   ];
 
-  tlpPowerSave = {
-    CPU_SCALING_GOVERNOR_ON_AC = "performance";
-    CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
-    CPU_ENERGY_PERF_POLICY_ON_AC = "performance";
-    CPU_ENERGY_PERF_POLICY_ON_BAT = "power";
-    CPU_BOOST_ON_AC = 1;
-    CPU_BOOST_ON_BAT = 0;
-    PLATFORM_PROFILE_ON_AC = "performance";
-    PLATFORM_PROFILE_ON_BAT = "low-power";
-    RUNTIME_PM_ON_AC = "auto";
-    RUNTIME_PM_ON_BAT = "auto";
-    PCIE_ASPM_ON_BAT = "powersupersave";
-  };
-
   blacklistNvidia = [
     "nvidia"
     "nvidia_modeset"
@@ -194,8 +180,24 @@ in
     };
   };
 
-  # face unlock
-  services.howdy.enable = false;
+  # face unlock (Windows Hello-style)
+  # IMPORTANT: control = "sufficient" means a face match grants auth,
+  # but a failure/timeout falls back to password. Never use "required"
+  # (the upstream default) — a failed face match would lock you out.
+  # After rebuild you MUST enroll a face before it can match:
+  #   sudo howdy -U amirsalar add
+  # Test it without risk via: sudo -k; sudo -i
+  services.howdy = {
+    enable = true;
+    control = "sufficient";
+    settings.video = {
+      # IR camera on the G14 (USB2.0 I); /dev/video0 is the visible-light cam.
+      device_path = "/dev/video2";
+      certainty = 3.5;
+      timeout = 4;
+      dark_threshold = 50;
+    };
+  };
 
   environment.systemPackages = systemPkgs;
 
@@ -214,10 +216,13 @@ in
     services.prometheus.enable = lib.mkForce false;
   };
 
-  specialisation.igpu-only.configuration = {
-    system.nixos.tags = [ "igpu-only" ];
+  specialisation.low-power.configuration = {
+    system.nixos.tags = [ "low-power" ];
 
-    # Disable Nvidia
+    custom.powerProfile = "low-power";
+
+    # G14-specific: rip out Nvidia entirely (TLP, heavy services, and
+    # swaync→dunst fallback are handled by modules/power-profile.nix).
     services.xserver.videoDrivers = lib.mkForce [ "amdgpu" ];
     hardware.nvidia.prime.sync.enable = lib.mkForce false;
     hardware.nvidia.prime.offload.enable = lib.mkForce false;
@@ -226,19 +231,6 @@ in
     boot.extraModprobeConfig = lib.concatMapStringsSep "\n" (m: "blacklist ${m}") blacklistNvidia;
 
     hyprland.monitorConfig = "eDP-1,2880x1800@60,0x0,1.6";
-
-    # Power management
-    services.power-profiles-daemon.enable = lib.mkForce false;
-    services.tlp = {
-      enable = true;
-      settings = tlpPowerSave;
-    };
-
-    # Disable heavy services
-    services.grafana.enable = lib.mkForce false;
-    services.prometheus.enable = lib.mkForce false;
-    services.ollama.enable = lib.mkForce false;
-    services.open-webui.enable = lib.mkForce false;
   };
 
   hardware.nvidia-container-toolkit.enable = true;

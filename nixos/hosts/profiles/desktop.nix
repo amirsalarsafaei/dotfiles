@@ -30,6 +30,7 @@
 
   imports = [
     ../../modules/home-network.nix
+    ../../modules/power-profile.nix
   ];
 
   config = {
@@ -37,9 +38,6 @@
       secrets.tailscale_key = { };
     };
 
-    # Shared facts about "home" (used by custom.homeNetwork detection and by
-    # any at-home.target consumer). Per-host config only needs to flip
-    # `custom.homeNetwork.enable` (and any host-specific mqtt bits).
     custom.homeNetwork = {
       ssids = [
         "Amir"
@@ -52,8 +50,6 @@
         host = "mq.amirpi.top";
         port = 1883;
       };
-      # Nexus / Gitea mirrors from ~/personal/home-apps/README.md.
-      # Exported into the shell only while on the home network.
       envVars = {
         DOCKER_REGISTRY = "docker.amirpi.top";
         NPM_CONFIG_REGISTRY = "https://repos.amirpi.top/repository/npm-proxy/";

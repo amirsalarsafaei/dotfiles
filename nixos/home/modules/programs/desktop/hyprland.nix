@@ -9,6 +9,96 @@
 let
   monitorConfig = osConfig.hyprland.monitorConfig or ",preferred,auto,auto";
   t = config.custom.theme.resolved.colors;
+  isNormal = config.custom.powerProfile == "normal";
+
+  decorationBlock =
+    if isNormal then
+      ''
+        decoration {
+            rounding = 10
+            active_opacity = 0.94
+            inactive_opacity = 0.86
+            fullscreen_opacity = 1.0
+            dim_inactive = true
+            dim_strength = 0.10
+
+            blur {
+                enabled = true
+                size = 10
+                passes = 3
+                new_optimizations = true
+                xray = true
+                special = true
+                vibrancy = 0.1
+                vibrancy_darkness = 0.05
+                noise = 0.02
+                contrast = 1.05
+                brightness = 1.0
+            }
+
+            shadow {
+                enabled = true
+                range = 22
+                render_power = 3
+                color = rgba(${themeLib.stripHash t.base00}80)
+            }
+        }
+      ''
+    else
+      ''
+        decoration {
+            rounding = 8
+            active_opacity = 1.0
+            inactive_opacity = 0.95
+            fullscreen_opacity = 1.0
+            dim_inactive = false
+
+            blur {
+                enabled = true
+                size = 4
+                passes = 1
+                new_optimizations = true
+            }
+
+            shadow {
+                enabled = false
+            }
+        }
+      '';
+
+  animationBlock =
+    if isNormal then
+      ''
+        animations {
+            enabled = true
+
+            bezier = wind,       0.05, 0.9, 0.1, 1.05
+            bezier = overshot,   0.13, 0.99, 0.29, 1.1
+            bezier = smoothOut,  0.36, 0, 0.66, -0.56
+            bezier = smoothIn,   0.25, 1, 0.5, 1
+
+            animation = windows,     1, 5, overshot, popin 88%
+            animation = windowsIn,   1, 5, overshot, popin 88%
+            animation = windowsOut,  1, 4, smoothOut, popin 90%
+            animation = windowsMove, 1, 4, wind
+            animation = border,      1, 10, default
+            animation = borderangle, 1, 30, default, loop
+            animation = fade,        1, 6, smoothIn
+            animation = workspaces,  1, 6, wind, slidefadevert 15%
+            animation = specialWorkspace, 1, 5, wind, slidevert
+        }
+      ''
+    else
+      ''
+        animations {
+            enabled = true
+            animation = windows, 1, 3, default, popin 90%
+            animation = windowsOut, 1, 3, default, popin 92%
+            animation = border, 1, 6, default
+            animation = fade, 1, 3, default
+            animation = workspaces, 1, 4, default
+        }
+      '';
 in
 {
   wayland.windowManager.hyprland = {
@@ -41,41 +131,9 @@ in
 
       gesture = 3, horizontal, workspace
 
-      decoration {
-          rounding = 10
-          active_opacity = 0.94
-          inactive_opacity = 0.86
-          fullscreen_opacity = 1.0
-          dim_inactive = true
-          dim_strength = 0.10
+      ${decorationBlock}
 
-          blur {
-              enabled = true
-              size = 10
-              passes = 2
-              new_optimizations = true
-              xray = true
-              special = true
-              vibrancy = 0.05
-          }
-
-          shadow {
-              enabled = true
-              range = 18
-              render_power = 3
-              color = rgba(${themeLib.stripHash t.base00}66)
-          }
-      }
-
-
-      animations {
-          enabled = true
-          animation = windows, 1, 4, default, popin 85%
-          animation = windowsOut, 1, 3, default, popin 88%
-          animation = border, 1, 8, default
-          animation = fade, 1, 4, default
-          animation = workspaces, 1, 5, default
-      }
+      ${animationBlock}
 
       dwindle {
           preserve_split = true
@@ -113,6 +171,8 @@ in
       bind = SUPER, RETURN, exec, $terminal
       bind = SUPER, w, killactive
       bind = SUPER, x, exec, loginctl lock-session
+      bind = SUPER, N, exec, swaync-client -t -sw
+      bind = SUPER, ESCAPE, exec, wlogout -p layer-shell
       bind = SUPER_SHIFT, Q, exit
       bind = SUPER_SHIFT, t, togglefloating
       bind = SUPER, f, fullscreen, 1
@@ -212,6 +272,9 @@ in
       # Screenshot (region select → clipboard)
       bind = , Print, exec, grim -g "$(slurp)" - | wl-copy
       bind = SUPER_SHIFT, P, exec, grim -g "$(slurp)" - | wl-copy
+
+      # Color picker → clipboard
+      bind = SUPER_SHIFT, C, exec, hyprpicker -a -f hex
 
       bindel = , XF86AudioRaiseVolume, exec, volume up
       bindel = , XF86AudioLowerVolume, exec, volume down

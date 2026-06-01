@@ -26,6 +26,20 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    # Companion private flake — per-host private NixOS modules and raw
+    # secrets. Contents live in `./private/` and are encrypted at rest via
+    # git-crypt (see ../.gitattributes); each host imports its own entry
+    # as `inputs.private.nixosModules.<hostname>`.
+    private = {
+      url = "path:./private";
+      flake = true;
+    };
+
     # Asahi support - don't follow nixpkgs to get cache hits
     apple-silicon-support.url = "github:nix-community/nixos-apple-silicon/main";
 
@@ -123,6 +137,8 @@
       claude-code,
       agent-skills,
       stylix,
+      disko,
+      private,
       ...
     }@inputs:
     let
@@ -133,7 +149,12 @@
         aarch64 = "aarch64-linux";
       };
 
-      secrets =
+      # Secrets pulled from two sources:
+      #  - public `./secrets/secrets.json` (kept under git-crypt).
+      #  - the private flake's `secrets` attr.
+      # The two attrsets are merged (private wins on conflicts) so any host
+      # can reach `secrets.<whatever>` regardless of origin.
+      publicSecrets =
         let
           secretsPath = ./secrets/secrets.json;
         in
@@ -141,6 +162,8 @@
           builtins.fromJSON (builtins.readFile secretsPath)
         else
           builtins.trace "Warning: secrets.json not found, using empty secrets" { };
+
+      secrets = publicSecrets // (private.secrets or { });
 
       commonNixpkgsConfig = system: {
         config = {
@@ -154,7 +177,7 @@
 
       dotfilesRoot = inputs.dotfiles;
 
-      # Profile modules that hosts can compose
+      # Profile modules that hosts can compose (home-manager side)
       homeProfileModules = {
         base = ./home/profiles/base.nix;
         dev = ./home/profiles/dev.nix;
@@ -165,6 +188,25 @@
 
       mkHomeImports =
         hostConfig: map (name: homeProfileModules.${name}) (hostConfig.homeProfiles or [ "full" ]);
+
+      # Profile modules that hosts can compose (NixOS side). Mirrors the
+      # home-manager `profiles/` layout. `base` is universal; `desktop` is
+      # the (renamed) old `hosts/common/default.nix`; `server` pulls in the
+      # headless / VPS modules under `modules/server/`.
+      nixosProfileModules = {
+        base = ./hosts/profiles/base.nix;
+        desktop = ./hosts/profiles/desktop.nix;
+        server = ./hosts/profiles/server.nix;
+      };
+
+      mkNixosImports =
+        hostConfig:
+        map (name: nixosProfileModules.${name}) (
+          hostConfig.nixosProfiles or [
+            "base"
+            "desktop"
+          ]
+        );
 
       # Host definitions with multi-user support
       allHosts = {
@@ -194,6 +236,25 @@
             "theme"
           ];
         };
+
+        franksalar = {
+          system = systems.x86_64;
+          type = "nixos";
+          users = [ "amirsalar" ];
+          # Headless: skip the desktop common; pull only base + server.
+          nixosProfiles = [
+            "base"
+            "server"
+          ];
+          # Reuse the same CLI dev tools as other machines.
+          homeProfiles = [
+            "base"
+            "dev"
+          ];
+          # No sops setup on this host (uses the private flake instead).
+          useSops = false;
+          extraModules = [ disko.nixosModules.disko ];
+        };
       };
 
       normalizeUsers =
@@ -217,8 +278,19 @@
           system,
           users,
           extraModules ? [ ],
+          useSops ? true,
           ...
         }@hostConfig:
+        let
+          sopsNixosModules = lib.optionals useSops [
+            sops-nix.nixosModules.sops
+            ./modules/sops.nix
+          ];
+          sopsHomeSharedModules = lib.optionals useSops [
+            sops-nix.homeManagerModules.sops
+            ./modules/sops.nix
+          ];
+        in
         lib.nixosSystem {
           inherit system;
           specialArgs = {
@@ -230,42 +302,42 @@
               dotfilesRoot
               ;
           };
-          modules = [
-            sops-nix.nixosModules.sops
-            stylix.nixosModules.stylix
-            ./modules/sops.nix
-            { nixpkgs = commonNixpkgsConfig system; }
-            ./hosts/common/default.nix
-            ./hosts/${hostname}/configuration.nix
-            ./hosts/${hostname}/hardware-configuration.nix
-            home-manager.nixosModules.home-manager
-            {
-              home-manager = {
-                useGlobalPkgs = true;
-                useUserPackages = true;
-                backupFileExtension = "backup";
-                extraSpecialArgs = {
-                  inherit
-                    secrets
-                    inputs
-                    dotfilesRoot
-                    ;
-                  currentHostname = hostname;
-                  currentSystem = system;
+          modules =
+            sopsNixosModules
+            ++ [
+              stylix.nixosModules.stylix
+              { nixpkgs = commonNixpkgsConfig system; }
+            ]
+            ++ mkNixosImports hostConfig
+            ++ [
+              ./hosts/${hostname}/configuration.nix
+              ./hosts/${hostname}/hardware-configuration.nix
+              home-manager.nixosModules.home-manager
+              {
+                home-manager = {
+                  useGlobalPkgs = true;
+                  useUserPackages = true;
+                  backupFileExtension = "backup";
+                  extraSpecialArgs = {
+                    inherit
+                      secrets
+                      inputs
+                      dotfilesRoot
+                      ;
+                    currentHostname = hostname;
+                    currentSystem = system;
+                  };
+                  sharedModules =
+                    sopsHomeSharedModules
+                    ++ commonHomeModules
+                    ++ mkHomeImports hostConfig;
+                  users = lib.genAttrs users (username: {
+                    _module.args.homeDir = "/home/${username}";
+                  });
                 };
-                sharedModules = [
-                  sops-nix.homeManagerModules.sops
-                  ./modules/sops.nix
-                ]
-                ++ commonHomeModules
-                ++ mkHomeImports hostConfig;
-                users = lib.genAttrs users (username: {
-                  _module.args.homeDir = "/home/${username}";
-                });
-              };
-            }
-          ]
-          ++ extraModules;
+              }
+            ]
+            ++ extraModules;
         };
 
       # Build standalone home-manager configuration
@@ -274,8 +346,15 @@
           hostname,
           system,
           username,
+          useSops ? true,
           ...
         }@hostConfig:
+        let
+          sopsHomeSharedModules = lib.optionals useSops [
+            sops-nix.homeManagerModules.sops
+            ./modules/sops.nix
+          ];
+        in
         home-manager.lib.homeManagerConfiguration {
           pkgs = nixpkgs.legacyPackages.${system};
           extraSpecialArgs = {
@@ -284,13 +363,15 @@
             currentHostname = hostname;
             homeDir = "/home/${username}";
           };
-          modules = [
-            { home.username = username; }
-            { nixpkgs = commonNixpkgsConfig system; }
-            { programs.home-manager.enable = true; }
-          ]
-          ++ commonHomeModules
-          ++ mkHomeImports hostConfig;
+          modules =
+            [
+              { home.username = username; }
+              { nixpkgs = commonNixpkgsConfig system; }
+              { programs.home-manager.enable = true; }
+            ]
+            ++ sopsHomeSharedModules
+            ++ commonHomeModules
+            ++ mkHomeImports hostConfig;
         };
 
       # Filter hosts by type
