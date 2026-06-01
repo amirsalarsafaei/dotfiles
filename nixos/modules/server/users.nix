@@ -52,7 +52,7 @@ in
       shell = pkgs.zsh;
     };
 
-    users.users.sshproxy = {
+    users.users.khardal = {
       isNormalUser = true;
       openssh.authorizedKeys.keys = [
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF1r9m7OT6rVxzaPytgYLvJcGnXClAPjgkKYqXvhp0vQ"
