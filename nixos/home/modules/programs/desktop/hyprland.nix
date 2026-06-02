@@ -76,6 +76,7 @@ let
             bezier = overshot,   0.13, 0.99, 0.29, 1.1
             bezier = smoothOut,  0.36, 0, 0.66, -0.56
             bezier = smoothIn,   0.25, 1, 0.5, 1
+            bezier = slide,      0.32, 0.85, 0.18, 1.0
 
             animation = windows,     1, 5, overshot, popin 88%
             animation = windowsIn,   1, 5, overshot, popin 88%
@@ -84,7 +85,8 @@ let
             animation = border,      1, 10, default
             animation = borderangle, 1, 30, default, loop
             animation = fade,        1, 6, smoothIn
-            animation = workspaces,  1, 6, wind, slidefadevert 15%
+            # Horizontal slide to match the left/right workspace swipe gesture
+            animation = workspaces,  1, 6, slide, slidefade 20%
             animation = specialWorkspace, 1, 5, wind, slidevert
         }
       ''

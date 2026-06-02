@@ -13,12 +13,14 @@ let
       name,
       configDir,
       extraWrapperArgs ? [ ],
+      extraBuildInputs ? [ ],
     }:
-    pkgs.runCommand name { nativeBuildInputs = [ pkgs.makeWrapper ]; } ''
+    pkgs.runCommand name { nativeBuildInputs = [ pkgs.makeWrapper ] ++ extraBuildInputs; } ''
       mkdir -p $out/bin
       makeWrapper ${pkgs.claude-code}/bin/claude $out/bin/${name} \
         --set CLAUDE_CONFIG_DIR "${configDir}" \
         ${lib.concatStringsSep " " extraWrapperArgs}
+
     '';
 
   gapClaude = mkVariant {
@@ -33,6 +35,11 @@ let
   claudeWork = mkVariant {
     name = "claude-work";
     configDir = "${config.home.homeDirectory}/.config/claude-work";
+    extraBuildInputs = [ pkgs.tzdata ];
+    extraWrapperArgs = [
+      ''--set TZ "Asia/Singapore"''
+      ''--set TZDIR "${pkgs.tzdata}/share/zoneinfo"''
+    ];
   };
 
   workSettings = {
@@ -72,8 +79,10 @@ let
     theme = "dark";
   };
 
-  withOverrides = base:
-    base // lib.optionalAttrs (cfg.skillOverrides != { }) {
+  withOverrides =
+    base:
+    base
+    // lib.optionalAttrs (cfg.skillOverrides != { }) {
       skillOverrides = cfg.skillOverrides;
     };
 
@@ -85,7 +94,14 @@ in
     enableWork = lib.mkEnableOption "Install the claude-work variant (work-host only)";
 
     defaultSkillMode = lib.mkOption {
-      type = with lib.types; nullOr (enum [ "on" "user-invocable-only" "name-only" "off" ]);
+      type =
+        with lib.types;
+        nullOr (enum [
+          "on"
+          "user-invocable-only"
+          "name-only"
+          "off"
+        ]);
       default = "user-invocable-only";
       description = ''
         Default visibility applied to every skill installed via
@@ -99,7 +115,14 @@ in
     };
 
     skillOverrides = lib.mkOption {
-      type = with lib.types; attrsOf (enum [ "on" "user-invocable-only" "name-only" "off" ]);
+      type =
+        with lib.types;
+        attrsOf (enum [
+          "on"
+          "user-invocable-only"
+          "name-only"
+          "off"
+        ]);
       default = { };
       example = lib.literalExpression ''
         {
@@ -126,14 +149,12 @@ in
         pkgs.claude-code
         gapClaude
       ];
-      home.file.".config/gap-claude/settings.json".text =
-        builtins.toJSON (withOverrides gapSettings);
+      home.file.".config/gap-claude/settings.json".text = builtins.toJSON (withOverrides gapSettings);
       home.file.".config/gap-claude/CLAUDE.md".text = nixManagedNote;
     })
     (lib.mkIf cfg.enableWork {
       home.packages = [ claudeWork ];
-      home.file.".config/claude-work/settings.json".text =
-        builtins.toJSON (withOverrides workSettings);
+      home.file.".config/claude-work/settings.json".text = builtins.toJSON (withOverrides workSettings);
       home.file.".config/claude-work/CLAUDE.md".text = nixManagedNote;
     })
   ];

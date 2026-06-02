@@ -9,6 +9,8 @@
   time.timeZone = lib.mkDefault "Asia/Tehran";
   i18n.defaultLocale = lib.mkDefault "en_US.UTF-8";
 
+  environment.systemPackages = [ pkgs.tzdata ];
+
   programs.zsh.enable = lib.mkDefault true;
 
   zramSwap.enable = lib.mkDefault true;
