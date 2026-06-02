@@ -15,7 +15,7 @@ in
         notification_limit = 5;
         gap_size = 8;
 
-        corner_radius = 16;
+        corner_radius = 8;
         frame_width = 1;
         frame_color = "${t.base03}99";
         separator_color = "frame";

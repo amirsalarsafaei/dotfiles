@@ -161,6 +161,7 @@ in
         waybar.enable = false;
         rofi.enable = false;
         dunst.enable = false;
+        swaync.enable = false;
         neovim.enable = false;
         kde.enable = true;
       };
