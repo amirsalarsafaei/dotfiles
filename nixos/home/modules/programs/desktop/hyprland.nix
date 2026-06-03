@@ -10,14 +10,15 @@ let
   monitorConfig = osConfig.hyprland.monitorConfig or ",preferred,auto,auto";
   t = config.custom.theme.resolved.colors;
   isNormal = config.custom.powerProfile == "normal";
+  opaqueWindows = osConfig.hyprland.opaqueWindows or false;
 
   decorationBlock =
     if isNormal then
       ''
         decoration {
             rounding = 10
-            active_opacity = 0.94
-            inactive_opacity = 0.86
+            active_opacity = ${if opaqueWindows then "1.0" else "0.94"}
+            inactive_opacity = ${if opaqueWindows then "1.0" else "0.86"}
             fullscreen_opacity = 1.0
             dim_inactive = true
             dim_strength = 0.10
@@ -49,7 +50,7 @@ let
         decoration {
             rounding = 8
             active_opacity = 1.0
-            inactive_opacity = 0.95
+            inactive_opacity = ${if opaqueWindows then "1.0" else "0.95"}
             fullscreen_opacity = 1.0
             dim_inactive = false
 

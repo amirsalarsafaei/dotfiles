@@ -98,6 +98,11 @@
     SUBSYSTEM=="backlight", ACTION=="add", RUN+="${pkgs.coreutils-full}/bin/chmod 666 /sys/class/backlight/apple-panel-bl/brightness", RUN+="${pkgs.coreutils-full}/bin/chmod 666 /sys/class/leds/kbd_backlight/brightness"
   '';
 
+  # Asahi's GPU driver handles Hyprland's blur shader poorly, so blur spikes CPU.
+  # Forcing windows opaque lets Hyprland skip the blur pass entirely (no translucent
+  # surface to blur), while the G14 keeps blur via its default (opaqueWindows = false).
+  hyprland.opaqueWindows = true;
+
   specialisation.low-power.configuration = {
     system.nixos.tags = [ "low-power" ];
     custom.powerProfile = "low-power";

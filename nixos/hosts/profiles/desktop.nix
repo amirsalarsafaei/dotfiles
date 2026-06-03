@@ -15,6 +15,16 @@
       description = "Hyprland monitor configuration string";
     };
 
+    hyprland.opaqueWindows = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Force all windows fully opaque. With new_optimizations this lets Hyprland
+        skip the blur shader entirely (no translucent region to blur), which avoids
+        the high CPU cost of blur on GPUs with weak drivers (e.g. Asahi/Apple).
+      '';
+    };
+
     isLaptop = lib.mkOption {
       type = lib.types.bool;
       default = false;
