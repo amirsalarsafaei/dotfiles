@@ -32,4 +32,17 @@ return {
 			{ "<leader>bD", function() require("mini.bufremove").delete(0, true) end, desc = "Delete buffer (force)" },
 		},
 	},
+	{
+		"echasnovski/mini.icons",
+		lazy = true,
+		opts = {},
+		init = function()
+			-- Make any `require("nvim-web-devicons")` resolve to mini.icons so
+			-- snacks/blink/trouble/lualine all share one consistent icon set.
+			package.preload["nvim-web-devicons"] = function()
+				require("mini.icons").mock_nvim_web_devicons()
+				return package.loaded["nvim-web-devicons"]
+			end
+		end,
+	},
 }

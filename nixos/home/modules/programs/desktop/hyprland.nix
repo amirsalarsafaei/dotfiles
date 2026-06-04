@@ -102,6 +102,33 @@ let
             animation = workspaces, 1, 4, default
         }
       '';
+
+  # Keybinding cheatsheet (SUPER+/). Reads Hyprland's own live bind list via
+  # `hyprctl binds -j`, so it never drifts from the real config — there's no
+  # hand-maintained list. jq turns the numeric modmask into SUPER/SHIFT/… and
+  # formats one row per bind for rofi to fuzzy-filter.
+  keybindViewer = pkgs.writeShellScript "hypr-keybinds" ''
+    hyprctl binds -j | ${pkgs.jq}/bin/jq -r '
+      def bit(m; b): (m / b | floor) % 2;
+      def mods(m):
+        [ if bit(m;1)  == 1 then "SHIFT" else empty end
+        , if bit(m;4)  == 1 then "CTRL"  else empty end
+        , if bit(m;8)  == 1 then "ALT"   else empty end
+        , if bit(m;64) == 1 then "SUPER" else empty end
+        ] | join("+");
+      .[]
+      | select((.key // "") != "")
+      | (if .submap != "" then "[" + .submap + "] " else "" end) as $sm
+      | (mods(.modmask)) as $m
+      | (if $m != "" then $m + " + " else "" end) as $mp
+      | $sm + $mp + .key
+        + "  →  " + (.dispatcher // "")
+        + (if (.arg // "") != "" then " " + .arg else "" end)
+    ' | sort -u \
+      | rofi -dmenu -i -no-custom -p "  keybindings" \
+          -mesg "Live from hyprctl binds — type to filter, Esc to close" \
+      >/dev/null || true
+  '';
 in
 {
   wayland.windowManager.hyprland = {
@@ -116,6 +143,13 @@ in
       $clipboard = rofi-cliphist
 
       env = XDG_MENU_PREFIX,plasma-
+
+      # Force ssh to use the askpass program for the FIDO/-sk touch notifier
+      # even when stderr is a tty, so the "Touch your YubiKey" notification
+      # fires in terminals too (OpenSSH otherwise prints it inline and skips
+      # askpass). Scoped to the graphical session — a headless ssh-in still
+      # falls back to inline/terminal passphrase entry.
+      env = SSH_ASKPASS_REQUIRE,force
 
       # Monitor configuration
       monitor = ${monitorConfig}
@@ -152,6 +186,15 @@ in
           disable_splash_rendering = true
       }
 
+      # Disable Hyprland's rolling debug log. It lives in $XDG_RUNTIME_DIR
+      # (a small tmpfs), is unbounded, and a renderer error storm — e.g. the
+      # Asahi/aquamarine "no matching devices found" loop on the mac host —
+      # can grow it to gigabytes and fill the tmpfs. A full runtime dir makes
+      # any wl_shm client (rofi, etc.) SIGBUS when it writes its sparse buffer.
+      debug {
+          disable_logs = true
+      }
+
       input {
           kb_layout = us,ir
           kb_options = grp:alt_shift_toggle
@@ -181,6 +224,7 @@ in
       bind = SUPER, f, fullscreen, 1
       bind = SUPER_SHIFT, F, fullscreen, 0
       bind = SUPER, SPACE, exec, $menu
+      bind = SUPER, slash, exec, ${keybindViewer}
       bind = SUPER, P, pseudo
 
 

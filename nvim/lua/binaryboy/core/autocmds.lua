@@ -99,17 +99,6 @@ autocmd("FileType", {
   end,
 })
 
-local lsp = augroup("LspFormatting", { clear = true })
-
-autocmd("BufWritePre", {
-  group = lsp,
-  desc = "Format on save for specific filetypes",
-  pattern = { "*.lua", "*.go", "*.rs", "*.py", "*.nix" },
-  callback = function()
-    vim.lsp.buf.format({ async = false, timeout_ms = 3000 })
-  end,
-})
-
 local terminal = augroup("TerminalSettings", { clear = true })
 
 autocmd("TermOpen", {

@@ -65,13 +65,12 @@ return {
 					map("n", "gy", vim.lsp.buf.type_definition, "Type Definition")
 					map("n", "K", vim.lsp.buf.hover, "Hover")
 					map("n", "gs", vim.lsp.buf.signature_help, "Signature Help")
-					map("i", "<C-k>", vim.lsp.buf.signature_help, "Signature Help")
-					map("n", "<leader>rn", vim.lsp.buf.rename, "Rename")
+					map("n", "<leader>cr", vim.lsp.buf.rename, "Rename")
 					map({ "n", "v" }, "<leader>ca", vim.lsp.buf.code_action, "Code Action")
-					map("n", "<leader>d", vim.diagnostic.open_float, "Line Diagnostics")
+					map("n", "<leader>cd", vim.diagnostic.open_float, "Line Diagnostics")
 					map("n", "[d", function() vim.diagnostic.jump({ count = -1 }) end, "Prev Diagnostic")
 					map("n", "]d", function() vim.diagnostic.jump({ count = 1 }) end, "Next Diagnostic")
-					map("n", "<leader>q", vim.diagnostic.setloclist, "Diagnostics to Loclist")
+					map("n", "<leader>cq", vim.diagnostic.setloclist, "Diagnostics to Loclist")
 
 					if client and client:supports_method("textDocument/inlayHint") then
 						vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })

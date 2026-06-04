@@ -1,5 +1,3 @@
-local hostconfig = require("binaryboy.core.hostconfig")
-
 local deps = {
   "rafamadriz/friendly-snippets",
   "folke/lazydev.nvim",

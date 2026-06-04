@@ -22,5 +22,8 @@
       path = "${config.home.homeDirectory}/.ssh/config.d/sops";
     };
   };
-  custom.dev.naviCheatsPath = lib.mkIf (dotfilesRoot != null) "${dotfilesRoot}/navi-cheats";
+  # Cheats live in-tree (../modules/navi-cheats) rather than under the pinned
+  # dotfiles flake input, so editing a .cheat takes effect on the next local
+  # rebuild instead of requiring a push + `nix flake update dotfiles`.
+  custom.dev.naviCheatsPath = "${../modules/navi-cheats}";
 }

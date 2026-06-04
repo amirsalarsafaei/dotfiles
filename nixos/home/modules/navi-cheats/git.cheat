@@ -1,0 +1,40 @@
+% git, vcs
+
+# Show pretty commit graph
+git log --oneline --graph --decorate --all
+
+# Interactively rebase the last <n> commits
+git rebase -i HEAD~<n>
+
+# Amend last commit without editing the message
+git commit --amend --no-edit
+
+# Undo last commit but keep the changes staged
+git reset --soft HEAD~1
+
+# Discard all local changes and match remote <branch>
+git fetch origin && git reset --hard origin/<branch>
+
+# Create and switch to a new branch
+git switch -c <new_branch>
+
+# Stash including untracked files with a message
+git stash push -u -m "<message>"
+
+# Show what changed in a single commit
+git show <commit>
+
+# Find which commit introduced a string (pickaxe)
+git log -S "<string>" --oneline
+
+# Show the diff of staged changes
+git diff --cached
+
+# List branches sorted by most recent commit
+git branch --sort=-committerdate
+
+# Delete local branches already merged into main
+git branch --merged main | grep -v main | xargs -r git branch -d
+
+$ branch: git branch --all --format='%(refname:short)'
+$ commit: git log --oneline --all | awk '{print $1}'

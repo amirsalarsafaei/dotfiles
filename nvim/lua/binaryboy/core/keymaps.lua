@@ -1,8 +1,6 @@
 local map = vim.keymap.set
 
-map("n", "<leader>c", "<cmd>nohl<CR>", { desc = "Clear search highlights" })
-map("n", "<leader>r", "<cmd>so %<CR>", { desc = "Reload current file" })
-map("n", "<leader>s", "<cmd>w<CR>", { desc = "Save file" })
+map("n", "<leader>w", "<cmd>w<CR>", { desc = "Save file" })
 
 map("n", "<Esc>", "<cmd>nohl<CR><Esc>", { desc = "Clear highlights on escape" })
 
@@ -49,7 +47,7 @@ map({ "n", "v" }, "<leader>d", [["_d]], { desc = "Delete without yanking" })
 
 map("n", "<leader>bn", "<cmd>bnext<CR>", { desc = "Next buffer" })
 map("n", "<leader>bp", "<cmd>bprevious<CR>", { desc = "Previous buffer" })
-map("n", "<leader>bd", "<cmd>bdelete<CR>", { desc = "Delete buffer" })
+-- <leader>bd / <leader>bD are provided by mini.bufremove (keeps window layout)
 
 map("n", "[q", "<cmd>cprev<CR>zz", { desc = "Previous quickfix" })
 map("n", "]q", "<cmd>cnext<CR>zz", { desc = "Next quickfix" })

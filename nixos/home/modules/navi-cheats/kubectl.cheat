@@ -1,0 +1,45 @@
+% kubectl, k8s
+
+# Get pods in a namespace
+kubectl get pods -n <namespace>
+
+# Watch pods in a namespace
+kubectl get pods -n <namespace> -w
+
+# Describe a pod
+kubectl describe pod <pod> -n <namespace>
+
+# Tail logs of a pod (follow)
+kubectl logs -f <pod> -n <namespace>
+
+# Tail logs across pods by label with stern
+stern <selector> -n <namespace>
+
+# Exec an interactive shell into a pod
+kubectl exec -it <pod> -n <namespace> -- /bin/sh
+
+# Port-forward a service to localhost
+kubectl port-forward svc/<service> <local_port>:<remote_port> -n <namespace>
+
+# Get all resources in a namespace
+kubectl get all -n <namespace>
+
+# Show current context and namespace
+kubectl config get-contexts
+
+# Switch the current namespace for the active context
+kubectl config set-context --current --namespace=<namespace>
+
+# Decode a secret's values to plaintext
+kubectl get secret <secret> -n <namespace> -o jsonpath='{.data}' | jq 'map_values(@base64d)'
+
+# Restart a deployment (rolling)
+kubectl rollout restart deployment/<deployment> -n <namespace>
+
+# Show events sorted by time
+kubectl get events -n <namespace> --sort-by=.lastTimestamp
+
+$ namespace: kubectl get namespaces --no-headers --- --column 1
+$ pod: kubectl get pods -n <namespace> --no-headers --- --column 1
+$ deployment: kubectl get deploy -n <namespace> --no-headers --- --column 1
+$ service: kubectl get svc -n <namespace> --no-headers --- --column 1

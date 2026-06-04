@@ -4,5 +4,6 @@
     ./ssh.nix
     ./nixtools.nix
     ./zoxide.nix
+    ./tealdeer.nix
   ];
 }

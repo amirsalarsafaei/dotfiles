@@ -22,6 +22,18 @@
     ];
   };
 
+  # Syntax-highlighted, navigable git diffs. Wires itself in as git's pager
+  # and is picked up by lazygit too.
+  programs.delta = {
+    enable = true;
+    options = {
+      navigate = true; # n / N to jump between files in the diff
+      line-numbers = true;
+      hyperlinks = true;
+      tabs = 2;
+    };
+  };
+
   home.file = {
     ".gitconfig-work".text = ''
             [user]

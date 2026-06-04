@@ -35,10 +35,14 @@ opt.splitbelow = true
 
 opt.hidden = true
 opt.history = 500
-opt.lazyredraw = true
 opt.synmaxcol = 240
 opt.updatetime = 250
 opt.timeoutlen = 300
+
+opt.splitkeep = "screen"
+opt.smoothscroll = true
+opt.virtualedit = "block"
+opt.completeopt = "menu,menuone,noselect"
 
 opt.scrolloff = 8
 opt.sidescrolloff = 8
@@ -60,4 +64,5 @@ opt.shortmess:append("sI")
 
 opt.iskeyword:append("-")
 opt.shell = "zsh"
-opt.shellcmdflag = "-ic"
+-- Aliases live in ~/.zshenv (see nixos zsh.nix), so plain non-interactive
+-- `zsh -c` picks them up — no need for the slow interactive `-i` flag.

@@ -2,8 +2,17 @@
   pkgs,
   inputs,
   config,
+  lib,
   ...
 }:
+let
+  shellAliases = import ./zsh/aliases.nix;
+  # Render the alias attrset as `alias name='value'` lines (same escaping
+  # home-manager uses for programs.zsh.shellAliases).
+  aliasLines = lib.concatStringsSep "\n" (
+    lib.mapAttrsToList (name: value: "alias ${name}=${lib.escapeShellArg value}") shellAliases
+  );
+in
 {
   programs.zsh = {
     enable = true;
@@ -57,7 +66,10 @@
       }
     ];
 
-    shellAliases = import ./zsh/aliases.nix;
+    # Define aliases in .zshenv (via envExtra) rather than .zshrc (shellAliases)
+    # so they are available to non-interactive shells too — Neovim's :! and
+    # system() (zsh -c …), formatters, and scripts — not just interactive ones.
+    envExtra = aliasLines;
 
     siteFunctions = import ./zsh/functions.nix;
 

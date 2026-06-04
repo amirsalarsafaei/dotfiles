@@ -1,0 +1,40 @@
+% nix, nixos
+
+# Rebuild and switch this host from the local flake
+sudo nixos-rebuild switch --flake .#<host>
+
+# Build the host config without switching (dry test)
+nixos-rebuild build --flake .#<host>
+
+# Update a single flake input
+nix flake update <input>
+
+# Update all flake inputs
+nix flake update
+
+# Search nixpkgs for a package
+nix search nixpkgs <query>
+
+# Run a package once without installing
+nix run nixpkgs#<package>
+
+# Open a shell with packages available
+nix shell nixpkgs#<package>
+
+# Show why a package is in the closure
+nix why-depends /run/current-system nixpkgs#<package>
+
+# Garbage-collect old generations
+sudo nix-collect-garbage -d
+
+# List system generations
+sudo nix-env --list-generations --profile /nix/var/nix/profiles/system
+
+# Evaluate an attribute from the flake
+nix eval .#<attr>
+
+# Format nix files in the tree
+nixfmt .
+
+$ host: echo "g14 mac orangepi franksalar" | tr ' ' '\n'
+$ package: nix search nixpkgs --json 2>/dev/null | jq -r 'keys[]' | sed 's/^legacyPackages\.[^.]*\.//'

@@ -3,8 +3,6 @@
 # https://search.nixos.org/options and in the NixOS manual (`nixos-help`).
 
 {
-  config,
-  lib,
   pkgs,
   ...
 }:
@@ -102,6 +100,17 @@
   # Forcing windows opaque lets Hyprland skip the blur pass entirely (no translucent
   # surface to blur), while the G14 keeps blur via its default (opaqueWindows = false).
   hyprland.opaqueWindows = true;
+
+  # Pin aquamarine/wlroots to the right DRM nodes. card2 (asahi) is the render
+  # GPU; card1 (apple-drm) is display-only KMS (where eDP-1 lives). Without this,
+  # aquamarine tries to build an EGL renderer on apple-drm, fails with
+  # "no matching devices found" / EGL_BAD_PARAMETER, and retries every commit —
+  # spamming hyprland.log until it fills the runtime tmpfs (which made rofi and
+  # other wl_shm clients SIGBUS). Render device first, then the display device.
+  environment.sessionVariables = {
+    AQ_DRM_DEVICES = "/dev/dri/card2:/dev/dri/card1";
+    WLR_DRM_DEVICES = "/dev/dri/card2:/dev/dri/card1";
+  };
 
   specialisation.low-power.configuration = {
     system.nixos.tags = [ "low-power" ];

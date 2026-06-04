@@ -1,0 +1,37 @@
+% docker, podman, containers
+
+# List running containers
+docker ps
+
+# List all containers including stopped
+docker ps -a
+
+# Follow logs of a container
+docker logs -f <container>
+
+# Exec an interactive shell into a container
+docker exec -it <container> /bin/sh
+
+# Run an image interactively and remove on exit
+docker run --rm -it <image> /bin/sh
+
+# Build an image from the current dir
+docker build -t <tag> .
+
+# Stop and remove all running containers
+docker rm -f $(docker ps -q)
+
+# Show disk usage by docker objects
+docker system df
+
+# Prune dangling images, containers, networks
+docker system prune -f
+
+# Inspect a container's IP address
+docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' <container>
+
+# Build an OCI image with buildah
+buildah bud -t <tag> .
+
+$ container: docker ps -a --format '{{.Names}}'
+$ image: docker images --format '{{.Repository}}:{{.Tag}}' | grep -v '<none>'

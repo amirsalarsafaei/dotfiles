@@ -24,4 +24,16 @@
   pkgs.jcal
   pkgs.hyperfine
   pkgs.valgrind
+  pkgs.minio-client # mc: S3/MinIO object storage CLI
+
+  # modern-unix staples
+  # tealdeer (tldr) is configured via programs.tealdeer in
+  # programs/development/tealdeer.nix so its cache auto-updates.
+  pkgs.btop # prettier htop with GPU/net graphs
+  pkgs.dust # du replacement: a tree of what's eating disk
+  pkgs.duf # df replacement: readable mountpoint usage
+  pkgs.procs # ps replacement: colored, tree, searchable
+  pkgs.jless # pager/TUI for exploring large JSON
+  pkgs.sd # sed replacement for simple find/replace (sd 'foo' 'bar')
+  pkgs.doggo # dig replacement: friendly DNS lookups
 ]

@@ -19,8 +19,8 @@ return {
     { "<leader>gB", function() Snacks.gitbrowse() end,          desc = "Git browse" },
     { "<leader>gf", function() Snacks.lazygit.log_file() end,   desc = "Lazygit file log" },
     { "<leader>gl", function() Snacks.lazygit.log() end,        desc = "Lazygit log" },
-    { "]]",         function() Snacks.words.jump(1, true) end,  desc = "Next reference",       mode = { "n", "t" } },
-    { "[[",         function() Snacks.words.jump(-1, true) end, desc = "Prev reference",       mode = { "n", "t" } },
+    { "]r",         function() Snacks.words.jump(1, true) end,  desc = "Next reference",       mode = { "n", "t" } },
+    { "[r",         function() Snacks.words.jump(-1, true) end, desc = "Prev reference",       mode = { "n", "t" } },
     {
       "<leader>N",
       desc = "Neovim News",

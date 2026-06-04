@@ -7,6 +7,51 @@
   hostname,
   ...
 }:
+let
+  # OpenSSH invokes SSH_ASKPASS for more than passphrases. For FIDO/-sk keys it
+  # needs no passphrase at all — it needs a physical touch — and signals that by
+  # forking the askpass with SSH_ASKPASS_PROMPT=none, ignoring its output, and
+  # SIGTERM-ing it once the touch lands. lxqt-openssh-askpass ignores that mode,
+  # so the touch request was invisible while ssh silently blocked. This wrapper
+  # turns the "none" notifier into a persistent desktop notification and passes
+  # everything else (real passphrases, confirmations) through to the dialog.
+  sshAskpassSkAware = pkgs.writeShellApplication {
+    name = "ssh-askpass-sk-aware";
+    runtimeInputs = [
+      pkgs.libnotify
+      pkgs.glib
+      pkgs.lxqt.lxqt-openssh-askpass
+    ];
+    text = ''
+      msg="''${1:-Touch your security key to continue}"
+
+      if [ "''${SSH_ASKPASS_PROMPT:-}" = "none" ]; then
+        # Informational notifier (e.g. -sk touch): no input to collect. Show a
+        # sticky notification and stay alive until ssh terminates us.
+        id="$(notify-send -p -u critical -a SSH -i auth-fingerprint-symbolic \
+          -h string:x-canonical-private-synchronous:ssh-sk-touch \
+          "Touch your YubiKey" "$msg")" || id=""
+
+        cleanup() {
+          if [ -n "$id" ]; then
+            gdbus call --session \
+              --dest org.freedesktop.Notifications \
+              --object-path /org/freedesktop/Notifications \
+              --method org.freedesktop.Notifications.CloseNotification \
+              "$id" >/dev/null 2>&1 || true
+          fi
+          exit 0
+        }
+        trap cleanup TERM INT HUP
+
+        while true; do sleep 86400 & wait $!; done
+      fi
+
+      # Passphrase / confirmation prompt: the dialog you already like.
+      exec lxqt-openssh-askpass "$@"
+    '';
+  };
+in
 {
   options = {
     hyprland.monitorConfig = lib.mkOption {
@@ -429,7 +474,7 @@
 
     programs.ssh = {
       startAgent = false;
-      askPassword = "${pkgs.lxqt.lxqt-openssh-askpass}/bin/lxqt-openssh-askpass";
+      askPassword = "${sshAskpassSkAware}/bin/ssh-askpass-sk-aware";
       extraConfig = ''
         AddKeysToAgent yes
       '';

@@ -1,0 +1,39 @@
+% ssh, keys, yubikey
+
+# Generate a FIDO2/YubiKey-backed key (touch required)
+ssh-keygen -t ed25519-sk -C "<comment>"
+
+# Generate a resident FIDO2 key (stored on the key itself)
+ssh-keygen -t ed25519-sk -O resident -C "<comment>"
+
+# Import resident keys from a plugged-in YubiKey
+ssh-keygen -K
+
+# Generate a standard ed25519 key
+ssh-keygen -t ed25519 -C "<comment>"
+
+# Copy a public key to a remote host
+ssh-copy-id <user>@<host>
+
+# Add a key to the agent with a lifetime (seconds)
+ssh-add -t <seconds> <keyfile>
+
+# List keys currently loaded in the agent
+ssh-add -l
+
+# Show the fingerprint of a key
+ssh-keygen -lf <keyfile>
+
+# Test which key authenticates to a host (verbose)
+ssh -v <user>@<host>
+
+# Open a local-forward tunnel
+ssh -L <local_port>:localhost:<remote_port> <user>@<host>
+
+# Open a dynamic SOCKS proxy
+ssh -D <local_port> <user>@<host>
+
+# Run a one-off command on a remote host
+ssh <user>@<host> '<command>'
+
+$ keyfile: ls ~/.ssh/*.pub 2>/dev/null | sed 's/\.pub$//'

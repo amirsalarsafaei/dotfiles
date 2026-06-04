@@ -64,9 +64,5 @@ return {
 
     -- notify / snacks
     hl("NotifyBackground", { bg = p.base01 })
-
-    pcall(function()
-      require("avante_lib").load()
-    end)
   end,
 }

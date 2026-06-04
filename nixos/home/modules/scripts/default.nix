@@ -79,6 +79,50 @@
       fi
     '')
 
+    # td — capture a task into today's Obsidian daily note from the terminal.
+    #   td buy milk        -> appends "- [ ] buy milk ➕ <today>" to today's note
+    #   td                 -> lists today's open tasks
+    #   td -e              -> opens today's note in $EDITOR
+    # Format matches the obsidian-tasks plugin (➕ = created date).
+    (writeShellScriptBin "td" ''
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      vault="$HOME/Documents/amirsalar-vault"
+      dir="$vault/remote-vault/daily notes"
+      today="$(date +%Y-%m-%d)"
+      note="$dir/$today.md"
+
+      mkdir -p "$dir"
+
+      ensure_note() {
+        if [ ! -f "$note" ]; then
+          printf '# %s\n\n## Tasks\n' "$today" > "$note"
+        fi
+      }
+
+      case "''${1:-}" in
+        -e|--edit)
+          ensure_note
+          exec "''${EDITOR:-nvim}" "$note"
+          ;;
+        "")
+          if [ -f "$note" ]; then
+            # Show today's open tasks, numbered.
+            grep -nE '^\s*- \[ \]' "$note" || echo "No open tasks for $today."
+          else
+            echo "No daily note for $today yet. Add one with: td <task>"
+          fi
+          ;;
+        *)
+          ensure_note
+          task="$*"
+          printf -- '- [ ] %s ➕ %s\n' "$task" "$today" >> "$note"
+          notify-send -a Obsidian -i obsidian "Task added" "$task"
+          ;;
+      esac
+    '')
+
     (writeShellScriptBin "kbdbacklight" ''
       #!/usr/bin/env bash
       # Find keyboard backlight device (works across different systems)
