@@ -113,6 +113,20 @@
       flake = false;
     };
 
+    # Personal website (Next.js frontend + Rust backend). Exposes
+    # `packages.<system>.{backend,frontend,frontendLocal}` which the
+    # franksalar server module builds and runs from source.
+    #
+    # NOTE: this requires the nix-packaging fixes (src filters, sqlx offline
+    # build, regenerated yarn.lock, Next.js standalone output) to be on the
+    # referenced commit. Commit & push those to master, then re-lock with
+    # `nix flake update amirsalarsafaei-com`. To build before pushing, deploy
+    # with `--override-input amirsalarsafaei-com git+file:///home/amirsalar/personal/amirsalarsafaei.com`.
+    amirsalarsafaei-com = {
+      url = "github:amirsalarsafaei/amirsalarsafaei.com";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Private skill pack — not in any public repo. The directory must
     # exist (can be empty) on the host that evaluates this flake.
     work-skills = {
@@ -327,10 +341,7 @@
                     currentHostname = hostname;
                     currentSystem = system;
                   };
-                  sharedModules =
-                    sopsHomeSharedModules
-                    ++ commonHomeModules
-                    ++ mkHomeImports hostConfig;
+                  sharedModules = sopsHomeSharedModules ++ commonHomeModules ++ mkHomeImports hostConfig;
                   users = lib.genAttrs users (username: {
                     _module.args.homeDir = "/home/${username}";
                   });
@@ -363,15 +374,14 @@
             currentHostname = hostname;
             homeDir = "/home/${username}";
           };
-          modules =
-            [
-              { home.username = username; }
-              { nixpkgs = commonNixpkgsConfig system; }
-              { programs.home-manager.enable = true; }
-            ]
-            ++ sopsHomeSharedModules
-            ++ commonHomeModules
-            ++ mkHomeImports hostConfig;
+          modules = [
+            { home.username = username; }
+            { nixpkgs = commonNixpkgsConfig system; }
+            { programs.home-manager.enable = true; }
+          ]
+          ++ sopsHomeSharedModules
+          ++ commonHomeModules
+          ++ mkHomeImports hostConfig;
         };
 
       # Filter hosts by type

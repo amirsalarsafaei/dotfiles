@@ -19,6 +19,29 @@
         "type": "github"
       }
     },
+    "amirsalarsafaei-com": {
+      "inputs": {
+        "flake-parts": "flake-parts",
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "rust-overlay": "rust-overlay",
+        "treefmt-nix": "treefmt-nix"
+      },
+      "locked": {
+        "lastModified": 1780690557,
+        "narHash": "sha256-p9CffqFpUfQBmWu2oYPrQMdOHwuTg6I8lRhvJ1xKfRU=",
+        "owner": "amirsalarsafaei",
+        "repo": "amirsalarsafaei.com",
+        "rev": "22c1d7ecbbd2a7870cc0a4d1dbbf06c9d353b0ec",
+        "type": "github"
+      },
+      "original": {
+        "owner": "amirsalarsafaei",
+        "repo": "amirsalarsafaei.com",
+        "type": "github"
+      }
+    },
     "apple-silicon-support": {
       "inputs": {
         "flake-compat": "flake-compat",
@@ -297,6 +320,24 @@
       }
     },
     "flake-parts": {
+      "inputs": {
+        "nixpkgs-lib": "nixpkgs-lib"
+      },
+      "locked": {
+        "lastModified": 1769996383,
+        "narHash": "sha256-AnYjnFWgS49RlqX7LrC4uA+sCCDBj0Ry/WOJ5XWAsa0=",
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "rev": "57928607ea566b5db3ad13af0e57e921e6b12381",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "type": "github"
+      }
+    },
+    "flake-parts_2": {
       "inputs": {
         "nixpkgs-lib": [
           "stylix",
@@ -845,6 +886,21 @@
         "type": "github"
       }
     },
+    "nixpkgs-lib": {
+      "locked": {
+        "lastModified": 1769909678,
+        "narHash": "sha256-cBEymOf4/o3FD5AZnzC3J9hLbiZ+QDT/KDuyHXVJOpM=",
+        "owner": "nix-community",
+        "repo": "nixpkgs.lib",
+        "rev": "72716169fe93074c333e8d0173151350670b824c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "nixpkgs.lib",
+        "type": "github"
+      }
+    },
     "nixpkgs-stable": {
       "locked": {
         "lastModified": 1779796641,
@@ -987,6 +1043,7 @@
     "root": {
       "inputs": {
         "agent-skills": "agent-skills",
+        "amirsalarsafaei-com": "amirsalarsafaei-com",
         "apple-silicon-support": "apple-silicon-support",
         "argonaut": "argonaut",
         "claude-code": "claude-code",
@@ -1009,6 +1066,27 @@
         "work-skills": "work-skills",
         "zsh-autosuggestions": "zsh-autosuggestions",
         "zsh-nix-shell": "zsh-nix-shell"
+      }
+    },
+    "rust-overlay": {
+      "inputs": {
+        "nixpkgs": [
+          "amirsalarsafaei-com",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1770865833,
+        "narHash": "sha256-oiARqnlvaW6pVGheVi4ye6voqCwhg5hCcGish2ZvQzI=",
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "rev": "c8cfbe26238638e2f3a2c0ae7e8d240f5e4ded85",
+        "type": "github"
+      },
+      "original": {
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "type": "github"
       }
     },
     "samber-go-skills": {
@@ -1096,7 +1174,7 @@
         "base16-helix": "base16-helix",
         "base16-vim": "base16-vim",
         "firefox-gnome-theme": "firefox-gnome-theme",
-        "flake-parts": "flake-parts",
+        "flake-parts": "flake-parts_2",
         "gnome-shell": "gnome-shell",
         "nixpkgs": [
           "nixpkgs"
@@ -1258,6 +1336,27 @@
       "original": {
         "owner": "tinted-theming",
         "repo": "base16-zed",
+        "type": "github"
+      }
+    },
+    "treefmt-nix": {
+      "inputs": {
+        "nixpkgs": [
+          "amirsalarsafaei-com",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1770228511,
+        "narHash": "sha256-wQ6NJSuFqAEmIg2VMnLdCnUc0b7vslUohqqGGD+Fyxk=",
+        "owner": "numtide",
+        "repo": "treefmt-nix",
+        "rev": "337a4fe074be1042a35086f15481d763b8ddc0e7",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "treefmt-nix",
         "type": "github"
       }
     },

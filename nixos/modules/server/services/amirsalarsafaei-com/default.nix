@@ -1,44 +1,92 @@
+# NixOS service module for amirsalarsafaei.com.
+#
+# This mirrors the upstream module shipped in the website repo
+# (`nix/modules/amirsalarsafaei-com.nix`) but takes `inputs` from the
+# dotfiles specialArgs so it can resolve
+# `inputs.amirsalarsafaei-com.packages.<system>` (the upstream copy closes
+# over its own flake inputs and cannot see itself). Keep it in sync with
+# upstream when the website's deployment surface changes.
 {
   config,
   lib,
   pkgs,
   inputs,
-  secrets,
   ...
 }:
+
 let
   cfg = config.services.amirsalarsafaei-com;
-  system = pkgs.system;
-  websitePackages = inputs.amirsalarsafaei-com.packages.${system};
-  
-  # Build frontend with appropriate environment
-  frontendPackage = 
-    if cfg.frontend.env == "local" 
-    then websitePackages.frontendLocal 
-    else websitePackages.frontend;
+  inherit (lib) types;
 
-  backendConfigFile = pkgs.writeText "config.toml" ''
-    auth_token = "${cfg.authToken}"
+  websitePackages = inputs.amirsalarsafaei-com.packages.${pkgs.system};
+  # Upstream builds the frontend with nodejs_20, which is now EOL/insecure in
+  # nixpkgs. Override to nodejs_22 (LTS) so the build has no insecure deps.
+  frontendPackage =
+    (if cfg.frontend.env == "local" then websitePackages.frontendLocal else websitePackages.frontend)
+    .override
+      { nodejs_20 = pkgs.nodejs_22; };
+
+  originList = lib.concatMapStringsSep ", " (origin: ''"${origin}"'') cfg.backend.allowedOrigins;
+
+  backendConfigFile = pkgs.writeText "amirsalarsafaei-com-config.toml" ''
+    auth_token = ""
 
     [database]
-    url = "postgres://${cfg.database.user}:${cfg.database.password}@localhost:5432/${cfg.database.name}"
+    url = ""
 
     [server]
-    host = "127.0.0.1"
+    host = "${cfg.backend.host}"
     port = ${toString cfg.backend.port}
-    allowed_origins = ["${cfg.backend.origin}"]
+    allowed_origins = [${originList}]
 
     [image_server]
-    host = "127.0.0.1"
+    host = "${cfg.backend.imageHost}"
     port = ${toString cfg.backend.imagePort}
     upload_dir = "${cfg.backend.uploadDir}"
   '';
 
-  spotifyConfigFile = pkgs.writeText "spotify.toml" ''
-    client_id = "${cfg.spotify.clientId}"
-    client_secret = "${cfg.spotify.clientSecret}"
-    refresh_token = "${cfg.spotify.refreshToken}"
+  spotifyConfigFile = pkgs.writeText "amirsalarsafaei-com-spotify.toml" ''
+    client_id = ""
+    client_secret = ""
+    refresh_token = ""
     redirect_uri = "${cfg.spotify.redirectUri}"
+  '';
+
+  databaseUrl = "postgres://${cfg.database.user}:${cfg.database.password}@${cfg.database.host}:${toString cfg.database.port}/${cfg.database.name}";
+
+  backendEnvironment = {
+    AUTH_TOKEN = cfg.authToken;
+    DATABASE_URL = databaseUrl;
+    IMAGE_UPLOAD_DIR = cfg.backend.uploadDir;
+    IMAGE_SERVER_HOST = cfg.backend.imageHost;
+    IMAGE_SERVER_PORT = toString cfg.backend.imagePort;
+    SPOTIFY_REDIRECT_URI = cfg.spotify.redirectUri;
+    RUST_LOG = cfg.backend.logLevel;
+  }
+  // lib.optionalAttrs (cfg.spotify.clientId != "") {
+    SPOTIFY_CLIENT_ID = cfg.spotify.clientId;
+  }
+  // lib.optionalAttrs (cfg.spotify.clientSecret != "") {
+    SPOTIFY_CLIENT_SECRET = cfg.spotify.clientSecret;
+  }
+  // lib.optionalAttrs (cfg.spotify.refreshToken != "") {
+    SPOTIFY_REFRESH_TOKEN = cfg.spotify.refreshToken;
+  };
+
+  backendLauncher = pkgs.writeShellScript "amirsalarsafaei-com-backend" ''
+    set -eu
+
+    if [ -n "''${CREDENTIALS_DIRECTORY:-}" ]; then
+      [ -f "$CREDENTIALS_DIRECTORY/auth-token" ] && export AUTH_TOKEN="$(cat "$CREDENTIALS_DIRECTORY/auth-token")"
+      [ -f "$CREDENTIALS_DIRECTORY/database-password" ] && export DATABASE_URL="postgres://${cfg.database.user}:$(cat "$CREDENTIALS_DIRECTORY/database-password")@${cfg.database.host}:${toString cfg.database.port}/${cfg.database.name}"
+      [ -f "$CREDENTIALS_DIRECTORY/spotify-client-id" ] && export SPOTIFY_CLIENT_ID="$(cat "$CREDENTIALS_DIRECTORY/spotify-client-id")"
+      [ -f "$CREDENTIALS_DIRECTORY/spotify-client-secret" ] && export SPOTIFY_CLIENT_SECRET="$(cat "$CREDENTIALS_DIRECTORY/spotify-client-secret")"
+      [ -f "$CREDENTIALS_DIRECTORY/spotify-refresh-token" ] && export SPOTIFY_REFRESH_TOKEN="$(cat "$CREDENTIALS_DIRECTORY/spotify-refresh-token")"
+    fi
+
+    exec ${websitePackages.backend}/bin/amirsalarsafaeicom-backend \
+      --config-path ${backendConfigFile} \
+      --spotify-cred-path ${spotifyConfigFile}
   '';
 in
 {
@@ -46,104 +94,220 @@ in
     enable = lib.mkEnableOption "amirsalarsafaei.com personal website";
 
     domain = lib.mkOption {
-      type = lib.types.str;
+      type = types.str;
       default = "amirsalarsafaei.com";
-      description = "Domain name for the website";
+      description = "Public domain name for the website.";
     };
 
     authToken = lib.mkOption {
-      type = lib.types.str;
-      description = "Authentication token for the backend API";
+      type = types.str;
+      default = "";
+      description = "Backend admin authentication token. Prefer authTokenFile for real deployments.";
+    };
+
+    authTokenFile = lib.mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      description = "File containing AUTH_TOKEN for systemd LoadCredential.";
+    };
+
+    user = lib.mkOption {
+      type = types.str;
+      default = "amirsalarsafaei-com";
+      description = "System user used by backend and frontend services.";
+    };
+
+    group = lib.mkOption {
+      type = types.str;
+      default = "amirsalarsafaei-com";
+      description = "System group used by backend and frontend services.";
     };
 
     database = {
+      createLocally = lib.mkOption {
+        type = types.bool;
+        default = true;
+        description = "Whether to configure a local PostgreSQL database.";
+      };
+
       name = lib.mkOption {
-        type = lib.types.str;
-        default = "amirsalarsafaei";
-        description = "PostgreSQL database name";
+        type = types.str;
+        default = "amirsalarsafaeicom";
+        description = "PostgreSQL database name.";
       };
 
       user = lib.mkOption {
-        type = lib.types.str;
-        default = "amirsalarsafaei";
-        description = "PostgreSQL user";
+        type = types.str;
+        default = "amirsalarsafaeicom";
+        description = "PostgreSQL user.";
       };
 
       password = lib.mkOption {
-        type = lib.types.str;
-        description = "PostgreSQL password";
+        type = types.str;
+        default = "";
+        description = "PostgreSQL password. Prefer passwordFile for real deployments.";
+      };
+
+      passwordFile = lib.mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "File containing the PostgreSQL password for systemd LoadCredential.";
+      };
+
+      host = lib.mkOption {
+        type = types.str;
+        default = "127.0.0.1";
+        description = "PostgreSQL host used by the backend.";
+      };
+
+      port = lib.mkOption {
+        type = types.port;
+        default = 5432;
+        description = "PostgreSQL port used by the backend.";
       };
     };
 
     spotify = {
       clientId = lib.mkOption {
-        type = lib.types.str;
+        type = types.str;
         default = "";
-        description = "Spotify client ID";
+        description = "Spotify client ID. Prefer clientIdFile for real deployments.";
+      };
+
+      clientIdFile = lib.mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "File containing SPOTIFY_CLIENT_ID for systemd LoadCredential.";
       };
 
       clientSecret = lib.mkOption {
-        type = lib.types.str;
+        type = types.str;
         default = "";
-        description = "Spotify client secret";
+        description = "Spotify client secret. Prefer clientSecretFile for real deployments.";
+      };
+
+      clientSecretFile = lib.mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "File containing SPOTIFY_CLIENT_SECRET for systemd LoadCredential.";
       };
 
       refreshToken = lib.mkOption {
-        type = lib.types.str;
+        type = types.str;
         default = "";
-        description = "Spotify refresh token";
+        description = "Spotify refresh token. Prefer refreshTokenFile for real deployments.";
+      };
+
+      refreshTokenFile = lib.mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "File containing SPOTIFY_REFRESH_TOKEN for systemd LoadCredential.";
       };
 
       redirectUri = lib.mkOption {
-        type = lib.types.str;
-        default = "https://amirsalarsafaei.com/callback";
-        description = "Spotify redirect URI";
+        type = types.str;
+        default = "https://${cfg.domain}/callback";
+        defaultText = "https://\${config.services.amirsalarsafaei-com.domain}/callback";
+        description = "Spotify redirect URI.";
       };
     };
 
     backend = {
+      host = lib.mkOption {
+        type = types.str;
+        default = "127.0.0.1";
+        description = "Backend gRPC-web bind host.";
+      };
+
       port = lib.mkOption {
-        type = lib.types.port;
+        type = types.port;
         default = 8000;
-        description = "Backend API port";
+        description = "Backend gRPC-web port.";
+      };
+
+      imageHost = lib.mkOption {
+        type = types.str;
+        default = "127.0.0.1";
+        description = "Image server bind host.";
       };
 
       imagePort = lib.mkOption {
-        type = lib.types.port;
+        type = types.port;
         default = 3001;
-        description = "Image server port";
+        description = "Image server port.";
       };
 
       uploadDir = lib.mkOption {
-        type = lib.types.str;
+        type = types.str;
         default = "/var/lib/amirsalarsafaei-com/uploads";
-        description = "Upload directory for images";
+        description = "Upload directory for images.";
       };
 
-      origin = lib.mkOption {
-        type = lib.types.str;
-	default = "https://amirsalarsafaei.com";
-	description = "Origin for CORS";
+      allowedOrigins = lib.mkOption {
+        type = types.listOf types.str;
+        default = [ "https://${cfg.domain}" ];
+        defaultText = ''[ "https://\${config.services.amirsalarsafaei-com.domain}" ]'';
+        description = "CORS origins allowed by the gRPC-web backend.";
+      };
+
+      logLevel = lib.mkOption {
+        type = types.str;
+        default = "info";
+        description = "RUST_LOG value for the backend service.";
       };
     };
 
     frontend = {
       port = lib.mkOption {
-        type = lib.types.port;
+        type = types.port;
         default = 3000;
-        description = "Frontend port";
+        description = "Frontend port.";
       };
-      
+
+      host = lib.mkOption {
+        type = types.str;
+        default = "127.0.0.1";
+        description = "Frontend bind host.";
+      };
+
       env = lib.mkOption {
-        type = lib.types.enum [ "production" "local" ];
+        type = types.enum [
+          "production"
+          "local"
+        ];
         default = "production";
-        description = "Build environment for frontend (production or local)";
+        description = "Frontend build environment.";
+      };
+
+      grpcWebUrl = lib.mkOption {
+        type = types.str;
+        default = "https://grpc-api.${cfg.domain}";
+        defaultText = "https://grpc-api.\${config.services.amirsalarsafaei-com.domain}";
+        description = "Public gRPC-web URL exposed to the frontend runtime.";
+      };
+
+      imageServerUrl = lib.mkOption {
+        type = types.str;
+        default = "https://upload.${cfg.domain}";
+        defaultText = "https://upload.\${config.services.amirsalarsafaei-com.domain}";
+        description = "Public image server URL exposed to the frontend runtime.";
       };
     };
   };
 
   config = lib.mkIf cfg.enable {
-    services.postgresql = {
+    assertions = [
+      {
+        assertion = cfg.authToken != "" || cfg.authTokenFile != null;
+        message = "services.amirsalarsafaei-com.authToken or authTokenFile must be set.";
+      }
+      {
+        assertion = cfg.database.password != "" || cfg.database.passwordFile != null;
+        message = "services.amirsalarsafaei-com.database.password or passwordFile must be set.";
+      }
+    ];
+
+    services.postgresql = lib.mkIf cfg.database.createLocally {
       enable = true;
       ensureDatabases = [ cfg.database.name ];
       ensureUsers = [
@@ -153,70 +317,100 @@ in
         }
       ];
       authentication = lib.mkAfter ''
-        local ${cfg.database.name} ${cfg.database.user} md5
         host ${cfg.database.name} ${cfg.database.user} 127.0.0.1/32 md5
       '';
     };
 
-    systemd.services.amirsalarsafaei-com-backend = {
-      description = "amirsalarsafaei.com Backend";
-      wantedBy = [ "multi-user.target" ];
-      after = [
-        "network.target"
-        "postgresql.service"
-      ];
-      requires = [ "postgresql.service" ];
-
-      serviceConfig = {
-        Type = "simple";
-        ExecStart = "${websitePackages.backend}/bin/amirsalarsafaeicom-backend --config-path ${backendConfigFile} --spotify-cred-path ${spotifyConfigFile}";
-        Restart = "on-failure";
-        RestartSec = "5s";
-        User = "amirsalarsafaei";
-        Group = "amirsalarsafaei";
-        StateDirectory = "amirsalarsafaei-com";
-        RuntimeDirectory = "amirsalarsafaei-com";
-        WorkingDirectory = "/var/lib/amirsalarsafaei-com";
-      };
-    };
-
-    users.users.amirsalarsafaei = {
+    users.users.${cfg.user} = {
       isSystemUser = true;
-      group = "amirsalarsafaei";
+      inherit (cfg) group;
       home = "/var/lib/amirsalarsafaei-com";
       createHome = true;
     };
 
-    users.groups.amirsalarsafaei = { };
+    users.groups.${cfg.group} = { };
 
-    systemd.services.amirsalarsafaei-com-frontend = {
-      description = "amirsalarsafaei.com Frontend";
+    systemd.tmpfiles.rules = [
+      "d ${cfg.backend.uploadDir} 0750 ${cfg.user} ${cfg.group} -"
+    ];
+
+    systemd.services.amirsalarsafaei-com-backend = {
+      description = "amirsalarsafaei.com backend";
       wantedBy = [ "multi-user.target" ];
       after = [
-        "network.target"
+        "network-online.target"
+      ]
+      ++ lib.optional cfg.database.createLocally "postgresql.service";
+      wants = [ "network-online.target" ];
+      requires = lib.optional cfg.database.createLocally "postgresql.service";
+
+      environment = backendEnvironment;
+
+      serviceConfig = {
+        Type = "simple";
+        ExecStart = backendLauncher;
+        Restart = "on-failure";
+        RestartSec = "5s";
+        User = cfg.user;
+        Group = cfg.group;
+        StateDirectory = "amirsalarsafaei-com";
+        RuntimeDirectory = "amirsalarsafaei-com";
+        WorkingDirectory = "/var/lib/amirsalarsafaei-com";
+        LoadCredential =
+          lib.optionals (cfg.authTokenFile != null) [ "auth-token:${cfg.authTokenFile}" ]
+          ++ lib.optionals (cfg.database.passwordFile != null) [
+            "database-password:${cfg.database.passwordFile}"
+          ]
+          ++ lib.optionals (cfg.spotify.clientIdFile != null) [
+            "spotify-client-id:${cfg.spotify.clientIdFile}"
+          ]
+          ++ lib.optionals (cfg.spotify.clientSecretFile != null) [
+            "spotify-client-secret:${cfg.spotify.clientSecretFile}"
+          ]
+          ++ lib.optionals (cfg.spotify.refreshTokenFile != null) [
+            "spotify-refresh-token:${cfg.spotify.refreshTokenFile}"
+          ];
+        NoNewPrivileges = true;
+        PrivateTmp = true;
+        ProtectHome = true;
+        ProtectSystem = "strict";
+        ReadWritePaths = [
+          "/var/lib/amirsalarsafaei-com"
+          cfg.backend.uploadDir
+        ];
+      };
+    };
+
+    systemd.services.amirsalarsafaei-com-frontend = {
+      description = "amirsalarsafaei.com frontend";
+      wantedBy = [ "multi-user.target" ];
+      after = [
+        "network-online.target"
         "amirsalarsafaei-com-backend.service"
       ];
+      wants = [ "network-online.target" ];
 
       environment = {
         PORT = toString cfg.frontend.port;
-        HOSTNAME = "127.0.0.1";
-        NEXT_PUBLIC_API_URL = "http://127.0.0.1:${toString cfg.backend.port}";
+        HOSTNAME = cfg.frontend.host;
         NODE_ENV = "production";
+        NEXT_PUBLIC_GRPC_WEB_URL = cfg.frontend.grpcWebUrl;
+        NEXT_PUBLIC_IMAGE_SERVER_WEB_URL = cfg.frontend.imageServerUrl;
       };
 
       serviceConfig = {
         Type = "simple";
         WorkingDirectory = frontendPackage;
-        ExecStart = "${pkgs.nodejs_20}/bin/node .next/standalone/server.js";
+        ExecStart = "${pkgs.nodejs_22}/bin/node .next/standalone/server.js";
         Restart = "on-failure";
         RestartSec = "5s";
-        User = "amirsalarsafaei";
-        Group = "amirsalarsafaei";
+        User = cfg.user;
+        Group = cfg.group;
+        NoNewPrivileges = true;
+        PrivateTmp = true;
+        ProtectHome = true;
+        ProtectSystem = "strict";
       };
     };
-
-    systemd.tmpfiles.rules = [
-      "d ${cfg.backend.uploadDir} 0755 amirsalarsafaei amirsalarsafaei -"
-    ];
   };
 }

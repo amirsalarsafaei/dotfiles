@@ -9,13 +9,38 @@
   imports = [
     ./disko-config.nix
     inputs.private.nixosModules.franksalar
-    # Personal site is currently disabled; re-enable when ready.
-    # ../../modules/server/services/amirsalarsafaei-com
+    ../../modules/server/services/amirsalarsafaei-com
   ];
 
   home-manager.users.amirsalar = {
     custom.neovim.enable = lib.mkForce false;
     home.packages = [ pkgs.neovim ];
+  };
+
+  # Personal website, built from source via the upstream flake's nix module.
+  # nginx reverse proxy + ACME certs live in the private franksalar module.
+  services.amirsalarsafaei-com = {
+    enable = true;
+    domain = "amirsalarsafaei.com";
+
+    authToken = secrets.amirsalarsafaeiCom.authToken;
+
+    database = {
+      createLocally = true;
+      password = secrets.amirsalarsafaeiCom.dbPassword;
+    };
+
+    backend.allowedOrigins = [
+      "https://amirsalarsafaei.com"
+      "https://www.amirsalarsafaei.com"
+    ];
+
+    spotify = {
+      clientId = secrets.spotify.clientId;
+      clientSecret = secrets.spotify.clientSecret;
+      refreshToken = secrets.spotify.refreshToken;
+      redirectUri = secrets.spotify.redirectUri;
+    };
   };
 
   swapDevices = [
