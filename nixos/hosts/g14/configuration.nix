@@ -191,7 +191,6 @@ in
     enable = true;
     control = "sufficient";
     settings.video = {
-      # IR camera on the G14 (USB2.0 I); /dev/video0 is the visible-light cam.
       device_path = "/dev/video2";
       certainty = 3.5;
       timeout = 4;
