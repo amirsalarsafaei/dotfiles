@@ -15,6 +15,7 @@ lib.mkIf config.isWork {
       skills = [
         "divar-pages"
         "divar-form-pages"
+        "divarrpc-routing"
       ];
     };
   };

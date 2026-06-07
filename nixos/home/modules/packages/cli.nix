@@ -1,6 +1,7 @@
 { pkgs, ... }:
 [
   pkgs.fd
+  pkgs.bubblewrap
   pkgs.ripgrep
   pkgs.jq
   pkgs.yq-go

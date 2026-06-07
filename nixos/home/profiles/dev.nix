@@ -17,7 +17,9 @@
 
   custom = {
     neovim.enable = true;
-    neovim.source = "${dotfilesRoot}/nvim";
+    # Sourced from the dedicated `nvim-config` input (see flake.nix) so the
+    # nvim config updates only when you `nix flake update nvim-config`.
+    neovim.source = "${inputs.nvim-config}/nvim";
     claudeCode.enable = true;
 
     agentSkills = {

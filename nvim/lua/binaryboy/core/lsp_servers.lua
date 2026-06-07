@@ -1,51 +1,50 @@
 local M = {}
 
-M.server_bins = {
-	lua_ls = { "lua-language-server" },
-	gopls = { "gopls" },
-	golangci_lint_ls = { "golangci-lint-langserver" },
-	nixd = { "nixd" },
-	pyright = { "pyright-langserver", "pyright" },
-	yamlls = { "yaml-language-server" },
-	["protobuf-language-server"] = { "protobuf-language-server" },
-	elixirls = { "elixir-ls", "elixirls" },
-	lexical = { "lexical" },
-	sqls = { "sqls" },
-	ts_ls = { "typescript-language-server" },
-	rust_analyzer = { "rust-analyzer" },
-	sourcekit = { "sourcekit-lsp" },
-	cssls = { "vscode-css-language-server" },
-	html = { "vscode-html-language-server" },
-	dockerls = { "docker-langserver" },
-	docker_compose_language_service = { "docker-compose-langserver" },
-	bashls = { "bash-language-server" },
-	clangd = { "clangd" },
-	jdtls = { "jdtls", "jdt-language-server" },
-	systemd_ls = { "systemd-language-server" },
+-- Single source of truth for language servers.
+--   bins  = PATH executables that satisfy the server; the first one found wins
+--           (resolution happens in core/lsp.lua against Nix-provided binaries).
+--   mason = mason.nvim package name, used ONLY when a host opts into Mason
+--           instead of Nix (hostconfig.mason; see plugins/mason.lua). Omit when
+--           Mason has no equivalent package.
+M.servers = {
+	lua_ls = { bins = { "lua-language-server" }, mason = "lua-language-server" },
+	gopls = { bins = { "gopls" }, mason = "gopls" },
+	golangci_lint_ls = { bins = { "golangci-lint-langserver" }, mason = "golangci-lint-langserver" },
+	nixd = { bins = { "nixd" }, mason = "nixd" },
+	pyright = { bins = { "pyright-langserver", "pyright" }, mason = "pyright" },
+	yamlls = { bins = { "yaml-language-server" }, mason = "yaml-language-server" },
+	["protobuf-language-server"] = { bins = { "protobuf-language-server" }, mason = "protobuf-language-server" },
+	elixirls = { bins = { "elixir-ls", "elixirls" }, mason = "elixir-ls" },
+	lexical = { bins = { "lexical" }, mason = "lexical" },
+	sqls = { bins = { "sqls" }, mason = "sqls" },
+	ts_ls = { bins = { "typescript-language-server" }, mason = "typescript-language-server" },
+	rust_analyzer = { bins = { "rust-analyzer" }, mason = "rust-analyzer" },
+	sourcekit = { bins = { "sourcekit-lsp" }, mason = "sourcekit" },
+	cssls = { bins = { "vscode-css-language-server" }, mason = "css-lsp" },
+	html = { bins = { "vscode-html-language-server" }, mason = "html-lsp" },
+	dockerls = { bins = { "docker-langserver" }, mason = "dockerfile-language-server" },
+	docker_compose_language_service = { bins = { "docker-compose-langserver" }, mason = "docker-compose-language-service" },
+	bashls = { bins = { "bash-language-server" }, mason = "bash-language-server" },
+	clangd = { bins = { "clangd" }, mason = "clangd" },
+	jdtls = { bins = { "jdtls", "jdt-language-server" }, mason = "jdtls" },
+	systemd_ls = { bins = { "systemd-language-server" }, mason = "systemd-language-server" },
 }
 
-M.all_servers = {
-	"lua_ls",
-	"gopls",
-	"golangci_lint_ls",
-	"nixd",
-	"pyright",
-	"yamlls",
-	"protobuf-language-server",
-	"elixirls",
-	"lexical",
-	"sqls",
-	"ts_ls",
-	"rust_analyzer",
-	"sourcekit",
-	"cssls",
-	"html",
-	"dockerls",
-	"docker_compose_language_service",
-	"bashls",
-	"clangd",
-	"jdtls",
-	"systemd_ls",
-}
+-- Derived views (stable, sorted) for the consumers in core/lsp.lua and
+-- plugins/mason.lua. Edit M.servers above; never these.
+M.all_servers = {}
+M.server_bins = {}
+M.mason_packages = {}
+
+for name, spec in pairs(M.servers) do
+	table.insert(M.all_servers, name)
+	M.server_bins[name] = spec.bins
+	if spec.mason then
+		table.insert(M.mason_packages, spec.mason)
+	end
+end
+
+table.sort(M.all_servers)
+table.sort(M.mason_packages)
 
 return M

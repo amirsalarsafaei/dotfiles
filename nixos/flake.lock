@@ -29,11 +29,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1780690557,
-        "narHash": "sha256-p9CffqFpUfQBmWu2oYPrQMdOHwuTg6I8lRhvJ1xKfRU=",
+        "lastModified": 1780813866,
+        "narHash": "sha256-D2PkwTV1VhLF+PhUiSFjccTTrfflcPOvEFCy/rk5qHs=",
         "owner": "amirsalarsafaei",
         "repo": "amirsalarsafaei.com",
-        "rev": "22c1d7ecbbd2a7870cc0a4d1dbbf06c9d353b0ec",
+        "rev": "f0d9821575ea939ad084af69f170ffb1dc9939da",
         "type": "github"
       },
       "original": {
@@ -243,11 +243,11 @@
     "dotfiles": {
       "flake": false,
       "locked": {
-        "lastModified": 1780162253,
-        "narHash": "sha256-4KNqwZb7/kJpS3hKXqp40Ve4Ioxuq7mAb3ch320ahwQ=",
+        "lastModified": 1780690884,
+        "narHash": "sha256-ok7jgxVsFWBb69WaJtLBz5FrOXc+rtGpVc+pBBSYsI4=",
         "owner": "amirsalarsafaei",
         "repo": "dotfiles",
-        "rev": "1e73cf0ff260d3384706109124a58cc4dc3e9ab5",
+        "rev": "83090ce4b73f94eaa2d20a0adcd8207d42ee66e7",
         "type": "github"
       },
       "original": {
@@ -1006,6 +1006,22 @@
         "type": "github"
       }
     },
+    "nvim-config": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1780690884,
+        "narHash": "sha256-ok7jgxVsFWBb69WaJtLBz5FrOXc+rtGpVc+pBBSYsI4=",
+        "owner": "amirsalarsafaei",
+        "repo": "dotfiles",
+        "rev": "83090ce4b73f94eaa2d20a0adcd8207d42ee66e7",
+        "type": "github"
+      },
+      "original": {
+        "owner": "amirsalarsafaei",
+        "repo": "dotfiles",
+        "type": "github"
+      }
+    },
     "pre-commit-hooks": {
       "inputs": {
         "flake-compat": "flake-compat_2",
@@ -1057,6 +1073,7 @@
         "hyprland-plugins": "hyprland-plugins",
         "nixpkgs": "nixpkgs_5",
         "nixpkgs-stable": "nixpkgs-stable",
+        "nvim-config": "nvim-config",
         "private": "private",
         "samber-go-skills": "samber-go-skills",
         "sops-nix": "sops-nix",
@@ -1363,8 +1380,8 @@
     "work-skills": {
       "flake": false,
       "locked": {
-        "lastModified": 1780149512,
-        "narHash": "sha256-TP9eCnK68w/AFH1n6tzsA3zJHu29ZGRweWKsKNtz/SA=",
+        "lastModified": 1780763782,
+        "narHash": "sha256-2jpxImxxxpEfBzT4qe6KXONU7elZkO5lKTDXT/OQpdE=",
         "path": "/home/amirsalar/work-skills",
         "type": "path"
       },

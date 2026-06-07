@@ -13,6 +13,13 @@ return {
 		vim.g.loaded_netrwPlugin = 1
 	end,
 	opts = {
+		-- netrw is disabled in init() above; turning off nvim-tree's directory
+		-- hijack avoids an upstream bug where its BufEnter autocmd calls
+		-- nvim_buf_get_name() on already-wiped scratch buffers (autocmd.lua:57,
+		-- missing the validity guard that line 116 has). Trade-off: `nvim <dir>`
+		-- no longer auto-opens the tree.
+		hijack_directories = { enable = false },
+		hijack_netrw = false,
 		view = {
 			width = 35,
 			relativenumber = true,

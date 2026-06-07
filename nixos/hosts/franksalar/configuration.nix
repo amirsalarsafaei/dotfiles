@@ -41,7 +41,18 @@
       refreshToken = secrets.spotify.refreshToken;
       redirectUri = secrets.spotify.redirectUri;
     };
+
+    # SSH front-end (Wish + Bubble Tea TUI) served on the standard SSH port.
+    ssh = {
+      enable = true;
+      port = 22;
+    };
   };
+
+  # The website's SSH front-end owns port 22, so move the real OpenSSH daemon
+  # to 2222 (shared default lives in modules/server/security.nix).
+  services.openssh.ports = lib.mkForce [ 2222 ];
+  networking.firewall.allowedTCPPorts = [ 2222 ];
 
   swapDevices = [
     {

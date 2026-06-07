@@ -293,6 +293,41 @@ in
         description = "Public image server URL exposed to the frontend runtime.";
       };
     };
+
+    ssh = {
+      enable = lib.mkEnableOption "the SSH front-end (Wish + Bubble Tea TUI) for amirsalarsafaei.com";
+
+      host = lib.mkOption {
+        type = types.str;
+        default = "0.0.0.0";
+        description = "Bind address for the SSH front-end.";
+      };
+
+      port = lib.mkOption {
+        type = types.port;
+        default = 23234;
+        description = "Port the SSH front-end listens on.";
+      };
+
+      hostKeyPath = lib.mkOption {
+        type = types.str;
+        default = "/var/lib/amirsalarsafaei-com/ssh/id_ed25519";
+        description = "Path to the SSH host key. Generated automatically if missing.";
+      };
+
+      grpcAddr = lib.mkOption {
+        type = types.str;
+        default = "${cfg.backend.host}:${toString cfg.backend.port}";
+        defaultText = "\${backend.host}:\${backend.port}";
+        description = "Backend gRPC address the SSH front-end consumes.";
+      };
+
+      grpcTLS = lib.mkOption {
+        type = types.bool;
+        default = false;
+        description = "Whether the backend gRPC endpoint uses TLS.";
+      };
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -332,7 +367,8 @@ in
 
     systemd.tmpfiles.rules = [
       "d ${cfg.backend.uploadDir} 0750 ${cfg.user} ${cfg.group} -"
-    ];
+    ]
+    ++ lib.optional cfg.ssh.enable "d ${builtins.dirOf cfg.ssh.hostKeyPath} 0750 ${cfg.user} ${cfg.group} -";
 
     systemd.services.amirsalarsafaei-com-backend = {
       description = "amirsalarsafaei.com backend";
@@ -410,6 +446,43 @@ in
         PrivateTmp = true;
         ProtectHome = true;
         ProtectSystem = "strict";
+      };
+    };
+
+    systemd.services.amirsalarsafaei-com-ssh = lib.mkIf cfg.ssh.enable {
+      description = "amirsalarsafaei.com SSH front-end";
+      wantedBy = [ "multi-user.target" ];
+      after = [
+        "network-online.target"
+        "amirsalarsafaei-com-backend.service"
+      ];
+      wants = [ "network-online.target" ];
+
+      environment = {
+        SSH_HOST = cfg.ssh.host;
+        SSH_PORT = toString cfg.ssh.port;
+        SSH_HOST_KEY_PATH = cfg.ssh.hostKeyPath;
+        GRPC_ADDR = cfg.ssh.grpcAddr;
+        GRPC_TLS = lib.boolToString cfg.ssh.grpcTLS;
+      };
+
+      serviceConfig = {
+        Type = "simple";
+        ExecStart = "${websitePackages.ssh}/bin/ssh";
+        Restart = "on-failure";
+        RestartSec = "5s";
+        User = cfg.user;
+        Group = cfg.group;
+        StateDirectory = "amirsalarsafaei-com";
+        WorkingDirectory = "/var/lib/amirsalarsafaei-com";
+        # Allow binding to privileged ports (e.g. 22) as a non-root user.
+        AmbientCapabilities = lib.mkIf (cfg.ssh.port < 1024) [ "CAP_NET_BIND_SERVICE" ];
+        CapabilityBoundingSet = lib.mkIf (cfg.ssh.port < 1024) [ "CAP_NET_BIND_SERVICE" ];
+        NoNewPrivileges = true;
+        PrivateTmp = true;
+        ProtectHome = true;
+        ProtectSystem = "strict";
+        ReadWritePaths = [ "/var/lib/amirsalarsafaei-com" ];
       };
     };
   };

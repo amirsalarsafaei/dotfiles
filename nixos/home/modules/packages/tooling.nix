@@ -24,10 +24,10 @@
   pkgs.lldb
 
   pkgs.sqls
+  pkgs.sqlfluff # conform: sql format-on-save
 
   pkgs.pyright
-  pkgs.black
-  pkgs.ruff
+  pkgs.ruff # conform: python format + import sorting (ruff_format / ruff_organize_imports)
   pkgs.mypy
 
   pkgs.buf
@@ -53,6 +53,7 @@
   pkgs.prettier
   pkgs.efm-langserver
   pkgs.shellcheck
+  pkgs.shfmt # conform: sh/bash format-on-save
   pkgs.copilot-language-server
   pkgs.vimPlugins.telescope-fzf-native-nvim
 
