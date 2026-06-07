@@ -108,15 +108,9 @@
       flake = false;
     };
 
-    dotfiles = {
-      url = "github:amirsalarsafaei/dotfiles";
-      flake = false;
-    };
-
     # Neovim config, tracked as its own input so it can be updated on its own
     # cadence: commit & push nvim/ changes, then `nix flake update nvim-config`
-    # and rebuild. Same repo as `dotfiles`, but a separate lock entry — so a
-    # plain rebuild won't silently pull unrelated nvim changes.
+    # and rebuild.
     nvim-config = {
       url = "github:amirsalarsafaei/dotfiles";
       flake = false;
@@ -197,8 +191,6 @@
           claude-code.overlays.default
         ];
       };
-
-      dotfilesRoot = inputs.dotfiles;
 
       # Profile modules that hosts can compose (home-manager side)
       homeProfileModules = {
@@ -322,7 +314,6 @@
               inputs
               apple-silicon-support
               hostname
-              dotfilesRoot
               ;
           };
           modules =
@@ -345,7 +336,6 @@
                     inherit
                       secrets
                       inputs
-                      dotfilesRoot
                       ;
                     currentHostname = hostname;
                     currentSystem = system;
@@ -378,7 +368,7 @@
         home-manager.lib.homeManagerConfiguration {
           pkgs = nixpkgs.legacyPackages.${system};
           extraSpecialArgs = {
-            inherit secrets inputs dotfilesRoot;
+            inherit secrets inputs;
             currentSystem = system;
             currentHostname = hostname;
             homeDir = "/home/${username}";

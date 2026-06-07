@@ -240,22 +240,6 @@
         "type": "github"
       }
     },
-    "dotfiles": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1780690884,
-        "narHash": "sha256-ok7jgxVsFWBb69WaJtLBz5FrOXc+rtGpVc+pBBSYsI4=",
-        "owner": "amirsalarsafaei",
-        "repo": "dotfiles",
-        "rev": "83090ce4b73f94eaa2d20a0adcd8207d42ee66e7",
-        "type": "github"
-      },
-      "original": {
-        "owner": "amirsalarsafaei",
-        "repo": "dotfiles",
-        "type": "github"
-      }
-    },
     "fast-syntax-highlighting": {
       "flake": false,
       "locked": {
@@ -1009,11 +993,11 @@
     "nvim-config": {
       "flake": false,
       "locked": {
-        "lastModified": 1780690884,
-        "narHash": "sha256-ok7jgxVsFWBb69WaJtLBz5FrOXc+rtGpVc+pBBSYsI4=",
+        "lastModified": 1780813906,
+        "narHash": "sha256-6myy/Nyx43p1O5u52Eh1k6jswFZAyJZ+WPXIjnegTWg=",
         "owner": "amirsalarsafaei",
         "repo": "dotfiles",
-        "rev": "83090ce4b73f94eaa2d20a0adcd8207d42ee66e7",
+        "rev": "ae21d3e15c3b736552d5b649d2d26ad0e0afeb51",
         "type": "github"
       },
       "original": {
@@ -1065,7 +1049,6 @@
         "claude-code": "claude-code",
         "commas-claude": "commas-claude",
         "disko": "disko",
-        "dotfiles": "dotfiles",
         "fast-syntax-highlighting": "fast-syntax-highlighting",
         "fzf-tab": "fzf-tab",
         "home-manager": "home-manager_2",

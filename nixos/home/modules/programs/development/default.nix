@@ -1,4 +1,4 @@
-{ dotfilesRoot, ... }:
+{ ... }:
 {
   imports = [
     ./git.nix
@@ -15,7 +15,7 @@
     enableZshIntegration = false;
     settings = {
       cheats = {
-        path = "${dotfilesRoot}/navi-cheats";
+        path = "${../../navi-cheats}";
       };
     };
   };

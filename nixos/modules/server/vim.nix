@@ -15,7 +15,7 @@ in
     vimAlias = true;
   };
 
-  environment.etc."xdg/nvim".source = inputs.dotfiles + "/nvim";
+  environment.etc."xdg/nvim".source = inputs.nvim-config + "/nvim";
   environment.etc."xdg/nvim-host.lua".text = ''
     return {
       ai = true,

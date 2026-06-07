@@ -1,4 +1,4 @@
-{ dotfilesRoot, config, lib, ... }:
+{ config, lib, ... }:
 {
   imports = [
     ./vscode.nix

@@ -1,6 +1,5 @@
 {
   config,
-  dotfilesRoot,
   inputs,
   ...
 }:
