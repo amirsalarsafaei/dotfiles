@@ -29,11 +29,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1780832993,
-        "narHash": "sha256-EApFM9W9b/DQIczQiRJKobaB62zs8axLNiQL2G7Qfzs=",
+        "lastModified": 1780843417,
+        "narHash": "sha256-MwPH/JjGrJJkfQb7u7u0If1ymEHA3S1r8+qDZdZ2DBM=",
         "owner": "amirsalarsafaei",
         "repo": "amirsalarsafaei.com",
-        "rev": "6ef4571490299782ee6199ac4f41af6df7e68cd2",
+        "rev": "9ea4e8511e80bb9fc974fe2636f9bcf48ec162b4",
         "type": "github"
       },
       "original": {
@@ -1346,8 +1346,8 @@
     "work-skills": {
       "flake": false,
       "locked": {
-        "lastModified": 1780763782,
-        "narHash": "sha256-2jpxImxxxpEfBzT4qe6KXONU7elZkO5lKTDXT/OQpdE=",
+        "lastModified": 1780832006,
+        "narHash": "sha256-CAylScBX6NqepOoZyqevirYCMO5rclKO1w/27DjQqOE=",
         "path": "/home/amirsalar/work-skills",
         "type": "path"
       },

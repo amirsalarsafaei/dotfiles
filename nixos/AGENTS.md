@@ -32,6 +32,23 @@ Agent skills are managed declaratively via `agent-skills-nix` in `home/modules/a
 ## Security & Configuration Tips
 Do not commit plaintext secrets. Keep SOPS-managed values in `secrets/` and preserve references to `/var/lib/sops-nix/keys.txt` unless you are intentionally rotating keys. Review cache, overlay, and flake input changes carefully because they affect every host.
 
+## Known Anti-Patterns
+
+### Consuming `amirsalarsafaei.com` as a flake input (avoid / phase out)
+The `amirsalarsafaei-com` flake input in `flake.nix` and the
+`modules/server/services/amirsalarsafaei-com/` module build that site's
+frontend/backend from source. This is a **bad pattern** and should not be
+copied for other deployments:
+- The website repo is Docker-deployed and its own `CLAUDE.md` says it has
+  **no Nix flake**; the `nix/` dir there exists only to satisfy this input,
+  contradicting that repo's stated intent.
+- Every website change needs a three-repo round trip: commit + push the
+  website, `nix flake update amirsalarsafaei-com` here, then rebuild — slow
+  and easy to get out of sync.
+- Prefer deploying the published container image (the repo already publishes
+  multi-arch images to GHCR) over building from a flake input. Do not add new
+  app repos as build-from-source flake inputs.
+
 ## Hyprland Configuration
 Hyprland has migrated to a Lua-based configuration API. The old `windowrule` and `windowrulev2` directives are deprecated.
 
