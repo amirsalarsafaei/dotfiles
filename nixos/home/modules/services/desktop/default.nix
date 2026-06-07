@@ -6,7 +6,7 @@
     ./hyprpolkitagent.nix
     ./dunst.nix
     ./swaync.nix
-    ./cliphist.nix
+    ./clipse.nix
     ./playerctld.nix
     ./udiskie.nix
     ./batsignal.nix
