@@ -108,14 +108,6 @@
       flake = false;
     };
 
-    # Neovim config, tracked as its own input so it can be updated on its own
-    # cadence: commit & push nvim/ changes, then `nix flake update nvim-config`
-    # and rebuild.
-    nvim-config = {
-      url = "github:amirsalarsafaei/dotfiles";
-      flake = false;
-    };
-
     # Personal website (Next.js frontend + Rust backend). Exposes
     # `packages.<system>.{backend,frontend,frontendLocal}` which the
     # franksalar server module builds and runs from source.

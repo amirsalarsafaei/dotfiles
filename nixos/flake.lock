@@ -29,11 +29,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1780813866,
-        "narHash": "sha256-D2PkwTV1VhLF+PhUiSFjccTTrfflcPOvEFCy/rk5qHs=",
+        "lastModified": 1780832993,
+        "narHash": "sha256-EApFM9W9b/DQIczQiRJKobaB62zs8axLNiQL2G7Qfzs=",
         "owner": "amirsalarsafaei",
         "repo": "amirsalarsafaei.com",
-        "rev": "f0d9821575ea939ad084af69f170ffb1dc9939da",
+        "rev": "6ef4571490299782ee6199ac4f41af6df7e68cd2",
         "type": "github"
       },
       "original": {
@@ -990,22 +990,6 @@
         "type": "github"
       }
     },
-    "nvim-config": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1780813906,
-        "narHash": "sha256-6myy/Nyx43p1O5u52Eh1k6jswFZAyJZ+WPXIjnegTWg=",
-        "owner": "amirsalarsafaei",
-        "repo": "dotfiles",
-        "rev": "ae21d3e15c3b736552d5b649d2d26ad0e0afeb51",
-        "type": "github"
-      },
-      "original": {
-        "owner": "amirsalarsafaei",
-        "repo": "dotfiles",
-        "type": "github"
-      }
-    },
     "pre-commit-hooks": {
       "inputs": {
         "flake-compat": "flake-compat_2",
@@ -1056,7 +1040,6 @@
         "hyprland-plugins": "hyprland-plugins",
         "nixpkgs": "nixpkgs_5",
         "nixpkgs-stable": "nixpkgs-stable",
-        "nvim-config": "nvim-config",
         "private": "private",
         "samber-go-skills": "samber-go-skills",
         "sops-nix": "sops-nix",
