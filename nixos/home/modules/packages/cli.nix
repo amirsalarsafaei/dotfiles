@@ -4,6 +4,7 @@
   pkgs.bubblewrap
   pkgs.ripgrep
   pkgs.jq
+  pkgs.sqlite
   pkgs.yq-go
   pkgs.fzf
   pkgs.zoxide

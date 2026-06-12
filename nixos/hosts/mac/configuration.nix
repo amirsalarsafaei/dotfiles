@@ -57,9 +57,6 @@
     coreutils-full
     libimobiledevice
     ifuse
-    (sddm-astronaut.override {
-      embeddedTheme = "japanese_aesthetic";
-    })
     kdePackages.qtmultimedia
   ];
 

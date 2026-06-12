@@ -29,11 +29,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1781280830,
-        "narHash": "sha256-CM+oE0axnqoL9t6N9bjqxsluuuhNSDqQrmQspWGEJSM=",
+        "lastModified": 1781281137,
+        "narHash": "sha256-pcP6dxbTsnfmwaa/K568F3njUZf+or8tzvKf299OfeM=",
         "owner": "amirsalarsafaei",
         "repo": "amirsalarsafaei.com",
-        "rev": "16b46a7461ec87ea208735b478fb1137e0c2bdb5",
+        "rev": "dfea3bd11616266f53752cbae4df943ca53e3b94",
         "type": "github"
       },
       "original": {

@@ -20,17 +20,6 @@ let
     };
   };
 
-  ollamaModels = [
-    "VladimirGav/gemma4-26b-16GB-VRAM"
-    "gpt-oss:20b"
-    "qwen3-coder:30b"
-    "qwen3.6:35b-a3b-coding-nvfp4"
-    "gemma4:26b"
-    "n27/gemma-4-26B-A4B-it-UD-Q4_K_M-32k"
-    "VladimirGav/Qwen3.6-27B-16GB-VRAM-Uncensored"
-    "yanjia/Qwen3.6-35B-A3B-Opus4.7-Reasoning-Distilled:q4km"
-  ];
-
   systemPkgs = with pkgs; [
     git
     vim
@@ -69,7 +58,6 @@ let
 
     # Desktop
     kdePackages.qtmultimedia
-    sddm-astronaut
     esptool
   ];
 
@@ -83,6 +71,7 @@ in
 {
   imports = [
     ./hardware-configuration.nix
+    ./local-llm.nix
     ../../modules/laptop.nix
     ../../modules/home-network.nix
   ];
@@ -108,6 +97,9 @@ in
   };
 
   home-manager.users.amirsalar.custom.claudeCode.enableWork = true;
+  # Local model bridge (`local-claude` -> claude-code-router -> llama-swap).
+  # The server side lives in ./local-llm.nix.
+  home-manager.users.amirsalar.custom.claudeCode.enableLocal = true;
 
   # ASUS/ROG
   services.asusd = {
@@ -115,6 +107,23 @@ in
   };
   services.supergfxd.enable = true;
   systemd.services.supergfxd.path = [ pkgs.pciutils ];
+
+  # Auto-launch ROG Control Center (tray companion to asusd). Bound to
+  # graphical-session.target (started by uwsm) rather than a hyprland target,
+  # since Hyprland runs with systemd.enable off — same approach as clipse.
+  home-manager.users.amirsalar.systemd.user.services.rog-control-center = {
+    Unit = {
+      Description = "ROG Control Center";
+      PartOf = [ "graphical-session.target" ];
+      After = [ "graphical-session.target" ];
+    };
+    Service = {
+      ExecStart = "${pkgs.asusctl}/bin/rog-control-center";
+      Restart = "on-failure";
+      RestartSec = 2;
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
+  };
 
   # Boot
   boot = {
@@ -153,7 +162,6 @@ in
 
   services.ollama = {
     enable = true;
-    loadModels = ollamaModels;
     package = pkgs.ollama-cuda;
   };
 
@@ -165,12 +173,8 @@ in
     package = pkgs.llama-cpp;
   };
 
-  services.llama-swap = {
-    enable = true;
-    openFirewall = false;
-    port = 18080;
-    package = pkgs.llama-swap;
-  };
+  # services.llama-swap is configured in ./local-llm.nix (CUDA llama.cpp +
+  # the Qwen3.6-APEX coding model wired to Claude Code).
 
   services.open-webui = {
     enable = true;

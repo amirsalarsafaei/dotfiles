@@ -19,7 +19,7 @@ let
     mqtt_pub_args=(
       -h ${lib.escapeShellArg mqtt.host}
       -p ${toString mqtt.port}
-      --id "at-home-$(${pkgs.coreutils}/bin/hostname)-$$"
+      --id "at-home-${config.networking.hostName}-$$"
     )
     if [ -n "''${MQTT_USER:-}" ]; then
       mqtt_pub_args+=( -u "$MQTT_USER" )
@@ -314,9 +314,14 @@ in
         set -u
         ${loadMqttCreds}
         ${mqttPubInvocation}
+        # Tolerate an unreachable broker (e.g. away from the LAN): a failed
+        # publish logs a warning but never fails the unit, so nixos-rebuild
+        # switch doesn't report this service as failed when off-network. The
+        # config/state are retained, so they'll be re-sent on the next event.
         mosquitto_pub "''${mqtt_pub_args[@]}" -r \
           -t ${lib.escapeShellArg discoveryTopic} \
-          -m ${lib.escapeShellArg discoveryPayload}
+          -m ${lib.escapeShellArg discoveryPayload} \
+          || echo "at-home: discovery publish failed (broker unreachable?)" >&2
 
         if systemctl is-active --quiet at-home.target; then
           state=home
@@ -324,7 +329,8 @@ in
           state=not_home
         fi
         mosquitto_pub "''${mqtt_pub_args[@]}" -r \
-          -t ${lib.escapeShellArg stateTopic} -m "$state"
+          -t ${lib.escapeShellArg stateTopic} -m "$state" \
+          || echo "at-home: state publish failed (broker unreachable?)" >&2
       '';
     };
   };

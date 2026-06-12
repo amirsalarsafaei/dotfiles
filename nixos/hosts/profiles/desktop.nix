@@ -84,6 +84,7 @@ in
   };
 
   imports = [
+    ./greeter.nix
     ../../modules/home-network.nix
     ../../modules/power-profile.nix
   ];
@@ -216,11 +217,7 @@ in
 
     # Enable the X11 windowing system.
     services.xserver.enable = true;
-    services.displayManager.sddm = {
-      enable = true;
-      wayland.enable = true;
-      theme = "sddm-astronaut-theme";
-    };
+    # Login manager lives in ./greeter.nix (greetd + tuigreet).
     services.desktopManager.plasma6.enable = true;
     services.resolved = {
       enable = true;
@@ -465,7 +462,6 @@ in
     security.pam.services.login.enableGnomeKeyring = true;
     services.gnome.gnome-keyring.enable = true;
     security.pam.services = {
-      sddm.enableGnomeKeyring = true;
       hyprlock = {
         enable = true;
         enableGnomeKeyring = true;
