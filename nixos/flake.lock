@@ -1346,13 +1346,13 @@
     "work-skills": {
       "flake": false,
       "locked": {
-        "lastModified": 1780832006,
-        "narHash": "sha256-CAylScBX6NqepOoZyqevirYCMO5rclKO1w/27DjQqOE=",
-        "path": "/home/amirsalar/work-skills",
+        "lastModified": 1781260333,
+        "narHash": "sha256-ehqag7zPOt69p7mByPFhvz/FLucYi6BfFrxBUiM4xg0=",
+        "path": "/home/amirsalar/personal/devar/skills",
         "type": "path"
       },
       "original": {
-        "path": "/home/amirsalar/work-skills",
+        "path": "/home/amirsalar/personal/devar/skills",
         "type": "path"
       }
     },

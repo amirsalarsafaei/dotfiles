@@ -122,10 +122,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Private skill pack — not in any public repo. The directory must
-    # exist (can be empty) on the host that evaluates this flake.
+    # Private skill pack — not in any public repo. Canonical home is the
+    # `devar` repo's skills/ dir (~/work-skills is a symlink to it). The
+    # path must exist on the host that evaluates this flake.
     work-skills = {
-      url = "path:/home/amirsalar/work-skills";
+      url = "path:/home/amirsalar/personal/devar/skills";
       flake = false;
     };
 

@@ -140,7 +140,7 @@ in
       $terminal = uwsm app -- ghostty
       $fileManager = uwsm app -- dolphin
       $menu = rofi -show drun -run-command 'uwsm app -- {cmd}'
-      $clipboard = ghostty --class=clipse -e clipse
+      $clipboard = clipboard-menu
 
       env = XDG_MENU_PREFIX,plasma-
 
@@ -305,10 +305,9 @@ in
       bind = SUPER, S, togglespecialworkspace, magic
       bind = SUPER_SHIFT, S, movetoworkspace, special:magic
 
-      # Clipboard history — opens the clipse TUI in a floating terminal.
-      # Selecting an entry (enter) sets the clipboard; paste with your app's
-      # own keybind (Ctrl+Shift+V in the terminal). Inside the TUI: / filter,
-      # p pin, x delete, S clear, space preview, ? help.
+      # Clipboard history — cliphist via rofi (same UI as $menu). Type to
+      # fuzzy-filter, Enter copies the entry and auto-pastes (Ctrl+V) into the
+      # focused window. In terminals/nvim that chord differs, so paste manually.
       bind = SUPER, v, exec, $clipboard
 
       bind = SUPER, left, focusmonitor, -1
@@ -331,11 +330,6 @@ in
       bindel = , XF86LaunchA, exec, kbdbacklight down
       bindel = SUPER, XF86LaunchA, exec, kbdbacklight up
       bindel = , XF86KbdBrightnessDown, exec, kbdbacklight down
-
-      # clipse clipboard TUI — float, size and center the popup terminal.
-      windowrule = match:class clipse, float true
-      windowrule = match:class clipse, size 700 600
-      windowrule = match:class clipse, center true
 
       hl.window_rule({ match = { class = "Godot", title = "^(Godot)(.*)$" }, tile = true })
       hl.window_rule({ match = { class = "Godot", title = "^(?!Godot)(.*)$" }, float = true })

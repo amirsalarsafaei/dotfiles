@@ -3,7 +3,7 @@
 lib.mkIf config.isWork {
   home-manager.users.amirsalar.custom = {
     # Work skills inherit claudeCode.defaultSkillMode ("user-invocable-only"):
-    # `/divar-pages` etc. work but stay out of the model's context.
+    # `/divar-widgets` etc. work but stay out of the model's context.
     claudeCode.enableWork = true;
 
     agentSkills = {
@@ -13,9 +13,11 @@ lib.mkIf config.isWork {
         filter.maxDepth = 2;
       };
       skills = [
-        "divar-pages"
+        "divar-widgets"
         "divar-form-pages"
+        "divar-gateway"
         "divarrpc"
+        "divar"
       ];
     };
   };
