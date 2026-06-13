@@ -52,7 +52,12 @@
   # The website's SSH front-end owns port 22, so move the real OpenSSH daemon
   # to 2222 (shared default lives in modules/server/security.nix).
   services.openssh.ports = lib.mkForce [ 2222 ];
-  networking.firewall.allowedTCPPorts = [ 2222 ];
+  # 2223: tuissh's browser bridge (xterm.js WebSocket). nginx also fronts it
+  # over TLS at ssh.amirsalarsafaei.com, but open it raw too.
+  networking.firewall.allowedTCPPorts = [
+    2222
+    2223
+  ];
 
   swapDevices = [
     {

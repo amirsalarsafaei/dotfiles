@@ -355,6 +355,16 @@ in
         description = "Port the SSH front-end listens on.";
       };
 
+      webAddr = lib.mkOption {
+        type = types.str;
+        default = ":2223";
+        description = ''
+          Bind address for the browser bridge (xterm.js WebSocket served by
+          tuissh). Empty disables it. Fronted over TLS by nginx at
+          ssh.amirsalarsafaei.com.
+        '';
+      };
+
       hostKeyPath = lib.mkOption {
         type = types.str;
         default = "/var/lib/amirsalarsafaei-com/ssh/id_ed25519";
@@ -635,6 +645,7 @@ in
         SSH_HOST_KEY_PATH = cfg.ssh.hostKeyPath;
         GRPC_ADDR = cfg.ssh.grpcAddr;
         GRPC_TLS = lib.boolToString cfg.ssh.grpcTLS;
+        WEB_ADDR = cfg.ssh.webAddr;
       };
 
       serviceConfig = {

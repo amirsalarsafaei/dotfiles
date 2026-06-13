@@ -225,6 +225,10 @@ in
       bind = SUPER_SHIFT, F, fullscreen, 0
       bind = SUPER, SPACE, exec, $menu
       bind = SUPER, slash, exec, ${keybindViewer}
+      # Ghostty shader picker (rofi). Highlights the active shader and
+      # live-applies the choice (SIGUSR2 reload); also runnable from a terminal
+      # as `select-ghostty-shader`.
+      bind = SUPER, B, exec, select-ghostty-shader
       bind = SUPER, P, pseudo
 
 
