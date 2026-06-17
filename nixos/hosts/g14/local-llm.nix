@@ -20,7 +20,12 @@
 # `--n-cpu-moe` layers spill to CPU. With A3B (3B active params) the CPU
 # expert path is cheap, so we get near-GPU latency while fitting 128k ctx.
 #
-# Concurrency is one (`-np 1`) so the full context goes to a single slot.
+# Concurrency is 2 (`-np 2`) so Claude Code's main request and its separate
+# safety-classifier / background (`nothink`) request can be served at the same
+# time — with one slot the second request gets "model temporarily unavailable".
+# `--kv-unified` makes --ctx-size a single shared KV pool instead of splitting
+# it evenly per slot, so the main request can still use ~the full 128k (and
+# VRAM is unchanged, since the total buffer size is the same).
 
 let
   # CUDA-enabled llama.cpp. The nixpkgs `llama-cpp` in this flake is built
@@ -90,7 +95,7 @@ in
           -fa on
           --cache-type-k q8_0 --cache-type-v q8_0
           --ctx-size 131072
-          --parallel 1
+          --parallel 2 --kv-unified
           --threads 12 --threads-batch 12
           --cache-ram 4096
           --temp 0.7 --top-p 0.8 --top-k 20 --min-p 0
