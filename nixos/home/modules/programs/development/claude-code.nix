@@ -135,6 +135,26 @@ let
     };
   };
 
+  defaultPlugins = {
+    "gopls-lsp@claude-plugins-official" = true;
+    "pyright-lsp@claude-plugins-official" = true;
+    "typescript-lsp@claude-plugins-official" = true;
+    "lua-lsp@claude-plugins-official" = true;
+    "rust-analyzer-lsp@claude-plugins-official" = true;
+  };
+
+  pluginType = with lib.types; attrsOf bool;
+
+  mkSettings =
+    variant: base:
+    let
+      plugins = cfg.plugins.default // cfg.plugins.${variant};
+    in
+    base
+    // lib.optionalAttrs (plugins != { }) {
+      enabledPlugins = plugins;
+    };
+
   localSettings = {
     theme = "dark";
   };
@@ -160,13 +180,6 @@ let
       ];
       defaultMode = "auto";
     };
-    enabledPlugins = {
-      "gopls-lsp@claude-plugins-official" = true;
-      "pyright-lsp@claude-plugins-official" = true;
-      "typescript-lsp@claude-plugins-official" = true;
-      "lua-lsp@claude-plugins-official" = true;
-      "rust-analyzer-lsp@claude-plugins-official" = true;
-    };
     effortLevel = "high";
     theme = "dark";
     skipAutoPermissionPrompt = true;
@@ -190,6 +203,40 @@ in
     enable = lib.mkEnableOption "Install claude-code and the gap-claude wrapper";
     enableWork = lib.mkEnableOption "Install the claude-work variant (work-host only)";
     enableLocal = lib.mkEnableOption "Install the local-claude variant (claude-code-router -> local llama-swap model)";
+
+    plugins = {
+      default = lib.mkOption {
+        type = pluginType;
+        default = defaultPlugins;
+        description = ''
+          Claude Code plugins enabled for every variant. Set a plugin to false
+          here to disable it globally, or override individual variants below.
+        '';
+      };
+
+      gap = lib.mkOption {
+        type = pluginType;
+        default = { };
+        example = lib.literalExpression ''
+          {
+            "gopls-lsp@claude-plugins-official" = false;
+          }
+        '';
+        description = "Per-plugin overrides for the gap-claude variant.";
+      };
+
+      work = lib.mkOption {
+        type = pluginType;
+        default = { };
+        description = "Per-plugin overrides for the claude-work variant.";
+      };
+
+      local = lib.mkOption {
+        type = pluginType;
+        default = { };
+        description = "Per-plugin overrides for the local-claude variant.";
+      };
+    };
 
     defaultSkillMode = lib.mkOption {
       type =
@@ -247,12 +294,16 @@ in
         pkgs.claude-code
         gapClaude
       ];
-      home.file.".config/gap-claude/settings.json".text = builtins.toJSON (withOverrides gapSettings);
+      home.file.".config/gap-claude/settings.json".text = builtins.toJSON (
+        withOverrides (mkSettings "gap" gapSettings)
+      );
       home.file.".config/gap-claude/CLAUDE.md".text = nixManagedNote;
     })
     (lib.mkIf cfg.enableWork {
       home.packages = [ claudeWork ];
-      home.file.".config/claude-work/settings.json".text = builtins.toJSON (withOverrides workSettings);
+      home.file.".config/claude-work/settings.json".text = builtins.toJSON (
+        withOverrides (mkSettings "work" workSettings)
+      );
       home.file.".config/claude-work/CLAUDE.md".text = nixManagedNote;
     })
     (lib.mkIf cfg.enableLocal {
@@ -262,7 +313,9 @@ in
       ];
       home.file.".claude-code-router/config.json".text = builtins.toJSON ccrConfig;
       home.file.".claude-code-router/plugins/nothink.js".text = ccrNoThinkPlugin;
-      home.file.".config/local-claude/settings.json".text = builtins.toJSON (withOverrides localSettings);
+      home.file.".config/local-claude/settings.json".text = builtins.toJSON (
+        withOverrides (mkSettings "local" localSettings)
+      );
       home.file.".config/local-claude/CLAUDE.md".text = nixManagedNote;
     })
   ];

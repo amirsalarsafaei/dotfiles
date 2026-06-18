@@ -1013,17 +1013,6 @@
         "type": "github"
       }
     },
-    "private": {
-      "locked": {
-        "path": "./private",
-        "type": "path"
-      },
-      "original": {
-        "path": "./private",
-        "type": "path"
-      },
-      "parent": []
-    },
     "root": {
       "inputs": {
         "agent-skills": "agent-skills",
@@ -1040,7 +1029,6 @@
         "hyprland-plugins": "hyprland-plugins",
         "nixpkgs": "nixpkgs_5",
         "nixpkgs-stable": "nixpkgs-stable",
-        "private": "private",
         "samber-go-skills": "samber-go-skills",
         "sops-nix": "sops-nix",
         "spicetify-nix": "spicetify-nix",

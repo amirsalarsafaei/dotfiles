@@ -31,15 +31,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Companion private flake — per-host private NixOS modules and raw
-    # secrets. Contents live in `./private/` and are encrypted at rest via
-    # git-crypt (see ../.gitattributes); each host imports its own entry
-    # as `inputs.private.nixosModules.<hostname>`.
-    private = {
-      url = "path:./private";
-      flake = true;
-    };
-
     # Asahi support - don't follow nixpkgs to get cache hits
     apple-silicon-support.url = "github:nix-community/nixos-apple-silicon/main";
 
@@ -108,9 +99,8 @@
       flake = false;
     };
 
-    # Personal website (Next.js frontend + Rust backend). Exposes
-    # `packages.<system>.{backend,frontend,frontendLocal}` which the
-    # franksalar server module builds and runs from source.
+    # Personal website (Next.js frontend + Rust backend). Exposes the
+    # NixOS module and package set consumed by franksalar.
     #
     # NOTE: this requires the nix-packaging fixes (src filters, sqlx offline
     # build, regenerated yarn.lock, Next.js standalone output) to be on the
@@ -148,7 +138,6 @@
       agent-skills,
       stylix,
       disko,
-      private,
       ...
     }@inputs:
     let
@@ -159,12 +148,7 @@
         aarch64 = "aarch64-linux";
       };
 
-      # Secrets pulled from two sources:
-      #  - public `./secrets/secrets.json` (kept under git-crypt).
-      #  - the private flake's `secrets` attr.
-      # The two attrsets are merged (private wins on conflicts) so any host
-      # can reach `secrets.<whatever>` regardless of origin.
-      publicSecrets =
+      secrets =
         let
           secretsPath = ./secrets/secrets.json;
         in
@@ -172,8 +156,6 @@
           builtins.fromJSON (builtins.readFile secretsPath)
         else
           builtins.trace "Warning: secrets.json not found, using empty secrets" { };
-
-      secrets = publicSecrets // (private.secrets or { });
 
       commonNixpkgsConfig = system: {
         config = {

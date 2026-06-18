@@ -8,8 +8,8 @@
 {
   imports = [
     ./disko-config.nix
-    inputs.private.nixosModules.franksalar
-    ../../modules/server/services/amirsalarsafaei-com
+    ../../private/hosts/franksalar
+    inputs.amirsalarsafaei-com.nixosModules.default
   ];
 
   home-manager.users.amirsalar = {
