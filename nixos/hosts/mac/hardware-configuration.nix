@@ -56,6 +56,22 @@
     fsType = "none";
   };
 
+  # Offload heavy/regenerable home dirs onto /data2 to keep root (/) free.
+  # Keep these modest so /data2 stays roomy for rebuilds.
+  fileSystems."/home/amirsalar/.cache" = {
+    device = "/data2/home/.cache";
+    options = [ "bind" ];
+    depends = [ "/data2" ];
+    fsType = "none";
+  };
+
+  fileSystems."/home/amirsalar/divar" = {
+    device = "/data2/home/divar";
+    options = [ "bind" ];
+    depends = [ "/data2" ];
+    fsType = "none";
+  };
+
   swapDevices = lib.mkForce [
     {
       device = "/data/swapfile";

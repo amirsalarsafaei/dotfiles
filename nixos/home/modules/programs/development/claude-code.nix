@@ -8,6 +8,8 @@
 let
   cfg = config.custom.claudeCode;
 
+  workEffortLevel = "xhigh";
+
   mkVariant =
     {
       name,
@@ -39,6 +41,10 @@ let
     extraWrapperArgs = [
       ''--set TZ "Asia/Singapore"''
       ''--set TZDIR "${pkgs.tzdata}/share/zoneinfo"''
+      # Env var, not just settings.json effortLevel: the latter loses to the
+      # model default on first run, and /effort can't override it because it
+      # persists by writing the read-only Nix settings.json symlink.
+      ''--set CLAUDE_CODE_EFFORT_LEVEL "${workEffortLevel}"''
     ];
   };
 
@@ -173,6 +179,14 @@ let
         "Bash(xxd:*)"
         "WebFetch"
         "Bash(DIVAR_RPC_TESTING=1 go:*)"
+        # devar plugin CLI (flags cookie editor + offline divarrpc lookup:
+        # widget/struct/list/enum/support/services/godoc/grep/usages/repos).
+        # The skills invoke these directly; one entry covers every subcommand.
+        "Bash(devar:*)"
+        # The bundled `devar` MCP server (same lookups exposed as tools). Server
+        # id is plugin_<plugin>_<server> = plugin_devar_devar; trust the whole
+        # server so its read-only lookup tools don't prompt.
+        "mcp__plugin_devar_devar"
       ];
       deny = [
         "Bash(kubectl:*)"
@@ -180,7 +194,38 @@ let
       ];
       defaultMode = "auto";
     };
-    effortLevel = "high";
+    # Register the Divar `devar` plugin repo as the "divar" marketplace via its
+    # git remote (self-hosted GitLab over SSH) so the plugin below is enabled
+    # non-interactively instead of via `/plugin marketplace add`. Gated on
+    # enableDevar (set by modules/work.nix → isWork) so it lands only on the
+    # work laptop: Claude Code clones the marketplace at runtime and only that
+    # host has the git.divar.cloud SSH key. The nested `source` shape mirrors
+    # what Claude Code writes to plugins/known_marketplaces.json ("url" = a
+    # generic git URL source, as opposed to "github"/"directory").
+    extraKnownMarketplaces = lib.optionalAttrs cfg.enableDevar {
+      divar = {
+        source = {
+          source = "url";
+          url = "git@git.divar.cloud:amirsalar.safaei/devar.git";
+        };
+      };
+    };
+    enabledPlugins = {
+      "gopls-lsp@claude-plugins-official" = true;
+      "pyright-lsp@claude-plugins-official" = true;
+      "typescript-lsp@claude-plugins-official" = true;
+      "lua-lsp@claude-plugins-official" = true;
+      "rust-analyzer-lsp@claude-plugins-official" = true;
+    }
+    // lib.optionalAttrs cfg.enableDevar {
+      # Divar SDUI helper: `devar flags` cookie editor + offline divarrpc
+      # widget/payload/enum lookup (CLI + the `devar` MCP server) + the Divar
+      # skill set. plugin "devar" @ marketplace "divar" (git source above).
+      "devar@divar" = true;
+    };
+    # effortLevel intentionally omitted: set via the CLAUDE_CODE_EFFORT_LEVEL
+    # env var in claudeWork's wrapper instead (see note there). Keeping it here
+    # too would be a redundant second source of truth, and the env var wins.
     theme = "dark";
     skipAutoPermissionPrompt = true;
   };
@@ -203,6 +248,13 @@ in
     enable = lib.mkEnableOption "Install claude-code and the gap-claude wrapper";
     enableWork = lib.mkEnableOption "Install the claude-work variant (work-host only)";
     enableLocal = lib.mkEnableOption "Install the local-claude variant (claude-code-router -> local llama-swap model)";
+    enableDevar = lib.mkEnableOption ''
+      the Divar `devar` plugin in the work variant: the git-sourced "divar"
+      marketplace and the `devar@divar` plugin entry. Set by modules/work.nix
+      (isWork) so it lands only on the work laptop — the sole host with the
+      git.divar.cloud SSH key Claude Code needs to clone the marketplace.
+      Other claude-work hosts (e.g. g14) get the variant without devar
+    '';
 
     plugins = {
       default = lib.mkOption {

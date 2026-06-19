@@ -112,11 +112,16 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Private skill pack — not in any public repo. Canonical home is the
-    # `devar` repo's skills/ dir (~/work-skills is a symlink to it). The
-    # path must exist on the host that evaluates this flake.
-    work-skills = {
-      url = "path:/home/amirsalar/personal/devar/skills";
+    # Private skill pack + the devar CLI source — not in any public repo.
+    # Fetched from the git remote (the `devar@divar` Claude Code plugin repo)
+    # rather than a local path, so it pins to a pushed revision and no working
+    # copy needs to exist on disk. Only the work host (isWork, see
+    # modules/work.nix) ever forces this input — both the agent-skills source
+    # (subdir `skills`) and the `devar` binary package build from it — so other
+    # hosts never need SSH access to git.divar.cloud. `nix flake update devar`
+    # advances the pin.
+    devar = {
+      url = "git+ssh://git@git.divar.cloud/amirsalar.safaei/devar.git";
       flake = false;
     };
 
