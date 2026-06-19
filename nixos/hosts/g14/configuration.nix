@@ -59,6 +59,8 @@ let
     # Desktop
     kdePackages.qtmultimedia
     esptool
+    protonup-qt
+    steam-run
   ];
 
   blacklistNvidia = [
@@ -144,6 +146,10 @@ in
     "nvidia"
   ];
   hardware.nvidia = nvidia;
+  hardware.graphics = {
+    enable = true;
+    enable32Bit = true;
+  };
 
   # Audio
   services.pulseaudio.enable = false;
@@ -159,6 +165,19 @@ in
 
   # Apps
   programs.firefox.enable = true;
+  programs.steam = {
+    enable = true;
+    remotePlay.openFirewall = true;
+    dedicatedServer.openFirewall = true;
+    extraCompatPackages = with pkgs; [
+      proton-ge-bin
+    ];
+  };
+  programs.gamemode.enable = true;
+  programs.gamescope = {
+    enable = true;
+    capSysNice = true;
+  };
 
   services.ollama = {
     enable = true;

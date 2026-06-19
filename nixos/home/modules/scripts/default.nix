@@ -89,7 +89,7 @@
       set -euo pipefail
 
       vault="$HOME/Documents/amirsalar-vault"
-      dir="$vault/remote-vault/daily notes"
+      dir="$vault/daily notes"
       today="$(date +%Y-%m-%d)"
       note="$dir/$today.md"
 

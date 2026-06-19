@@ -36,10 +36,6 @@ let
   shaderNames = lib.attrNames allShaders;
   knownShaders = lib.concatStringsSep "\n" shaderNames;
 
-  # Shader picker, packaged as a real command (`select-ghostty-shader`) on PATH
-  # so it can be invoked from a terminal as well as from the Hyprland keybind.
-  # The rofi menu highlights the currently-active shader, and selecting one
-  # live-applies it by sending running Ghostty instances SIGUSR2 (reload).
   selectShaderScript = pkgs.writeShellApplication {
     name = "select-ghostty-shader";
     runtimeInputs = [

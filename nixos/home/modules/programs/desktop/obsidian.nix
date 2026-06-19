@@ -12,7 +12,6 @@ let
   vaultRel = "Documents/amirsalar-vault";
   vaultAbs = "${config.home.homeDirectory}/${vaultRel}";
 
-  # Files this module owns and will replace with store symlinks.
   managedFiles = [
     "app.json"
     "appearance.json"
@@ -32,7 +31,6 @@ in
         app = { };
         appearance = { };
 
-        # Mirror of the current core-plugins.json (enabled set).
         corePlugins = [
           "file-explorer"
           "global-search"
@@ -76,7 +74,7 @@ in
             "obsidian-git"
           ];
           "daily-notes.json".text = builtins.toJSON {
-            folder = "remote-vault/daily notes";
+            folder = "daily notes";
           };
         };
       };
