@@ -157,8 +157,10 @@ let
       plugins = cfg.plugins.default // cfg.plugins.${variant};
     in
     base
-    // lib.optionalAttrs (plugins != { }) {
-      enabledPlugins = plugins;
+    // lib.optionalAttrs (plugins != { } || base ? enabledPlugins) {
+      # Merge, don't clobber: `base` may carry variant-specific entries (e.g.
+      # workSettings' conditional "devar@divar"); cfg.plugins toggles win.
+      enabledPlugins = (base.enabledPlugins or { }) // plugins;
     };
 
   localSettings = {
@@ -194,33 +196,28 @@ let
       ];
       defaultMode = "auto";
     };
-    # Register the Divar `devar` plugin repo as the "divar" marketplace via its
-    # git remote (self-hosted GitLab over SSH) so the plugin below is enabled
-    # non-interactively instead of via `/plugin marketplace add`. Gated on
-    # enableDevar (set by modules/work.nix → isWork) so it lands only on the
-    # work laptop: Claude Code clones the marketplace at runtime and only that
-    # host has the git.divar.cloud SSH key. The nested `source` shape mirrors
-    # what Claude Code writes to plugins/known_marketplaces.json ("url" = a
-    # generic git URL source, as opposed to "github"/"directory").
+    # Register the local devar plugin checkout as the "divar" marketplace so the
+    # plugin below is enabled non-interactively instead of via `/plugin
+    # marketplace add`. Gated on enableDevar (set by modules/work.nix → isWork)
+    # so it lands only on the work laptop, the host that has the ~/divar/devar
+    # checkout (the inputs.devar flake-input path). A directory source needs no
+    # clone and no git.divar.cloud SSH key, and a directory path (unlike an
+    # SCP-style git URL) is a valid source that /doctor accepts. The nested
+    # `source` shape mirrors what Claude Code writes to known_marketplaces.json.
     extraKnownMarketplaces = lib.optionalAttrs cfg.enableDevar {
       divar = {
         source = {
-          source = "url";
-          url = "git@git.divar.cloud:amirsalar.safaei/devar.git";
+          source = "directory";
+          path = "${config.home.homeDirectory}/divar/devar";
         };
       };
     };
-    enabledPlugins = {
-      "gopls-lsp@claude-plugins-official" = true;
-      "pyright-lsp@claude-plugins-official" = true;
-      "typescript-lsp@claude-plugins-official" = true;
-      "lua-lsp@claude-plugins-official" = true;
-      "rust-analyzer-lsp@claude-plugins-official" = true;
-    }
-    // lib.optionalAttrs cfg.enableDevar {
+    # Only the variant-specific addition here; the shared LSP plugins come from
+    # cfg.plugins.default and are merged in by mkSettings.
+    enabledPlugins = lib.optionalAttrs cfg.enableDevar {
       # Divar SDUI helper: `devar flags` cookie editor + offline divarrpc
       # widget/payload/enum lookup (CLI + the `devar` MCP server) + the Divar
-      # skill set. plugin "devar" @ marketplace "divar" (git source above).
+      # skill set. plugin "devar" @ marketplace "divar" (directory source above).
       "devar@divar" = true;
     };
     # effortLevel intentionally omitted: set via the CLAUDE_CODE_EFFORT_LEVEL
@@ -249,11 +246,11 @@ in
     enableWork = lib.mkEnableOption "Install the claude-work variant (work-host only)";
     enableLocal = lib.mkEnableOption "Install the local-claude variant (claude-code-router -> local llama-swap model)";
     enableDevar = lib.mkEnableOption ''
-      the Divar `devar` plugin in the work variant: the git-sourced "divar"
-      marketplace and the `devar@divar` plugin entry. Set by modules/work.nix
-      (isWork) so it lands only on the work laptop — the sole host with the
-      git.divar.cloud SSH key Claude Code needs to clone the marketplace.
-      Other claude-work hosts (e.g. g14) get the variant without devar
+      the Divar `devar` plugin in the work variant: the directory-sourced
+      "divar" marketplace (~/divar/devar) and the `devar@divar` plugin entry.
+      Set by modules/work.nix (isWork) so it lands only on the work laptop —
+      the host that has the ~/divar/devar checkout. Other claude-work hosts
+      (e.g. g14) get the variant without devar
     '';
 
     plugins = {

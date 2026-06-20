@@ -223,17 +223,14 @@
     "devar": {
       "flake": false,
       "locked": {
-        "lastModified": 1781770637,
-        "narHash": "sha256-Bl8xbwthw3LD3049ZOWFjyOZRIfNBXRDNwQ5qQMDg1I=",
-        "ref": "refs/heads/master",
-        "rev": "065912bb77a47ae94b9f7552d9f28063f5a16d84",
-        "revCount": 10,
-        "type": "git",
-        "url": "ssh://git@git.divar.cloud/amirsalar.safaei/devar.git"
+        "lastModified": 1781779158,
+        "narHash": "sha256-aeqgND6kJfB3EyXbfhBCxRFkjvX5kMEcBGkhKpAFKFk=",
+        "path": "/home/amirsalar/divar/devar",
+        "type": "path"
       },
       "original": {
-        "type": "git",
-        "url": "ssh://git@git.divar.cloud/amirsalar.safaei/devar.git"
+        "path": "/home/amirsalar/divar/devar",
+        "type": "path"
       }
     },
     "disko": {

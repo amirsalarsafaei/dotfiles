@@ -113,15 +113,16 @@
     };
 
     # Private skill pack + the devar CLI source — not in any public repo.
-    # Fetched from the git remote (the `devar@divar` Claude Code plugin repo)
-    # rather than a local path, so it pins to a pushed revision and no working
-    # copy needs to exist on disk. Only the work host (isWork, see
-    # modules/work.nix) ever forces this input — both the agent-skills source
-    # (subdir `skills`) and the `devar` binary package build from it — so other
-    # hosts never need SSH access to git.divar.cloud. `nix flake update devar`
-    # advances the pin.
+    # Sourced from the local working copy (the `devar@divar` Claude Code plugin
+    # repo, cloned at ~/divar/devar) via a `path:` input rather than the git
+    # remote, so local edits flow through without a commit/push/re-lock cycle and
+    # no SSH round-trip to git.divar.cloud is needed to evaluate. Only the work
+    # host (isWork, see modules/work.nix) ever forces this input — both the
+    # agent-skills source (subdir `skills`) and the `devar` binary package build
+    # from it — so other hosts never reference the path. The checkout must exist
+    # on disk; `nix flake update devar` re-copies the current tree.
     devar = {
-      url = "git+ssh://git@git.divar.cloud/amirsalar.safaei/devar.git";
+      url = "path:/home/amirsalar/divar/devar";
       flake = false;
     };
 
