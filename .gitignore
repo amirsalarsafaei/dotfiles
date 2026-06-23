@@ -7,3 +7,4 @@ __pycache__/
 secret-key
 secret-key-base64
 
+nixos/result
