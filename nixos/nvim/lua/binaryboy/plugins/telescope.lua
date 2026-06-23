@@ -24,6 +24,16 @@ return {
 		{ "<leader>gc", "<cmd>Telescope git_commits<CR>", desc = "Git commits" },
 		{ "<leader>gs", "<cmd>Telescope git_status<CR>", desc = "Git status" },
 	},
+	init = function()
+		-- Telescope is lazy-loaded, but `vim.ui.select` (used by code actions and
+		-- other prompts) must be overridden from the start. Without this, the first
+		-- code action in a session falls back to the builtin cmdline list. The shim
+		-- loads telescope on first use; its `config` then installs the real picker.
+		vim.ui.select = function(...)
+			require("lazy").load({ plugins = { "telescope.nvim" } })
+			return vim.ui.select(...)
+		end
+	end,
 	opts = function()
 		local actions = require("telescope.actions")
 		return {

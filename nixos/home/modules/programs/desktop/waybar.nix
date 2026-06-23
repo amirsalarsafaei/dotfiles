@@ -1,10 +1,27 @@
 {
   config,
+  lib,
   themeLib,
+  currentHostname,
   ...
 }:
 let
   t = config.custom.theme.resolved.colors;
+
+  # waybar's battery module otherwise enumerates *every* /sys/class/power_supply
+  # entry, including transient peripheral batteries — Logitech HID++ mice/keyboards
+  # show up as `hidpp_battery_N`. When such a device sleeps or disconnects the node
+  # vanishes mid-watch and waybar aborts the whole bar with an uncaught
+  # std::runtime_error ("Could not watch events for ...") — Waybar #4871. Pinning
+  # `bat` to the host's real internal battery makes waybar watch only that one node.
+  # Add new laptops here; hosts absent from the map (desktops) drop the module.
+  systemBattery =
+    {
+      mac = "macsmc-battery"; # Asahi / Apple Silicon
+      g14 = "BAT0"; # ASUS ROG laptop (ACPI)
+    }
+    .${currentHostname} or "";
+  hasBattery = systemBattery != "";
 in
 {
   programs.waybar = {
@@ -175,6 +192,16 @@ in
         padding: 0 12px;
         font-weight: 600;
       }
+
+      /* Submap (mode) indicator — bright pill so the active mode is obvious */
+      #submap {
+        color: ${t.base00};
+        background-color: ${t.base0A};
+        padding: 0 16px;
+        margin: 0 4px;
+        border-radius: 10px;
+        font-weight: 800;
+      }
     '';
 
     settings = {
@@ -193,7 +220,7 @@ in
           "network"
           "idle_inhibitor"
         ];
-        modules-center = [ ];
+        modules-center = [ "hyprland/submap" ];
         modules-right = [
           "clock"
           "wireplumber"
@@ -216,8 +243,8 @@ in
             "cpu"
             "memory"
             "temperature"
-            "battery"
-          ];
+          ]
+          ++ lib.optional hasBattery "battery";
         };
 
         "hyprland/workspaces" = {
@@ -237,6 +264,14 @@ in
         "hyprland/window" = {
           max-length = 48;
           separate-outputs = true;
+        };
+
+        # Active submap indicator (e.g. SUPER+M -> move, SUPER+R -> resize).
+        # Auto-hides when back in the default submap.
+        "hyprland/submap" = {
+          format = "  {}";
+          max-length = 24;
+          tooltip = false;
         };
 
         clock = {
@@ -286,6 +321,9 @@ in
         };
 
         battery = {
+          # Pin to the host's real battery so the module never watches a
+          # peripheral's transient power_supply node (see systemBattery above).
+          bat = systemBattery;
           states = {
             warning = 30;
             critical = 15;

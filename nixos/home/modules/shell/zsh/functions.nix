@@ -1,3 +1,4 @@
+{ funFortunes }:
 {
-  gavgo = "fortune | cowsay | lolcat";
+  gavgo = "fortune ${funFortunes} | cowsay | lolcat";
 }

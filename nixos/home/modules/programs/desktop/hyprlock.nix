@@ -2,6 +2,7 @@
   pkgs,
   config,
   themeLib,
+  funFortunes,
   ...
 }:
 let
@@ -116,7 +117,7 @@ in
         }
         {
           monitor = "";
-          text = "cmd[update:0] ${pkgs.fortune}/bin/fortune -s | ${pkgs.cowsay}/bin/cowsay";
+          text = "cmd[update:0] ${pkgs.fortune}/bin/fortune -s ${funFortunes} | ${pkgs.cowsay}/bin/cowsay";
           color = themeLib.rgba t.base04 0.7;
           font_size = 25;
           font_family = theme.fonts.mono;

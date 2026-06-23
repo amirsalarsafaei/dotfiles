@@ -243,7 +243,7 @@ in
     };
 
     services.xserver.xkb.layout = "us,ir";
-    services.xserver.xkb.options = "grp:alt_shift_toggle";
+    services.xserver.xkb.options = "grp:alt_shift_toggle,caps:none";
 
     services.pipewire = {
       enable = true;
@@ -542,6 +542,13 @@ in
       GOOGLE_API_KEY = secrets.google.apiKey;
     };
 
+    # YubiKey (5C NFC) is used here only for FIDO (-sk SSH) and CCID (GPG/PIV).
+    # Its OTP application — the one thing that makes the key enumerate as a USB
+    # HID *keyboard* (interface 0) — is disabled on-device, because that keyboard
+    # interface intermittently wedged the real keyboard until the key was unplugged.
+    # The OTP slots are empty, so nothing of ours is lost. This is key-resident
+    # state, not set by this flake; apply it once per key with:
+    #     ykman config usb --disable OTP      (reverse: ykman config usb --enable OTP)
     services.pcscd.enable = true;
 
     services.udev.packages = [

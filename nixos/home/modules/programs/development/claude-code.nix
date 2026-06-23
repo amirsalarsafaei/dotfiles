@@ -10,6 +10,53 @@ let
 
   workEffortLevel = "xhigh";
 
+  # Claude Code rewrites ~/.config/<variant>/.claude.json (its mutable runtime
+  # state: projects, history, MRU lists) on nearly every action, and several
+  # Claude processes routinely share one config dir. Concurrent, non-atomic
+  # writes occasionally truncate it to 0 bytes; Claude then refuses to start and
+  # leaves backups/.claude.json.corrupted.* behind (32 such files vs 5 good
+  # backups at the time this was written). Claude itself keeps rolling
+  # backups/.claude.json.backup.<epoch-ms> snapshots, so on every launch we
+  # restore the newest VALID backup whenever the live file is missing, empty, or
+  # unparseable. A healthy file is left untouched. This only runs on an
+  # already-broken file, so it can never lose state the user still had.
+  healClaudeState = pkgs.writeShellApplication {
+    name = "heal-claude-json";
+    runtimeInputs = [
+      pkgs.jq
+      pkgs.coreutils
+    ];
+    text = ''
+      dir="''${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+      target="$dir/.claude.json"
+
+      # Non-empty and parseable JSON? Nothing to do.
+      if [ -s "$target" ] && jq -e . "$target" >/dev/null 2>&1; then
+        exit 0
+      fi
+
+      # Pick the newest valid backup by its millisecond timestamp suffix.
+      best=""
+      best_ts=0
+      for b in "$dir"/backups/.claude.json.backup.*; do
+        [ -e "$b" ] || continue
+        ts="''${b##*.backup.}"
+        case "$ts" in
+          "" | *[!0-9]*) continue ;;
+        esac
+        if [ "$ts" -gt "$best_ts" ] && jq -e . "$b" >/dev/null 2>&1; then
+          best="$b"
+          best_ts="$ts"
+        fi
+      done
+
+      if [ -n "$best" ]; then
+        cp -f "$best" "$target"
+        printf 'heal-claude-json: restored %s from %s\n' "$target" "$best" >&2
+      fi
+    '';
+  };
+
   mkVariant =
     {
       name,
@@ -21,6 +68,7 @@ let
       mkdir -p $out/bin
       makeWrapper ${pkgs.claude-code}/bin/claude $out/bin/${name} \
         --set CLAUDE_CONFIG_DIR "${configDir}" \
+        --run ${lib.escapeShellArg "${healClaudeState}/bin/heal-claude-json || true"} \
         ${lib.concatStringsSep " " extraWrapperArgs}
 
     '';
@@ -74,6 +122,9 @@ let
       # is no second model in VRAM and no swapping.
       export ANTHROPIC_MODEL="${localModel}"
       export ANTHROPIC_SMALL_FAST_MODEL="local,${localModelFast}"
+      # Restore .claude.json from a backup if a prior run left it corrupted
+      # (same self-heal the makeWrapper variants get; see healClaudeState).
+      ${healClaudeState}/bin/heal-claude-json || true
       exec ccr code "$@"
     '';
   };
@@ -212,9 +263,19 @@ let
         };
       };
     };
-    # Only the variant-specific addition here; the shared LSP plugins come from
+    # Only the variant-specific additions here; the shared LSP plugins come from
     # cfg.plugins.default and are merged in by mkSettings.
-    enabledPlugins = lib.optionalAttrs cfg.enableDevar {
+    enabledPlugins = {
+      # Figma's official plugin: registers the remote Figma MCP server
+      # (https://mcp.figma.com/mcp, OAuth) so the work Claude can pull design
+      # data — components, variables, layout — for design-to-code. Same built-in
+      # "claude-plugins-official" marketplace as the LSP plugins, so it needs no
+      # extraKnownMarketplaces entry. First use needs a one-time browser OAuth:
+      # run `/plugin` (or `/mcp`) and authenticate; that token lives in mutable
+      # runtime state, not in this Nix-managed settings.json.
+      "figma@claude-plugins-official" = true;
+    }
+    // lib.optionalAttrs cfg.enableDevar {
       # Divar SDUI helper: `devar flags` cookie editor + offline divarrpc
       # widget/payload/enum lookup (CLI + the `devar` MCP server) + the Divar
       # skill set. plugin "devar" @ marketplace "divar" (directory source above).
@@ -224,6 +285,7 @@ let
     # env var in claudeWork's wrapper instead (see note there). Keeping it here
     # too would be a redundant second source of truth, and the env var wins.
     theme = "dark";
+    outputStyle = "concise";
     skipAutoPermissionPrompt = true;
   };
 
@@ -366,6 +428,33 @@ in
         withOverrides (mkSettings "local" localSettings)
       );
       home.file.".config/local-claude/CLAUDE.md".text = nixManagedNote;
+    })
+    (lib.mkIf (cfg.enable || cfg.enableWork || cfg.enableLocal) {
+      # Claude Code persists runtime changes (/effort, enabling a plugin, theme,
+      # adding a marketplace, …) by rewriting settings.json — which replaces the
+      # read-only Nix symlink with a plain file. With home-manager's
+      # backupFileExtension = "backup", the next `home-manager switch` moves that
+      # file aside to settings.json.backup, and then FAILS the whole rebuild the
+      # moment a settings.json.backup from an earlier clobber is already there
+      # ("would be clobbered"). settings.json is fully reproducible from this
+      # module, so drop the clobbered copy (and any stale backup) before the link
+      # check — exactly like obsidianClobberGuard does for the vault. Runs every
+      # switch, so it self-heals instead of needing a manual `rm`.
+      home.activation.claudeSettingsClobberGuard = lib.hm.dag.entryBefore [ "checkLinkTargets" ] (
+        lib.concatMapStringsSep "\n"
+          (dir: ''
+            s="${config.home.homeDirectory}/${dir}/settings.json"
+            if [ -e "$s" ] && [ ! -L "$s" ]; then
+              run rm -f $VERBOSE_ARG "$s"
+            fi
+            run rm -f $VERBOSE_ARG "$s.backup"
+          '')
+          (
+            lib.optional cfg.enable ".config/gap-claude"
+            ++ lib.optional cfg.enableWork ".config/claude-work"
+            ++ lib.optional cfg.enableLocal ".config/local-claude"
+          )
+      );
     })
   ];
 }

@@ -1,0 +1,102 @@
+Programs must be written for people to read, and only incidentally for
+machines to execute.
+		-- Abelson & Sussman, SICP
+%
+There are only two hard things in Computer Science: cache invalidation
+and naming things.
+		-- Phil Karlton
+%
+Premature optimization is the root of all evil.
+		-- Donald Knuth
+%
+Simplicity is prerequisite for reliability.
+		-- Edsger W. Dijkstra
+%
+Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are, by
+definition, not smart enough to debug it.
+		-- Brian Kernighan
+%
+The most damaging phrase in the language is: "We've always done it
+this way."
+		-- Grace Hopper
+%
+Talk is cheap. Show me the code.
+		-- Linus Torvalds
+%
+Controlling complexity is the essence of computer programming.
+		-- Brian Kernighan
+%
+A language that doesn't affect the way you think about programming is
+not worth knowing.
+		-- Alan Perlis
+%
+The best way to predict the future is to invent it.
+		-- Alan Kay
+%
+Inside every large program is a small program struggling to get out.
+		-- Tony Hoare
+%
+First, solve the problem. Then, write the code.
+		-- John Johnson
+%
+Make it work, make it right, make it fast.
+		-- Kent Beck
+%
+Deleted code is debugged code.
+		-- Jeff Sickel
+%
+The cheapest, fastest, and most reliable components are those that
+aren't there.
+		-- Gordon Bell
+%
+Nine people can't make a baby in a month.
+		-- Fred Brooks, The Mythical Man-Month
+%
+Perfection is achieved not when there is nothing more to add, but when
+there is nothing left to take away.
+		-- Antoine de Saint-Exupery
+%
+I would have written a shorter letter, but I did not have the time.
+		-- Blaise Pascal
+%
+Any sufficiently advanced technology is indistinguishable from magic.
+		-- Arthur C. Clarke
+%
+The future is already here -- it's just not evenly distributed.
+		-- William Gibson
+%
+The sky above the port was the color of television, tuned to a dead
+channel.
+		-- William Gibson, Neuromancer
+%
+A novice was trying to fix a broken Lisp machine by turning the power
+off and on.  Knight, seeing what the student was doing, spoke sternly:
+"You cannot fix a machine by just power-cycling it with no understanding
+of what is going wrong."  Knight turned the machine off and on.
+The machine worked.
+		-- AI Koan
+%
+A student asked Master Foo: "When is a program correct?"  Master Foo
+replied: "When it astonishes no one who comes after you."
+		-- after the Rootless Root
+%
+Real programmers count from zero.
+%
+A good programmer is someone who always looks both ways before crossing
+a one-way street.
+		-- Doug Linder
+%
+Weeks of coding can save you hours of planning.
+%
+Walking on water and developing software from a specification are easy
+if both are frozen.
+		-- Edward V. Berard
+%
+It works on my machine.
+		-- ancient incantation, origin unknown
+%
+Those who would give up correctness for a little temporary performance
+deserve neither.
+%
+Week of coding: -1 bug.  Week of thinking: -100 bugs.

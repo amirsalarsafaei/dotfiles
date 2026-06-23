@@ -33,6 +33,12 @@ opt.undodir = vim.fn.stdpath("state") .. "/undo"
 opt.splitright = true
 opt.splitbelow = true
 
+-- Readable diffs everywhere (diffview, gitsigns :diffthis, fugitive, gitlab.nvim).
+-- histogram + indent-heuristic align hunks the way a human would; linematch reflows
+-- paired changed lines so intra-line (word-level) edits line up instead of showing
+-- as whole-line replacements — the single biggest "this diff is hard to read" fix.
+opt.diffopt:append({ "algorithm:histogram", "indent-heuristic", "linematch:60" })
+
 opt.hidden = true
 opt.history = 500
 opt.synmaxcol = 240

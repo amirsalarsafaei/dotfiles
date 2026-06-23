@@ -5,5 +5,6 @@
     ./direnv.nix
     ./zsh/completion.nix
     ./atuin.nix
+    ./fortunes.nix
   ];
 }

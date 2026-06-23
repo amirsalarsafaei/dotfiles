@@ -16,8 +16,31 @@ return {
 	"sindrets/diffview.nvim",
 	event = "VeryLazy",
 	keys = {
-		{ "<leader>gd", "<cmd>DiffviewOpen<CR>", mode = "n", desc = "Open diffview" },
-		{ "<leader>gq", "<cmd>DiffviewClose<CR>", mode = "n", desc = "Close diffview" },
+		{ "<leader>gd", "<cmd>DiffviewOpen<CR>", mode = "n", desc = "Diffview: working tree" },
+		{ "<leader>gq", "<cmd>DiffviewClose<CR>", mode = "n", desc = "Diffview: close" },
+		{
+			-- Branch / PR review: diff the whole branch against the remote's default
+			-- branch (origin/HEAD) — "review my branch" in one keypress.
+			"<leader>gr",
+			"<cmd>DiffviewOpen origin/HEAD...HEAD<CR>",
+			mode = "n",
+			desc = "Diffview: review branch vs origin/HEAD",
+		},
+		{
+			-- Same idea against any ref you type (origin/master, a tag, HEAD~3, …).
+			"<leader>gD",
+			function()
+				vim.ui.input({ prompt = "Diffview — diff against ref: " }, function(ref)
+					if ref and ref ~= "" then
+						vim.cmd("DiffviewOpen " .. ref)
+					end
+				end)
+			end,
+			mode = "n",
+			desc = "Diffview: compare against ref…",
+		},
+		{ "<leader>gH", "<cmd>DiffviewFileHistory %<CR>", mode = "n", desc = "Diffview: current file history" },
+		{ "<leader>gA", "<cmd>DiffviewFileHistory<CR>", mode = "n", desc = "Diffview: branch/repo history" },
 		{
 			"<leader>gh",
 			function()

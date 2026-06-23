@@ -197,7 +197,7 @@ in
 
       input {
           kb_layout = us,ir
-          kb_options = grp:alt_shift_toggle
+          kb_options = grp:alt_shift_toggle,caps:none
           follow_mouse = 0
           sensitivity = 0
 

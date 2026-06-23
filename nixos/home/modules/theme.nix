@@ -104,8 +104,12 @@ in
     _module.args.themeLib = import ./theme/lib.nix { };
 
     # Adopt the new home-manager default (gtk4 themes no longer inherit gtk.theme)
-    # and silence the 26.05 deprecation warning.
-    gtk.gtk4.theme = null;
+    # and silence the 26.05 deprecation warning. mkForce because Stylix's GTK target
+    # (auto-enabled) also defines gtk4.theme as non-null; with the current Stylix↔
+    # home-manager version skew the two definitions collide ("defined both null and
+    # not null"). gtk4 ignores the theme *name* anyway (it's themed via CSS), so we
+    # explicitly keep it unset and let our null win.
+    gtk.gtk4.theme = lib.mkForce null;
 
     stylix = {
       enable = true;

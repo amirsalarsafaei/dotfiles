@@ -3,6 +3,7 @@
   inputs,
   config,
   lib,
+  funFortunes,
   ...
 }:
 let
@@ -71,7 +72,7 @@ in
     # system() (zsh -c …), formatters, and scripts — not just interactive ones.
     envExtra = aliasLines;
 
-    siteFunctions = import ./zsh/functions.nix;
+    siteFunctions = import ./zsh/functions.nix { inherit funFortunes; };
 
     initContent = ''
       if [ -f "$HOME/zshsecret" ]; then
