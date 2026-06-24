@@ -468,13 +468,46 @@ in
       };
     };
 
+    # gnome-keyring still provides the Secret Service (libsecret / the portal
+    # Secret backend, see xdg.portal above) — but NOT the SSH agent. Its
+    # gcr-ssh-agent mishandles a verify-required FIDO/-sk key: it preloads every
+    # ~/.ssh/*.pub it finds (so `ssh-add -l` shows ~10 phantom keys) yet the
+    # wrapped ssh-agent rejects loading the verify-required SK key, so signing
+    # silently falls back to reading the key from disk. It also drives its own
+    # GCR pinentry instead of our sk-aware askpass, which is why the touch/PIN
+    # prompt was inconsistent. Hand SSH to OpenSSH's own agent below, which
+    # supports SK keys natively and caches the touch+PIN for the session.
+    # (gnome-keyring-daemon disables its SSH component by default since 1:46;
+    # this turns off the gcr-4 replacement that took over.)
+    services.gnome.gcr-ssh-agent.enable = false;
+
     programs.ssh = {
-      startAgent = false;
+      # OpenSSH ssh-agent via a systemd user service. It owns SSH_AUTH_SOCK
+      # ($XDG_RUNTIME_DIR/ssh-agent) and — crucially — startAgent also exports
+      # SSH_ASKPASS into the *systemd user* environment, not just the login
+      # shell's /etc/set-environment. That is what makes the sk-aware askpass
+      # fire consistently across contexts (login shell, UWSM graphical session,
+      # systemd user services, and processes they spawn like an IDE's git or a
+      # build runner's `go mod download`) — the previous setup only set it for
+      # PAM/login shells, so detached tools picked the wrong askpass or hung.
+      startAgent = true;
       askPassword = "${sshAskpassSkAware}/bin/ssh-askpass-sk-aware";
       extraConfig = ''
         AddKeysToAgent yes
       '';
     };
+
+    # Make the sk-aware askpass the system-wide ssh-askpass too, under a stable
+    # name on PATH. Belt-and-suspenders for any process whose env lost
+    # SSH_ASKPASS entirely: OpenSSH then resolves "ssh-askpass" from PATH and
+    # still gets the -sk-aware wrapper instead of falling back to lxqt's plain
+    # dialog (which ignores the touch notifier) or blocking with no prompt.
+    environment.systemPackages = [
+      (pkgs.runCommand "ssh-askpass-default" { } ''
+        mkdir -p "$out/bin"
+        ln -s ${sshAskpassSkAware}/bin/ssh-askpass-sk-aware "$out/bin/ssh-askpass"
+      '')
+    ];
 
     programs.gnupg.agent = {
       enable = true;

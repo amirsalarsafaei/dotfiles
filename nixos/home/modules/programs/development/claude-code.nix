@@ -10,27 +10,6 @@ let
 
   workEffortLevel = "xhigh";
 
-  # Divar's agentic-development MCP server (the ~/divar/platform-mcps repo,
-  # deployed at agentic-development-mcps.divar.dev). It speaks MCP over
-  # Streamable HTTP at /mcp and is gated behind Keyam (Divar's ADFS OIDC IdP)
-  # via FastMCP's OIDCProxy — so auth is a one-time browser OAuth flow, NOT a
-  # token. The /mcp endpoint validates Keyam-issued JWTs and rejects a raw
-  # GitLab PAT, so AGENTIC_MCP_GITLAB_TOKEN is *not* used here (that token is a
-  # server-side secret for the deployed server's `gitlab` tool group, and is
-  # only accepted on the separate, non-MCP /as_api/call REST bridge). First use
-  # needs a one-time login: run `/mcp` in claude-work and authenticate; that
-  # token lives in mutable runtime state (.claude.json), not in this Nix file —
-  # same model as the figma plugin below.
-  #
-  # mcpServers can't live in settings.json (Claude Code only reads MCP defs from
-  # ~/.claude.json or a .mcp.json), and ~/.claude.json is the rewritten-on-every-
-  # action runtime state we deliberately don't manage (see healClaudeState). So
-  # we keep the definition in a Nix-managed file and hand it to claude-work via
-  # the `--mcp-config` flag (added in claudeWork's wrapper). Without
-  # --strict-mcp-config it MERGES with the plugin-provided servers (figma/devar),
-  # and flag-provided servers are trusted, so there's no per-project approval
-  # prompt. The file is home-relative for the home.file key; the wrapper needs
-  # the absolute path.
   workMcpConfigRel = ".config/claude-work/mcp-servers.json";
   workMcpConfigPath = "${config.home.homeDirectory}/${workMcpConfigRel}";
   workMcpServers = {
@@ -125,8 +104,6 @@ let
       # model default on first run, and /effort can't override it because it
       # persists by writing the read-only Nix settings.json symlink.
       ''--set CLAUDE_CODE_EFFORT_LEVEL "${workEffortLevel}"''
-      # Register the Divar agentic-development MCP server declaratively (see
-      # workMcpServers above). Merges with the plugin servers; no --strict.
       ''--add-flags "--mcp-config ${workMcpConfigPath}"''
     ];
   };
@@ -451,7 +428,6 @@ in
         withOverrides (mkSettings "work" workSettings)
       );
       home.file.".config/claude-work/CLAUDE.md".text = nixManagedNote;
-      # MCP servers handed to claude-work via --mcp-config (see workMcpServers).
       home.file.${workMcpConfigRel}.text = builtins.toJSON workMcpServers;
     })
     (lib.mkIf cfg.enableLocal {

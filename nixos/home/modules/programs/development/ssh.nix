@@ -31,8 +31,11 @@
       IdentitiesOnly = "yes";
     };
 
-    # Bypass the gcr ssh-agent so the YubiKey (-sk) touch is handled by the client
-    settings."git.divar.cloud".IdentityAgent = "none";
+    settings."git.divar.cloud" = {
+      IdentityFile = "~/.ssh/id_ed25519_sk";
+
+      ControlPersist = "1h";
+    };
   };
 
   # Ensure SSH directories exist

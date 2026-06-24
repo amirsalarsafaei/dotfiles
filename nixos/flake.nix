@@ -7,6 +7,8 @@
       "https://nix-community.cachix.org"
       "https://devenv.cachix.org"
       "https://nixos-apple-silicon.cachix.org"
+      # Enable after creating the cache and replacing the matching public key below.
+      # "https://amirsalarsafaei-com.cachix.org"
     ];
     trusted-public-keys = [
       "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
@@ -14,6 +16,8 @@
       "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw="
       "nixpkgs-python.cachix.org-1:hxjI7pFxTyuTHn2NkvWCrAUcNZLNS3ZAvfYNuYifcEU="
       "nixos-apple-silicon.cachix.org-1:8psDu5SA5dAD7qA0zMy5UT292TxeEPzIz8VVEr2Js20="
+      # Replace TODO with the exact public key from `cachix use amirsalarsafaei-com`.
+      # "amirsalarsafaei-com.cachix.org-1:TODO"
     ];
     extra-experimental-features = "nix-command flakes";
   };
