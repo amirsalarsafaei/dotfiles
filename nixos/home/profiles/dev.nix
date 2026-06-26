@@ -11,14 +11,12 @@
     ../modules/packages/dev-core.nix
     ../modules/programs/development/core.nix
     ../modules/programs/development/claude-code.nix
+    ../modules/programs/development/opencode.nix
     ../modules/programs/development/agent-skills.nix
   ];
 
   custom = {
     neovim.enable = true;
-    # nvim config lives in this repo at ./nvim; sourced from the flake itself
-    # so it stays in sync with whatever config you rebuild from.
-    neovim.source = "${inputs.self}/nvim";
     claudeCode.enable = true;
 
     agentSkills = {

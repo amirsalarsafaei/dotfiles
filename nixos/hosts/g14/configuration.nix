@@ -102,6 +102,7 @@ in
   # Local model bridge (`local-claude` -> claude-code-router -> llama-swap).
   # The server side lives in ./local-llm.nix.
   home-manager.users.amirsalar.custom.claudeCode.enableLocal = true;
+  home-manager.users.amirsalar.custom.opencode.enableLocal = true;
 
   # ASUS/ROG
   services.asusd = {
@@ -186,8 +187,10 @@ in
 
   services.llama-cpp = {
     enable = true;
-    host = "127.0.0.1";
-    port = 5888;
+    settings = {
+      host = "127.0.0.1";
+      port = 5888;
+    };
     openFirewall = false;
     package = pkgs.llama-cpp;
   };
@@ -251,6 +254,9 @@ in
     hardware.nvidia-container-toolkit.enable = lib.mkForce false;
     boot.blacklistedKernelModules = blacklistNvidia;
     boot.extraModprobeConfig = lib.concatMapStringsSep "\n" (m: "blacklist ${m}") blacklistNvidia;
+
+    # Disable nvidia-gpu exporter since nvidia is disabled
+    services.prometheus.exporters.nvidia-gpu.enable = lib.mkForce false;
 
     hyprland.monitorConfig = "eDP-1,2880x1800@60,0x0,1.6";
   };

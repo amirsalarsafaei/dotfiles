@@ -1,3 +1,5 @@
+# Desktop profile with all categories including games.
+# Extends default.nix with the games category.
 {
   inputs,
   pkgs,
@@ -7,30 +9,20 @@
   ...
 }:
 let
+  packages = import ./lib.nix { inherit pkgs; };
 
   categoryArgs = {
     inherit
+      inputs
       currentHostname
       currentSystem
       pkgs
       ;
   };
-
-  categories = [
-    ./terminals.nix
-    ./fun.nix
-    ./network.nix
-    ./desktop.nix
-    ./wayland-tools.nix
-    ./security-tools.nix
-    ./fonts.nix
-    ./system.nix
-    ./hardware.nix
-    ./media.nix
-    ./platform.nix
-    ./host.nix
-  ];
 in
 {
-  home.packages = pkgs.lib.concatMap (category: import category categoryArgs) categories;
+  home.packages = packages.concatCategories {
+    categories = packages.fullCategories;
+    args = categoryArgs;
+  };
 }

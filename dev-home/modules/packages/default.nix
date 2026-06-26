@@ -1,10 +1,14 @@
+# Dev-home packages module — aggregates dev-specific categories into home.packages.
 {
   pkgs,
   config,
   lib,
+  inputs,
   ...
 }:
 let
+  packages = import ./lib.nix { inherit pkgs; };
+
   cfg = config.custom.dev;
 
   luaPackages = pkgs.lua.withPackages (
@@ -37,7 +41,7 @@ let
   );
 
   categoryArgs = {
-    inherit pkgs luaPackages python;
+    inherit pkgs luaPackages python inputs;
   };
 
   categories = [
@@ -58,7 +62,10 @@ in
 
   config = {
     home.packages =
-      pkgs.lib.concatMap (category: import category categoryArgs) categories
+      packages.concatCategories {
+        categories = categories;
+        args = categoryArgs;
+      }
       ++ cfg.extraPackages;
   };
 }

@@ -1,11 +1,10 @@
-{
-  inputs,
-  lib,
-  pkgs,
-  secrets,
-  config,
-  hostname,
-  ...
+{ inputs
+, lib
+, pkgs
+, secrets
+, config
+, hostname
+, ...
 }:
 let
   # OpenSSH invokes SSH_ASKPASS for more than passphrases. For FIDO/-sk keys it
@@ -524,13 +523,84 @@ in
       pkgs.gnome-keyring
     ];
 
+    services.prometheus.exporters.node = {
+      enable = true;
+      disabledCollectors = [
+        "arp"
+        "btrfs"
+        "cpuinfo"
+        "drm"
+        "edac"
+        "entropy"
+        "fibermicrobluetooth"
+        "infiniband"
+        "ipvs"
+        "naptime"
+        "nfsd"
+        "perf"
+        "process"
+        "rapl"
+        "schedstat"
+        "selinux"
+        "socketstat"
+        "sound"
+        "softnet"
+        "statd"
+        "timeoffset"
+        "timex"
+        "topology"
+        "udpports"
+        "wifi"
+        "xfs"
+        "zfs"
+      ];
+    };
+
+    services.prometheus.exporters.nvidia-gpu = {
+      enable = true;
+      listenAddress = "127.0.0.1";
+      port = 9835;
+    };
+
+    services.prometheus.exporters.blackbox = {
+      enable = true;
+      listenAddress = "127.0.0.1";
+      port = 9115;
+      configFile = ./prometheus/blackbox.yml;
+    };
+
     services.prometheus = {
       enable = true;
       port = 9090;
       globalConfig.scrape_interval = "15s";
       scrapeConfigs = [
         {
-          job_name = "local-projects";
+          job_name = "node_exporter";
+          static_configs = [
+            { targets = [ "localhost:9100" ]; }
+          ];
+        }
+        {
+          job_name = "blackbox_exporter";
+          static_configs = [
+            { targets = [ "localhost:9115" ]; }
+          ];
+        }
+
+        {
+           job_name = "llama-server";
+           static_configs = [
+             { targets = [ "localhost:18081" ]; }
+           ];
+         }
+        {
+           job_name = "nvidia-gpu";
+           static_configs = [
+             { targets = [ "localhost:9835" ]; }
+           ];
+         }
+         {
+           job_name = "local-projects";
           file_sd_configs = [
             {
               files = [

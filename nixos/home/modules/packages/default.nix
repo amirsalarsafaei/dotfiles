@@ -1,3 +1,6 @@
+# Base packages module — aggregates standard categories into home.packages.
+# Import this directly as a Home Manager module, or use desktop-all.nix for
+# the full set (includes games).
 {
   inputs,
   pkgs,
@@ -6,6 +9,7 @@
   ...
 }:
 let
+  packages = import ./lib.nix { inherit pkgs; };
 
   categoryArgs = {
     inherit
@@ -15,22 +19,10 @@ let
       pkgs
       ;
   };
-
-  categories = [
-    ./terminals.nix
-    ./fun.nix
-    ./network.nix
-    ./desktop.nix
-    ./wayland-tools.nix
-    ./security-tools.nix
-    ./fonts.nix
-    ./system.nix
-    ./hardware.nix
-    ./media.nix
-    ./platform.nix
-    ./host.nix
-  ];
 in
 {
-  home.packages = pkgs.lib.concatMap (category: import category categoryArgs) categories;
+  home.packages = packages.concatCategories {
+    categories = packages.baseCategories;
+    args = categoryArgs;
+  };
 }

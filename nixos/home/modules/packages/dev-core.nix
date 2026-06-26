@@ -1,11 +1,13 @@
-{
-  pkgs,
-  config,
-  lib,
-  inputs,
-  ...
+# Development packages module — aggregates dev-specific categories into home.packages.
+{ pkgs
+, config
+, lib
+, inputs
+, ...
 }:
 let
+  packages = import ./lib.nix { inherit pkgs; };
+
   cfg = config.custom.dev;
 
   luaPackages = pkgs.lua.withPackages (
@@ -21,8 +23,24 @@ let
     ]
   );
 
+  python = pkgs.python312.withPackages (
+    ps: with ps; [
+      jupyter
+      jupyterlab
+      notebook
+      ipython
+      ipykernel
+      numpy
+      pandas
+      matplotlib
+      seaborn
+      scikit-learn
+      pyarrow
+    ]
+  );
+
   categoryArgs = {
-    inherit pkgs luaPackages inputs;
+    inherit pkgs inputs luaPackages python;
   };
 
   categories = [
@@ -50,6 +68,11 @@ in
 
   config = {
     home.packages =
-      pkgs.lib.concatMap (category: import category categoryArgs) categories ++ cfg.extraPackages;
+      packages.concatCategories
+        {
+          categories = categories;
+          args = categoryArgs;
+        }
+      ++ cfg.extraPackages;
   };
 }

@@ -30,6 +30,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    nixvim = {
+      url = "github:nix-community/nixvim";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -142,6 +147,7 @@
       nixpkgs,
       nixpkgs-stable,
       home-manager,
+      nixvim,
       apple-silicon-support,
       sops-nix,
       claude-code,
@@ -269,6 +275,7 @@
       # Common home-manager shared modules (compat shims, nixpkgs config)
       commonHomeModules = [
         agent-skills.homeManagerModules.default
+        nixvim.homeModules.nixvim
         ./home/modules/agent-skills.nix
       ];
 

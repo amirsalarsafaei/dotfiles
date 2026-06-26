@@ -1,8 +1,7 @@
-{
-  config,
-  lib,
-  pkgs,
-  ...
+{ config
+, lib
+, pkgs
+, ...
 }:
 
 # Local coding LLM for Claude Code (g14 only).
@@ -35,7 +34,7 @@ let
   # MemoryDenyWriteExecute=true. cudaPackages here is 12.9, which lists 12.0.
   llamaCppCuda =
     (import pkgs.path {
-      inherit (pkgs) system;
+      system = pkgs.stdenv.hostPlatform.system;
       config = {
         allowUnfree = true;
         cudaSupport = true;
@@ -96,11 +95,12 @@ in
           --cache-type-k q8_0 --cache-type-v q8_0
           --ctx-size 131072
           --parallel 2 --kv-unified
-          --threads 12 --threads-batch 12
+          --threads 8 --threads-batch 8
           --cache-ram 4096
           --temp 0.7 --top-p 0.8 --top-k 20 --min-p 0
           --jinja
-          --no-webui
+           --no-webui
+           --metrics
         '';
         aliases = [
           "claude-local"
@@ -110,6 +110,7 @@ in
           # `reasoning` transformer disables thinking on those requests.
           "qwen3.6-apex-nothink"
         ];
+        proxy = "http://127.0.0.1:\${PORT}";
         # Unload after 30 min idle to free 16 GB VRAM on the laptop; a cold
         # reload is ~15 s. Set to 0 to keep it resident.
         ttl = 1800;

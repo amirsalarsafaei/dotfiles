@@ -227,6 +227,12 @@ let
     };
 
   localSettings = {
+    permissions = {
+      allow = [
+        "Bash(*)"
+      ];
+      defaultMode = "auto";
+    };
     theme = "dark";
   };
 
