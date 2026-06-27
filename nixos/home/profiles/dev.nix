@@ -6,7 +6,7 @@
 {
   imports = [
     ../modules/shell
-    ../modules/neovim.nix
+    ../modules/neovim
     ../modules/dev-environment.nix
     ../modules/packages/dev-core.nix
     ../modules/programs/development/core.nix
