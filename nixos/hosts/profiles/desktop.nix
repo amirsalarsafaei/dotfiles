@@ -528,28 +528,22 @@ in
       disabledCollectors = [
         "arp"
         "btrfs"
-        "cpuinfo"
         "drm"
         "edac"
         "entropy"
-        "fibermicrobluetooth"
+        "fibrechannel"
         "infiniband"
         "ipvs"
-        "naptime"
         "nfsd"
         "perf"
-        "process"
+        "processes"
         "rapl"
         "schedstat"
         "selinux"
-        "socketstat"
-        "sound"
+        "sockstat"
         "softnet"
-        "statd"
-        "timeoffset"
         "timex"
-        "topology"
-        "udpports"
+        "udp_queues"
         "wifi"
         "xfs"
         "zfs"
@@ -588,19 +582,19 @@ in
         }
 
         {
-           job_name = "llama-server";
-           static_configs = [
-             { targets = [ "localhost:18081" ]; }
-           ];
-         }
+          job_name = "llama-server";
+          static_configs = [
+            { targets = [ "localhost:18081" ]; }
+          ];
+        }
         {
-           job_name = "nvidia-gpu";
-           static_configs = [
-             { targets = [ "localhost:9835" ]; }
-           ];
-         }
-         {
-           job_name = "local-projects";
+          job_name = "nvidia-gpu";
+          static_configs = [
+            { targets = [ "localhost:9835" ]; }
+          ];
+        }
+        {
+          job_name = "local-projects";
           file_sd_configs = [
             {
               files = [

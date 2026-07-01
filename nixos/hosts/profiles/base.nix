@@ -1,15 +1,37 @@
-{
-  lib,
-  pkgs,
-  hostname,
-  ...
+{ lib
+, pkgs
+, hostname
+, ...
 }:
+let
+  dataPython = pkgs.python312.withPackages (
+    ps: with ps; [
+      matplotlib
+      numpy
+      pandas
+    ]
+  );
+
+  pythonData = pkgs.stdenvNoCC.mkDerivation {
+    pname = "python-data";
+    version = pkgs.python312.version;
+    dontUnpack = true;
+    installPhase = ''
+      mkdir -p $out/bin
+      ln -s ${dataPython}/bin/python $out/bin/python-data
+      ln -s ${dataPython}/bin/python3 $out/bin/python-data3
+    '';
+  };
+in
 {
   networking.hostName = lib.mkDefault hostname;
   time.timeZone = lib.mkDefault "Asia/Tehran";
   i18n.defaultLocale = lib.mkDefault "en_US.UTF-8";
 
-  environment.systemPackages = [ pkgs.tzdata ];
+  environment.systemPackages = [
+    pkgs.tzdata
+    pythonData
+  ];
 
   programs.zsh.enable = lib.mkDefault true;
 
