@@ -107,15 +107,13 @@ in
             accept.auto_brackets.enabled = true;
             menu = {
               border = "rounded";
-              draw.columns = {
-                __raw = ''
-                  {
-                    { "kind_icon" },
-                    { "label", "label_description", gap = 1 },
-                    { "source_name" },
-                  }
-                '';
-              };
+              draw.columns.__raw = ''
+                {
+                  { "kind_icon" },
+                  { "label", "label_description", gap = 1 },
+                  { "source_name" },
+                }
+              '';
             };
             documentation = {
               auto_show = true;

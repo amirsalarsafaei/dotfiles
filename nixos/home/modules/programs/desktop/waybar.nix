@@ -1,9 +1,8 @@
-{
-  config,
-  lib,
-  themeLib,
-  currentHostname,
-  ...
+{ config
+, lib
+, themeLib
+, currentHostname
+, ...
 }:
 let
   t = config.custom.theme.resolved.colors;
@@ -19,8 +18,7 @@ let
     {
       mac = "macsmc-battery"; # Asahi / Apple Silicon
       g14 = "BAT0"; # ASUS ROG laptop (ACPI)
-    }
-    .${currentHostname} or "";
+    }.${currentHostname} or "";
   hasBattery = systemBattery != "";
 in
 {
@@ -223,6 +221,9 @@ in
         modules-center = [ "hyprland/submap" ];
         modules-right = [
           "clock"
+        ]
+        ++ lib.optional hasBattery "battery"
+        ++ [
           "wireplumber"
           "group/hardware"
           "hyprland/language"
@@ -243,8 +244,7 @@ in
             "cpu"
             "memory"
             "temperature"
-          ]
-          ++ lib.optional hasBattery "battery";
+          ];
         };
 
         "hyprland/workspaces" = {

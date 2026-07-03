@@ -1,9 +1,8 @@
-{
-  config,
-  lib,
-  pkgs,
-  secrets,
-  ...
+{ config
+, lib
+, pkgs
+, secrets
+, ...
 }:
 let
   cfg = config.custom.claudeCode;
@@ -69,11 +68,11 @@ let
   };
 
   mkVariant =
-    {
-      name,
-      configDir,
-      extraWrapperArgs ? [ ],
-      extraBuildInputs ? [ ],
+    { name
+    , configDir
+    , extraWrapperArgs ? [ ]
+    , extraBuildInputs ? [ ]
+    ,
     }:
     pkgs.runCommand name { nativeBuildInputs = [ pkgs.makeWrapper ] ++ extraBuildInputs; } ''
       mkdir -p $out/bin
@@ -175,7 +174,7 @@ let
     LOG = false;
     HOST = "127.0.0.1";
     API_TIMEOUT_MS = 1800000;
-    transformers = [ { path = ccrPluginPath; } ];
+    transformers = [{ path = ccrPluginPath; }];
     Providers = [
       {
         name = "local";
