@@ -139,7 +139,6 @@ let
         --host 127.0.0.1 --port "$port" \
         -m ${currentModelPath} \
         --alias ${localModel} \
-        -ngl "''${LLM_GPU_LAYERS:-${toString defaultProfile.gpuLayers}}" \
         --n-cpu-moe "''${LLM_N_CPU_MOE:-${toString defaultProfile.nCpuMoe}}" \
         -fa on \
         --cache-type-k "''${LLM_CACHE_TYPE_K:-${defaultProfile.cacheTypeK}}" \
