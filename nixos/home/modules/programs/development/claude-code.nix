@@ -1,8 +1,9 @@
-{ config
-, lib
-, pkgs
-, secrets
-, ...
+{
+  config,
+  lib,
+  pkgs,
+  secrets,
+  ...
 }:
 let
   cfg = config.custom.claudeCode;
@@ -16,6 +17,17 @@ let
       "agentic-development-mcps" = {
         type = "http";
         url = "https://agentic-development-mcps.divar.dev/mcp";
+      };
+    };
+  };
+
+  localMcpConfigRel = ".config/local-claude/mcp-servers.json";
+  localMcpConfigPath = "${config.home.homeDirectory}/${localMcpConfigRel}";
+  localMcpServers = {
+    mcpServers = {
+      godot = {
+        command = "npx";
+        args = [ "@coding-solo/godot-mcp" ];
       };
     };
   };
@@ -68,11 +80,11 @@ let
   };
 
   mkVariant =
-    { name
-    , configDir
-    , extraWrapperArgs ? [ ]
-    , extraBuildInputs ? [ ]
-    ,
+    {
+      name,
+      configDir,
+      extraWrapperArgs ? [ ],
+      extraBuildInputs ? [ ],
     }:
     pkgs.runCommand name { nativeBuildInputs = [ pkgs.makeWrapper ] ++ extraBuildInputs; } ''
       mkdir -p $out/bin
@@ -108,100 +120,44 @@ let
   };
 
   # Local-model variant: a thin wrapper that points Claude Code at a local
-  # GGUF served by llama-swap (see hosts/g14/local-llm.nix). claude-code-router
-  # ("ccr") translates Anthropic Messages <-> OpenAI chat-completions and
-  # injects ANTHROPIC_BASE_URL/ANTHROPIC_AUTH_TOKEN before spawning `claude`,
-  # so all we do is set our own config dir and hand off to `ccr code`.
+  # GGUF served by llama-swap (see hosts/g14/local-llm.nix). LiteLLM exposes an
+  # Anthropic-compatible /v1/messages API and translates to OpenAI
+  # chat-completions for llama-swap.
   localClaude = pkgs.writeShellApplication {
     name = "local-claude";
     runtimeInputs = [
-      pkgs.claude-code-router
       pkgs.claude-code
+      pkgs.nodejs
     ];
     text = ''
       export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/local-claude"
-      # ccr injects ANTHROPIC_BASE_URL/ANTHROPIC_AUTH_TOKEN and silently routes
-      # every request to the local model, but it does NOT change the model name
-      # Claude Code shows — so without this the statusline reads "opus" (the
-      # cloud default) even though nothing hits the cloud. Pin the model names so
-      # the UI reflects reality and nothing can fall through to Anthropic.
-      #   - main model      -> qwen3.6-apex          (thinking ON, server default)
-      #   - small/fast model-> local,<nothink alias> (direct-routed so ccr applies
-      #     the `reasoning` transformer, which sets enable_thinking=false on the
+      export ANTHROPIC_BASE_URL="${localAnthropicBaseUrl}"
+      export ANTHROPIC_AUTH_TOKEN="${localProxyKey}"
+      # Pin the model names so the UI reflects reality and nothing can fall
+      # through to Anthropic.
+      #   - main model      -> qwen3.6-apex
+      #   - small/fast model-> qwen3.6-apex-nothink  (LiteLLM model group that
+      #     injects chat_template_kwargs.enable_thinking=false on the
       #     thinking-less background chores: titles, topic checks, summaries).
       # Both names resolve to the SAME loaded llama-swap process (alias), so there
       # is no second model in VRAM and no swapping.
       export ANTHROPIC_MODEL="${localModel}"
-      export ANTHROPIC_SMALL_FAST_MODEL="local,${localModelFast}"
+      export ANTHROPIC_SMALL_FAST_MODEL="${localModelFast}"
       # Restore .claude.json from a backup if a prior run left it corrupted
       # (same self-heal the makeWrapper variants get; see healClaudeState).
       ${healClaudeState}/bin/heal-claude-json || true
-      exec ccr code "$@"
+      exec claude --mcp-config "${localMcpConfigPath}" "$@"
     '';
   };
 
-  # ccr routing config. Every route points at the single local model; the
-  # name after the comma is the model id forwarded to llama-swap (which keys
-  # its model entry on "qwen3.6-apex"). Timeouts are generous since local
-  # generation is far slower than the cloud.
+  # LiteLLM routing config lives in hosts/g14/local-llm.nix. Both model groups
+  # point at the same single llama-swap model and inject llama.cpp's Qwen3
+  # no-thinking chat_template_kwargs. Timeouts are generous
+  # since local generation is far slower than the cloud.
+  localAnthropicBaseUrl = "http://127.0.0.1:18081";
+  localProxyKey = "sk-local";
   localModel = "qwen3.6-apex";
-  # Same underlying llama-swap model (registered as an alias there), but a
-  # distinct ccr model name so we can hang the `reasoning` transformer on it.
-  # That transformer sets enable_thinking=false whenever a request carries no
-  # reasoning directive — i.e. exactly the background chores — so the fast
-  # model skips thinking while the main model keeps it. No extra VRAM.
   localModelFast = "qwen3.6-apex-nothink";
-  # Custom ccr transformer: llama.cpp only honors chat_template_kwargs for the
-  # Qwen3 thinking toggle (verified: the built-in `reasoning` transformer sets
-  # top-level enable_thinking/thinking, which llama.cpp ignores). This injects
-  # the field that actually works, and we attach it to the fast/background
-  # model only.
-  ccrPluginPath = "${config.home.homeDirectory}/.claude-code-router/plugins/nothink.js";
-  ccrNoThinkPlugin = ''
-    // Force Qwen3 to skip <think> by injecting the only field llama.cpp honors.
-    class NoThink {
-      constructor(options) { this.options = options || {}; this.name = "nothink"; }
-      async transformRequestIn(request) {
-        request.chat_template_kwargs = Object.assign(
-          {}, request.chat_template_kwargs, { enable_thinking: false }
-        );
-        return request;
-      }
-    }
-    module.exports = NoThink;
-  '';
-  ccrConfig = {
-    LOG = false;
-    HOST = "127.0.0.1";
-    API_TIMEOUT_MS = 1800000;
-    transformers = [{ path = ccrPluginPath; }];
-    Providers = [
-      {
-        name = "local";
-        api_base_url = "http://127.0.0.1:18080/v1/chat/completions";
-        api_key = "sk-local";
-        models = [
-          localModel
-          localModelFast
-        ];
-        # Only the fast/background alias gets thinking stripped; the main model
-        # has no transformer, so it behaves exactly as before (thinking ON).
-        transformer = {
-          ${localModelFast} = {
-            use = [ "nothink" ];
-          };
-        };
-      }
-    ];
-    Router = {
-      default = "local,${localModel}";
-      background = "local,${localModelFast}";
-      think = "local,${localModel}";
-      longContext = "local,${localModel}";
-      longContextThreshold = 200000;
-      webSearch = "local,${localModel}";
-    };
-  };
 
   defaultPlugins = {
     "gopls-lsp@claude-plugins-official" = true;
@@ -226,6 +182,10 @@ let
     };
 
   localSettings = {
+    env = {
+      CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = "80";
+      CLAUDE_CODE_AUTO_COMPACT_WINDOW = "131072";
+    };
     permissions = {
       allow = [
         "Bash(*)"
@@ -323,7 +283,7 @@ in
   options.custom.claudeCode = {
     enable = lib.mkEnableOption "Install claude-code and the gap-claude wrapper";
     enableWork = lib.mkEnableOption "Install the claude-work variant (work-host only)";
-    enableLocal = lib.mkEnableOption "Install the local-claude variant (claude-code-router -> local llama-swap model)";
+    enableLocal = lib.mkEnableOption "Install the local-claude variant (LiteLLM -> local llama-swap model)";
     enableDevar = lib.mkEnableOption ''
       the Divar `devar` plugin in the work variant: the directory-sourced
       "divar" marketplace (~/divar/devar) and the `devar@divar` plugin entry.
@@ -436,16 +396,12 @@ in
       home.file.${workMcpConfigRel}.text = builtins.toJSON workMcpServers;
     })
     (lib.mkIf cfg.enableLocal {
-      home.packages = [
-        pkgs.claude-code-router
-        localClaude
-      ];
-      home.file.".claude-code-router/config.json".text = builtins.toJSON ccrConfig;
-      home.file.".claude-code-router/plugins/nothink.js".text = ccrNoThinkPlugin;
+      home.packages = [ localClaude ];
       home.file.".config/local-claude/settings.json".text = builtins.toJSON (
         withOverrides (mkSettings "local" localSettings)
       );
       home.file.".config/local-claude/CLAUDE.md".text = nixManagedNote;
+      home.file.${localMcpConfigRel}.text = builtins.toJSON localMcpServers;
     })
     (lib.mkIf (cfg.enable || cfg.enableWork || cfg.enableLocal) {
       # Claude Code persists runtime changes (/effort, enabling a plugin, theme,

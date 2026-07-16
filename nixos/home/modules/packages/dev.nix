@@ -29,6 +29,7 @@
   pkgs.codex
   pkgs.opencode
   pkgs.pnpm
+  pkgs.vitejs
   pkgs.lazygit
   pkgs.step-cli
   pkgs.bun

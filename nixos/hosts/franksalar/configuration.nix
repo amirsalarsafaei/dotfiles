@@ -1,9 +1,8 @@
-{
-  inputs,
-  secrets,
-  lib,
-  pkgs,
-  ...
+{ inputs
+, secrets
+, lib
+, pkgs
+, ...
 }:
 {
   imports = [
@@ -138,6 +137,43 @@
     sshAuthorizedKeys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICjztTFp0cZwLYpJvGymNDV/XcrViT73hr90tnkzWAVH primary-user@vps"
     ];
+    extraUsers.iman = {
+      description = "iman";
+      sshAuthorizedKeys = [
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMWW0uVLHZb7v9307LhCjxsqEJ4xFQ0Yejqz9V85N1yZ personal_use"
+      ];
+      packages = with pkgs; [
+        delta
+        gcc
+        gh
+        git-lfs
+        gnumake
+        just
+        lazygit
+        nodejs_22
+        pipx
+        pkg-config
+        pyright
+        (python312.withPackages (
+          pythonPackages: with pythonPackages; [
+            black
+            debugpy
+            ipython
+            pip
+            pytest
+            pytest-cov
+            ruff
+            setuptools
+            virtualenv
+            wheel
+          ]
+        ))
+        ruff
+        sqlite
+        tealdeer
+        uv
+      ];
+    };
   };
 
   system.stateVersion = "25.11";

@@ -99,10 +99,25 @@ in
   };
 
   home-manager.users.amirsalar.custom.claudeCode.enableWork = true;
-  # Local model bridge (`local-claude` -> claude-code-router -> llama-swap).
+  # Local model bridge (`local-claude` -> LiteLLM -> llama-swap).
   # The server side lives in ./local-llm.nix.
   home-manager.users.amirsalar.custom.claudeCode.enableLocal = true;
   home-manager.users.amirsalar.custom.opencode.enableLocal = true;
+
+  # WARNING: TEMPORARY SSH ACCESS — REMOVE THIS BLOCK WHEN DONE.
+  services.openssh = {
+    enable = true;
+    openFirewall = true;
+    settings = {
+      AuthenticationMethods = "publickey";
+      PubkeyAuthentication = true;
+      PasswordAuthentication = false;
+      KbdInteractiveAuthentication = false;
+    };
+  };
+  users.users.amirsalar.openssh.authorizedKeys.keys = [
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO9y7n+5m+M6/J2Pz/UGcuyNZMzJD9NCisQIkdfZW7W8 fateme.tamehri@divar.ir"
+  ];
 
   # ASUS/ROG
   services.asusd = {

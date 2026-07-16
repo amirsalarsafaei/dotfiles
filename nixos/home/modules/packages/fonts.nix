@@ -4,5 +4,5 @@
   pkgs.noto-fonts
   pkgs.noto-fonts-color-emoji
   pkgs.nerd-fonts.jetbrains-mono
-  pkgs.vazir-fonts
+  pkgs.vazirmatn
 ]

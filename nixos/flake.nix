@@ -396,6 +396,29 @@
 
     in
     {
+      devShells.${systems.x86_64}.default =
+        let
+          pkgs = import nixpkgs ({ system = systems.x86_64; } // commonNixpkgsConfig systems.x86_64);
+          cudaPackages = pkgs.cudaPackages_12_9;
+        in
+        (pkgs.mkShell.override { stdenv = cudaPackages.backendStdenv; }) {
+          packages = [
+            cudaPackages.cudatoolkit
+            cudaPackages.cuda_nvprof
+            pkgs.zsh
+          ];
+
+          CUDA_HOME = cudaPackages.cudatoolkit;
+          CUDA_PATH = cudaPackages.cudatoolkit;
+          LD_LIBRARY_PATH = "/run/opengl-driver/lib:${pkgs.lib.makeLibraryPath [ cudaPackages.cudatoolkit ]}";
+
+          shellHook = ''
+            if [[ $- == *i* && -z "''${ZSH_VERSION:-}" ]]; then
+              exec ${pkgs.zsh}/bin/zsh
+            fi
+          '';
+        };
+
       # NixOS configurations (with integrated home-manager for all users)
       nixosConfigurations = lib.mapAttrs (
         hostname: hostConfig:

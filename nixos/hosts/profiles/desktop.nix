@@ -1,10 +1,11 @@
-{ inputs
-, lib
-, pkgs
-, secrets
-, config
-, hostname
-, ...
+{
+  inputs,
+  lib,
+  pkgs,
+  secrets,
+  config,
+  hostname,
+  ...
 }:
 let
   # OpenSSH invokes SSH_ASKPASS for more than passphrases. For FIDO/-sk keys it
@@ -583,8 +584,9 @@ in
 
         {
           job_name = "llama-server";
+          bearer_token = "sk-local";
           static_configs = [
-            { targets = [ "localhost:18081" ]; }
+            { targets = [ "localhost:18080" ]; }
           ];
         }
         {

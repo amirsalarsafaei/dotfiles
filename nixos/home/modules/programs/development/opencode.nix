@@ -61,6 +61,20 @@ let
       };
     };
     lsp = true;
+    mcp = {
+      "godot-mcp-pro" = {
+        type = "local";
+        command = [
+          "node"
+          "${config.home.homeDirectory}/personal/godot-mcp/build/index.js"
+        ];
+        environment = {
+          GODOT_MCP_PORT = "6505";
+        };
+        enabled = true;
+        timeout = 30000;
+      };
+    };
     permission = {
       read = "allow";
       list = "allow";

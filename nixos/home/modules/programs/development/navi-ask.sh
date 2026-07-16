@@ -133,12 +133,15 @@ to accomplish the following on a Linux/macOS shell:
 Suggest up to $num concrete, correct shell commands that accomplish this.
 
 Output ONLY a navi cheatsheet: NO preamble, NO trailing prose, NO markdown
-headings, NO code fences. Repeat exactly this two-line block per suggestion,
+headings, NO code fences. Repeat exactly this three-line block per suggestion,
 separated by a single blank line:
+% <2-5 comma-separated lowercase tags>
 # <concise description, imperative mood, max ~70 chars>
 <the command, on a single line>
 
 Rules:
+- The tags line MUST start with "% " and include concise searchable tags such
+  as the tool name, topic, platform, or action.
 - The description line MUST start with "# ".
 - Exactly one command per suggestion (chain with && or | when needed).
 - For values the user must supply, use navi angle-bracket placeholders such as
@@ -179,11 +182,21 @@ parsed="$tmp/parsed"
 mkdir -p "$parsed"
 awk -v dir="$parsed" '
   /^[[:space:]]*```/ { next }
-  /^[[:space:]]*#[[:space:]]/ {
+  /^[[:space:]]*%[[:space:]]/ {
     n++
     f = sprintf("%s/%04d.cheat", dir, n)
     print > f
     open = 1
+    next
+  }
+  /^[[:space:]]*#[[:space:]]/ {
+    if (!open) {
+      n++
+      f = sprintf("%s/%04d.cheat", dir, n)
+      print "% ai-generated" > f
+      open = 1
+    }
+    print > f
     next
   }
   {
@@ -198,10 +211,11 @@ awk -v dir="$parsed" '
 rows="$tmp/rows.tsv"
 : >"$rows"
 find "$parsed" -maxdepth 1 -name '*.cheat' -type f | sort | while read -r f; do
-  cmdlines="$(tail -n +2 "$f" | grep -cv '^[[:space:]]*$' || true)"
+  cmdlines="$(awk 'BEGIN { seen_description = 0 } /^[[:space:]]*#[[:space:]]/ { seen_description = 1; next } seen_description && $0 !~ /^[[:space:]]*$/ { count++ } END { print count + 0 }' "$f")"
   [ "${cmdlines:-0}" -ge 1 ] || continue
-  desc="$(head -n1 "$f" | sed 's/^[[:space:]]*#[[:space:]]*//')"
-  printf '%s\t%s\n' "$f" "$desc" >>"$rows"
+  tags="$(awk '/^[[:space:]]*%[[:space:]]/ { sub(/^[[:space:]]*%[[:space:]]*/, ""); print; exit }' "$f")"
+  desc="$(awk '/^[[:space:]]*#[[:space:]]/ { sub(/^[[:space:]]*#[[:space:]]*/, ""); print; exit }' "$f")"
+  printf '%s\t%s\t%s\n' "$f" "$tags" "$desc" >>"$rows"
 done
 
 if [ ! -s "$rows" ]; then
@@ -212,7 +226,7 @@ fi
 
 chosen="$(
   fzf --multi \
-    --delimiter='\t' --with-nth=2 \
+    --delimiter='\t' --with-nth=3,2 \
     --prompt='save> ' \
     --marker='+ ' \
     --header="TAB toggle · ENTER save · ESC cancel — target: $target" \
@@ -226,13 +240,13 @@ chosen="$(
 }
 
 if [ ! -f "$target" ]; then
-  printf '%% %s, ai-generated\n' "$file" >"$target"
+  : >"$target"
 fi
 
 added=0
 printf '%s\n' "$chosen" | cut -f1 | while read -r f; do
   [ -n "$f" ] && [ -f "$f" ] || continue
-  firstcmd="$(tail -n +2 "$f" | grep -v '^[[:space:]]*$' | head -n1 || true)"
+  firstcmd="$(awk 'BEGIN { seen_description = 0 } /^[[:space:]]*#[[:space:]]/ { seen_description = 1; next } seen_description && $0 !~ /^[[:space:]]*$/ { print; exit }' "$f")"
   if [ -n "$firstcmd" ] && grep -qF -- "$firstcmd" "$target"; then
     continue
   fi
