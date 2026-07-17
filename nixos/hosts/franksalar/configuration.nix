@@ -58,6 +58,8 @@
     2223
   ];
 
+  documentation.doc.enable = false;
+
   swapDevices = [
     {
       device = "/swapfile";
@@ -153,21 +155,8 @@
         nodejs_22
         pipx
         pkg-config
+        python312
         pyright
-        (python312.withPackages (
-          pythonPackages: with pythonPackages; [
-            black
-            debugpy
-            ipython
-            pip
-            pytest
-            pytest-cov
-            ruff
-            setuptools
-            virtualenv
-            wheel
-          ]
-        ))
         ruff
         sqlite
         tealdeer
