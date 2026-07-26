@@ -312,6 +312,7 @@ in
       # fuzzy-filter, Enter copies the entry and auto-pastes (Ctrl+V) into the
       # focused window. In terminals/nvim that chord differs, so paste manually.
       bind = SUPER, v, exec, $clipboard
+      bind = SUPER_SHIFT, V, exec, yubikey-totp
 
       bind = SUPER, left, focusmonitor, -1
       bind = SUPER, right, focusmonitor, +1

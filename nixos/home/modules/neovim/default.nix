@@ -1,7 +1,8 @@
-{ config
-, pkgs
-, lib
-, ...
+{
+  config,
+  pkgs,
+  lib,
+  ...
 }:
 let
   cfg = config.custom.neovim;
@@ -41,11 +42,6 @@ in
         type = lib.types.bool;
         default = true;
         description = "Enable AI features.";
-      };
-      wakatime = lib.mkOption {
-        type = lib.types.bool;
-        default = true;
-        description = "Enable WakaTime time tracking.";
       };
       debug = lib.mkOption {
         type = lib.types.bool;
@@ -194,7 +190,6 @@ in
 
         _G.nvim_host = {
           ai = ${boolToLua cfg.features.ai},
-          wakatime = ${boolToLua cfg.features.wakatime},
           mason = false,
           palette = ${paletteLua},
         }

@@ -33,19 +33,17 @@ in
 
           # Window / Tab Management
           "bind \"c\"" = {
-            NewTab = {
-              template = "zjstatus";
-            };
+            NewTab = { };
             SwitchToMode = "Normal";
           };
           "bind \"Ctrl h\"" = {
-            GoToPreviousTab = true;
+            GoToPreviousTab = { };
           };
           "bind \"Ctrl l\"" = {
-            GoToNextTab = true;
+            GoToNextTab = { };
           };
           "bind \"Tab\"" = {
-            ToggleTab = true;
+            ToggleTab = { };
           };
 
           # Splits

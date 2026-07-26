@@ -15,7 +15,7 @@ let
     pname = "devar";
     version = inputs.devar.shortRev or "unstable";
     src = inputs.devar;
-    vendorHash = null;
+    vendorHash = "sha256-9kTe3ZWTubF8ulLgdtgez6ZSGKvbf4jx5XEC4krqlgw=";
     subPackages = [ "." ];
     doCheck = false;
   };

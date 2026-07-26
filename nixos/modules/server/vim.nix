@@ -19,7 +19,6 @@ in
   environment.etc."xdg/nvim-host.lua".text = ''
     return {
       ai = true,
-      wakatime = true,
     }
   '';
 

@@ -63,15 +63,18 @@ let
   profileRules = [
     {
       pattern = "Qwen3.6-27B-*";
-      gpuLayers = 999;
-      nCpuMoe = 16;
+      # Dense model: any explicit -ngl disables llama.cpp auto-fit ("n_gpu_layers
+      # already set by user, abort") -> full-weight cudaMalloc OOM. -1 omits the
+      # flag so auto-fit splits layers across GPU/CPU to fill free VRAM.
+      gpuLayers = -1;
+      nCpuMoe = 0;
       threads = 12;
       ubatch = 512;
       ctx_size = 65536;
     }
     {
       pattern = "Laguna-XS-*";
-      nCpuMoe = 12;
+      nCpuMoe = 0;
       threads = 12;
       ubatch = 512;
     }
@@ -135,11 +138,22 @@ let
     runtimeInputs = [ llamaCppCuda ];
     text = ''
       port="''${1:?missing llama-swap port}"
+      n_cpu_moe="''${LLM_N_CPU_MOE:-${toString defaultProfile.nCpuMoe}}"
+      moe_args=()
+      if [ "$n_cpu_moe" -gt 0 ]; then
+        moe_args+=(--n-cpu-moe "$n_cpu_moe")
+      fi
+      gpu_layers="''${LLM_GPU_LAYERS:-${toString defaultProfile.gpuLayers}}"
+      ngl_args=()
+      if [ "$gpu_layers" -ge 0 ]; then
+        ngl_args+=(-ngl "$gpu_layers")
+      fi
       exec llama-server \
         --host 127.0.0.1 --port "$port" \
         -m ${currentModelPath} \
         --alias ${localModel} \
-        --n-cpu-moe "''${LLM_N_CPU_MOE:-${toString defaultProfile.nCpuMoe}}" \
+        "''${ngl_args[@]}" \
+        "''${moe_args[@]}" \
         -fa on \
         --cache-type-k "''${LLM_CACHE_TYPE_K:-${defaultProfile.cacheTypeK}}" \
         --cache-type-v "''${LLM_CACHE_TYPE_V:-${defaultProfile.cacheTypeV}}" \
@@ -212,7 +226,9 @@ let
     LLM_CACHE_TYPE_V=$cache_type_v
     EOF
       systemctl restart llama-swap.service
-      echo "$verb: $name (ngl=$gpu_layers, n-cpu-moe=$n_cpu_moe, ctx=$ctx_size, parallel=$parallel, ubatch=$ubatch, cache=$cache_type_k/$cache_type_v)"
+      ngl_display="$gpu_layers"
+      [ "$gpu_layers" -lt 0 ] && ngl_display=auto
+      echo "$verb: $name (ngl=$ngl_display, n-cpu-moe=$n_cpu_moe, ctx=$ctx_size, parallel=$parallel, ubatch=$ubatch, cache=$cache_type_k/$cache_type_v)"
     }
   '';
 
@@ -418,10 +434,22 @@ let
         printf '%s\n' "''${value:-$2}"
       }
 
+      n_cpu_moe="$(read_env LLM_N_CPU_MOE ${toString defaultProfile.nCpuMoe})"
+      moe_args=()
+      if [ "$n_cpu_moe" -gt 0 ]; then
+        moe_args+=(--n-cpu-moe "$n_cpu_moe")
+      fi
+
+      gpu_layers="$(read_env LLM_GPU_LAYERS ${toString defaultProfile.gpuLayers})"
+      ngl_args=()
+      if [ "$gpu_layers" -ge 0 ]; then
+        ngl_args+=(-ngl "$gpu_layers")
+      fi
+
       exec llama-bench \
         -m "${currentModelPath}" \
-        -ngl "$(read_env LLM_GPU_LAYERS ${toString defaultProfile.gpuLayers})" \
-        --n-cpu-moe "$(read_env LLM_N_CPU_MOE ${toString defaultProfile.nCpuMoe})" \
+        "''${ngl_args[@]}" \
+        "''${moe_args[@]}" \
         -fa 1 \
         -ctk "$(read_env LLM_CACHE_TYPE_K ${defaultProfile.cacheTypeK})" \
         -ctv "$(read_env LLM_CACHE_TYPE_V ${defaultProfile.cacheTypeV})" \
@@ -494,7 +522,16 @@ let
       )
 
       case "$model_name" in
-        *27B* | *UD*)
+        *27B*)
+          # Dense model: vary GPU layer offload instead of CPU-MoE spill
+          candidates+=(
+            "50:0:$threads:$ubatch:$ctx_size:$cache_type_k:$cache_type_v:ngl50"
+            "45:0:$threads:$ubatch:$ctx_size:$cache_type_k:$cache_type_v:ngl45"
+            "40:0:$threads:$ubatch:$ctx_size:$cache_type_k:$cache_type_v:ngl40"
+            "35:0:$threads:$ubatch:$ctx_size:$cache_type_k:$cache_type_v:ngl35"
+          )
+          ;;
+        *UD*)
           candidates+=(
             "$gpu_layers:20:$threads:$ubatch:$ctx_size:$cache_type_k:$cache_type_v:moe20"
             "$gpu_layers:18:$threads:$ubatch:$ctx_size:$cache_type_k:$cache_type_v:moe18"
@@ -525,10 +562,20 @@ let
           "$label" "$candidate_ngl" "$candidate_moe" "$candidate_threads" "$candidate_ubatch" \
           "$candidate_ctx" "$candidate_ctk" "$candidate_ctv"
 
+        moe_args=()
+        if [ "$candidate_moe" -gt 0 ]; then
+          moe_args+=(--n-cpu-moe "$candidate_moe")
+        fi
+
+        ngl_args=()
+        if [ "$candidate_ngl" -ge 0 ]; then
+          ngl_args+=(-ngl "$candidate_ngl")
+        fi
+
         if ! llama-bench \
           -m "$model_path" \
-          -ngl "$candidate_ngl" \
-          --n-cpu-moe "$candidate_moe" \
+          "''${ngl_args[@]}" \
+          "''${moe_args[@]}" \
           -fa 1 \
           -ctk "$candidate_ctk" -ctv "$candidate_ctv" \
           -c "$candidate_ctx" \

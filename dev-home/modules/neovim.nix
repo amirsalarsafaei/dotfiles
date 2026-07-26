@@ -66,11 +66,6 @@ in
         default = true;
         description = "Enable AI features (copilot, avante, minuet)";
       };
-      wakatime = lib.mkOption {
-        type = lib.types.bool;
-        default = true;
-        description = "Enable WakaTime time tracking";
-      };
       mason = lib.mkOption {
         type = lib.types.bool;
         default = false;
@@ -91,7 +86,6 @@ in
     xdg.configFile."nvim-host.lua".text = ''
       return {
         ai = ${boolToLua cfg.features.ai},
-        wakatime = ${boolToLua cfg.features.wakatime},
         mason = ${boolToLua cfg.features.mason},
         palette = ${paletteLua},
       }

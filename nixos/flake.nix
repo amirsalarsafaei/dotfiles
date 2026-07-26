@@ -225,6 +225,13 @@
           extraModules = [ ];
         };
 
+        t14 = {
+          system = systems.x86_64;
+          type = "nixos";
+          users = [ "amirsalar" ];
+          extraModules = [ disko.nixosModules.disko ];
+        };
+
         orangepi = {
           system = systems.aarch64;
           type = "home-manager";

@@ -1,7 +1,8 @@
-{ config
-, lib
-, pkgs
-, ...
+{
+  config,
+  lib,
+  pkgs,
+  ...
 }:
 let
   cfg = config.custom.neovim;
@@ -33,20 +34,25 @@ in
 {
   config = lib.mkIf cfg.enable {
     programs.nixvim = {
-      extraPackages =
-        [ pkgs.shfmt ]
-        ++ lib.optionals cfg.features.debug [
-          pkgs.delve
-          pkgs.vscode-js-debug
-        ];
+      extraPackages = [
+        pkgs.shfmt
+      ]
+      ++ lib.optionals cfg.features.debug [
+        pkgs.delve
+        pkgs.vscode-js-debug
+      ];
 
-      extraPlugins =
-        [ base64Plugin ]
-        ++ lib.optionals cfg.features.debug (with pkgs.vimPlugins; [
+      extraPlugins = [
+        base64Plugin
+      ]
+      ++ lib.optionals cfg.features.debug (
+        with pkgs.vimPlugins;
+        [
           nvim-dap-go
           nvim-dap-vscode-js
-        ])
-        ++ lib.optionals cfg.features.embedded [ platformioPlugin ];
+        ]
+      )
+      ++ lib.optionals cfg.features.embedded [ platformioPlugin ];
 
       plugins = {
         conform-nvim = {
@@ -145,7 +151,6 @@ in
           };
         };
 
-        wakatime.enable = cfg.features.wakatime;
         vim-suda.enable = true;
         venv-selector.enable = true;
         cmake-tools.enable = true;
@@ -206,7 +211,10 @@ in
           };
         }
         {
-          mode = [ "n" "t" ];
+          mode = [
+            "n"
+            "t"
+          ];
           key = "<C-\\>";
           action = "<cmd>ToggleTerm<CR>";
           options = {
@@ -220,37 +228,55 @@ in
           mode = "n";
           key = "<leader>pb";
           action = "<cmd>Piorun<CR>";
-          options = { desc = "PlatformIO: Build"; silent = true; };
+          options = {
+            desc = "PlatformIO: Build";
+            silent = true;
+          };
         }
         {
           mode = "n";
           key = "<leader>pu";
           action = "<cmd>Pioupload<CR>";
-          options = { desc = "PlatformIO: Upload"; silent = true; };
+          options = {
+            desc = "PlatformIO: Upload";
+            silent = true;
+          };
         }
         {
           mode = "n";
           key = "<leader>pm";
           action = "<cmd>Piomonitor<CR>";
-          options = { desc = "PlatformIO: Serial Monitor"; silent = true; };
+          options = {
+            desc = "PlatformIO: Serial Monitor";
+            silent = true;
+          };
         }
         {
           mode = "n";
           key = "<leader>pl";
           action = "<cmd>Piolog<CR>";
-          options = { desc = "PlatformIO: Log"; silent = true; };
+          options = {
+            desc = "PlatformIO: Log";
+            silent = true;
+          };
         }
         {
           mode = "n";
           key = "<leader>pd";
           action = "<cmd>Piodebug<CR>";
-          options = { desc = "PlatformIO: Debug (OpenOCD)"; silent = true; };
+          options = {
+            desc = "PlatformIO: Debug (OpenOCD)";
+            silent = true;
+          };
         }
         {
           mode = "n";
           key = "<leader>hx";
           action = "<cmd>HexToggle<CR>";
-          options = { desc = "Toggle hex view"; silent = true; };
+          options = {
+            desc = "Toggle hex view";
+            silent = true;
+          };
         }
       ];
 

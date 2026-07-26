@@ -5,6 +5,7 @@
   pkgs.ripgrep
   pkgs.jq
   pkgs.sqlite
+  pkgs.cockroachdb
   pkgs.yq-go
   pkgs.fzf
   pkgs.zoxide

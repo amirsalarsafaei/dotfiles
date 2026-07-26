@@ -7,6 +7,8 @@
 , ...
 }:
 let
+  collectNvidiaMetrics =
+    hostname == "g14" && builtins.elem "nvidia" config.services.xserver.videoDrivers;
   # OpenSSH invokes SSH_ASKPASS for more than passphrases. For FIDO/-sk keys it
   # needs no passphrase at all — it needs a physical touch — and signals that by
   # forking the askpass with SSH_ASKPASS_PROMPT=none, ignoring its output, and
@@ -89,9 +91,6 @@ in
   ];
 
   config = {
-    sops = {
-      secrets.tailscale_key = { };
-    };
 
     custom.homeNetwork = {
       ssids = [
@@ -122,7 +121,6 @@ in
 
     services.tailscale = {
       enable = true;
-      authKeyFile = "/run/secrets/tailscale_key";
       extraDaemonFlags = [ "--no-logs-no-support" ];
       extraUpFlags = [
         "--login-server"
@@ -550,7 +548,7 @@ in
       ];
     };
 
-    services.prometheus.exporters.nvidia-gpu = {
+    services.prometheus.exporters.nvidia-gpu = lib.mkIf collectNvidiaMetrics {
       enable = true;
       listenAddress = "127.0.0.1";
       port = 9835;
@@ -588,12 +586,16 @@ in
             { targets = [ "localhost:18080" ]; }
           ];
         }
+      ]
+      ++ lib.optionals collectNvidiaMetrics [
         {
           job_name = "nvidia-gpu";
           static_configs = [
             { targets = [ "localhost:9835" ]; }
           ];
         }
+      ]
+      ++ [
         {
           job_name = "local-projects";
           file_sd_configs = [
@@ -641,7 +643,7 @@ in
       GOOGLE_API_KEY = secrets.google.apiKey;
     };
 
-    # YubiKey (5C NFC) is used here only for FIDO (-sk SSH) and CCID (GPG/PIV).
+    # YubiKey (5C NFC) is used here only for FIDO (-sk SSH) and CCID (GPG/PIV/OATH).
     # Its OTP application — the one thing that makes the key enumerate as a USB
     # HID *keyboard* (interface 0) — is disabled on-device, because that keyboard
     # interface intermittently wedged the real keyboard until the key was unplugged.

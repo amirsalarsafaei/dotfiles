@@ -61,6 +61,13 @@
 
     siteFunctions = import ./zsh/functions.nix;
 
+    envExtra = ''
+      if [[ -x "$HOME/.gapcode/bin/gapcode" ]]; then
+        path=("$HOME/.gapcode/bin" $path)
+        export PATH
+      fi
+    '';
+
     initContent = ''
       if [ -f "$HOME/zshsecret" ]; then
         source "$HOME/zshsecret"

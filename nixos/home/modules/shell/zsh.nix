@@ -70,7 +70,14 @@ in
     # Define aliases in .zshenv (via envExtra) rather than .zshrc (shellAliases)
     # so they are available to non-interactive shells too — Neovim's :! and
     # system() (zsh -c …), formatters, and scripts — not just interactive ones.
-    envExtra = aliasLines;
+    envExtra = ''
+      ${aliasLines}
+
+      if [[ -x "$HOME/.gapcode/bin/gapcode" ]]; then
+        path=("$HOME/.gapcode/bin" $path)
+        export PATH
+      fi
+    '';
 
     siteFunctions = import ./zsh/functions.nix { inherit funFortunes; };
 

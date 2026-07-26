@@ -1,5 +1,4 @@
 local M = {
-  wakatime = false,
   mason = true,
   palette = {},
 }

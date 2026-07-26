@@ -32,8 +32,6 @@
     };
 
     settings."git.divar.cloud" = {
-      IdentityFile = "~/.ssh/divar_ed25519";
-
       ControlPersist = "1h";
     };
   };
