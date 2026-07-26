@@ -2,9 +2,8 @@
 # your system. Help is available in the configuration.nix(5) man page, on
 # https://search.nixos.org/options and in the NixOS manual (`nixos-help`).
 
-{
-  pkgs,
-  ...
+{ pkgs
+, ...
 }:
 {
   imports = [
@@ -14,6 +13,7 @@
     ../../modules/laptop.nix
     # Work host configuration (claude-work variant, private skills)
     ../../modules/work.nix
+    ../../modules/waydroid.nix
   ];
 
   isLaptop = true;

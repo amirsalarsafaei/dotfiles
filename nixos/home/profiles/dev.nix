@@ -1,13 +1,13 @@
-{
-  config,
-  inputs,
-  ...
+{ config
+, inputs
+, ...
 }:
 {
   imports = [
     ../modules/shell
     ../modules/neovim
     ../modules/dev-environment.nix
+    ../modules/scripts/user.nix # file-based user scripts (custom.userScripts)
     ../modules/packages/dev-core.nix
     ../modules/programs/development/core.nix
     ../modules/programs/development/claude-code.nix

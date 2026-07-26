@@ -1,14 +1,15 @@
-{
-  lib,
-  config,
-  pkgs,
-  ...
+{ lib
+, config
+, pkgs
+, ...
 }:
 let
   cfg = config.custom.theme;
 
   base16Scheme = {
+    name = "Slate";
     scheme = "Slate";
+    slug = "slate";
     author = "Amirsalar";
     base00 = "0d1117"; # background - deep charcoal
     base01 = "1c2128"; # lighter background (panels, sidebars)
@@ -167,6 +168,7 @@ in
         dunst.enable = false;
         swaync.enable = false;
         neovim.enable = false;
+        starship.enable = false;
         kde.enable = true;
       };
     };

@@ -48,7 +48,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    agent-skills.url = "github:Kyure-A/agent-skills-nix";
+    agent-skills = {
+      url = "github:Kyure-A/agent-skills-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.home-manager.follows = "home-manager";
+    };
 
     sops-nix = {
       url = "github:Mic92/sops-nix";
@@ -63,16 +67,6 @@
     spicetify-nix = {
       url = "github:Gerg-L/spicetify-nix";
       inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    hyprland.url = "github:hyprwm/Hyprland";
-    split-monitor-workspaces = {
-      url = "github:zjeffer/split-monitor-workspaces";
-      inputs.hyprland.follows = "hyprland";
-    };
-    hyprland-plugins = {
-      url = "github:hyprwm/hyprland-plugins";
-      inputs.hyprland.follows = "hyprland";
     };
 
     claude-code.url = "github:sadjow/claude-code-nix";
@@ -104,7 +98,7 @@
     };
 
     commas-claude = {
-      url = "github:3commas-io/commas-claude";
+      url = "git+https://github.com/3commas-io/commas-claude.git?ref=refs/tags/v1.0.4";
       flake = false;
     };
 
@@ -142,19 +136,18 @@
   };
 
   outputs =
-    {
-      self,
-      nixpkgs,
-      nixpkgs-stable,
-      home-manager,
-      nixvim,
-      apple-silicon-support,
-      sops-nix,
-      claude-code,
-      agent-skills,
-      stylix,
-      disko,
-      ...
+    { self
+    , nixpkgs
+    , nixpkgs-stable
+    , home-manager
+    , nixvim
+    , apple-silicon-support
+    , sops-nix
+    , claude-code
+    , agent-skills
+    , stylix
+    , disko
+    , ...
     }@inputs:
     let
       inherit (nixpkgs) lib;
@@ -280,13 +273,12 @@
       ];
 
       mkNixOS =
-        {
-          hostname,
-          system,
-          users,
-          extraModules ? [ ],
-          useSops ? true,
-          ...
+        { hostname
+        , system
+        , users
+        , extraModules ? [ ]
+        , useSops ? true
+        , ...
         }@hostConfig:
         let
           sopsNixosModules = lib.optionals useSops [
@@ -344,12 +336,11 @@
 
       # Build standalone home-manager configuration
       mkHomeManager =
-        {
-          hostname,
-          system,
-          username,
-          useSops ? true,
-          ...
+        { hostname
+        , system
+        , username
+        , useSops ? true
+        , ...
         }@hostConfig:
         let
           sopsHomeSharedModules = lib.optionals useSops [
@@ -380,18 +371,22 @@
       homeManagerHosts = lib.filterAttrs (_: hostConfig: hostConfig.type == "home-manager") allHosts;
 
       standaloneHomeConfigs = lib.flatten (
-        lib.mapAttrsToList (
-          hostname: hostConfig:
-          let
-            users = normalizeUsers hostConfig;
-          in
-          map (
-            username:
-            lib.nameValuePair "${username}@${hostname}" (
-              mkHomeManager (hostConfig // { inherit hostname username; })
-            )
-          ) users
-        ) homeManagerHosts
+        lib.mapAttrsToList
+          (
+            hostname: hostConfig:
+              let
+                users = normalizeUsers hostConfig;
+              in
+              map
+                (
+                  username:
+                  lib.nameValuePair "${username}@${hostname}" (
+                    mkHomeManager (hostConfig // { inherit hostname username; })
+                  )
+                )
+                users
+          )
+          homeManagerHosts
       );
 
     in
@@ -420,16 +415,18 @@
         };
 
       # NixOS configurations (with integrated home-manager for all users)
-      nixosConfigurations = lib.mapAttrs (
-        hostname: hostConfig:
-        mkNixOS (
-          hostConfig
-          // {
-            inherit hostname;
-            users = normalizeUsers hostConfig;
-          }
+      nixosConfigurations = lib.mapAttrs
+        (
+          hostname: hostConfig:
+            mkNixOS (
+              hostConfig
+              // {
+                inherit hostname;
+                users = normalizeUsers hostConfig;
+              }
+            )
         )
-      ) nixosHosts;
+        nixosHosts;
 
       homeConfigurations = builtins.listToAttrs standaloneHomeConfigs;
     };

@@ -1,0 +1,2 @@
+# Drop committed script files here (bash/zsh/python). Register them in
+# ../user.nix under custom.userScripts.bins or custom.userScripts.group.

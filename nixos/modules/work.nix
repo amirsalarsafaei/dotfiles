@@ -1,9 +1,8 @@
-{
-  lib,
-  config,
-  pkgs,
-  inputs,
-  ...
+{ lib
+, config
+, pkgs
+, inputs
+, ...
 }:
 let
   # The devar SDUI helper CLI, built from the same path input that feeds the
@@ -23,11 +22,10 @@ let
 in
 lib.mkIf config.isWork {
   home-manager.users.amirsalar =
-    {
-      config,
-      pkgs,
-      lib,
-      ...
+    { config
+    , pkgs
+    , lib
+    , ...
     }:
     {
       home.packages = [ devarCli ];
@@ -35,6 +33,7 @@ lib.mkIf config.isWork {
       custom = {
         # Work skills inherit claudeCode.defaultSkillMode ("user-invocable-only"):
         # `/divar-widgets` etc. work but stay out of the model's context.
+        claudeCode.enableGlm = true;
         claudeCode.enableWork = true;
         # The directory-sourced devar marketplace + plugin only here — this is the
         # host with the ~/divar/devar checkout. See claudeCode.enableDevar.
@@ -47,6 +46,11 @@ lib.mkIf config.isWork {
             # discovery at skills/.
             subdir = "skills";
             filter.maxDepth = 2;
+          };
+          targets.glm-claude = {
+            enable = true;
+            dest = "${config.home.homeDirectory}/.config/glm-claude/skills";
+            structure = "symlink-tree";
           };
           # The whole Divar skill set the devar plugin ships. The `agents` target
           # (home/modules/programs/development/agent-skills.nix) links these into

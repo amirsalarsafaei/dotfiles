@@ -1,0 +1,7 @@
+% uv, python, gitlab
+
+# Export uv index credentials for GitLab
+export UV_INDEX_<index_name>_USERNAME="<username>" && export UV_INDEX_<index_name>_PASSWORD="<gitlab_token>"
+
+$ index_name: echo -e "MYINDEX\nGITLAB\nPRIVATE" --- --header "index name"
+$ username: echo -e "__token__\ngitlab-ci-token" --- --header "username"

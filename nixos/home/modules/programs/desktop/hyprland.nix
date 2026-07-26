@@ -1,10 +1,9 @@
-{
-  pkgs,
-  osConfig,
-  config,
-  themeLib,
-  inputs,
-  ...
+{ pkgs
+, osConfig
+, config
+, themeLib
+, inputs
+, ...
 }:
 let
   monitorConfig = osConfig.hyprland.monitorConfig or ",preferred,auto,auto";
@@ -135,7 +134,7 @@ in
     enable = true;
     systemd.enable = false;
     configType = "hyprlang";
-    package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
+    package = pkgs.hyprland;
     extraConfig = ''
       $terminal = uwsm app -- ghostty
       $fileManager = uwsm app -- dolphin

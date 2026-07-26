@@ -1,7 +1,6 @@
-{
-  homeDir,
-  currentHostname,
-  ...
+{ homeDir
+, currentHostname
+, ...
 }:
 {
   programs.git = {
@@ -43,8 +42,13 @@
             [core]
                 excludesFile = "${homeDir}/.gitignore-work"
     '';
+    # shell.nix/flake.nix are local dev-shell scratch files under ~/divar; ignore
+    # them by default. To track one in a specific repo, add `!flake.nix` (or
+    # `!shell.nix`) to that repo's .git/info/exclude — that overrides
+    # core.excludesFile, so the opt-out is per-repo and stays uncommitted.
     ".gitignore-work".text = ''
       shell.nix
+      flake.nix
       .wakatime-project
     '';
   };

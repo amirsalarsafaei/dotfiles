@@ -1,11 +1,10 @@
-{
-  inputs,
-  lib,
-  pkgs,
-  secrets,
-  config,
-  hostname,
-  ...
+{ inputs
+, lib
+, pkgs
+, secrets
+, config
+, hostname
+, ...
 }:
 let
   # OpenSSH invokes SSH_ASKPASS for more than passphrases. For FIDO/-sk keys it
@@ -618,6 +617,7 @@ in
       enable = true;
       settings.server.http_port = 3000;
       settings.server.http_addr = "127.0.0.1";
+      settings.database.url = "sqlite3:////var/lib/grafana/data/grafana.db?_time_format=sqlite";
       settings.security.secret_key = "abc";
 
       provision.datasources.settings.datasources = [

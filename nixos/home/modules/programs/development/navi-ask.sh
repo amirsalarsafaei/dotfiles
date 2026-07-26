@@ -3,8 +3,9 @@
 #
 # This is the BODY of a pkgs.writeShellApplication: the wrapper prepends the
 # shebang, `set -euo pipefail`, and a PATH containing runtimeInputs (fzf, awk,
-# coreutils) ahead of the inherited PATH — so claude-work / gapcode, which are
-# installed elsewhere, are still resolved from the caller's PATH at runtime.
+# coreutils) ahead of the inherited PATH — so the AI backends (claude-work,
+# glm-claude, local-claude, gapcode), which are installed elsewhere, are still
+# resolved from the caller's PATH at runtime.
 
 usage() {
   cat <<'EOF'
@@ -14,19 +15,24 @@ USAGE:
   navi-ask [options] <question...>
 
 OPTIONS:
-  -e, --engine <claude|gap>  AI backend (default: $NAVI_ASK_ENGINE, else auto)
+  -e, --engine <claude|gap|glm|local>
+                            AI backend (default: $NAVI_ASK_ENGINE, else auto)
   -n, --num <N>              Max suggestions to request (default: 8)
   -f, --file <name>          Target cheat file basename (default: ai)
   -h, --help                 Show this help
 
 ENVIRONMENT:
-  NAVI_ASK_ENGINE   Default engine: "claude" (claude-work) or "gap" (gapcode)
+  NAVI_ASK_ENGINE   Default engine: "claude" (claude-work), "gap" (gapcode),
+                    "glm" (glm-claude), or "local" (local-claude). When unset,
+                    auto-detects among the fast cloud backends (claude-work,
+                    glm-claude, gapcode); "local" is opt-in only (slow local model).
   NAVI_USER_CHEATS  Writable cheats dir
                     (default: ${XDG_DATA_HOME:-~/.local/share}/navi/cheats)
 
 EXAMPLES:
   navi-ask compress a folder into a tar.zst archive
   navi-ask -e gap how do I find the largest files under a directory
+  navi-ask -e glm how do I rotate a video with ffmpeg
   navi-ask -n 5 -f docker prune unused docker images and volumes
 
 Saved snippets show up in navi immediately (run `navi`, or Ctrl-N).
@@ -99,21 +105,27 @@ case "$file" in
 esac
 
 # Resolve the engine to a concrete, present binary. Honour an explicit choice;
-# otherwise auto-detect, preferring claude-work and falling back to gapcode so
-# the same command works on machines that only have one of them.
+# otherwise auto-detect among the fast cloud backends (claude-work, then
+# glm-claude, then gapcode) so the same command works on machines that only have
+# one of them. local-claude is deliberately excluded from auto-detect — the
+# local model is far slower, so it is opt-in only (-e local / NAVI_ASK_ENGINE=local).
 case "$engine" in
   claude) have claude-work || die "engine 'claude' selected but 'claude-work' is not on PATH" ;;
   gap) have gapcode || die "engine 'gap' selected but 'gapcode' is not on PATH" ;;
+  glm) have glm-claude || die "engine 'glm' selected but 'glm-claude' is not on PATH" ;;
+  local) have local-claude || die "engine 'local' selected but 'local-claude' is not on PATH" ;;
   '')
     if have claude-work; then
       engine=claude
+    elif have glm-claude; then
+      engine=glm
     elif have gapcode; then
       engine=gap
     else
-      die "no AI backend found (need 'claude-work' or 'gapcode' on PATH)"
+      die "no AI backend found (need 'claude-work', 'glm-claude', or 'gapcode' on PATH; use '-e local' for local-claude)"
     fi
     ;;
-  *) die "unknown engine '$engine' (use 'claude' or 'gap')" ;;
+  *) die "unknown engine '$engine' (use 'claude', 'gap', 'glm', or 'local')" ;;
 esac
 
 cheats_dir="${NAVI_USER_CHEATS:-${XDG_DATA_HOME:-$HOME/.local/share}/navi/cheats}"
@@ -157,17 +169,24 @@ printf 'navi-ask: asking %s …\n' "$engine" >&2
 raw="$tmp/raw.txt"
 errf="$tmp/err.txt"
 case "$engine" in
-  claude)
-    if ! claude-work -p --output-format text "$prompt" >"$raw" 2>"$errf"; then
-      [ -s "$errf" ] && cat "$errf" >&2
-      die "claude-work failed"
-    fi
-    ;;
   gap)
     if ! gapcode exec --ephemeral --skip-git-repo-check -s read-only \
       --color never -C "$tmp" -o "$raw" "$prompt" >/dev/null 2>"$errf"; then
       [ -s "$errf" ] && cat "$errf" >&2
       die "gapcode failed"
+    fi
+    ;;
+  *)
+    # claude, glm, and local all drive a claude-code variant in print mode.
+    # local-claude wraps `ccr code`, which forwards these args to claude verbatim.
+    case "$engine" in
+      claude) bin=claude-work ;;
+      glm)    bin=glm-claude ;;
+      local)  bin=local-claude ;;
+    esac
+    if ! "$bin" -p --output-format text "$prompt" >"$raw" 2>"$errf"; then
+      [ -s "$errf" ] && cat "$errf" >&2
+      die "$bin failed"
     fi
     ;;
 esac

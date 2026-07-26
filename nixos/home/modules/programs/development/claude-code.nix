@@ -1,14 +1,55 @@
-{
-  config,
-  lib,
-  pkgs,
-  secrets,
-  ...
+{ config
+, lib
+, pkgs
+, secrets
+, ...
 }:
 let
   cfg = config.custom.claudeCode;
 
   workEffortLevel = "xhigh";
+
+  # Shared bash snippet inlined into every claude wrapper. It strips a custom
+  # `--effort=LEVEL` (or `--effort LEVEL`) flag from the wrapper's args, exports
+  # CLAUDE_CODE_EFFORT_LEVEL, and leaves the remaining args in "$@" for the
+  # wrapped binary. With no --effort given it falls back to the
+  # $CLAUDE_CODE_EFFORT_DEFAULT the wrapper exports (per-variant); if that is
+  # empty too, the env var is left unset.
+  #
+  # We intercept --effort instead of letting Claude Code see it because the
+  # binary persists /effort and `--effort` by rewriting settings.json, which here
+  # is a read-only Nix symlink — so a persisted value can't stick and can even
+  # clobber the link on next switch. The env var is honored at startup and never
+  # touches disk, so it always wins and survives rebuilds.
+  effortParserText = ''
+    _claude_effort="''${CLAUDE_CODE_EFFORT_DEFAULT:-}"
+    _claude_rest=()
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --effort=*)
+          _claude_effort="''${1#--effort=}"
+          shift
+          ;;
+        --effort)
+          if [ "$#" -lt 2 ]; then
+            printf '%s: --effort requires a value\n' "$0" >&2
+            exit 1
+          fi
+          _claude_effort="$2"
+          shift 2
+          ;;
+        *)
+          _claude_rest+=("$1")
+          shift
+          ;;
+      esac
+    done
+    if [ -n "$_claude_effort" ]; then
+      export CLAUDE_CODE_EFFORT_LEVEL="$_claude_effort"
+    fi
+    set -- "''${_claude_rest[@]}"
+    unset _claude_effort _claude_rest
+  '';
 
   workMcpConfigRel = ".config/claude-work/mcp-servers.json";
   workMcpConfigPath = "${config.home.homeDirectory}/${workMcpConfigRel}";
@@ -79,44 +120,65 @@ let
     '';
   };
 
-  mkVariant =
-    {
-      name,
-      configDir,
-      extraWrapperArgs ? [ ],
-      extraBuildInputs ? [ ],
-    }:
-    pkgs.runCommand name { nativeBuildInputs = [ pkgs.makeWrapper ] ++ extraBuildInputs; } ''
-      mkdir -p $out/bin
-      makeWrapper ${pkgs.claude-code}/bin/claude $out/bin/${name} \
-        --set CLAUDE_CONFIG_DIR "${configDir}" \
-        --run ${lib.escapeShellArg "${healClaudeState}/bin/heal-claude-json || true"} \
-        ${lib.concatStringsSep " " extraWrapperArgs}
+  glmClaude = pkgs.writeShellApplication {
+    name = "glm-claude";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = ''
+      key_file="$HOME/glm-key"
+      if [ ! -s "$key_file" ]; then
+        printf 'glm-claude: missing or empty %s\n' "$key_file" >&2
+        exit 1
+      fi
 
+      ANTHROPIC_AUTH_TOKEN="$(cat "$key_file")"
+      export ANTHROPIC_AUTH_TOKEN
+      export ANTHROPIC_BASE_URL="https://api.raytone.ai"
+      export ANTHROPIC_MODEL="glm-5.2"
+      export ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.2"
+      export ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5.2"
+      export ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-5.2"
+      export CLAUDE_CODE_SUBAGENT_MODEL="glm-5.2"
+      export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/glm-claude"
+      # Default effort; override at runtime with --effort=LEVEL (e.g.
+      # `glm-claude --effort=high`). See effortParserText for why this is an env
+      # var rather than settings.json effortLevel.
+      export CLAUDE_CODE_EFFORT_DEFAULT="${workEffortLevel}"
+      ${effortParserText}
+
+      ${healClaudeState}/bin/heal-claude-json || true
+      exec ${pkgs.claude-code}/bin/claude "$@"
     '';
-
-  gapClaude = mkVariant {
-    name = "gap-claude";
-    configDir = "${config.home.homeDirectory}/.config/gap-claude";
-    extraWrapperArgs = [
-      ''--set ANTHROPIC_API_KEY "${secrets.gapgpt.apiKey or ""}"''
-      ''--set ANTHROPIC_BASE_URL "https://api.gapgpt.app/"''
-    ];
   };
 
-  claudeWork = mkVariant {
+  gapClaude = pkgs.writeShellApplication {
+    name = "gap-claude";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = ''
+      export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/gap-claude"
+      export ANTHROPIC_API_KEY="${secrets.gapgpt.apiKey or ""}"
+      export ANTHROPIC_BASE_URL="https://api.gapgpt.app/"
+      ${effortParserText}
+      ${healClaudeState}/bin/heal-claude-json || true
+      exec ${pkgs.claude-code}/bin/claude "$@"
+    '';
+  };
+
+  claudeWork = pkgs.writeShellApplication {
     name = "claude-work";
-    configDir = "${config.home.homeDirectory}/.config/claude-work";
-    extraBuildInputs = [ pkgs.tzdata ];
-    extraWrapperArgs = [
-      ''--set TZ "Asia/Singapore"''
-      ''--set TZDIR "${pkgs.tzdata}/share/zoneinfo"''
-      # Env var, not just settings.json effortLevel: the latter loses to the
-      # model default on first run, and /effort can't override it because it
-      # persists by writing the read-only Nix settings.json symlink.
-      ''--set CLAUDE_CODE_EFFORT_LEVEL "${workEffortLevel}"''
-      ''--add-flags "--mcp-config ${workMcpConfigPath}"''
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.tzdata
     ];
+    text = ''
+      export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/claude-work"
+      export TZ="Asia/Singapore"
+      export TZDIR="${pkgs.tzdata}/share/zoneinfo"
+      # Default effort for the work variant; override at runtime with --effort=.
+      export CLAUDE_CODE_EFFORT_DEFAULT="${workEffortLevel}"
+      ${effortParserText}
+      ${healClaudeState}/bin/heal-claude-json || true
+      exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "$@"
+    '';
   };
 
   # Local-model variant: a thin wrapper that points Claude Code at a local
@@ -143,8 +205,11 @@ let
       # is no second model in VRAM and no swapping.
       export ANTHROPIC_MODEL="${localModel}"
       export ANTHROPIC_SMALL_FAST_MODEL="${localModelFast}"
+      # Effort override at runtime: --effort=LEVEL (e.g. `local-claude --effort=high`).
+      # No default here — the local model is slow, so leave effort unset unless asked.
+      ${effortParserText}
       # Restore .claude.json from a backup if a prior run left it corrupted
-      # (same self-heal the makeWrapper variants get; see healClaudeState).
+      # (same self-heal the other variants get; see healClaudeState).
       ${healClaudeState}/bin/heal-claude-json || true
       exec claude --mcp-config "${localMcpConfigPath}" "$@"
     '';
@@ -278,10 +343,56 @@ let
     };
 
   nixManagedNote = "settings.json is Nix-managed (home/modules/programs/development/claude-code.nix in your dotfiles flake) — edits won't persist; change Nix and rebuild.\n";
+
+  # `claude` on PATH is an interactive picker: it asks which variant to launch
+  # and execs it with every arg intact, so `claude --resume <session-id>` (or
+  # any other flags) flow through to the chosen variant. Only the enabled cloud
+  # variants are offered; local-claude is intentionally excluded (launch it
+  # explicitly via `local-claude`). The real claude-code binary is NOT put on
+  # PATH — each variant references it by absolute store path, and local-claude
+  # points ccr at it via CLAUDE_CODE_COMMAND (see localClaude) so ccr never
+  # recurses into this picker.
+  pickerEntry = tag: name: desc: bin: { inherit tag name desc bin; };
+  pickerVariants =
+    lib.optional cfg.enable (pickerEntry "gap" "gap-claude" "gapgpt cloud" gapClaude)
+    ++ lib.optional cfg.enableGlm (pickerEntry "glm" "glm-claude" "GLM via raytone" glmClaude)
+    ++ lib.optional cfg.enableWork (pickerEntry "work" "claude-work" "Divar work, xhigh" claudeWork);
+
+  pickerTags = map (v: v.tag) pickerVariants;
+  pickerCases = lib.concatStringsSep "\n" (map
+    (
+      v: "          ${v.tag}) printf 'launching %s (%s)\\n' \"${v.name}\" \"${v.desc}\"; exec ${v.bin}/bin/${v.name} \"$@\" ;;"
+    )
+    pickerVariants);
+
+  claudePicker = pkgs.writeShellApplication {
+    name = "claude";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = ''
+            _tags=( ${lib.concatStringsSep " " pickerTags} )
+            if [ "''${#_tags[@]}" -eq 0 ]; then
+              printf 'claude: no variants enabled. Keep custom.claudeCode.enable (gap) or set enableGlm/enableWork.\n' >&2
+              exit 1
+            fi
+            PS3="Which claude? "
+            select _pick in "''${_tags[@]}" quit; do
+              case "$_pick" in
+      ${pickerCases}
+                quit)
+                  exit 0
+                  ;;
+                *)
+                  printf 'invalid choice: %s\n' "$REPLY" >&2
+                  ;;
+              esac
+            done
+    '';
+  };
 in
 {
   options.custom.claudeCode = {
     enable = lib.mkEnableOption "Install claude-code and the gap-claude wrapper";
+    enableGlm = lib.mkEnableOption "Route the default claude command through GLM";
     enableWork = lib.mkEnableOption "Install the claude-work variant (work-host only)";
     enableLocal = lib.mkEnableOption "Install the local-claude variant (LiteLLM -> local llama-swap model)";
     enableDevar = lib.mkEnableOption ''
@@ -379,13 +490,20 @@ in
   config = lib.mkMerge [
     (lib.mkIf cfg.enable {
       home.packages = [
-        pkgs.claude-code
+        claudePicker
         gapClaude
-      ];
+      ]
+      ++ lib.optional cfg.enableGlm glmClaude;
       home.file.".config/gap-claude/settings.json".text = builtins.toJSON (
         withOverrides (mkSettings "gap" gapSettings)
       );
       home.file.".config/gap-claude/CLAUDE.md".text = nixManagedNote;
+    })
+    (lib.mkIf cfg.enableGlm {
+      home.file.".config/glm-claude/settings.json".text = builtins.toJSON (
+        withOverrides (mkSettings "work" workSettings)
+      );
+      home.file.".config/glm-claude/CLAUDE.md".text = nixManagedNote;
     })
     (lib.mkIf cfg.enableWork {
       home.packages = [ claudeWork ];
@@ -425,6 +543,7 @@ in
           '')
           (
             lib.optional cfg.enable ".config/gap-claude"
+            ++ lib.optional cfg.enableGlm ".config/glm-claude"
             ++ lib.optional cfg.enableWork ".config/claude-work"
             ++ lib.optional cfg.enableLocal ".config/local-claude"
           )
