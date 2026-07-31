@@ -53,7 +53,7 @@ let
     threadsBatch = 12;
     ubatch = 1024;
     ctxSize = 131072;
-    parallel = 1;
+    parallel = 2;
     batch = 2048;
     cacheTypeK = "q8_0";
     cacheTypeV = "q8_0";
@@ -63,10 +63,7 @@ let
   profileRules = [
     {
       pattern = "Qwen3.6-27B-*";
-      # Dense model: any explicit -ngl disables llama.cpp auto-fit ("n_gpu_layers
-      # already set by user, abort") -> full-weight cudaMalloc OOM. -1 omits the
-      # flag so auto-fit splits layers across GPU/CPU to fill free VRAM.
-      gpuLayers = -1;
+      gpuLayers = 44;
       nCpuMoe = 0;
       threads = 12;
       ubatch = 512;

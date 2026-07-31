@@ -18,6 +18,7 @@
   custom = {
     neovim.enable = true;
     claudeCode.enable = true;
+    claudeCode.enableNormal = true;
 
     agentSkills = {
       enable = true;

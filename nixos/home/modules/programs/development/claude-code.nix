@@ -1,8 +1,9 @@
-{ config
-, lib
-, pkgs
-, secrets
-, ...
+{
+  config,
+  lib,
+  pkgs,
+  secrets,
+  ...
 }:
 let
   cfg = config.custom.claudeCode;
@@ -21,6 +22,24 @@ let
   # is a read-only Nix symlink — so a persisted value can't stick and can even
   # clobber the link on next switch. The env var is honored at startup and never
   # touches disk, so it always wins and survives rebuilds.
+  # Fail-closed geo guard for the normal-claude variant. Direct Anthropic
+  # traffic from an Iranian/Tehran IP risks an account ban under US sanctions,
+  # so refuse to launch until the outbound IP is verified as non-Iranian. Any
+  # lookup failure (offline, DNS blocked, ipinfo down, empty JSON) counts as
+  # unverified and blocks the launch by design.
+  ipGuardText = ''
+    ip_info=$(curl -sSf --max-time 5 https://ipinfo.io/json) || {
+      printf 'claude: IP lookup failed; refusing to launch (fail-closed Iran guard)\n' >&2
+      exit 2
+    }
+    country=$(printf '%s' "$ip_info" | jq -r '.country // ""')
+    city=$(printf '%s' "$ip_info" | jq -r '.city // ""')
+    if [ "$country" = "IR" ] || [ "$city" = "Tehran" ]; then
+      printf 'claude: refusing to launch — IP looks Iranian (country=%s city=%s)\n' "$country" "$city" >&2
+      exit 2
+    fi
+  '';
+
   effortParserText = ''
     _claude_effort="''${CLAUDE_CODE_EFFORT_DEFAULT:-}"
     _claude_rest=()
@@ -66,6 +85,10 @@ let
   localMcpConfigPath = "${config.home.homeDirectory}/${localMcpConfigRel}";
   localMcpServers = {
     mcpServers = {
+      exa = {
+        type = "http";
+        url = "https://mcp.exa.ai/mcp";
+      };
       godot = {
         command = "npx";
         args = [ "@coding-solo/godot-mcp" ];
@@ -145,6 +168,136 @@ let
       export CLAUDE_CODE_EFFORT_DEFAULT="${workEffortLevel}"
       ${effortParserText}
 
+      ${healClaudeState}/bin/heal-claude-json || true
+      exec ${pkgs.claude-code}/bin/claude "$@"
+    '';
+  };
+
+  # Standalone binary form of ipGuardText, referenced by the SessionStart and
+  # UserPromptSubmit hooks in normalSettings. Same fail-closed semantics: any
+  # non-verified state exits 2, which Claude Code treats as a hard block for
+  # UserPromptSubmit (stderr goes to the user) and as an error message shown
+  # to the user for SessionStart. The wrapper's inlined copy of ipGuardText
+  # (below) still fires first — the hooks are defense-in-depth for
+  # already-running sessions and per-prompt checks in case the IP shifts
+  # (VPN drop, tether swap) mid-session.
+  claudeIpGuard = pkgs.writeShellApplication {
+    name = "claude-ip-guard";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.curl
+      pkgs.jq
+    ];
+    text = ipGuardText;
+  };
+
+  # Shared statusline across every variant. Claude Code invokes the command
+  # frequently (roughly every ~300ms while idle) and pipes a JSON blob to stdin
+  # describing the session — model, cwd, transcript_path, running cost, lines
+  # touched, output style, etc. We echo one line to stdout; that becomes the
+  # bottom-of-terminal status. Context tokens are read from the tail of the
+  # transcript's JSONL (last message with a `.message.usage`), so the number
+  # reflects what was actually sent to the model on the previous turn — the
+  # closest thing to a "live context size" the harness exposes.
+  claudeStatusLine = pkgs.writeShellApplication {
+    name = "claude-statusline";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.jq
+      pkgs.git
+    ];
+    text = ''
+      input=$(cat)
+
+      # Pull a JSON field with a default. jq failures fall back to $2 so a
+      # malformed status payload never blanks the whole line.
+      jq_get() {
+        printf '%s' "$input" | jq -r "$1" 2>/dev/null || printf '%s' "$2"
+      }
+
+      model=$(jq_get '.model.display_name // .model.id // ""' "")
+      cwd=$(jq_get '.workspace.current_dir // .cwd // ""' "")
+      transcript=$(jq_get '.transcript_path // ""' "")
+      cost=$(jq_get '.cost.total_cost_usd // 0' "0")
+      added=$(jq_get '.cost.total_lines_added // 0' "0")
+      removed=$(jq_get '.cost.total_lines_removed // 0' "0")
+      style=$(jq_get '.output_style.name // ""' "")
+      exceeds=$(jq_get '.exceeds_200k_tokens // false' "false")
+
+      short_cwd="''${cwd/#$HOME/\~}"
+
+      branch=""
+      if [ -n "$cwd" ] && git -C "$cwd" rev-parse --git-dir >/dev/null 2>&1; then
+        branch=$(git -C "$cwd" symbolic-ref --short HEAD 2>/dev/null \
+                 || git -C "$cwd" rev-parse --short HEAD 2>/dev/null || true)
+      fi
+
+      # Context = input + cache_read + cache_creation of the most recent
+      # assistant turn. Tail the last 40 lines so this stays O(1) even on
+      # multi-MB transcripts; every assistant message carries usage, so 40 is
+      # more than enough to find one. All errors swallowed → fall back to 0.
+      ctx_tokens=0
+      if [ -n "$transcript" ] && [ -f "$transcript" ]; then
+        usage=$( { tail -n 40 "$transcript" 2>/dev/null \
+                   | jq -c 'select(.message.usage != null) | .message.usage' 2>/dev/null \
+                   | tail -n 1; } || true )
+        if [ -n "$usage" ]; then
+          ctx_tokens=$(printf '%s' "$usage" | jq -r \
+            '((.input_tokens // 0) + (.cache_read_input_tokens // 0) + (.cache_creation_input_tokens // 0))' \
+            2>/dev/null || printf 0)
+        fi
+      fi
+
+      # Limit switches to 1M when Claude Code flags the >200k extended window.
+      if [ "$exceeds" = "true" ]; then
+        ctx_limit=1000000
+        limit_label="1M"
+      else
+        ctx_limit=200000
+        limit_label="200k"
+      fi
+      ctx_k=$(( ctx_tokens / 1000 ))
+      ctx_pct=$(( ctx_tokens * 100 / ctx_limit ))
+
+      cost_fmt=$(printf '$%.2f' "$cost")
+
+      parts=()
+      [ -n "$model" ]     && parts+=("[$model]")
+      [ -n "$short_cwd" ] && parts+=("$short_cwd")
+      [ -n "$branch" ]    && parts+=("($branch)")
+      parts+=("ctx ''${ctx_k}k/''${limit_label} (''${ctx_pct}%)")
+      # Third-party endpoints (raytone/GLM, gapgpt, the local llama-swap) don't
+      # report Anthropic-billed cost, so total_cost_usd is stuck at 0 and $0.00
+      # is just noise. Only show cost when there's something to show.
+      parts+=("$cost_fmt")
+      if [ "$added" != "0" ] || [ "$removed" != "0" ]; then
+        parts+=("+$added -$removed")
+      fi
+      [ -n "$style" ] && [ "$style" != "default" ] && parts+=("$style")
+
+      # Join with ' | '.
+      out=""
+      for p in "''${parts[@]}"; do
+        if [ -z "$out" ]; then out="$p"; else out="$out | $p"; fi
+      done
+      printf '%s\n' "$out"
+    '';
+  };
+
+  # Vanilla claude → Anthropic direct. Nothing set beyond the isolated config
+  # dir, the shared effort/heal helpers, and the ipGuardText prehook that
+  # refuses to launch from an Iranian IP (fail-closed).
+  normalClaude = pkgs.writeShellApplication {
+    name = "normal-claude";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.curl
+      pkgs.jq
+    ];
+    text = ''
+      ${ipGuardText}
+      export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/normal-claude"
+      ${effortParserText}
       ${healClaudeState}/bin/heal-claude-json || true
       exec ${pkgs.claude-code}/bin/claude "$@"
     '';
@@ -239,7 +392,15 @@ let
     let
       plugins = cfg.plugins.default // cfg.plugins.${variant};
     in
-    base
+    # Default statusLine listed first so a variant's `base` can override it by
+    # setting its own `statusLine` — none currently do.
+    {
+      statusLine = {
+        type = "command";
+        command = "${claudeStatusLine}/bin/claude-statusline";
+      };
+    }
+    // base
     // lib.optionalAttrs (plugins != { } || base ? enabledPlugins) {
       # Merge, don't clobber: `base` may carry variant-specific entries (e.g.
       # workSettings' conditional "devar@divar"); cfg.plugins toggles win.
@@ -247,6 +408,11 @@ let
     };
 
   localSettings = {
+    # Explicit toggle so nothing silently disables auto-compact for the local
+    # model (small effective context; letting the conversation grow past the
+    # window is far worse than the compaction cost). The env vars below tune
+    # *when* it fires; this makes sure it fires at all.
+    autoCompactEnabled = true;
     env = {
       CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = "80";
       CLAUDE_CODE_AUTO_COMPACT_WINDOW = "131072";
@@ -254,6 +420,15 @@ let
     permissions = {
       allow = [
         "Bash(*)"
+        "mcp__exa"
+      ];
+      # The local model has no access to Anthropic's hosted WebFetch/WebSearch
+      # (those require a paid Anthropic subscription and go through their
+      # backend). Deny them so the model doesn't try — it should reach for the
+      # exa MCP tools instead (see CLAUDE.md addendum below).
+      deny = [
+        "WebFetch"
+        "WebSearch"
       ];
       defaultMode = "auto";
     };
@@ -335,6 +510,40 @@ let
     theme = "dark";
   };
 
+  normalSettings = {
+    theme = "dark";
+    # Belt-and-suspenders IP guard: the wrapper prehook blocks initial launch,
+    # SessionStart re-checks on /resume of an already-running claude, and
+    # UserPromptSubmit re-checks every message so a mid-session VPN drop is
+    # caught before the next request hits Anthropic. Hook exit 2 hard-blocks
+    # the prompt (UserPromptSubmit contract) and surfaces the stderr banner.
+    # Timeout is generous (10s) but curl's own --max-time 5 caps most calls.
+    hooks = {
+      SessionStart = [
+        {
+          hooks = [
+            {
+              type = "command";
+              command = "${claudeIpGuard}/bin/claude-ip-guard";
+              timeout = 10;
+            }
+          ];
+        }
+      ];
+      UserPromptSubmit = [
+        {
+          hooks = [
+            {
+              type = "command";
+              command = "${claudeIpGuard}/bin/claude-ip-guard";
+              timeout = 10;
+            }
+          ];
+        }
+      ];
+    };
+  };
+
   withOverrides =
     base:
     base
@@ -352,18 +561,29 @@ let
   # PATH — each variant references it by absolute store path, and local-claude
   # points ccr at it via CLAUDE_CODE_COMMAND (see localClaude) so ccr never
   # recurses into this picker.
-  pickerEntry = tag: name: desc: bin: { inherit tag name desc bin; };
+  pickerEntry = tag: name: desc: bin: {
+    inherit
+      tag
+      name
+      desc
+      bin
+      ;
+  };
   pickerVariants =
     lib.optional cfg.enable (pickerEntry "gap" "gap-claude" "gapgpt cloud" gapClaude)
     ++ lib.optional cfg.enableGlm (pickerEntry "glm" "glm-claude" "GLM via raytone" glmClaude)
-    ++ lib.optional cfg.enableWork (pickerEntry "work" "claude-work" "Divar work, xhigh" claudeWork);
+    ++ lib.optional cfg.enableWork (pickerEntry "work" "claude-work" "Divar work, xhigh" claudeWork)
+    ++ lib.optional cfg.enableNormal (
+      pickerEntry "normal" "normal-claude" "Anthropic direct, IP-guarded" normalClaude
+    );
 
   pickerTags = map (v: v.tag) pickerVariants;
-  pickerCases = lib.concatStringsSep "\n" (map
-    (
-      v: "          ${v.tag}) printf 'launching %s (%s)\\n' \"${v.name}\" \"${v.desc}\"; exec ${v.bin}/bin/${v.name} \"$@\" ;;"
-    )
-    pickerVariants);
+  pickerCases = lib.concatStringsSep "\n" (
+    map (
+      v:
+      "          ${v.tag}) printf 'launching %s (%s)\\n' \"${v.name}\" \"${v.desc}\"; exec ${v.bin}/bin/${v.name} \"$@\" ;;"
+    ) pickerVariants
+  );
 
   claudePicker = pkgs.writeShellApplication {
     name = "claude";
@@ -395,6 +615,12 @@ in
     enableGlm = lib.mkEnableOption "Route the default claude command through GLM";
     enableWork = lib.mkEnableOption "Install the claude-work variant (work-host only)";
     enableLocal = lib.mkEnableOption "Install the local-claude variant (LiteLLM -> local llama-swap model)";
+    enableNormal = lib.mkEnableOption ''
+      the normal-claude variant: vanilla Anthropic-direct claude wrapped with
+      a fail-closed Iran/Tehran IP guard (ipinfo.io lookup before exec). Any
+      lookup failure blocks the launch — this is deliberate, since connecting
+      to Anthropic from a sanctioned region risks the account
+    '';
     enableDevar = lib.mkEnableOption ''
       the Divar `devar` plugin in the work variant: the directory-sourced
       "divar" marketplace (~/divar/devar) and the `devar@divar` plugin entry.
@@ -434,6 +660,12 @@ in
         type = pluginType;
         default = { };
         description = "Per-plugin overrides for the local-claude variant.";
+      };
+
+      normal = lib.mkOption {
+        type = pluginType;
+        default = { };
+        description = "Per-plugin overrides for the normal-claude variant.";
       };
     };
 
@@ -518,10 +750,19 @@ in
       home.file.".config/local-claude/settings.json".text = builtins.toJSON (
         withOverrides (mkSettings "local" localSettings)
       );
-      home.file.".config/local-claude/CLAUDE.md".text = nixManagedNote;
+      home.file.".config/local-claude/CLAUDE.md".text =
+        nixManagedNote
+        + "Use mcp__exa__web_search_exa for web searches and mcp__exa__web_fetch_exa for webpage retrieval. The built-in WebSearch and WebFetch tools are unavailable with the local model.\n";
       home.file.${localMcpConfigRel}.text = builtins.toJSON localMcpServers;
     })
-    (lib.mkIf (cfg.enable || cfg.enableWork || cfg.enableLocal) {
+    (lib.mkIf cfg.enableNormal {
+      home.packages = [ normalClaude ];
+      home.file.".config/normal-claude/settings.json".text = builtins.toJSON (
+        withOverrides (mkSettings "normal" normalSettings)
+      );
+      home.file.".config/normal-claude/CLAUDE.md".text = nixManagedNote;
+    })
+    (lib.mkIf (cfg.enable || cfg.enableWork || cfg.enableLocal || cfg.enableNormal) {
       # Claude Code persists runtime changes (/effort, enabling a plugin, theme,
       # adding a marketplace, …) by rewriting settings.json — which replaces the
       # read-only Nix symlink with a plain file. With home-manager's
@@ -546,6 +787,7 @@ in
             ++ lib.optional cfg.enableGlm ".config/glm-claude"
             ++ lib.optional cfg.enableWork ".config/claude-work"
             ++ lib.optional cfg.enableLocal ".config/local-claude"
+            ++ lib.optional cfg.enableNormal ".config/normal-claude"
           )
       );
     })

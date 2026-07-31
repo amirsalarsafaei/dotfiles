@@ -92,14 +92,13 @@ in
     };
   };
 
-  # Define the layout using zjstatus to perfectly replicate your Tmux status bar
   xdg.configFile."zellij/layouts/zjstatus.kdl".text = ''
     layout {
         default_tab_template {
             children
             pane size=1 borderless=true {
                 plugin location="https://github.com/dj95/zjstatus/releases/latest/download/zjstatus.wasm" {
-                    format_left   "{mode}#[fg=${c.base00},bg=${c.base0D},bold] {session} #[fg=${c.base0D},bg=${c.base02}] {tabs}"
+                    format_left   "{mode}#[fg=${c.base00},bg=${c.base0D},bold] {session} #[fg=${c.base0D},bg=${c.base02}] {tabs}"
                     format_center ""
                     format_right  "#[fg=${c.base04},bg=${c.base02}] {battery} #[fg=${c.base0E},bg=${c.base02},bold] {datetime} "
                     format_space  "#[bg=${c.base02}]"
@@ -107,21 +106,20 @@ in
                     border_enabled  "false"
                     hide_frame_for_single_pane "true"
 
-                    # Modes (replacing your prefix/sync conditional formatting)
+                    // Modes (replacing your prefix/sync conditional formatting)
                     mode_normal  "#[fg=${c.base00},bg=${c.base0B},bold] NORMAL "
                     mode_tmux    "#[fg=${c.base00},bg=${c.base0A},bold] 󰌌 PREFIX "
                     mode_locked  "#[fg=${c.base00},bg=${c.base08},bold] 󰓦 LOCKED "
 
-                    # Tabs (replacing your window-status-format)
+                    // Tabs (replacing your window-status-format)
                     tab_normal   "#[fg=${c.base05},bg=${c.base02}] {index} {name} {sync_indicator}{fullscreen_indicator} "
                     tab_active   "#[fg=${c.base00},bg=${c.base0D},bold] {index} {name} {sync_indicator}{fullscreen_indicator} "
 
-                    # Indicators
+                    // Indicators
                     tab_sync_indicator       "󰓦 "
                     tab_fullscreen_indicator "󰍉 "
 
                     datetime        "%H:%M #[fg=${c.base0D},bold]%a %d %b"
-                    datetime_timezone "system"
                 }
             }
         }
