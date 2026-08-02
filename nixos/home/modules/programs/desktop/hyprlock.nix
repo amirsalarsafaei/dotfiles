@@ -1,5 +1,6 @@
 {
   pkgs,
+  inputs,
   config,
   themeLib,
   funFortunes,
@@ -12,7 +13,7 @@ in
 {
   programs.hyprlock = {
     enable = true;
-    package = pkgs.hyprlock;
+    package = inputs.hyprlock.packages.${pkgs.stdenv.hostPlatform.system}.hyprlock;
     settings = {
       background = [
         {

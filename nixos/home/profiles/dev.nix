@@ -1,6 +1,7 @@
-{ config
-, inputs
-, ...
+{
+  config,
+  inputs,
+  ...
 }:
 {
   imports = [
@@ -42,7 +43,13 @@
           structure = "symlink-tree";
         };
       };
-      enableAll = [ "samber-go" ];
+      skills = [
+        "golang-grpc"
+        "golang-how-to"
+        "golang-naming"
+        "golang-stretchr-testify"
+        "golang-testing"
+      ];
     };
   };
 }

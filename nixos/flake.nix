@@ -30,6 +30,15 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    hyprlock = {
+      url = "github:hyprwm/hyprlock/v0.9.6";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    hyprland = {
+      url = "github:hyprwm/Hyprland/v0.56.0";
+    };
+
     nixvim = {
       url = "github:nix-community/nixvim";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -398,6 +407,19 @@
 
     in
     {
+      # `nix-update --flake devar --version skip` (run from the repo root)
+      # bumps pkgs/devar.nix's vendorHash when ~/divar/devar's go.mod/go.sum
+      # changes — see the comment there. Only x86_64-linux carries this: it's
+      # the only host that sets isWork (modules/work.nix), which is what
+      # actually installs the built devarCli.
+      packages.${systems.x86_64} =
+        let
+          pkgs = import nixpkgs ({ system = systems.x86_64; } // commonNixpkgsConfig systems.x86_64);
+        in
+        {
+          devar = pkgs.callPackage ./pkgs/devar.nix { devarSrc = inputs.devar; };
+        };
+
       devShells.${systems.x86_64}.default =
         let
           pkgs = import nixpkgs ({ system = systems.x86_64; } // commonNixpkgsConfig systems.x86_64);

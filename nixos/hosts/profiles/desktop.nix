@@ -1,10 +1,11 @@
-{ inputs
-, lib
-, pkgs
-, secrets
-, config
-, hostname
-, ...
+{
+  inputs,
+  lib,
+  pkgs,
+  secrets,
+  config,
+  hostname,
+  ...
 }:
 let
   collectNvidiaMetrics =
@@ -158,6 +159,36 @@ in
       #    "workspace.google.com"
       #   ];
     };
+
+    environment.etc.hosts.enable = false;
+
+    systemd.services.local-hosts = {
+      wantedBy = [ "network-pre.target" ];
+      before = [ "network-pre.target" ];
+      restartTriggers = [ config.environment.etc.hosts.source ];
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = pkgs.writeShellScript "update-local-hosts" ''
+          if [[ ! -e /etc/hosts.local ]]; then
+            install -m 0644 -o root -g root /dev/null /etc/hosts.local
+          fi
+
+          tmp="$(mktemp /etc/.hosts.XXXXXX)"
+          trap 'rm -f "$tmp"' EXIT
+          cat ${config.environment.etc.hosts.source} /etc/hosts.local > "$tmp"
+          chmod 0644 "$tmp"
+          chown root:root "$tmp"
+          mv "$tmp" /etc/hosts
+          trap - EXIT
+        '';
+      };
+    };
+
+    systemd.paths.local-hosts = {
+      wantedBy = [ "multi-user.target" ];
+      pathConfig.PathChanged = "/etc/hosts.local";
+    };
+
     # Pick only one of the below networking options.
     # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
     # networking.networkmanager.enable = true;  # Easiest to use and most distros use this by default.
@@ -305,8 +336,8 @@ in
     programs.hyprland = {
       enable = true;
       withUWSM = true;
-      package = pkgs.hyprland;
-      portalPackage = pkgs.xdg-desktop-portal-hyprland;
+      package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
+      portalPackage = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
     };
 
     programs.zsh = {

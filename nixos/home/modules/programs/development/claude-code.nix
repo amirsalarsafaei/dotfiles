@@ -72,14 +72,89 @@ let
 
   workMcpConfigRel = ".config/claude-work/mcp-servers.json";
   workMcpConfigPath = "${config.home.homeDirectory}/${workMcpConfigRel}";
+  workMcpServerName = "agentic-development-mcps";
   workMcpServers = {
     mcpServers = {
-      "agentic-development-mcps" = {
+      "${workMcpServerName}" = {
         type = "http";
         url = "https://agentic-development-mcps.divar.dev/mcp";
       };
     };
   };
+
+  # Tool-name prefixes registered by the single agentic-development-mcps
+  # server (see ~/divar/platform-mcps src/platform_mcps/platform/server.py) —
+  # every tool it exposes is named "<group>_<verb>", so a prefix glob deny
+  # (mcp__<server>__<group>_*) hides that whole group from the model's tool
+  # list rather than merely blocking calls to it. Keep in sync with that
+  # repo's registered families if it adds/renames one.
+  workMcpGroups = [
+    "tempo"
+    "metrics"
+    "logs"
+    "pyroscope"
+    "codesearch"
+    "sandboxing"
+    "outline"
+    "mattermost"
+  ];
+
+  # `claude-work --mcp-groups=tempo,logs` restricts the agentic-development-mcps
+  # server to the named groups for that launch; the rest are hidden from the
+  # model via a glob permission-deny (see workMcpGroups above), not just
+  # blocked at call time. Omitting the flag keeps every group enabled
+  # (today's default behavior). Runtime-only (not Nix-persisted) by design —
+  # this is meant as a quick per-session toggle, mirroring effortParserText's
+  # --effort flag.
+  mcpGroupsParserText = ''
+    _claude_mcp_groups=""
+    _claude_rest2=()
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --mcp-groups=*)
+          _claude_mcp_groups="''${1#--mcp-groups=}"
+          shift
+          ;;
+        --mcp-groups)
+          if [ "$#" -lt 2 ]; then
+            printf '%s: --mcp-groups requires a value\n' "$0" >&2
+            exit 1
+          fi
+          _claude_mcp_groups="$2"
+          shift 2
+          ;;
+        *)
+          _claude_rest2+=("$1")
+          shift
+          ;;
+      esac
+    done
+    set -- "''${_claude_rest2[@]}"
+    unset _claude_rest2
+
+    _claude_mcp_disallow=()
+    if [ -n "$_claude_mcp_groups" ]; then
+      _claude_known_groups=" ${lib.concatStringsSep " " workMcpGroups} "
+      IFS=',' read -ra _claude_wanted <<< "''${_claude_mcp_groups// /,}"
+      for g in "''${_claude_wanted[@]}"; do
+        case "$_claude_known_groups" in
+          *" $g "*) ;;
+          *)
+            printf '%s: unknown --mcp-groups value %s (known: ${lib.concatStringsSep ", " workMcpGroups})\n' "$0" "$g" >&2
+            exit 1
+            ;;
+        esac
+      done
+      for g in ${lib.concatStringsSep " " workMcpGroups}; do
+        case " ''${_claude_wanted[*]} " in
+          *" $g "*) ;;
+          *) _claude_mcp_disallow+=("mcp__${workMcpServerName}__''${g}_*") ;;
+        esac
+      done
+      unset _claude_wanted _claude_known_groups
+    fi
+    unset _claude_mcp_groups
+  '';
 
   localMcpConfigRel = ".config/local-claude/mcp-servers.json";
   localMcpConfigPath = "${config.home.homeDirectory}/${localMcpConfigRel}";
@@ -167,9 +242,18 @@ let
       # var rather than settings.json effortLevel.
       export CLAUDE_CODE_EFFORT_DEFAULT="${workEffortLevel}"
       ${effortParserText}
+      # Restrict the agentic-development-mcps tool groups for this launch with
+      # --mcp-groups=tempo,logs (see mcpGroupsParserText). Note this routes
+      # whichever groups stay enabled through the raytone.ai backend above.
+      ${mcpGroupsParserText}
 
       ${healClaudeState}/bin/heal-claude-json || true
-      exec ${pkgs.claude-code}/bin/claude "$@"
+      if [ "''${#_claude_mcp_disallow[@]}" -gt 0 ]; then
+        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} \
+          --disallowedTools "''${_claude_mcp_disallow[@]}" "$@"
+      else
+        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "$@"
+      fi
     '';
   };
 
@@ -205,6 +289,7 @@ let
       pkgs.coreutils
       pkgs.jq
       pkgs.git
+      pkgs.kubectl
     ];
     text = ''
       input=$(cat)
@@ -231,6 +316,13 @@ let
         branch=$(git -C "$cwd" symbolic-ref --short HEAD 2>/dev/null \
                  || git -C "$cwd" rev-parse --short HEAD 2>/dev/null || true)
       fi
+
+      # $TZ is exported by the variant wrapper (e.g. normal-claude -> Europe/Berlin,
+      # claude-work -> Asia/Singapore) and inherited here since Claude Code runs
+      # this command as its own subprocess; `date` honors it with no extra flags.
+      now=$(date +'%H:%M %Z' 2>/dev/null || true)
+
+      kctx=$(kubectl config current-context 2>/dev/null || true)
 
       # Context = input + cache_read + cache_creation of the most recent
       # assistant turn. Tail the last 40 lines so this stays O(1) even on
@@ -265,6 +357,7 @@ let
       [ -n "$model" ]     && parts+=("[$model]")
       [ -n "$short_cwd" ] && parts+=("$short_cwd")
       [ -n "$branch" ]    && parts+=("($branch)")
+      [ -n "$kctx" ]      && parts+=("k8s:$kctx")
       parts+=("ctx ''${ctx_k}k/''${limit_label} (''${ctx_pct}%)")
       # Third-party endpoints (raytone/GLM, gapgpt, the local llama-swap) don't
       # report Anthropic-billed cost, so total_cost_usd is stuck at 0 and $0.00
@@ -274,6 +367,7 @@ let
         parts+=("+$added -$removed")
       fi
       [ -n "$style" ] && [ "$style" != "default" ] && parts+=("$style")
+      [ -n "$now" ] && parts+=("$now")
 
       # Join with ' | '.
       out=""
@@ -293,10 +387,13 @@ let
       pkgs.coreutils
       pkgs.curl
       pkgs.jq
+      pkgs.tzdata
     ];
     text = ''
       ${ipGuardText}
       export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/normal-claude"
+      export TZ="Europe/Berlin"
+      export TZDIR="${pkgs.tzdata}/share/zoneinfo"
       ${effortParserText}
       ${healClaudeState}/bin/heal-claude-json || true
       exec ${pkgs.claude-code}/bin/claude "$@"
@@ -329,8 +426,17 @@ let
       # Default effort for the work variant; override at runtime with --effort=.
       export CLAUDE_CODE_EFFORT_DEFAULT="${workEffortLevel}"
       ${effortParserText}
+      # Restrict the agentic-development-mcps tool groups for this launch with
+      # --mcp-groups=tempo,logs (see mcpGroupsParserText). Omit to keep every
+      # group enabled.
+      ${mcpGroupsParserText}
       ${healClaudeState}/bin/heal-claude-json || true
-      exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "$@"
+      if [ "''${#_claude_mcp_disallow[@]}" -gt 0 ]; then
+        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} \
+          --disallowedTools "''${_claude_mcp_disallow[@]}" "$@"
+      else
+        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "$@"
+      fi
     '';
   };
 
@@ -435,6 +541,44 @@ let
     theme = "dark";
   };
 
+  # Register the local devar plugin checkout as the "divar" marketplace so the
+  # plugin below is enabled non-interactively instead of via `/plugin
+  # marketplace add`. Gated on enableDevar (set by modules/work.nix → isWork)
+  # so it lands only on the work laptop, the host that has the ~/divar/devar
+  # checkout (the inputs.devar flake-input path). A directory source needs no
+  # clone and no git.divar.cloud SSH key, and a directory path (unlike an
+  # SCP-style git URL) is a valid source that /doctor accepts. The nested
+  # `source` shape mirrors what Claude Code writes to known_marketplaces.json.
+  # Shared by workSettings and normalSettings — the work laptop runs both
+  # variants and wants devar (flags CLI + divarrpc lookups) in either.
+  devarMarketplace = lib.optionalAttrs cfg.enableDevar {
+    divar = {
+      source = {
+        source = "directory";
+        path = "${config.home.homeDirectory}/divar/devar";
+      };
+    };
+  };
+
+  # Divar SDUI helper: `devar flags` cookie editor + offline divarrpc
+  # widget/payload/enum lookup (CLI + the `devar` MCP server) + the Divar
+  # skill set. plugin "devar" @ marketplace "divar" (devarMarketplace above).
+  devarPlugin = lib.optionalAttrs cfg.enableDevar {
+    "devar@divar" = true;
+  };
+
+  # devar plugin CLI (flags cookie editor + offline divarrpc lookup:
+  # widget/struct/list/enum/support/services/godoc/grep/usages/repos) plus its
+  # bundled MCP server. Server id is plugin_<plugin>_<server> =
+  # plugin_devar_devar; trust the whole server so its read-only lookup tools
+  # don't prompt.
+  devarPermissions = lib.optionalAttrs cfg.enableDevar {
+    allow = [
+      "Bash(devar:*)"
+      "mcp__plugin_devar_devar"
+    ];
+  };
+
   workSettings = {
     permissions = {
       allow = [
@@ -449,37 +593,15 @@ let
         "Bash(xxd:*)"
         "WebFetch"
         "Bash(DIVAR_RPC_TESTING=1 go:*)"
-        # devar plugin CLI (flags cookie editor + offline divarrpc lookup:
-        # widget/struct/list/enum/support/services/godoc/grep/usages/repos).
-        # The skills invoke these directly; one entry covers every subcommand.
-        "Bash(devar:*)"
-        # The bundled `devar` MCP server (same lookups exposed as tools). Server
-        # id is plugin_<plugin>_<server> = plugin_devar_devar; trust the whole
-        # server so its read-only lookup tools don't prompt.
-        "mcp__plugin_devar_devar"
-      ];
+      ]
+      ++ (devarPermissions.allow or [ ]);
       deny = [
         "Bash(kubectl:*)"
         "Bash(k *)"
       ];
       defaultMode = "auto";
     };
-    # Register the local devar plugin checkout as the "divar" marketplace so the
-    # plugin below is enabled non-interactively instead of via `/plugin
-    # marketplace add`. Gated on enableDevar (set by modules/work.nix → isWork)
-    # so it lands only on the work laptop, the host that has the ~/divar/devar
-    # checkout (the inputs.devar flake-input path). A directory source needs no
-    # clone and no git.divar.cloud SSH key, and a directory path (unlike an
-    # SCP-style git URL) is a valid source that /doctor accepts. The nested
-    # `source` shape mirrors what Claude Code writes to known_marketplaces.json.
-    extraKnownMarketplaces = lib.optionalAttrs cfg.enableDevar {
-      divar = {
-        source = {
-          source = "directory";
-          path = "${config.home.homeDirectory}/divar/devar";
-        };
-      };
-    };
+    extraKnownMarketplaces = devarMarketplace;
     # Only the variant-specific additions here; the shared LSP plugins come from
     # cfg.plugins.default and are merged in by mkSettings.
     enabledPlugins = {
@@ -492,12 +614,7 @@ let
       # runtime state, not in this Nix-managed settings.json.
       "figma@claude-plugins-official" = true;
     }
-    // lib.optionalAttrs cfg.enableDevar {
-      # Divar SDUI helper: `devar flags` cookie editor + offline divarrpc
-      # widget/payload/enum lookup (CLI + the `devar` MCP server) + the Divar
-      # skill set. plugin "devar" @ marketplace "divar" (directory source above).
-      "devar@divar" = true;
-    };
+    // devarPlugin;
     # effortLevel intentionally omitted: set via the CLAUDE_CODE_EFFORT_LEVEL
     # env var in claudeWork's wrapper instead (see note there). Keeping it here
     # too would be a redundant second source of truth, and the env var wins.
@@ -512,6 +629,12 @@ let
 
   normalSettings = {
     theme = "dark";
+    # devar wiring is shared with workSettings: gated on cfg.enableDevar, which
+    # modules/work.nix only sets true on the work laptop (the host with the
+    # ~/divar/devar checkout). On any other host these are all empty attrsets.
+    extraKnownMarketplaces = devarMarketplace;
+    enabledPlugins = devarPlugin;
+    permissions = devarPermissions;
     # Belt-and-suspenders IP guard: the wrapper prehook blocks initial launch,
     # SessionStart re-checks on /resume of an already-running claude, and
     # UserPromptSubmit re-checks every message so a mid-session VPN drop is
@@ -743,6 +866,10 @@ in
         withOverrides (mkSettings "work" workSettings)
       );
       home.file.".config/claude-work/CLAUDE.md".text = nixManagedNote;
+    })
+    (lib.mkIf (cfg.enableWork || cfg.enableGlm) {
+      # Shared by claude-work and glm-claude — both exec with --mcp-config
+      # pointed at this same file (workMcpConfigPath).
       home.file.${workMcpConfigRel}.text = builtins.toJSON workMcpServers;
     })
     (lib.mkIf cfg.enableLocal {

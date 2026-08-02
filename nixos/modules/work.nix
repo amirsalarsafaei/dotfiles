@@ -1,8 +1,9 @@
-{ lib
-, config
-, pkgs
-, inputs
-, ...
+{
+  lib,
+  config,
+  pkgs,
+  inputs,
+  ...
 }:
 let
   # The devar SDUI helper CLI, built from the same path input that feeds the
@@ -11,24 +12,40 @@ let
   # the work laptop alone and `devar <subcommand>` is on PATH instead of relying
   # on the repo's bin/devar build-on-first-call shim. `nix flake update devar`
   # re-copies the working tree, bumping both the skills and this binary.
-  devarCli = pkgs.buildGoModule {
-    pname = "devar";
-    version = inputs.devar.shortRev or "unstable";
-    src = inputs.devar;
-    vendorHash = "sha256-9kTe3ZWTubF8ulLgdtgez6ZSGKvbf4jx5XEC4krqlgw=";
-    subPackages = [ "." ];
-    doCheck = false;
-  };
+  # Also exposed as the `devar` flake package (see flake.nix) so `nix-update
+  # --flake devar --version skip` can maintain pkgs/devar.nix's vendorHash.
+  devarCli = pkgs.callPackage ../pkgs/devar.nix { devarSrc = inputs.devar; };
 in
 lib.mkIf config.isWork {
   home-manager.users.amirsalar =
-    { config
-    , pkgs
-    , lib
-    , ...
+    {
+      config,
+      pkgs,
+      lib,
+      ...
     }:
     {
       home.packages = [ devarCli ];
+
+      home.file.".config/amp/plugins/devar-usage.ts".text = ''
+        import type { PluginAPI } from '@ampcode/plugin'
+
+        export default function (amp: PluginAPI) {
+          amp.on('tool.call', async (event, ctx) => {
+            if (event.tool !== 'skill') return { action: 'allow' }
+
+            const name = event.input.name
+            if (typeof name !== 'string' || name.length === 0) return { action: 'allow' }
+
+            try {
+              await ctx.$`${devarCli}/bin/devar usage record skill ''${name}`
+            } catch (error) {
+              ctx.logger.log('Could not record skill usage', error)
+            }
+            return { action: 'allow' }
+          })
+        }
+      '';
 
       custom = {
         # Work skills inherit claudeCode.defaultSkillMode ("user-invocable-only"):
@@ -56,24 +73,7 @@ lib.mkIf config.isWork {
           # (home/modules/programs/development/agent-skills.nix) links these into
           # ~/.agents/skills, which Amp reads — the declarative replacement for
           # install.sh's symlinks into ~/.config/agents/skills.
-          skills = [
-            "divar"
-            "divar-auth"
-            "divar-clients"
-            "divar-contact"
-            "divar-data"
-            "divar-form-pages"
-            "divar-gateway"
-            "divar-golang"
-            "divar-image"
-            "divar-interface"
-            "divar-mock"
-            "divar-post"
-            "divar-thewall"
-            "divar-webview"
-            "divar-widgets"
-            "divarrpc"
-          ];
+          enableAll = [ "devar" ];
         };
       };
 
