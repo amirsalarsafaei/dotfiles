@@ -5,4 +5,5 @@ pkgs.lib.optionals (currentSystem == "x86_64-linux") [
   pkgs.discord
   pkgs.insomnia
   pkgs.blender
+  pkgs.google-chrome
 ]

@@ -1,4 +1,5 @@
 { pkgs
+, lib
 , osConfig
 , config
 , themeLib
@@ -10,6 +11,7 @@ let
   t = config.custom.theme.resolved.colors;
   isNormal = config.custom.powerProfile == "normal";
   opaqueWindows = osConfig.hyprland.opaqueWindows or false;
+  xwaylandDpi = osConfig.hyprland.xwaylandDpi or null;
 
   decorationBlock =
     if isNormal then
@@ -153,6 +155,27 @@ in
       # Monitor configuration
       monitor = ${monitorConfig}
 
+      # Fix pixelated XWayland apps on fractional monitor scale: by default
+      # Hyprland lets XWayland itself scale its output to match the
+      # compositor's fractional scale, and Xorg only knows blocky
+      # nearest-neighbor upsampling for that — hence the "pixelated" look
+      # (Java/Swing apps like burpsuite are XWayland-only and hit this
+      # hardest). force_zero_scaling keeps XWayland rendering at 1x/scale-1
+      # and lets Hyprland's own (smooth) compositor scaler do the upscale
+      # instead. Safe at integer scale too (no-op there). See
+      # hyprland.xwaylandDpi below for the matching per-host DPI hint.
+      xwayland {
+          force_zero_scaling = true
+      }
+
+      ${lib.optionalString (xwaylandDpi != null) ''
+        # Tell XWayland/X11 toolkits (GTK2, Qt, Java AWT's Linux DPI
+        # autodetection) the panel's real DPI now that force_zero_scaling
+        # stops them from picking it up off Hyprland's own output scale.
+        # Value is 96 * the host's fractional scale — see hosts/<host>
+        # hyprland.xwaylandDpi for how it was derived.
+        exec-once = printf 'Xft.dpi: ${toString xwaylandDpi}\n' | ${pkgs.xrdb}/bin/xrdb -merge -
+      ''}
 
       general {
           gaps_in = 4

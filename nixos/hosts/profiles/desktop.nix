@@ -72,6 +72,23 @@ in
       '';
     };
 
+    hyprland.xwaylandDpi = lib.mkOption {
+      type = lib.types.nullOr lib.types.int;
+      default = null;
+      description = ''
+        Xft.dpi value (96 * the panel's fractional Hyprland scale, e.g. a 1.5x
+        scale -> 144) xrdb-merged at Hyprland startup. Paired with
+        xwayland.force_zero_scaling (always on, see hyprland.nix): XWayland
+        apps stop being pixelated by Xorg's own blocky fractional-scale
+        upsampling, but then render at 1x/96dpi unless something tells them
+        the real DPI — this is that hint, for XWayland/X11 toolkits that read
+        Xft.dpi (GTK2, Qt via QT_AUTO_SCREEN_SCALE_FACTOR, plain X11/Java
+        AWT's Linux DPI autodetection). Null (the default) skips the
+        exec-once entirely, so hosts on integer scale or with no fractional
+        scaling problem are unaffected.
+      '';
+    };
+
     isLaptop = lib.mkOption {
       type = lib.types.bool;
       default = false;

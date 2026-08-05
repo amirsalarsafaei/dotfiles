@@ -31,7 +31,7 @@ buildGoModule {
   # literal string (not the `lib.fakeHash` symbol): nix-update patches the
   # file by searching for the literal old hash text, so a symbolic reference
   # can never be found and silently never gets replaced.
-  vendorHash = "sha256-pnT5XN/t/xyiLqkhVf74zQcub6JhRPDebQdJPmEkP3g=";
+  vendorHash = "sha256-eGdIEYD5+GTOpSGi8nEOJrM3EnpGc8/6804iQDU5AWE=";
   subPackages = [ "." ];
   tags = [ "usage_monitor" ];
   # Stamps buildinfo.Version so `devar version` reports the exact commit this

@@ -171,6 +171,51 @@ let
     };
   };
 
+  # Burp Suite's official MCP Server extension (PortSwigger/mcp-server) runs
+  # an SSE server inside Burp itself, default http://127.0.0.1:9876 — only
+  # reachable while Burp is running with the extension loaded and its MCP tab
+  # enabled. Wired in on demand via --with-burp (burpParserText below) rather
+  # than always-on: unlike the other MCP configs above, this one only ever
+  # makes sense for the duration of an active pentest/security-testing
+  # session, and there's no reason to give every Claude session standing
+  # access to whatever Burp project happens to be open. If the extension's
+  # port is changed from the default in Burp's MCP tab, update the url here
+  # to match.
+  burpMcpConfigRel = ".config/claude-shared/burp-mcp-servers.json";
+  burpMcpConfigPath = "${config.home.homeDirectory}/${burpMcpConfigRel}";
+  burpMcpServers = {
+    mcpServers = {
+      burp = {
+        type = "sse";
+        url = "http://127.0.0.1:9876/sse";
+      };
+    };
+  };
+
+  # `claude-work --with-burp` (or normal-claude/glm-claude/gap-claude) adds
+  # the burp MCP server (burpMcpServers above) to that launch's
+  # --mcp-config for the duration of the session. Runtime-only, mirroring
+  # --effort/--mcp-groups: this is meant as a per-session toggle, not a
+  # persisted setting.
+  burpParserText = ''
+    _claude_with_burp=0
+    _claude_rest4=()
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --with-burp)
+          _claude_with_burp=1
+          shift
+          ;;
+        *)
+          _claude_rest4+=("$1")
+          shift
+          ;;
+      esac
+    done
+    set -- "''${_claude_rest4[@]}"
+    unset _claude_rest4
+  '';
+
   # Claude Code rewrites ~/.config/<variant>/.claude.json (its mutable runtime
   # state: projects, history, MRU lists) on nearly every action, and several
   # Claude processes routinely share one config dir. Concurrent, non-atomic
@@ -246,13 +291,21 @@ let
       # --mcp-groups=tempo,logs (see mcpGroupsParserText). Note this routes
       # whichever groups stay enabled through the raytone.ai backend above.
       ${mcpGroupsParserText}
+      # Wire in Burp Suite's MCP server for this launch with --with-burp (see
+      # burpParserText). Only useful while Burp + the MCP extension are
+      # actually running.
+      ${burpParserText}
 
       ${healClaudeState}/bin/heal-claude-json || true
+      _claude_mcp_configs=(${workMcpConfigPath})
+      if [ "$_claude_with_burp" = 1 ]; then
+        _claude_mcp_configs+=(${burpMcpConfigPath})
+      fi
       if [ "''${#_claude_mcp_disallow[@]}" -gt 0 ]; then
-        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} \
+        exec ${pkgs.claude-code}/bin/claude --mcp-config "''${_claude_mcp_configs[@]}" \
           --disallowedTools "''${_claude_mcp_disallow[@]}" "$@"
       else
-        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "$@"
+        exec ${pkgs.claude-code}/bin/claude --mcp-config "''${_claude_mcp_configs[@]}" "$@"
       fi
     '';
   };
@@ -395,8 +448,16 @@ let
       export TZ="Europe/Berlin"
       export TZDIR="${pkgs.tzdata}/share/zoneinfo"
       ${effortParserText}
+      # Wire in Burp Suite's MCP server for this launch with --with-burp (see
+      # burpParserText). Only useful while Burp + the MCP extension are
+      # actually running.
+      ${burpParserText}
       ${healClaudeState}/bin/heal-claude-json || true
-      exec ${pkgs.claude-code}/bin/claude "$@"
+      if [ "$_claude_with_burp" = 1 ]; then
+        exec ${pkgs.claude-code}/bin/claude --mcp-config ${burpMcpConfigPath} "$@"
+      else
+        exec ${pkgs.claude-code}/bin/claude "$@"
+      fi
     '';
   };
 
@@ -408,8 +469,13 @@ let
       export ANTHROPIC_API_KEY="${secrets.gapgpt.apiKey or ""}"
       export ANTHROPIC_BASE_URL="https://api.gapgpt.app/"
       ${effortParserText}
+      ${burpParserText}
       ${healClaudeState}/bin/heal-claude-json || true
-      exec ${pkgs.claude-code}/bin/claude "$@"
+      if [ "$_claude_with_burp" = 1 ]; then
+        exec ${pkgs.claude-code}/bin/claude --mcp-config ${burpMcpConfigPath} "$@"
+      else
+        exec ${pkgs.claude-code}/bin/claude "$@"
+      fi
     '';
   };
 
@@ -430,12 +496,20 @@ let
       # --mcp-groups=tempo,logs (see mcpGroupsParserText). Omit to keep every
       # group enabled.
       ${mcpGroupsParserText}
+      # Wire in Burp Suite's MCP server for this launch with --with-burp (see
+      # burpParserText). Only useful while Burp + the MCP extension are
+      # actually running.
+      ${burpParserText}
       ${healClaudeState}/bin/heal-claude-json || true
+      _claude_mcp_configs=(${workMcpConfigPath})
+      if [ "$_claude_with_burp" = 1 ]; then
+        _claude_mcp_configs+=(${burpMcpConfigPath})
+      fi
       if [ "''${#_claude_mcp_disallow[@]}" -gt 0 ]; then
-        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} \
+        exec ${pkgs.claude-code}/bin/claude --mcp-config "''${_claude_mcp_configs[@]}" \
           --disallowedTools "''${_claude_mcp_disallow[@]}" "$@"
       else
-        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "$@"
+        exec ${pkgs.claude-code}/bin/claude --mcp-config "''${_claude_mcp_configs[@]}" "$@"
       fi
     '';
   };
@@ -871,6 +945,10 @@ in
       # Shared by claude-work and glm-claude — both exec with --mcp-config
       # pointed at this same file (workMcpConfigPath).
       home.file.${workMcpConfigRel}.text = builtins.toJSON workMcpServers;
+    })
+    (lib.mkIf (cfg.enable || cfg.enableWork || cfg.enableGlm || cfg.enableNormal) {
+      # Shared by every variant's --with-burp flag (burpParserText).
+      home.file.${burpMcpConfigRel}.text = builtins.toJSON burpMcpServers;
     })
     (lib.mkIf cfg.enableLocal {
       home.packages = [ localClaude ];

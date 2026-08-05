@@ -1,5 +1,33 @@
-{ pkgs, ... }:
+{ pkgs, currentHostname, ... }:
 let
+  # burpsuite is a Java/Swing app that only ever runs under XWayland (its FHS
+  # sandbox binds the X11 socket, not a Wayland one). Hyprland's
+  # xwayland.force_zero_scaling (see home/modules/programs/desktop/hyprland.nix)
+  # fixes the blocky pixelation, but Java's own Linux HiDPI autodetection is
+  # unreliable with no GNOME/KDE session broadcasting a scale factor, so pin it
+  # explicitly to match the host's panel scale instead of relying on Xft.dpi
+  # autodetection. t14: LG Display 0x06F7 auto-scales to 1.50 in Hyprland.
+  burpsuiteJavaUiScale = if currentHostname == "t14" then "1.5" else null;
+  # symlinkJoin + makeWrapper (rather than a plain writeShellApplication)
+  # keeps pkgs.burpsuite's share/applications/burpsuite.desktop and icon
+  # intact (Exec=burpsuite, resolved via PATH) while only the bin/burpsuite
+  # entry point gets the env var — so the app-menu/rofi-drun launch path
+  # picks up the fix too, not just the CLI.
+  burpsuiteWrapped =
+    if burpsuiteJavaUiScale == null then
+      pkgs.burpsuite
+    else
+      pkgs.symlinkJoin {
+        name = "burpsuite-wrapped";
+        paths = [ pkgs.burpsuite ];
+        nativeBuildInputs = [ pkgs.makeWrapper ];
+        postBuild = ''
+          rm "$out/bin/burpsuite"
+          makeWrapper "${pkgs.burpsuite}/bin/burpsuite" "$out/bin/burpsuite" \
+            --set _JAVA_OPTIONS "-Dsun.java2d.uiScale=${burpsuiteJavaUiScale}"
+        '';
+      };
+
   yubikeyTotp = pkgs.writeShellApplication {
     name = "yubikey-totp";
     runtimeInputs = [
@@ -46,6 +74,6 @@ in
   yubikeyTotp
   pkgs.totp-cli
   (pkgs.pass.withExtensions (exts: [ exts.pass-otp ]))
-  pkgs.burpsuite
+  burpsuiteWrapped
   pkgs.age
 ]

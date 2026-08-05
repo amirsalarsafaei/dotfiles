@@ -18,6 +18,13 @@
   isLaptop = true;
   isWork = true;
 
+  # Fixes pixelated XWayland apps (e.g. burpsuite, a Java/Swing app that only
+  # ever runs under XWayland — see home/modules/packages/security-tools.nix).
+  # This panel (LG Display 0x06F7, 1920x1200) auto-scales to 1.50 in
+  # Hyprland (`hyprctl monitors`); 96 * 1.5 = 144. Paired with
+  # xwayland.force_zero_scaling in hyprland.nix.
+  hyprland.xwaylandDpi = 144;
+
   # Built-in fingerprint reader (Synaptics 06cb:00f9, BMKT match-on-chip). It's
   # natively supported by libfprint's open-source "synaptics" driver (no TOD/
   # proprietary blob needed) as of libfprint 1.94.10, which nixpkgs builds with
