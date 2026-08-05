@@ -1,6 +1,6 @@
 {
   vim = "nvim";
-  claude = "claudy";
+  claudy = "claude";
 
   gitrecent = "git for-each-ref --sort=-committerdate refs/heads/ --format='%(committerdate:short) %(refname:short)'";
   gitshort = "git rev-parse --short=8 HEAD";
