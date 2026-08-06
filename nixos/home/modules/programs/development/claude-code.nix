@@ -276,24 +276,15 @@ let
       ANTHROPIC_AUTH_TOKEN="$(cat "$key_file")"
       export ANTHROPIC_AUTH_TOKEN
       export ANTHROPIC_BASE_URL="https://api.raytone.ai"
-      export ANTHROPIC_MODEL="glm-5.2"
-      export ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.2"
-      export ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5.2"
-      export ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-5.2"
-      export CLAUDE_CODE_SUBAGENT_MODEL="glm-5.2"
+      export ANTHROPIC_MODEL="glm-5.2[1m]"
+      export ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.2[1m]"
+      export ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5.2[1m]"
+      export ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-5.2[1m]"
+      export CLAUDE_CODE_SUBAGENT_MODEL="glm-5.2[1m]"
       export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/glm-claude"
-      # Default effort; override at runtime with --effort=LEVEL (e.g.
-      # `glm-claude --effort=high`). See effortParserText for why this is an env
-      # var rather than settings.json effortLevel.
       export CLAUDE_CODE_EFFORT_DEFAULT="${workEffortLevel}"
       ${effortParserText}
-      # Restrict the agentic-development-mcps tool groups for this launch with
-      # --mcp-groups=tempo,logs (see mcpGroupsParserText). Note this routes
-      # whichever groups stay enabled through the raytone.ai backend above.
       ${mcpGroupsParserText}
-      # Wire in Burp Suite's MCP server for this launch with --with-burp (see
-      # burpParserText). Only useful while Burp + the MCP extension are
-      # actually running.
       ${burpParserText}
 
       ${healClaudeState}/bin/heal-claude-json || true
@@ -404,8 +395,6 @@ let
       ctx_k=$(( ctx_tokens / 1000 ))
       ctx_pct=$(( ctx_tokens * 100 / ctx_limit ))
 
-      cost_fmt=$(printf '$%.2f' "$cost")
-
       parts=()
       [ -n "$model" ]     && parts+=("[$model]")
       [ -n "$short_cwd" ] && parts+=("$short_cwd")
@@ -414,8 +403,11 @@ let
       parts+=("ctx ''${ctx_k}k/''${limit_label} (''${ctx_pct}%)")
       # Third-party endpoints (raytone/GLM, gapgpt, the local llama-swap) don't
       # report Anthropic-billed cost, so total_cost_usd is stuck at 0 and $0.00
-      # is just noise. Only show cost when there's something to show.
-      parts+=("$cost_fmt")
+      # is just noise. Only show cost when the endpoint actually reports a
+      # nonzero value (normal-claude → Anthropic direct does; the others don't).
+      if [ "$(printf '%s' "$input" | jq -r '(.cost.total_cost_usd // 0) > 0' 2>/dev/null)" = "true" ]; then
+        parts+=("$(printf '$%.2f' "$cost")")
+      fi
       if [ "$added" != "0" ] || [ "$removed" != "0" ]; then
         parts+=("+$added -$removed")
       fi
@@ -428,6 +420,44 @@ let
         if [ -z "$out" ]; then out="$p"; else out="$out | $p"; fi
       done
       printf '%s\n' "$out"
+    '';
+  };
+
+  # `glm-usage` — token-usage tracker for the glm-claude variant. Prices come
+  # from cfg.glmPrices (Nix config); the wrapper exports them so the python
+  # script (./glm-usage.py) picks them up, and an explicit env export still
+  # overrides per-invocation.
+  glmUsage = pkgs.writeShellApplication {
+    name = "glm-usage";
+    runtimeInputs = [ pkgs.python3 ];
+    text = ''
+      export GLM_PRICE_INPUT="''${GLM_PRICE_INPUT-${toString cfg.glmPrices.input}}"
+      export GLM_PRICE_OUTPUT="''${GLM_PRICE_OUTPUT-${toString cfg.glmPrices.output}}"
+      export GLM_PRICE_CACHE_READ="''${GLM_PRICE_CACHE_READ-${toString cfg.glmPrices.cacheRead}}"
+      export GLM_PRICE_CACHE_CREATE="''${GLM_PRICE_CACHE_CREATE-${toString cfg.glmPrices.cacheCreate}}"
+      export GLM_BILLING_DAY="''${GLM_BILLING_DAY-${toString cfg.glmBillingDay}}"
+      exec ${pkgs.python3}/bin/python3 ${./glm-usage.py} "$@"
+    '';
+  };
+
+  # glm-claude's statusline = the shared claude-statusline (model/cwd/branch/
+  # ctx/...) with a glm-usage week+month cost segment appended. The shared line
+  # suppresses its always-$0.00 session cost for zero-cost endpoints (raytone
+  # reports 0), so this appends the real usage cost instead.
+  glmStatusLine = pkgs.writeShellApplication {
+    name = "glm-claude-statusline";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = ''
+      input=$(cat)
+      base=$(${claudeStatusLine}/bin/claude-statusline <<<"$input" 2>/dev/null || true)
+      seg=$(${glmUsage}/bin/glm-usage statusline 2>/dev/null || true)
+      if [ -n "$seg" ] && [ -n "$base" ]; then
+        printf '%s | %s\n' "$base" "$seg"
+      elif [ -n "$base" ]; then
+        printf '%s\n' "$base"
+      else
+        printf 'glm\n'
+      fi
     '';
   };
 
@@ -697,6 +727,17 @@ let
     skipAutoPermissionPrompt = true;
   };
 
+  # glm-claude shares claude-work's settings but swaps in a statusline that
+  # appends a glm-usage week/month cost segment (mkSettings lets `base` override
+  # the default statusLine). Variant stays "work" so plugin lookup resolves to
+  # cfg.plugins.work (glm has no separate plugin set).
+  glmSettings = workSettings // {
+    statusLine = {
+      type = "command";
+      command = "${glmStatusLine}/bin/glm-claude-statusline";
+    };
+  };
+
   gapSettings = {
     theme = "dark";
   };
@@ -826,6 +867,50 @@ in
       (e.g. g14) get the variant without devar
     '';
 
+    glmPrices = lib.mkOption {
+      type = lib.types.submodule {
+        options = {
+          input = lib.mkOption {
+            type = lib.types.float;
+            default = 1.40;
+            description = "USD per 1M non-cache input tokens for the glm-5.2 endpoint.";
+          };
+          output = lib.mkOption {
+            type = lib.types.float;
+            default = 4.40;
+            description = "USD per 1M output tokens.";
+          };
+          cacheRead = lib.mkOption {
+            type = lib.types.float;
+            default = 0.26;
+            description = "USD per 1M cache-read input tokens.";
+          };
+          cacheCreate = lib.mkOption {
+            type = lib.types.float;
+            # GLM reports 0 cache_creation today; priced at input by convention.
+            default = 1.40;
+            description = "USD per 1M cache-creation input tokens.";
+          };
+        };
+      };
+      default = { };
+      description = ''
+        Per-1M-token USD prices for the glm-5.2 (raytone) endpoint, consumed by
+        the `glm-usage` tracker and its statusline week/month cost. Override
+        per-host if your plan's rates differ.
+      '';
+    };
+
+    glmBillingDay = lib.mkOption {
+      type = lib.types.ints.between 1 31;
+      default = 5;
+      description = ''
+        Day of month the glm-5.2 billing cycle resets. The statusline's "mo"
+        window runs from this day to the day before next month's same day
+        (default the 5th).
+      '';
+    };
+
     plugins = {
       default = lib.mkOption {
         type = pluginType;
@@ -929,8 +1014,9 @@ in
       home.file.".config/gap-claude/CLAUDE.md".text = nixManagedNote;
     })
     (lib.mkIf cfg.enableGlm {
+      home.packages = [ glmUsage ];
       home.file.".config/glm-claude/settings.json".text = builtins.toJSON (
-        withOverrides (mkSettings "work" workSettings)
+        withOverrides (mkSettings "work" glmSettings)
       );
       home.file.".config/glm-claude/CLAUDE.md".text = nixManagedNote;
     })

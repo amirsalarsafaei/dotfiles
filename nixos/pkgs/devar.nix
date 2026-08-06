@@ -1,23 +1,20 @@
 {
   lib,
   buildGoModule,
-  git,
-  runCommandLocal,
   devarSrc,
 }:
 let
   # devarSrc is a `path:` flake input, so it carries no git metadata
   # (.shortRev is unset) — but the copied source still has its .git dir
-  # intact, so we can read the commit it was locked at directly. `git -C`
-  # refuses to touch a repo it doesn't own (store paths are root-owned),
-  # hence `safe.directory=*`.
-  devarCommit = lib.removeSuffix "\n" (
-    builtins.readFile (
-      runCommandLocal "devar-commit" { } ''
-        ${git}/bin/git -c safe.directory='*' -C ${devarSrc} rev-parse --short=8 HEAD > $out
-      ''
-    )
-  );
+  # intact, so we read the commit at *eval* time via lib.commitIdFromGitRepo.
+  # This must not be a runCommand derivation: nix-update probes the package
+  # with `nix-instantiate --eval --strict`, which forces meta.changelog ->
+  # version -> devarCommit. A runCommandLocal here is an unbuilt derivation
+  # under plain --eval, so it fails with "path ... is not valid" — which is
+  # why nix-update used to require a `nix build .#devar` first, just to
+  # populate that one store path. Reading .git directly has no derivation, so
+  # nothing needs pre-building and nix-update works standalone.
+  devarCommit = lib.substring 0 8 (lib.commitIdFromGitRepo "${devarSrc}/.git");
   devarVersion = "dev-${devarCommit}";
 in
 buildGoModule {
@@ -31,7 +28,7 @@ buildGoModule {
   # literal string (not the `lib.fakeHash` symbol): nix-update patches the
   # file by searching for the literal old hash text, so a symbolic reference
   # can never be found and silently never gets replaced.
-  vendorHash = "sha256-eGdIEYD5+GTOpSGi8nEOJrM3EnpGc8/6804iQDU5AWE=";
+  vendorHash = "sha256-S1CrXTgt6k+UVZRRiFRk0i50o+U38iGF0dqpQaAfYKA=";
   subPackages = [ "." ];
   tags = [ "usage_monitor" ];
   # Stamps buildinfo.Version so `devar version` reports the exact commit this
