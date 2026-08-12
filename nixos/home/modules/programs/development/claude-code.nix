@@ -683,6 +683,32 @@ let
     ];
   };
 
+  # Registers JuliusBrussee/caveman (https://github.com/juliusbrussee/caveman) —
+  # an output-compression skill/plugin that instructs the model to "talk like
+  # caveman" (fragments, minimal filler) to cut reply tokens while preserving
+  # code/commands/errors verbatim — as a known marketplace + enabled plugin,
+  # non-interactively. Same trick as devarMarketplace/devarPlugin above, just
+  # with a github source instead of a local directory: the repo's own
+  # .claude-plugin/marketplace.json declares marketplace "caveman" with a
+  # single plugin also named "caveman", so the entry below is the declarative
+  # equivalent of `claude plugin marketplace add JuliusBrussee/caveman &&
+  # claude plugin install caveman@caveman` (what upstream's installer runs)
+  # without needing to run their npm installer or mutate settings.json
+  # ourselves. Gated on cfg.enableCaveman since it's opt-in experimentation,
+  # not something every normal-claude launch should carry.
+  cavemanMarketplace = lib.optionalAttrs cfg.enableCaveman {
+    caveman = {
+      source = {
+        source = "github";
+        repo = "JuliusBrussee/caveman";
+      };
+    };
+  };
+
+  cavemanPlugin = lib.optionalAttrs cfg.enableCaveman {
+    "caveman@caveman" = true;
+  };
+
   workSettings = {
     permissions = {
       allow = [
@@ -747,8 +773,8 @@ let
     # devar wiring is shared with workSettings: gated on cfg.enableDevar, which
     # modules/work.nix only sets true on the work laptop (the host with the
     # ~/divar/devar checkout). On any other host these are all empty attrsets.
-    extraKnownMarketplaces = devarMarketplace;
-    enabledPlugins = devarPlugin;
+    extraKnownMarketplaces = devarMarketplace // cavemanMarketplace;
+    enabledPlugins = devarPlugin // cavemanPlugin;
     permissions = devarPermissions;
     # Belt-and-suspenders IP guard: the wrapper prehook blocks initial launch,
     # SessionStart re-checks on /resume of an already-running claude, and
@@ -865,6 +891,14 @@ in
       Set by modules/work.nix (isWork) so it lands only on the work laptop —
       the host that has the ~/divar/devar checkout. Other claude-work hosts
       (e.g. g14) get the variant without devar
+    '';
+    enableCaveman = lib.mkEnableOption ''
+      the caveman plugin (JuliusBrussee/caveman, github.com/juliusbrussee/caveman)
+      in the normal-claude variant: a "talk like caveman" output-compression
+      skill that trims reply tokens (fragments, minimal filler) while keeping
+      code/commands/errors byte-for-byte. Registered as a github plugin
+      marketplace non-interactively, same mechanism as enableDevar; try it via
+      the /caveman, /caveman-stats and /caveman-compress slash commands it adds
     '';
 
     glmPrices = lib.mkOption {

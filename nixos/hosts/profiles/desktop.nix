@@ -120,7 +120,8 @@ in
       ];
       mqtt = {
         host = "mq.amirpi.top";
-        port = 1883;
+        # NodePort fixed in home-apps/mosquitto/values.yaml (service.mqttNodePort).
+        port = 31883;
       };
       envVars = {
         DOCKER_REGISTRY = "docker.amirpi.top";

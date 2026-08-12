@@ -3,6 +3,11 @@
   luaPackages,
   ...
 }:
+let
+  vitejs = pkgs.vitejs.override {
+    fetchPnpmDeps = args: pkgs.fetchPnpmDeps (args // { pnpm = pkgs.pnpm_10; });
+  };
+in
 [
   pkgs.go
   pkgs.rustc
@@ -29,7 +34,7 @@
   pkgs.codex
   pkgs.opencode
   pkgs.pnpm
-  pkgs.vitejs
+  vitejs
   pkgs.lazygit
   pkgs.step-cli
   pkgs.bun

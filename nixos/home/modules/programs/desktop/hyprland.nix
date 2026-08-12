@@ -1,10 +1,11 @@
-{ pkgs
-, lib
-, osConfig
-, config
-, themeLib
-, inputs
-, ...
+{
+  pkgs,
+  lib,
+  osConfig,
+  config,
+  themeLib,
+  inputs,
+  ...
 }:
 let
   monitorConfig = osConfig.hyprland.monitorConfig or ",preferred,auto,auto";
@@ -208,11 +209,6 @@ in
           disable_splash_rendering = true
       }
 
-      # Disable Hyprland's rolling debug log. It lives in $XDG_RUNTIME_DIR
-      # (a small tmpfs), is unbounded, and a renderer error storm — e.g. the
-      # Asahi/aquamarine "no matching devices found" loop on the mac host —
-      # can grow it to gigabytes and fill the tmpfs. A full runtime dir makes
-      # any wl_shm client (rofi, etc.) SIGBUS when it writes its sparse buffer.
       debug {
           disable_logs = true
       }

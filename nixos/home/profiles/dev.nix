@@ -20,6 +20,7 @@
     neovim.enable = true;
     claudeCode.enable = true;
     claudeCode.enableNormal = true;
+    claudeCode.enableCaveman = true;
 
     agentSkills = {
       enable = true;

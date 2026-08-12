@@ -6,6 +6,41 @@
 }:
 
 let
+  goHassAgent = pkgs.go-hass-agent;
+
+  # Registration (HA server URL + long-lived token) is one-time and persisted
+  # to ~/.config/go-hass-agent/preferences.toml ([agent] registered = true),
+  # so it's only run when that flag is missing. MQTT settings are re-applied
+  # on every start so drift from the sops secret / homeNetwork config self-heals.
+  goHassAgentStart = pkgs.writeShellScript "go-hass-agent-start" ''
+    set -eu
+
+    config_dir="''${XDG_CONFIG_HOME:-$HOME/.config}/go-hass-agent"
+    prefs_file="$config_dir/preferences.toml"
+
+    set -a
+    . ${lib.escapeShellArg config.sops.secrets.mqtt-credentials.path}
+    set +a
+
+    if [ ! -f "$prefs_file" ] || ! ${pkgs.gnugrep}/bin/grep -qx 'registered = true' "$prefs_file"; then
+      ${goHassAgent}/bin/go-hass-agent register --server="$HA_SERVER" --token="$HA_TOKEN"
+    fi
+
+    ${goHassAgent}/bin/go-hass-agent config \
+      --mqtt-enabled \
+      --mqtt-server="tcp://${config.custom.homeNetwork.mqtt.host}:${toString config.custom.homeNetwork.mqtt.port}" \
+      --mqtt-user="''${MQTT_USER:-}" \
+      --mqtt-password="''${MQTT_PASS:-}" \
+      --mqtt-topic-prefix="go-hass-agent"
+
+    exec ${goHassAgent}/bin/go-hass-agent run
+  '';
+
+  rogControlCenterStart = pkgs.writeShellScript "rog-control-center-start" ''
+    ${lib.getExe' pkgs.glib "gdbus"} wait --session --timeout 30 org.kde.StatusNotifierWatcher
+    exec ${pkgs.asusctl}/bin/rog-control-center
+  '';
+
   nvidia = {
     modesetting.enable = true;
     powerManagement.enable = true;
@@ -91,18 +126,69 @@ in
   };
 
   sops.secrets.mqtt-credentials = {
+    owner = "amirsalar";
     # Add to secrets/secrets.yaml via `sops secrets/secrets.yaml`:
     #   mqtt-credentials: |
     #     MQTT_USER=mqtt
     #     MQTT_PASS=<password>
+    #     HA_SERVER=http://homeassistant.local:8123
+    #     HA_TOKEN=<long-lived access token>
     mode = "0400";
   };
 
-  home-manager.users.amirsalar.custom.claudeCode.enableWork = true;
-  # Local model bridge (`local-claude` -> LiteLLM -> llama-swap).
-  # The server side lives in ./local-llm.nix.
-  home-manager.users.amirsalar.custom.claudeCode.enableLocal = true;
-  home-manager.users.amirsalar.custom.opencode.enableLocal = true;
+  home-manager.users.amirsalar = {
+    custom = {
+      claudeCode = {
+        enableWork = true;
+        # Local model bridge (`local-claude` -> LiteLLM -> llama-swap).
+        # The server side lives in ./local-llm.nix.
+        enableLocal = true;
+      };
+      opencode.enableLocal = true;
+    };
+
+    home.packages = [ goHassAgent ];
+
+    systemd.user.services = {
+      go-hass-agent = {
+        Unit = {
+          Description = "Go Hass Agent";
+          PartOf = [ "graphical-session.target" ];
+          After = [
+            "network-online.target"
+            "graphical-session.target"
+          ];
+        };
+        Service = {
+          ExecStart = "${goHassAgentStart}";
+          Restart = "always";
+          RestartSec = 5;
+        };
+        Install.WantedBy = [ "graphical-session.target" ];
+      };
+
+      # Auto-launch ROG Control Center (tray companion to asusd). Bound to
+      # graphical-session.target (started by uwsm) rather than a hyprland target,
+      # since Hyprland runs with systemd.enable off — same approach as clipse.
+      rog-control-center = {
+        Unit = {
+          Description = "ROG Control Center";
+          PartOf = [ "graphical-session.target" ];
+          Wants = [ "waybar.service" ];
+          After = [
+            "graphical-session.target"
+            "waybar.service"
+          ];
+        };
+        Service = {
+          ExecStart = "${rogControlCenterStart}";
+          Restart = "on-failure";
+          RestartSec = 2;
+        };
+        Install.WantedBy = [ "graphical-session.target" ];
+      };
+    };
+  };
 
   # ASUS/ROG
   services.asusd = {
@@ -110,23 +196,6 @@ in
   };
   services.supergfxd.enable = true;
   systemd.services.supergfxd.path = [ pkgs.pciutils ];
-
-  # Auto-launch ROG Control Center (tray companion to asusd). Bound to
-  # graphical-session.target (started by uwsm) rather than a hyprland target,
-  # since Hyprland runs with systemd.enable off — same approach as clipse.
-  home-manager.users.amirsalar.systemd.user.services.rog-control-center = {
-    Unit = {
-      Description = "ROG Control Center";
-      PartOf = [ "graphical-session.target" ];
-      After = [ "graphical-session.target" ];
-    };
-    Service = {
-      ExecStart = "${pkgs.asusctl}/bin/rog-control-center";
-      Restart = "on-failure";
-      RestartSec = 2;
-    };
-    Install.WantedBy = [ "graphical-session.target" ];
-  };
 
   # Boot
   boot = {
