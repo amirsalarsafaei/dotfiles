@@ -95,8 +95,8 @@ let
     {
       echo "AT_HOME=$( [ "$is_home" = 1 ] && echo 1 || echo 0 )"
       echo "AT_HOME_STATE=$state"
-      echo "AT_HOME_SSID=''${connected_ssid:-}"
-      echo "AT_HOME_IFACE=''${iface:-}"
+      printf 'AT_HOME_SSID=%q\n' "''${connected_ssid:-}"
+      printf 'AT_HOME_IFACE=%q\n' "''${iface:-}"
       # AT_HOME_VARS lists the additional env names this file may export, so
       # consumers can unset them on transition away. Always emit the list
       # (even when away) so the shell hook knows what to clear.

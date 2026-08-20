@@ -122,6 +122,23 @@
         "type": "github"
       }
     },
+    "avosh-bot": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1787231691,
+        "narHash": "sha256-sqlv2A/cvfdD6ha14c/sJNfX/O4DEMdCTQUbc4OnzYc=",
+        "path": "/home/amirsalar/personal/avosh-bot",
+        "type": "path"
+      },
+      "original": {
+        "path": "/home/amirsalar/personal/avosh-bot",
+        "type": "path"
+      }
+    },
     "base16": {
       "inputs": {
         "fromYaml": "fromYaml"
@@ -1133,6 +1150,7 @@
         "amirsalarsafaei-com": "amirsalarsafaei-com",
         "apple-silicon-support": "apple-silicon-support",
         "argonaut": "argonaut",
+        "avosh-bot": "avosh-bot",
         "claude-code": "claude-code",
         "commas-claude": "commas-claude",
         "devar": "devar",

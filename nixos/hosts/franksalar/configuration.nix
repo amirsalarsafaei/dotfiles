@@ -9,6 +9,7 @@
     ./disko-config.nix
     ../../private/hosts/franksalar
     inputs.amirsalarsafaei-com.nixosModules.default
+    inputs.avosh-bot.nixosModules.default
   ];
 
   home-manager.users.amirsalar = {
@@ -46,6 +47,47 @@
       enable = true;
       port = 22;
     };
+  };
+
+  # Avosh diet bot: Django admin + Mini App (gunicorn on 127.0.0.1:8010) and
+  # a Telegram bot process (long polling). nginx reverse proxy + ACME cert
+  # live in the private franksalar module, same split as amirsalarsafaei-com
+  # above. The app tree is deployed to /etc/avosh-bot out of band (git
+  # pull/rsync). franksalar doesn't run sops-nix (useSops = false, see
+  # flake.nix), so secrets flow the same way amirsalarsafaeiCom's do above:
+  # baked at eval time from the git-crypt-encrypted secrets.json.
+  services.avosh-bot.enable = true;
+
+  systemd.services.avosh-bot-env = {
+    description = "avosh-bot: install .env from secrets.json";
+    before = [ "avosh-bot-migrate.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart =
+        let
+          envFile = pkgs.writeText "avosh-bot.env" ''
+            TELEGRAM_BOT_TOKEN=${secrets.avoshBot.telegramBotToken}
+            DJANGO_SECRET_KEY=${secrets.avoshBot.djangoSecretKey}
+            DJANGO_DEBUG=False
+            PLAN_DAYS=7
+            AI_API_KEY=${secrets.avoshBot.aiApiKey}
+            AI_BASE_URL=https://api.gapgpt.app/v1
+            AI_MODEL=gpt-5.5
+            AI_TEMPERATURE=0.2
+            AI_INTAKE_ENABLED=True
+            AI_INTAKE_PUBLIC=False
+            DEVELOPER_TELEGRAM_IDS=176161958
+            MINIAPP_URL=https://diet.amirsalarsafaei.com
+          '';
+        in
+        "${pkgs.coreutils}/bin/install -m 0400 -o avosh-bot -g avosh-bot ${envFile} /etc/avosh-bot/.env";
+    };
+  };
+
+  systemd.services.avosh-bot-migrate = {
+    requires = [ "avosh-bot-env.service" ];
+    after = [ "avosh-bot-env.service" ];
   };
 
   # The website's SSH front-end owns port 22, so move the real OpenSSH daemon

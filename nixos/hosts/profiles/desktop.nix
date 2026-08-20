@@ -227,7 +227,7 @@ in
         dns = "systemd-resolved";
         settings = {
           logging = {
-            level = "TRACE";
+            level = "INFO";
             domains = "ALL";
           };
         };
@@ -238,9 +238,10 @@ in
         settings = {
           General = {
             EnableNetworkConfiguration = false;
+            AddressRandomization = "disabled";
           };
           Network = {
-            ConnectTimeout = 60;
+            ConnectTimeout = 120;
           };
           Settings = {
             AutoConnect = true;
@@ -357,7 +358,8 @@ in
       enable = true;
       withUWSM = true;
       package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
-      portalPackage = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
+      portalPackage =
+        inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
     };
 
     programs.zsh = {

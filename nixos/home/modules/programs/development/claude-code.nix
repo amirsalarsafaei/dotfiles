@@ -23,19 +23,55 @@ let
   # clobber the link on next switch. The env var is honored at startup and never
   # touches disk, so it always wins and survives rebuilds.
   # Fail-closed geo guard for the normal-claude variant. Direct Anthropic
-  # traffic from an Iranian/Tehran IP risks an account ban under US sanctions,
-  # so refuse to launch until the outbound IP is verified as non-Iranian. Any
-  # lookup failure (offline, DNS blocked, ipinfo down, empty JSON) counts as
-  # unverified and blocks the launch by design.
+  # traffic from an Iranian IP risks an account ban under US sanctions, so
+  # refuse to launch until the outbound IP is verified as non-Iranian. It tries
+  # independent providers in order and blocks only if none returns a valid
+  # country code.
   ipGuardText = ''
-    ip_info=$(curl -sSf --max-time 5 https://ipinfo.io/json) || {
-      printf 'claude: IP lookup failed; refusing to launch (fail-closed Iran guard)\n' >&2
+    country=""
+
+    ip_info=$(curl -sfL --connect-timeout 3 --max-time 10 \
+      https://api.country.is/ 2>/dev/null) || ip_info=""
+    if [ -n "$ip_info" ]; then
+      country=$(printf '%s' "$ip_info" | jq -er \
+        '.country | strings | ascii_upcase | select(test("^[A-Z]{2}$"))' \
+        2>/dev/null) || country=""
+    fi
+
+    if [ -z "$country" ]; then
+      ip_info=$(curl -sfL --connect-timeout 3 --max-time 10 \
+        https://www.cloudflare.com/cdn-cgi/trace 2>/dev/null) || ip_info=""
+      if [ -n "$ip_info" ]; then
+        while IFS='=' read -r key value; do
+          if [ "$key" = "loc" ]; then
+            country="''${value^^}"
+            break
+          fi
+        done <<<"$ip_info"
+        case "$country" in
+          [A-Z][A-Z]) ;;
+          *) country="" ;;
+        esac
+      fi
+    fi
+
+    if [ -z "$country" ]; then
+      ip_info=$(curl -sfL --connect-timeout 3 --max-time 10 \
+        https://ipwho.is/ 2>/dev/null) || ip_info=""
+      if [ -n "$ip_info" ]; then
+        country=$(printf '%s' "$ip_info" | jq -er \
+          'select(.success == true) | .country_code | strings | ascii_upcase | select(test("^[A-Z]{2}$"))' \
+          2>/dev/null) || country=""
+      fi
+    fi
+
+    if [ -z "$country" ]; then
+      printf 'claude: country lookup failed across all providers; refusing to launch (fail-closed Iran guard)\n' >&2
       exit 2
-    }
-    country=$(printf '%s' "$ip_info" | jq -r '.country // ""')
-    city=$(printf '%s' "$ip_info" | jq -r '.city // ""')
-    if [ "$country" = "IR" ] || [ "$city" = "Tehran" ]; then
-      printf 'claude: refusing to launch — IP looks Iranian (country=%s city=%s)\n' "$country" "$city" >&2
+    fi
+
+    if [ "$country" = "IR" ]; then
+      printf 'claude: refusing to launch — IP looks Iranian (country=%s)\n' "$country" >&2
       exit 2
     fi
   '';
@@ -768,7 +804,7 @@ let
     # UserPromptSubmit re-checks every message so a mid-session VPN drop is
     # caught before the next request hits Anthropic. Hook exit 2 hard-blocks
     # the prompt (UserPromptSubmit contract) and surfaces the stderr banner.
-    # Timeout is generous (10s) but curl's own --max-time 5 caps most calls.
+    # Timeout covers up to three sequential provider checks.
     hooks = {
       SessionStart = [
         {
@@ -776,7 +812,7 @@ let
             {
               type = "command";
               command = "${claudeIpGuard}/bin/claude-ip-guard";
-              timeout = 10;
+              timeout = 33;
             }
           ];
         }
@@ -787,7 +823,7 @@ let
             {
               type = "command";
               command = "${claudeIpGuard}/bin/claude-ip-guard";
-              timeout = 10;
+              timeout = 33;
             }
           ];
         }
@@ -868,9 +904,9 @@ in
     enableLocal = lib.mkEnableOption "Install the local-claude variant (LiteLLM -> local llama-swap model)";
     enableNormal = lib.mkEnableOption ''
       the normal-claude variant: vanilla Anthropic-direct claude wrapped with
-      a fail-closed Iran/Tehran IP guard (ipinfo.io lookup before exec). Any
-      lookup failure blocks the launch — this is deliberate, since connecting
-      to Anthropic from a sanctioned region risks the account
+      a fail-closed Iran IP guard with multiple country lookup providers. A
+      failure across all providers blocks the launch — this is deliberate,
+      since connecting to Anthropic from a sanctioned region risks the account
     '';
     enableDevar = lib.mkEnableOption ''
       the Divar `devar` plugin in the work variant: the directory-sourced

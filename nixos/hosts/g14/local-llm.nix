@@ -42,6 +42,7 @@ let
   modelDir = "/var/lib/llama-models";
   defaultModel = "Qwen3.6-35B-A3B-APEX-I-Compact.gguf";
   qwen27bDownload = "/home/amirsalar/Downloads/Qwen3.6-27B-UD-Q4_K_XL.gguf";
+  qwen38Q5Download = "/home/amirsalar/Downloads/Qwen3.8-27B-Q5_K_M.gguf";
   currentModelPath = "${modelDir}/current.gguf";
   currentModelEnv = "${modelDir}/current.env";
 
@@ -64,6 +65,19 @@ let
     {
       pattern = "Qwen3.6-27B-*";
       gpuLayers = 44;
+      nCpuMoe = 0;
+      threads = 12;
+      ubatch = 512;
+      ctx_size = 65536;
+    }
+    # Dense 27B, 64 layers total. Live-probed full production shape (ctx
+    # 65536, parallel=2, q8/q8 KV, --kv-unified) on the 16 GB 5080 Mobile:
+    # ngl=48 is the hard OOM ceiling (141 MiB free — too thin for real load
+    # spikes), ngl=50 OOMs outright. ngl=46 chosen for headroom (727 MiB
+    # free) while still offloading 46/64 layers to GPU.
+    {
+      pattern = "Qwen3.8-27B-Q5_K_M*";
+      gpuLayers = 46;
       nCpuMoe = 0;
       threads = 12;
       ubatch = 512;
@@ -103,6 +117,9 @@ let
     "27b" = "Qwen3.6-27B-UD-Q4_K_XL.gguf";
     qwen27b = "Qwen3.6-27B-UD-Q4_K_XL.gguf";
     "qwen3.6-27b" = "Qwen3.6-27B-UD-Q4_K_XL.gguf";
+    "qwen3.8" = "Qwen3.8-27B-Q5_K_M.gguf";
+    "qwen3.8-27b" = "Qwen3.8-27B-Q5_K_M.gguf";
+    "qwen3.8-q5" = "Qwen3.8-27B-Q5_K_M.gguf";
     laguna = "Laguna-XS-2.1-Q4_K_M.gguf";
     laguna-xs = "Laguna-XS-2.1-Q4_K_M.gguf";
   };
@@ -112,6 +129,9 @@ let
     qwen27b = qwen27bDownload;
     "qwen3.6-27b" = qwen27bDownload;
     qwen27b-download = qwen27bDownload;
+    "qwen3.8" = qwen38Q5Download;
+    "qwen3.8-27b" = qwen38Q5Download;
+    "qwen3.8-q5" = qwen38Q5Download;
   };
 
   # ---------------------------------------------------------------------
@@ -443,11 +463,13 @@ let
         ngl_args+=(-ngl "$gpu_layers")
       fi
 
+      # llama-bench (this pinned build): -fa takes on|off|auto, not 0|1; and
+      # -c/--ctx-size was dropped upstream (ctx is a server-only knob now).
       exec llama-bench \
         -m "${currentModelPath}" \
         "''${ngl_args[@]}" \
         "''${moe_args[@]}" \
-        -fa 1 \
+        -fa on \
         -ctk "$(read_env LLM_CACHE_TYPE_K ${defaultProfile.cacheTypeK})" \
         -ctv "$(read_env LLM_CACHE_TYPE_V ${defaultProfile.cacheTypeV})" \
         -t "$(read_env LLM_THREADS ${toString defaultProfile.threads})" \
@@ -573,9 +595,8 @@ let
           -m "$model_path" \
           "''${ngl_args[@]}" \
           "''${moe_args[@]}" \
-          -fa 1 \
+          -fa on \
           -ctk "$candidate_ctk" -ctv "$candidate_ctv" \
-          -c "$candidate_ctx" \
           -t "$candidate_threads" \
           -b "$batch" \
           -ub "$candidate_ubatch" \
@@ -728,10 +749,23 @@ in
 
       general_settings = {
         master_key = localProxyKey;
-        database_url = null;
+        # Reuses the host's existing services.postgresql (hosts/profiles/desktop.nix),
+        # which has trust auth on 127.0.0.1/::1 — no password needed. Required
+        # for the admin UI (/ui) to log in; without a DB it 500s on auth.
+        database_url = "postgresql://litellm@127.0.0.1:5432/litellm";
         store_model_in_db = false;
       };
     };
+  };
+
+  services.postgresql = {
+    ensureDatabases = [ "litellm" ];
+    ensureUsers = [
+      {
+        name = "litellm";
+        ensureDBOwnership = true;
+      }
+    ];
   };
 
   # Systemd unit hardening
@@ -758,7 +792,13 @@ in
   };
 
   systemd.services.litellm = {
-    after = [ "llama-swap.service" ];
-    wants = [ "llama-swap.service" ];
+    after = [
+      "llama-swap.service"
+      "postgresql.service"
+    ];
+    wants = [
+      "llama-swap.service"
+      "postgresql.service"
+    ];
   };
 }

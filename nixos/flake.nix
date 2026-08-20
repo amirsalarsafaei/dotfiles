@@ -138,6 +138,16 @@
       flake = false;
     };
 
+    # Avosh diet bot: Django app (admin + Mini App) and a Telegram bot (long
+    # polling), exposed as `nixosModules.default`. No public remote yet, so
+    # this is a local `path:` input — same rationale as `devar` above: local
+    # edits flow straight through, no commit/push/re-lock cycle. Run
+    # `nix flake update avosh-bot` to pick up on-disk changes for a build.
+    avosh-bot = {
+      url = "path:/home/amirsalar/personal/avosh-bot";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # system-bridge = {
     #   url = "path:/home/amirsalar/personal/system-bridge";
     #   inputs.nixpkgs.follows = "nixpkgs";

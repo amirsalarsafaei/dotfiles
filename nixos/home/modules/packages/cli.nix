@@ -39,4 +39,5 @@
   pkgs.jless # pager/TUI for exploring large JSON
   pkgs.sd # sed replacement for simple find/replace (sd 'foo' 'bar')
   pkgs.doggo # dig replacement: friendly DNS lookups
+  pkgs.file # file type detection
 ]
