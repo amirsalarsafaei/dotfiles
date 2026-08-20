@@ -13,6 +13,7 @@ in
   imports = [
     ./theme.nix
     ./keymaps.nix
+    ./navigation.nix
     ./autocmds.nix
     ./lsp.nix
     ./completion.nix

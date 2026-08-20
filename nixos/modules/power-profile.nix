@@ -46,7 +46,12 @@ in
       services.open-webui.enable = lib.mkForce false;
     })
 
-    (lib.mkIf (isLowPower && config.isLaptop) {
+    (lib.mkIf config.isLaptop {
+      # TLP's AC/battery split already does the right thing regardless of
+      # powerProfile: performance governor on AC, powersave on battery. Used
+      # to be gated to low-power only, which left "normal" laptops managed by
+      # power-profiles-daemon's "balanced" EPP — clocks stuck low (~1.5GHz)
+      # under load even on AC power.
       services.power-profiles-daemon.enable = lib.mkForce false;
       services.tlp = {
         enable = true;

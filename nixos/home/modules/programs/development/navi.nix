@@ -29,7 +29,7 @@ let
       coreutils
       gnused
     ];
-    # claude-work and gapcode are deliberately NOT runtimeInputs: they live
+    # work-claude and gapcode are deliberately NOT runtimeInputs: they live
     # outside this module (Nix profile / ~/.local/bin) and are resolved from the
     # caller's PATH at runtime, so the same script works on a host that has only
     # one backend or both.

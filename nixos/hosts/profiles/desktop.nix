@@ -98,7 +98,7 @@ in
     isWork = lib.mkOption {
       type = lib.types.bool;
       default = false;
-      description = "Enable work-specific configuration (claude-work variant, private skills, etc.)";
+      description = "Enable work-specific configuration (work-claude variant, private skills, etc.)";
     };
   };
 
@@ -351,6 +351,8 @@ in
       NIXOS_OZONE_WL = "1";
     };
 
+    environment.variables.EDITOR = lib.mkForce "nvim";
+
     programs.hyprland = {
       enable = true;
       withUWSM = true;
@@ -461,7 +463,22 @@ in
     virtualisation.docker = {
       enable = true;
       daemon.settings = {
-        bip = "172.26.0.1/16";
+        # 172.16.0.0/12 and 10.0.0.0/8 are Divar's corporate/VPN space (e.g.
+        # git.divar.cloud / rasad.divar.cloud live in 172.21.0.0/16) and
+        # 100.64.0.0/10 is Tailscale's CGNAT range — Docker's default pool
+        # algorithm walks 172.17.0.0/16..172.31.0.0/16 and previously handed a
+        # compose project 172.21.0.0/16, which shadowed routes to those hosts
+        # until the bridge was deleted by hand. 192.168.0.0/24, .10.0/24 and
+        # .20.0/24 are the home LAN, so bip and the compose pool use
+        # 192.168.143.0/24 and 192.168.144.0/20 instead — clear of the home
+        # network, Divar's corporate/VPN space, and Tailscale's CGNAT range.
+        bip = "192.168.143.1/24";
+        default-address-pools = [
+          {
+            base = "192.168.144.0/20";
+            size = 24;
+          }
+        ];
       };
     };
 

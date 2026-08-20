@@ -30,7 +30,16 @@ buildGoModule {
   # can never be found and silently never gets replaced.
   vendorHash = "sha256-S1CrXTgt6k+UVZRRiFRk0i50o+U38iGF0dqpQaAfYKA=";
   subPackages = [ "." ];
-  tags = [ "usage_monitor" ];
+  # Build tags. usage_monitor enables local MCP/skill usage recording. The
+  # devar_submit / devar_proxy tags enable the submit-post and proxy/browser
+  # MCP labs, which are compiled out of a plain `go build` (see
+  # internal/mcpserver/*_disabled.go in the devar repo) so the default binary
+  # stays lean — the work build turns them back on here.
+  tags = [
+    "usage_monitor"
+    "devar_submit"
+    "devar_proxy"
+  ];
   # Stamps buildinfo.Version so `devar version` reports the exact commit this
   # build came from. Stays non-semver on purpose — IsRelease() (and thus
   # self-update) only ever fires for real "vX.Y.Z" CI releases, never for

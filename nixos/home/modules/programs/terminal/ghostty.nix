@@ -1,4 +1,9 @@
-{ pkgs, lib, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  ...
+}:
 let
   # Shaders shipped in this repo. Add a file under ./shaders/ and a line here.
   localShaders = {
@@ -102,7 +107,7 @@ in
       clipboard-read = "allow";
       clipboard-write = "allow";
 
-      command = "tmux new-session";
+      command = "zj-attach";
 
       window-decoration = false;
       window-padding-x = 8;
@@ -123,14 +128,9 @@ in
       config-file = "?shaders.conf";
       confirm-close-surface = false;
 
-      keybind = [
-        "ctrl+shift+equal=increase_font_size:1"
-        "ctrl+shift+minus=decrease_font_size:1"
-        "ctrl+equal=reset_font_size"
-        "ctrl+shift+c=copy_to_clipboard"
-        "ctrl+shift+v=paste_from_clipboard"
-        "ctrl+shift+r=reload_config"
-      ];
+      # Declared in home/modules/keys/registry.nix, so `keys ghostty` lists
+      # them alongside every other shortcut on the machine.
+      keybind = config.custom.keys.rendered.ghostty;
     };
   };
 }

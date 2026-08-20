@@ -3,7 +3,7 @@
 #
 # This is the BODY of a pkgs.writeShellApplication: the wrapper prepends the
 # shebang, `set -euo pipefail`, and a PATH containing runtimeInputs (fzf, awk,
-# coreutils) ahead of the inherited PATH — so the AI backends (claude-work,
+# coreutils) ahead of the inherited PATH — so the AI backends (work-claude,
 # glm-claude, local-claude, gapcode), which are installed elsewhere, are still
 # resolved from the caller's PATH at runtime.
 
@@ -22,9 +22,9 @@ OPTIONS:
   -h, --help                 Show this help
 
 ENVIRONMENT:
-  NAVI_ASK_ENGINE   Default engine: "claude" (claude-work), "gap" (gapcode),
+  NAVI_ASK_ENGINE   Default engine: "claude" (work-claude), "gap" (gapcode),
                     "glm" (glm-claude), or "local" (local-claude). When unset,
-                    auto-detects among the fast cloud backends (claude-work,
+                    auto-detects among the fast cloud backends (work-claude,
                     glm-claude, gapcode); "local" is opt-in only (slow local model).
   NAVI_USER_CHEATS  Writable cheats dir
                     (default: ${XDG_DATA_HOME:-~/.local/share}/navi/cheats)
@@ -105,24 +105,24 @@ case "$file" in
 esac
 
 # Resolve the engine to a concrete, present binary. Honour an explicit choice;
-# otherwise auto-detect among the fast cloud backends (claude-work, then
+# otherwise auto-detect among the fast cloud backends (work-claude, then
 # glm-claude, then gapcode) so the same command works on machines that only have
 # one of them. local-claude is deliberately excluded from auto-detect — the
 # local model is far slower, so it is opt-in only (-e local / NAVI_ASK_ENGINE=local).
 case "$engine" in
-  claude) have claude-work || die "engine 'claude' selected but 'claude-work' is not on PATH" ;;
+  claude) have work-claude || die "engine 'claude' selected but 'work-claude' is not on PATH" ;;
   gap) have gapcode || die "engine 'gap' selected but 'gapcode' is not on PATH" ;;
   glm) have glm-claude || die "engine 'glm' selected but 'glm-claude' is not on PATH" ;;
   local) have local-claude || die "engine 'local' selected but 'local-claude' is not on PATH" ;;
   '')
-    if have claude-work; then
+    if have work-claude; then
       engine=claude
     elif have glm-claude; then
       engine=glm
     elif have gapcode; then
       engine=gap
     else
-      die "no AI backend found (need 'claude-work', 'glm-claude', or 'gapcode' on PATH; use '-e local' for local-claude)"
+      die "no AI backend found (need 'work-claude', 'glm-claude', or 'gapcode' on PATH; use '-e local' for local-claude)"
     fi
     ;;
   *) die "unknown engine '$engine' (use 'claude', 'gap', 'glm', or 'local')" ;;
@@ -180,7 +180,7 @@ case "$engine" in
     # claude, glm, and local all drive a claude-code variant in print mode.
     # local-claude wraps `ccr code`, which forwards these args to claude verbatim.
     case "$engine" in
-      claude) bin=claude-work ;;
+      claude) bin=work-claude ;;
       glm)    bin=glm-claude ;;
       local)  bin=local-claude ;;
     esac

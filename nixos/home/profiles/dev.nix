@@ -38,9 +38,9 @@
           dest = "${config.home.homeDirectory}/.config/gap-claude/skills";
           structure = "symlink-tree";
         };
-        claude-work = {
+        work-claude = {
           enable = true;
-          dest = "${config.home.homeDirectory}/.config/claude-work/skills";
+          dest = "${config.home.homeDirectory}/.config/work-claude/skills";
           structure = "symlink-tree";
         };
       };

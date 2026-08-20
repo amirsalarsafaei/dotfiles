@@ -7,6 +7,10 @@
 {
   imports = [
     ../modules/power-profile.nix
+    # The keybinding registry: every app's shortcuts, plus the `keys`
+    # cheatsheet built from them. Base, not desktop, because it also covers
+    # tmux/zellij/nvim on headless hosts.
+    ../modules/keys
   ];
 
   home.homeDirectory = lib.mkDefault (

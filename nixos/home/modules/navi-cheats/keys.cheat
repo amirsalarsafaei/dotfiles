@@ -1,0 +1,22 @@
+% keys, keybindings, shortcuts, cheatsheet
+
+# Browse every keyboard shortcut this machine is configured with (fzf TUI: type to fuzzy filter)
+keys
+
+# Show one app's shortcuts as plain text
+keys --plain <keys_app>
+
+# Look up a shortcut by what it does
+keys --plain | grep -i -- <thing>
+
+# Show the shortcuts in a rofi picker (same thing Super+/ opens)
+keys --rofi
+
+# The raw rows, for scripting
+keys --json
+
+# Edit the shortcut registry (Nix-managed - every app's binds are generated from it)
+$EDITOR ~/personal/dotfiles/nixos/home/modules/keys/registry.nix
+
+$ keys_app: keys --json | jq -r ".[].app" | sort -u
+$ thing: keys --json | jq -r '.[].desc' | sort -u

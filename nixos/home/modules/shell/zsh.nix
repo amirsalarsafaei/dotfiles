@@ -147,6 +147,25 @@ in
       _athome_load
       autoload -Uz add-zsh-hook
       add-zsh-hook precmd _athome_load
+
+      # ── zellij: auto-rename the tab like tmux's automatic-rename ────────
+      # No packaged plugin does this (nixpkgs' zellijPlugins set has nothing
+      # for it, and the one third-party option, zellij-tabula, renames by
+      # cwd rather than running command, and isn't packaged anyway), so a
+      # shell hook stands in — same approach zsh-tmux-auto-title uses for
+      # tmux. Tab shows the foreground command while one runs, and the shell
+      # name again once it returns to the prompt.
+      if [[ -n "$ZELLIJ" ]]; then
+        _zellij_tab_running() {
+          local cmd="''${1%% *}"
+          zellij action rename-tab "''${cmd:t}" 2>/dev/null
+        }
+        _zellij_tab_idle() {
+          zellij action rename-tab "''${SHELL:t}" 2>/dev/null
+        }
+        add-zsh-hook preexec _zellij_tab_running
+        add-zsh-hook precmd _zellij_tab_idle
+      fi
     '';
   };
 

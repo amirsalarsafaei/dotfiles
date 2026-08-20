@@ -1,0 +1,45 @@
+% wine, windows, compat
+
+# Run a one-off Windows app without installing anything (throwaway prefix)
+nix run nixpkgs#wineWow64Packages.staging -- <exe_path>
+
+# Open a scratch shell with wine + winetricks, nothing persisted
+nix shell nixpkgs#wineWow64Packages.staging nixpkgs#winetricks
+
+# Create/use a dedicated prefix for one app (always isolate, never share ~/.wine)
+WINEARCH=win64 WINEPREFIX=~/.local/share/wineprefixes/<app> wine <exe_path>
+
+# Change the Windows version a prefix reports (per-app compatibility)
+WINEPREFIX=~/.local/share/wineprefixes/<app> wine winecfg -v win10
+
+# Install winetricks dependencies into a prefix (fonts, runtimes, .NET, ...)
+WINEPREFIX=~/.local/share/wineprefixes/<app> winetricks -q <verb>
+
+# List winetricks verbs already installed in a prefix
+WINEPREFIX=~/.local/share/wineprefixes/<app> winetricks list-installed
+
+# Force a winetricks verb past a "conflicts with X" check (e.g. vcrun family)
+WINEPREFIX=~/.local/share/wineprefixes/<app> winetricks --force <verb>
+
+# Run with verbose debug logging (narrow the channel, +all is very noisy)
+WINEPREFIX=~/.local/share/wineprefixes/<app> WINEDEBUG=+all wine <exe_path>
+
+# Open the wine "Explorer" file manager for a prefix
+WINEPREFIX=~/.local/share/wineprefixes/<app> wine explorer
+
+# Edit a prefix's registry
+WINEPREFIX=~/.local/share/wineprefixes/<app> wine regedit
+
+# Kill every wine process tied to a prefix (needed before some winetricks steps)
+WINEPREFIX=~/.local/share/wineprefixes/<app> wineserver -k
+
+# Use the wine-stable fallback instead of the default Wayland-native build
+WINEPREFIX=~/.local/share/wineprefixes/<app> wine-stable <exe_path>
+
+# Cisco Jabber specifically (t14 only) — see home/modules/programs/desktop/cisco-jabber.nix
+cisco-jabber-install <msi_path>
+cisco-jabber
+
+$ verb: echo -e "corefonts\ngdiplus\nmsxml3\nmsxml6\nvcrun2013\nvcrun2015\ndotnet48\nwin10"
+$ exe_path: find ~/Downloads -maxdepth 1 -iname "*.exe" -o -iname "*.msi"
+$ msi_path: find ~/Downloads -maxdepth 1 -iname "*.msi"

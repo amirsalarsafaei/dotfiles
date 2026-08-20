@@ -40,37 +40,68 @@ let
     fi
   '';
 
+  mkBoolFlagParser =
+    { flag, resultVar }:
+    ''
+      ${resultVar}=0
+      _claude_flag_rest=()
+      while [ "$#" -gt 0 ]; do
+        case "$1" in
+          ${flag})
+            ${resultVar}=1
+            shift
+            ;;
+          *)
+            _claude_flag_rest+=("$1")
+            shift
+            ;;
+        esac
+      done
+      set -- "''${_claude_flag_rest[@]}"
+      unset _claude_flag_rest
+    '';
+
+  mkValueFlagParser =
+    { flag, resultVar }:
+    ''
+      _claude_flag_rest=()
+      while [ "$#" -gt 0 ]; do
+        case "$1" in
+          ${flag}=*)
+            ${resultVar}="''${1#${flag}=}"
+            shift
+            ;;
+          ${flag})
+            if [ "$#" -lt 2 ]; then
+              printf '%s: ${flag} requires a value\n' "$0" >&2
+              exit 1
+            fi
+            ${resultVar}="$2"
+            shift 2
+            ;;
+          *)
+            _claude_flag_rest+=("$1")
+            shift
+            ;;
+        esac
+      done
+      set -- "''${_claude_flag_rest[@]}"
+      unset _claude_flag_rest
+    '';
+
   effortParserText = ''
     _claude_effort="''${CLAUDE_CODE_EFFORT_DEFAULT:-}"
-    _claude_rest=()
-    while [ "$#" -gt 0 ]; do
-      case "$1" in
-        --effort=*)
-          _claude_effort="''${1#--effort=}"
-          shift
-          ;;
-        --effort)
-          if [ "$#" -lt 2 ]; then
-            printf '%s: --effort requires a value\n' "$0" >&2
-            exit 1
-          fi
-          _claude_effort="$2"
-          shift 2
-          ;;
-        *)
-          _claude_rest+=("$1")
-          shift
-          ;;
-      esac
-    done
+    ${mkValueFlagParser {
+      flag = "--effort";
+      resultVar = "_claude_effort";
+    }}
     if [ -n "$_claude_effort" ]; then
       export CLAUDE_CODE_EFFORT_LEVEL="$_claude_effort"
     fi
-    set -- "''${_claude_rest[@]}"
-    unset _claude_effort _claude_rest
+    unset _claude_effort
   '';
 
-  workMcpConfigRel = ".config/claude-work/mcp-servers.json";
+  workMcpConfigRel = ".config/work-claude/mcp-servers.json";
   workMcpConfigPath = "${config.home.homeDirectory}/${workMcpConfigRel}";
   workMcpServerName = "agentic-development-mcps";
   workMcpServers = {
@@ -99,7 +130,7 @@ let
     "mattermost"
   ];
 
-  # `claude-work --mcp-groups=tempo,logs` restricts the agentic-development-mcps
+  # `work-claude --mcp-groups=tempo,logs` restricts the agentic-development-mcps
   # server to the named groups for that launch; the rest are hidden from the
   # model via a glob permission-deny (see workMcpGroups above), not just
   # blocked at call time. Omitting the flag keeps every group enabled
@@ -108,29 +139,10 @@ let
   # --effort flag.
   mcpGroupsParserText = ''
     _claude_mcp_groups=""
-    _claude_rest2=()
-    while [ "$#" -gt 0 ]; do
-      case "$1" in
-        --mcp-groups=*)
-          _claude_mcp_groups="''${1#--mcp-groups=}"
-          shift
-          ;;
-        --mcp-groups)
-          if [ "$#" -lt 2 ]; then
-            printf '%s: --mcp-groups requires a value\n' "$0" >&2
-            exit 1
-          fi
-          _claude_mcp_groups="$2"
-          shift 2
-          ;;
-        *)
-          _claude_rest2+=("$1")
-          shift
-          ;;
-      esac
-    done
-    set -- "''${_claude_rest2[@]}"
-    unset _claude_rest2
+    ${mkValueFlagParser {
+      flag = "--mcp-groups";
+      resultVar = "_claude_mcp_groups";
+    }}
 
     _claude_mcp_disallow=()
     if [ -n "$_claude_mcp_groups" ]; then
@@ -156,6 +168,23 @@ let
     unset _claude_mcp_groups
   '';
 
+  agenticMcpParserText = mkBoolFlagParser {
+    flag = "--agentic-mcps";
+    resultVar = "_claude_agentic_mcps";
+  };
+
+  gitlabMcpParserText = mkBoolFlagParser {
+    flag = "--gitlab-mcp";
+    resultVar = "_claude_gitlab_mcp";
+  };
+
+  gitlabMcpDenyText = ''
+    if [ "$_claude_gitlab_mcp" -eq 0 ]; then
+      _claude_mcp_disallow+=("mcp__${workMcpServerName}__gitlab_*")
+    fi
+    unset _claude_gitlab_mcp
+  '';
+
   localMcpConfigRel = ".config/local-claude/mcp-servers.json";
   localMcpConfigPath = "${config.home.homeDirectory}/${localMcpConfigRel}";
   localMcpServers = {
@@ -170,51 +199,6 @@ let
       };
     };
   };
-
-  # Burp Suite's official MCP Server extension (PortSwigger/mcp-server) runs
-  # an SSE server inside Burp itself, default http://127.0.0.1:9876 — only
-  # reachable while Burp is running with the extension loaded and its MCP tab
-  # enabled. Wired in on demand via --with-burp (burpParserText below) rather
-  # than always-on: unlike the other MCP configs above, this one only ever
-  # makes sense for the duration of an active pentest/security-testing
-  # session, and there's no reason to give every Claude session standing
-  # access to whatever Burp project happens to be open. If the extension's
-  # port is changed from the default in Burp's MCP tab, update the url here
-  # to match.
-  burpMcpConfigRel = ".config/claude-shared/burp-mcp-servers.json";
-  burpMcpConfigPath = "${config.home.homeDirectory}/${burpMcpConfigRel}";
-  burpMcpServers = {
-    mcpServers = {
-      burp = {
-        type = "sse";
-        url = "http://127.0.0.1:9876/sse";
-      };
-    };
-  };
-
-  # `claude-work --with-burp` (or normal-claude/glm-claude/gap-claude) adds
-  # the burp MCP server (burpMcpServers above) to that launch's
-  # --mcp-config for the duration of the session. Runtime-only, mirroring
-  # --effort/--mcp-groups: this is meant as a per-session toggle, not a
-  # persisted setting.
-  burpParserText = ''
-    _claude_with_burp=0
-    _claude_rest4=()
-    while [ "$#" -gt 0 ]; do
-      case "$1" in
-        --with-burp)
-          _claude_with_burp=1
-          shift
-          ;;
-        *)
-          _claude_rest4+=("$1")
-          shift
-          ;;
-      esac
-    done
-    set -- "''${_claude_rest4[@]}"
-    unset _claude_rest4
-  '';
 
   # Claude Code rewrites ~/.config/<variant>/.claude.json (its mutable runtime
   # state: projects, history, MRU lists) on nearly every action, and several
@@ -285,18 +269,15 @@ let
       export CLAUDE_CODE_EFFORT_DEFAULT="${workEffortLevel}"
       ${effortParserText}
       ${mcpGroupsParserText}
-      ${burpParserText}
+      ${gitlabMcpParserText}
+      ${gitlabMcpDenyText}
 
       ${healClaudeState}/bin/heal-claude-json || true
-      _claude_mcp_configs=(${workMcpConfigPath})
-      if [ "$_claude_with_burp" = 1 ]; then
-        _claude_mcp_configs+=(${burpMcpConfigPath})
-      fi
       if [ "''${#_claude_mcp_disallow[@]}" -gt 0 ]; then
-        exec ${pkgs.claude-code}/bin/claude --mcp-config "''${_claude_mcp_configs[@]}" \
+        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} \
           --disallowedTools "''${_claude_mcp_disallow[@]}" "$@"
       else
-        exec ${pkgs.claude-code}/bin/claude --mcp-config "''${_claude_mcp_configs[@]}" "$@"
+        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "$@"
       fi
     '';
   };
@@ -362,7 +343,7 @@ let
       fi
 
       # $TZ is exported by the variant wrapper (e.g. normal-claude -> Europe/Berlin,
-      # claude-work -> Asia/Singapore) and inherited here since Claude Code runs
+      # work-claude -> Asia/Singapore) and inherited here since Claude Code runs
       # this command as its own subprocess; `date` honors it with no extra flags.
       now=$(date +'%H:%M %Z' 2>/dev/null || true)
 
@@ -478,13 +459,16 @@ let
       export TZ="Europe/Berlin"
       export TZDIR="${pkgs.tzdata}/share/zoneinfo"
       ${effortParserText}
-      # Wire in Burp Suite's MCP server for this launch with --with-burp (see
-      # burpParserText). Only useful while Burp + the MCP extension are
-      # actually running.
-      ${burpParserText}
+      ${agenticMcpParserText}
+      ${gitlabMcpParserText}
       ${healClaudeState}/bin/heal-claude-json || true
-      if [ "$_claude_with_burp" = 1 ]; then
-        exec ${pkgs.claude-code}/bin/claude --mcp-config ${burpMcpConfigPath} "$@"
+      if [ "$_claude_agentic_mcps" -eq 1 ]; then
+        if [ "$_claude_gitlab_mcp" -eq 1 ]; then
+          exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "$@"
+        else
+          exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} \
+            --disallowedTools "mcp__${workMcpServerName}__gitlab_*" "$@"
+        fi
       else
         exec ${pkgs.claude-code}/bin/claude "$@"
       fi
@@ -499,24 +483,19 @@ let
       export ANTHROPIC_API_KEY="${secrets.gapgpt.apiKey or ""}"
       export ANTHROPIC_BASE_URL="https://api.gapgpt.app/"
       ${effortParserText}
-      ${burpParserText}
       ${healClaudeState}/bin/heal-claude-json || true
-      if [ "$_claude_with_burp" = 1 ]; then
-        exec ${pkgs.claude-code}/bin/claude --mcp-config ${burpMcpConfigPath} "$@"
-      else
-        exec ${pkgs.claude-code}/bin/claude "$@"
-      fi
+      exec ${pkgs.claude-code}/bin/claude "$@"
     '';
   };
 
   claudeWork = pkgs.writeShellApplication {
-    name = "claude-work";
+    name = "work-claude";
     runtimeInputs = [
       pkgs.coreutils
       pkgs.tzdata
     ];
     text = ''
-      export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/claude-work"
+      export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/work-claude"
       export TZ="Asia/Singapore"
       export TZDIR="${pkgs.tzdata}/share/zoneinfo"
       # Default effort for the work variant; override at runtime with --effort=.
@@ -526,20 +505,14 @@ let
       # --mcp-groups=tempo,logs (see mcpGroupsParserText). Omit to keep every
       # group enabled.
       ${mcpGroupsParserText}
-      # Wire in Burp Suite's MCP server for this launch with --with-burp (see
-      # burpParserText). Only useful while Burp + the MCP extension are
-      # actually running.
-      ${burpParserText}
+      ${gitlabMcpParserText}
+      ${gitlabMcpDenyText}
       ${healClaudeState}/bin/heal-claude-json || true
-      _claude_mcp_configs=(${workMcpConfigPath})
-      if [ "$_claude_with_burp" = 1 ]; then
-        _claude_mcp_configs+=(${burpMcpConfigPath})
-      fi
       if [ "''${#_claude_mcp_disallow[@]}" -gt 0 ]; then
-        exec ${pkgs.claude-code}/bin/claude --mcp-config "''${_claude_mcp_configs[@]}" \
+        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} \
           --disallowedTools "''${_claude_mcp_disallow[@]}" "$@"
       else
-        exec ${pkgs.claude-code}/bin/claude --mcp-config "''${_claude_mcp_configs[@]}" "$@"
+        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "$@"
       fi
     '';
   };
@@ -676,10 +649,24 @@ let
   # bundled MCP server. Server id is plugin_<plugin>_<server> =
   # plugin_devar_devar; trust the whole server so its read-only lookup tools
   # don't prompt.
+  #
+  # The two Read rules cover the files a devar skill tells the model to open.
+  # The "divar" marketplace is a *directory* source (devarMarketplace above), so
+  # the plugin's installLocation is the checkout itself and a skill body lives at
+  # ~/divar/devar/skills/<name>/{SKILL.md,references/*.md}. Those paths sit
+  # outside whatever repo the session is cwd'd into, so progressive disclosure —
+  # SKILL.md pointing at references/<topic>.md — asked for approval on every
+  # single reference read, in every repo except devar itself. Same story for the
+  # skill source repos devar clones into ~/.cache/devar/repos (`devar repos
+  # sync`), which the skills grep for widget/proto/service lookups; the MCP
+  # server above already reads those unprompted, so allowing plain Read grants
+  # nothing new. Both are read-only rules over content this host already trusts.
   devarPermissions = lib.optionalAttrs cfg.enableDevar {
     allow = [
       "Bash(devar:*)"
       "mcp__plugin_devar_devar"
+      "Read(/${config.home.homeDirectory}/divar/devar/skills/**)"
+      "Read(/${config.home.homeDirectory}/.cache/devar/repos/**)"
     ];
   };
 
@@ -753,7 +740,7 @@ let
     skipAutoPermissionPrompt = true;
   };
 
-  # glm-claude shares claude-work's settings but swaps in a statusline that
+  # glm-claude shares work-claude's settings but swaps in a statusline that
   # appends a glm-usage week/month cost segment (mkSettings lets `base` override
   # the default statusLine). Variant stays "work" so plugin lookup resolves to
   # cfg.plugins.work (glm has no separate plugin set).
@@ -836,7 +823,7 @@ let
   pickerVariants =
     lib.optional cfg.enable (pickerEntry "gap" "gap-claude" "gapgpt cloud" gapClaude)
     ++ lib.optional cfg.enableGlm (pickerEntry "glm" "glm-claude" "GLM via raytone" glmClaude)
-    ++ lib.optional cfg.enableWork (pickerEntry "work" "claude-work" "Divar work, xhigh" claudeWork)
+    ++ lib.optional cfg.enableWork (pickerEntry "work" "work-claude" "Divar work, xhigh" claudeWork)
     ++ lib.optional cfg.enableNormal (
       pickerEntry "normal" "normal-claude" "Anthropic direct, IP-guarded" normalClaude
     );
@@ -877,7 +864,7 @@ in
   options.custom.claudeCode = {
     enable = lib.mkEnableOption "Install claude-code and the gap-claude wrapper";
     enableGlm = lib.mkEnableOption "Route the default claude command through GLM";
-    enableWork = lib.mkEnableOption "Install the claude-work variant (work-host only)";
+    enableWork = lib.mkEnableOption "Install the work-claude variant (work-host only)";
     enableLocal = lib.mkEnableOption "Install the local-claude variant (LiteLLM -> local llama-swap model)";
     enableNormal = lib.mkEnableOption ''
       the normal-claude variant: vanilla Anthropic-direct claude wrapped with
@@ -889,7 +876,7 @@ in
       the Divar `devar` plugin in the work variant: the directory-sourced
       "divar" marketplace (~/divar/devar) and the `devar@divar` plugin entry.
       Set by modules/work.nix (isWork) so it lands only on the work laptop —
-      the host that has the ~/divar/devar checkout. Other claude-work hosts
+      the host that has the ~/divar/devar checkout. Other work-claude hosts
       (e.g. g14) get the variant without devar
     '';
     enableCaveman = lib.mkEnableOption ''
@@ -969,7 +956,7 @@ in
       work = lib.mkOption {
         type = pluginType;
         default = { };
-        description = "Per-plugin overrides for the claude-work variant.";
+        description = "Per-plugin overrides for the work-claude variant.";
       };
 
       local = lib.mkOption {
@@ -1056,19 +1043,13 @@ in
     })
     (lib.mkIf cfg.enableWork {
       home.packages = [ claudeWork ];
-      home.file.".config/claude-work/settings.json".text = builtins.toJSON (
+      home.file.".config/work-claude/settings.json".text = builtins.toJSON (
         withOverrides (mkSettings "work" workSettings)
       );
-      home.file.".config/claude-work/CLAUDE.md".text = nixManagedNote;
+      home.file.".config/work-claude/CLAUDE.md".text = nixManagedNote;
     })
-    (lib.mkIf (cfg.enableWork || cfg.enableGlm) {
-      # Shared by claude-work and glm-claude — both exec with --mcp-config
-      # pointed at this same file (workMcpConfigPath).
+    (lib.mkIf (cfg.enableWork || cfg.enableGlm || cfg.enableNormal) {
       home.file.${workMcpConfigRel}.text = builtins.toJSON workMcpServers;
-    })
-    (lib.mkIf (cfg.enable || cfg.enableWork || cfg.enableGlm || cfg.enableNormal) {
-      # Shared by every variant's --with-burp flag (burpParserText).
-      home.file.${burpMcpConfigRel}.text = builtins.toJSON burpMcpServers;
     })
     (lib.mkIf cfg.enableLocal {
       home.packages = [ localClaude ];
@@ -1110,7 +1091,7 @@ in
           (
             lib.optional cfg.enable ".config/gap-claude"
             ++ lib.optional cfg.enableGlm ".config/glm-claude"
-            ++ lib.optional cfg.enableWork ".config/claude-work"
+            ++ lib.optional cfg.enableWork ".config/work-claude"
             ++ lib.optional cfg.enableLocal ".config/local-claude"
             ++ lib.optional cfg.enableNormal ".config/normal-claude"
           )

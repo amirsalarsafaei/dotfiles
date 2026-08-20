@@ -17,6 +17,25 @@ let
   devarCli = pkgs.callPackage ../pkgs/devar.nix { devarSrc = inputs.devar; };
 in
 lib.mkIf config.isWork {
+  # Force-installs Cloaq (timezone/geolocation/locale spoofer) and WebRTC Leak
+  # Prevent into chromium only, via a Chrome Enterprise policy file scoped to
+  # chromium's managed policy dir — google-chrome and brave are untouched, so
+  # this doesn't leak into every profile of every Chromium-based browser on
+  # the host. Written by hand (not via programs.chromium.extensions) because
+  # that option applies the same extension list to chromium, google-chrome,
+  # and brave simultaneously and can't scope to one browser alone.
+  #
+  # WebRTC Leak Prevent sits next to Cloaq because Cloaq only spoofs
+  # navigator/Intl/geolocation APIs — WebRTC's ICE candidate gathering talks
+  # to STUN servers directly and can still expose the real local/public IP
+  # (and thus real location), bypassing Cloaq's spoof entirely.
+  environment.etc."chromium/policies/managed/cloaq.json".text = builtins.toJSON {
+    ExtensionInstallForcelist = [
+      "fcalilbnpkfikdppppppchmkdipibalb" # Cloaq - https://chromewebstore.google.com/detail/cloaq-location-guard-loca/fcalilbnpkfikdppppppchmkdipibalb
+      "eiadekoaikejlgdbkbdfeijglgfdalml" # WebRTC Leak Prevent - https://chromewebstore.google.com/detail/webrtc-leak-prevent/eiadekoaikejlgdbkbdfeijglgfdalml
+    ];
+  };
+
   home-manager.users.amirsalar =
     {
       config,
@@ -24,8 +43,28 @@ lib.mkIf config.isWork {
       lib,
       ...
     }:
+    let
+      # work-codex: Codex CLI wrapped with an isolated CODEX_HOME, mirroring
+      # work-claude's CLAUDE_CONFIG_DIR isolation (claude-code.nix) — separate
+      # login/session/config state from any personal `codex` use on this host.
+      # CODEX_HOME is confirmed via `codex --help` (-p/--profile: "Layer
+      # $CODEX_HOME/<name>.config.toml on top of the base user config") and
+      # `codex doctor`, which reports unresolved/missing CODEX_HOME directly.
+      workCodex = pkgs.writeShellApplication {
+        name = "work-codex";
+        runtimeInputs = [ pkgs.codex ];
+        text = ''
+          export CODEX_HOME="${config.home.homeDirectory}/.config/work-codex"
+          mkdir -p "$CODEX_HOME"
+          exec codex "$@"
+        '';
+      };
+    in
     {
-      home.packages = [ devarCli ];
+      home.packages = [
+        devarCli
+        workCodex
+      ];
 
       home.file.".config/amp/plugins/devar-usage.ts".text = ''
         import type { PluginAPI } from '@ampcode/plugin'

@@ -1,0 +1,68 @@
+% zellij, multiplexer, terminal
+
+# Show the zellij keybinding cheatsheet (prefix is Ctrl-b)
+zellij-keys
+
+# Look up a single zellij shortcut by what you want to do
+zellij-keys | grep -i -- <thing>
+
+# List running sessions (including exited ones that can be resurrected)
+zellij list-sessions
+
+# Attach to a session, creating it if it does not exist
+zellij attach --create <session>
+
+# Kill a session
+zellij kill-session <running_session>
+
+# Delete an exited session's saved state so it stops showing up
+zellij delete-session <session>
+
+# Kill every running session
+zellij kill-all-sessions -y
+
+# Start a new named session
+zellij --session <new_name>
+
+# Start a new session from a layout
+zellij --new-session-with-layout <layout_file>
+
+# Open a file in a new pane using $EDITOR
+zellij edit <file>
+
+# Run a command in a new pane that stays open when it exits
+zellij run --close-on-exit=false -- <command>
+
+# Run a command in a floating pane
+zellij run --floating -- <command>
+
+# Split the current pane and run a command in it
+zellij action new-pane --direction <direction> -- <command>
+
+# Dump the current session's layout as KDL (useful for saving a workspace)
+zellij action dump-layout
+
+# Dump the focused pane's scrollback to a file
+zellij action dump-screen <out_file>
+
+# Copy the focused pane's whole scrollback to the clipboard
+zellij action dump-screen /dev/stdout | wl-copy
+
+# Rename the current tab from the shell
+zellij action rename-tab <new_name>
+
+# Rename the focused pane from the shell
+zellij action rename-pane <new_name>
+
+# Switch a running session's mode (locked passes every key to the app)
+zellij action switch-mode <mode>
+
+# Edit the zellij config (Nix-managed - change the module, not this file)
+$EDITOR ~/personal/dotfiles/nixos/home/modules/programs/terminal/zelij.nix
+
+$ direction: echo -e "right\ndown\nleft\nup"
+$ mode: echo -e "normal\nlocked\npane\ntab\nresize\nmove\nscroll\nsession\ntmux"
+$ running_session: zellij list-sessions --short --no-formatting
+$ session: zellij list-sessions --short --no-formatting
+$ layout_file: ls ~/.config/zellij/layouts/*.kdl 2>/dev/null
+$ thing: echo -e "split\nfloat\nstack\ntab\npane\nresize\nfocus\nrename\nscroll\ncopy\nyank\nclipboard\nsession\nsync\nbreak\nlayout\ndetach"

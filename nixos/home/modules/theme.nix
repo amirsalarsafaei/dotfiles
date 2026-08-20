@@ -112,6 +112,15 @@ in
     # explicitly keep it unset and let our null win.
     gtk.gtk4.theme = lib.mkForce null;
 
+    # gtk2 keeps knocking .gtkrc-2.0 out of its HM-managed symlink into a plain
+    # file (some app rewrites it), which then makes every later switch trip
+    # backupFileExtension's move-to-.backup step and fail if a stale .backup
+    # from a previous trip is still sitting there. gtk.gtk2.force skips the
+    # backup dance for this one file and just overwrites it.
+    gtk.gtk2.force = true;
+
+    home.pointerCursor.enable = true;
+
     stylix = {
       enable = true;
       autoEnable = true;

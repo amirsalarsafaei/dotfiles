@@ -26,39 +26,11 @@ in
       set -g allow-passthrough on
 
       set -g prefix2 C-a                        # GNU-Screen compatible prefix
-      bind C-a send-prefix -2
 
-      bind C-c new-session
-      bind C-f command-prompt -p find-session 'switch-client -t %%'
-      bind BTab switch-client -l
-
-      bind - run-shell 'cmd=$(ps -o command= -t #{pane_tty} | grep -E "^ssh " | head -n 1); if [ -n "$cmd" ]; then tmux split-window -v "$cmd"; else tmux split-window -v -c "#{pane_current_path}"; fi'
-      bind S-- run-shell 'cmd=$(ps -o command= -t #{pane_tty} | grep -E "^ssh " | head -n 1); if [ -n "$cmd" ]; then tmux split-window -v "''${cmd/ -o ControlMaster=auto/ -o ControlMaster=no}"; else tmux split-window -v -c "#{pane_current_path}"; fi'
-
-      bind _ run-shell 'cmd=$(ps -o command= -t #{pane_tty} | grep -E "^ssh " | head -n 1); if [ -n "$cmd" ]; then tmux split-window -h "$cmd"; else tmux split-window -h -c "#{pane_current_path}"; fi'
-      bind | run-shell 'cmd=$(ps -o command= -t #{pane_tty} | grep -E "^ssh " | head -n 1); if [ -n "$cmd" ]; then tmux split-window -h "''${cmd/ -o ControlMaster=auto/ -o ControlMaster=no}"; else tmux split-window -h -c "#{pane_current_path}"; fi'
-
-      bind = run-shell 'cmd=$(ps -o command= -t #{pane_tty} | grep -E "^ssh " | head -n 1); if [ -n "$cmd" ]; then tmux split-window -v "$cmd" -l 20%; else tmux split-window -v -c "#{pane_current_path}" -l 20%; fi'
-      bind S-= run-shell 'cmd=$(ps -o command= -t #{pane_tty} | grep -E "^ssh " | head -n 1); if [ -n "$cmd" ]; then tmux split-window -v "''${cmd/ -o ControlMaster=auto/ -o ControlMaster=no}" -l 20%; else tmux split-window -v -c "#{pane_current_path}" -l 20%; fi'
-
-      bind + run-shell 'cmd=$(ps -o command= -t #{pane_tty} | grep -E "^ssh " | head -n 1); if [ -n "$cmd" ]; then tmux split-window -h "$cmd" -l 20%; else tmux split-window -h -c "#{pane_current_path}" -l 20%; fi'
-      bind -r h select-pane -L
-      bind -r j select-pane -D
-      bind -r k select-pane -U
-      bind -r l select-pane -R
-      bind > swap-pane -D
-      bind < swap-pane -U
-
-      bind -r H resize-pane -L 5
-      bind -r J resize-pane -D 5
-      bind -r K resize-pane -U 5
-      bind -r L resize-pane -R 5
-
-      unbind n
-      unbind p
-      bind -r C-h previous-window
-      bind -r C-l next-window
-      bind Tab last-window
+      # ── Keybindings ─────────────────────────────────────
+      # Declared in home/modules/keys/registry.nix, rendered to tmux syntax
+      # from there, and listed by `keys` / `keys tmux`.
+      ${config.custom.keys.rendered.tmux}
 
       # ── Visual ──────────────────────────────────────────
       set -g status on
@@ -93,10 +65,6 @@ in
       set-option -g automatic-rename on
 
       set-option -g automatic-rename-format "#{?#{==:#{pane_current_command},zsh},#{b:pane_current_path},#{b:pane_current_path}:#{pane_current_command}}"
-
-      bind-key -T copy-mode-vi v send-keys -X begin-selection
-      bind-key -T copy-mode-vi C-v send-keys -X rectangle-toggle
-      bind-key -T copy-mode-vi y send-keys -X copy-selection-and-cancel
     '';
 
     plugins = [
@@ -114,7 +82,6 @@ in
           };
         };
       }
-      pkgs.tmuxPlugins.vim-tmux-navigator
     ];
   };
 }

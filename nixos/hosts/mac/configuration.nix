@@ -11,7 +11,7 @@
     ./hardware-configuration.nix
     # Laptop configuration
     ../../modules/laptop.nix
-    # Work host configuration (claude-work variant, private skills)
+    # Work host configuration (work-claude variant, private skills)
     ../../modules/work.nix
     ../../modules/waydroid.nix
   ];

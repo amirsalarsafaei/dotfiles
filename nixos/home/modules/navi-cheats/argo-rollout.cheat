@@ -1,0 +1,6 @@
+% kubernetes, argo, rollout
+
+# Promote an argo rollout across all datacenters (full promotion)
+for dc in hw nd; do kubectl-argo-rollouts --context ${dc}-users promote <rollout_name> --full; done
+
+$ rollout_name: kubectl --context hw-users get rollouts -o name | sed 's|rollout.argoproj.io/||'
