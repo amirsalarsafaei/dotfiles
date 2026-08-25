@@ -153,15 +153,41 @@ in
       # for it, and the one third-party option, zellij-tabula, renames by
       # cwd rather than running command, and isn't packaged anyway), so a
       # shell hook stands in — same approach zsh-tmux-auto-title uses for
-      # tmux. Tab shows the foreground command while one runs, and the shell
-      # name again once it returns to the prompt.
+      # tmux. Tab shows the cwd's basename at the idle prompt, and gets an
+      # icon prefix while one of the long-lived TUI commands below is the
+      # foreground process (nvim/claude/k9s/ssh keep that pane busy until
+      # you quit them, so the icon is visible for as long as it matters).
+      # Plain `rename-tab` (not by-id) targets whatever tab is currently
+      # focused, which is always correct here since preexec/precmd only
+      # fire in the pane you are actively typing in.
       if [[ -n "$ZELLIJ" ]]; then
+        typeset -gA _zellij_tab_icons=(
+          k9s           '☸'
+          ssh           '🌐'
+          nvim          '📝'
+          vim           '📝'
+          claude        '✳'
+          normal-claude '✳'
+          work-claude   '✳'
+          glm-claude    '✳'
+          gap-claude    '✳'
+          local-claude  '✳'
+        )
+        _zellij_tab_dirname() {
+          local d="''${PWD/#$HOME/\~}"
+          print -r -- "''${d:t}"
+        }
         _zellij_tab_running() {
           local cmd="''${1%% *}"
-          zellij action rename-tab "''${cmd:t}" 2>/dev/null
+          cmd="''${cmd:t}"
+          local icon="''${_zellij_tab_icons[$cmd]-}"
+          local name
+          name="$(_zellij_tab_dirname)"
+          [[ -n "$icon" ]] && name="$icon $name"
+          zellij action rename-tab "$name" 2>/dev/null
         }
         _zellij_tab_idle() {
-          zellij action rename-tab "''${SHELL:t}" 2>/dev/null
+          zellij action rename-tab "$(_zellij_tab_dirname)" 2>/dev/null
         }
         add-zsh-hook preexec _zellij_tab_running
         add-zsh-hook precmd _zellij_tab_idle

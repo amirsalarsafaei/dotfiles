@@ -78,6 +78,55 @@ let
     '';
   };
 
+  # Pick a running Claude Code session by tab + live status/task title (Claude
+  # Code sets its own pane title -- spinner glyph + task description -- which
+  # shows up in `title` here for free) and jump straight to it. Matches
+  # `pane_command` ending in `/bin/claude`, which is what every variant's pane
+  # resolves to regardless of which wrapper (normal-claude, work-claude, ...)
+  # launched it: each wrapper `exec`s the real claude-code binary, so the
+  # process image zellij reports is always the same one.
+  zjClaudeJump = pkgs.writeShellApplication {
+    name = "zj-claude-jump";
+    runtimeInputs = [
+      pkgs.jq
+      pkgs.fzf
+      pkgs.zellij
+      pkgs.coreutils
+    ];
+    text = ''
+      [ -n "''${ZELLIJ:-}" ] || { printf 'not inside a zellij session\n' >&2; exit 1; }
+
+      panes_json=$(zellij action list-panes -j -c 2>/dev/null) || exit 1
+
+      mapfile -t lines < <(
+        printf '%s' "$panes_json" | jq -r '
+          .[]
+          | select(.is_plugin | not)
+          | select((.pane_command // "") | test("/bin/claude(\\s|$)"))
+          | [(.tab_id | tostring), (.id | tostring), .tab_name, .title] | @tsv
+        '
+      )
+
+      if [ "''${#lines[@]}" -eq 0 ]; then
+        printf 'no running claude panes found\n'
+        sleep 1
+        exit 0
+      fi
+
+      selection=$(
+        printf '%s\n' "''${lines[@]}" \
+          | fzf --delimiter='\t' --with-nth=3,4 --prompt='claude> ' --height=100% --reverse
+      ) || exit 0
+      [ -n "$selection" ] || exit 0
+
+      tab_id=$(cut -f1 <<<"$selection")
+      pane_id=$(cut -f2 <<<"$selection")
+
+      zellij action go-to-tab-by-id "$tab_id"
+      zellij action focus-pane-id "$pane_id"
+    '';
+  };
+
   zjAttach = pkgs.writeShellApplication {
     name = "zj-attach";
     runtimeInputs = [
@@ -124,6 +173,7 @@ in
   home.packages = [
     zjBattery
     zjSshSplit
+    zjClaudeJump
     zjAttach
   ];
 
@@ -131,6 +181,7 @@ in
   # the absolute path of this helper because zellij's `Run` executes through the
   # zellij server, which does not inherit an interactive PATH.
   custom.keys.commands.zjSshSplit = lib.getExe zjSshSplit;
+  custom.keys.commands.zjClaudeJump = lib.getExe zjClaudeJump;
 
   # Zellij asks a plugin's permissions the first time it loads, and it draws that
   # "Allow? (y/n)" prompt *inside the plugin's own pane*. zjstatus lives in a
@@ -257,7 +308,10 @@ in
       # Deliberately no nvim/vim here. Locking on nvim would stop the Ctrl-hjkl
       # binds from reaching vim-zellij-navigator, breaking seamless navigation —
       # and nvim losing Ctrl-b to the prefix is exactly what tmux did too.
-      { triggers = "fzf|lazygit|yazi|less|man"; }
+      # Also deliberately no lazygit: locking on it blocked zellij's own binds
+      # (pane nav, prefix, etc.) the whole time lazygit had focus, which was
+      # worse than the occasional key lazygit itself might have swallowed.
+      { triggers = "fzf|yazi|less|man"; }
       { reaction_seconds = "0.3"; }
     ];
 

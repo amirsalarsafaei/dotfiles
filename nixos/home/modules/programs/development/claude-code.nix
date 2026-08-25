@@ -221,6 +221,27 @@ let
     unset _claude_gitlab_mcp
   '';
 
+  noDevarParserText = mkBoolFlagParser {
+    flag = "--no-devar";
+    resultVar = "_claude_no_devar";
+  };
+
+  # `--no-devar` disables the devar plugin (devar@divar) for a single launch
+  # without touching the Nix-managed settings.json — same reasoning as
+  # --effort: `claude plugin disable` persists by rewriting settings.json,
+  # which here is a read-only symlink. --settings JSON merges per-plugin-id
+  # over the loaded enabledPlugins map (verified empirically: overriding just
+  # "devar@divar" leaves every other plugin's enabled state untouched), so a
+  # single-key override is enough — no need to enumerate the other plugins.
+  # Harmless as a no-op on variants where devar isn't installed.
+  noDevarSettingsArgText = ''
+    _claude_extra_args=()
+    if [ "$_claude_no_devar" -eq 1 ]; then
+      _claude_extra_args+=(--settings '{"enabledPlugins":{"devar@divar":false}}')
+    fi
+    unset _claude_no_devar
+  '';
+
   localMcpConfigRel = ".config/local-claude/mcp-servers.json";
   localMcpConfigPath = "${config.home.homeDirectory}/${localMcpConfigRel}";
   localMcpServers = {
@@ -246,6 +267,70 @@ let
   # restore the newest VALID backup whenever the live file is missing, empty, or
   # unparseable. A healthy file is left untouched. This only runs on an
   # already-broken file, so it can never lose state the user still had.
+  # Flags the zellij tab a Claude Code session is running in when it needs
+  # attention (Notification/Stop hooks) and clears the flag once the user
+  # re-engages (UserPromptSubmit hook), so a session working in a background
+  # tab is visible from whichever tab you're actually looking at.
+  #
+  # Unlike the zsh auto-rename hook in home/modules/shell/zsh.nix (plain
+  # `rename-tab`, correct there because preexec/precmd only fire in the pane
+  # you're actively typing in), this fires from hook subprocesses that may run
+  # while a *different* tab is focused — the whole point of the feature is
+  # noticing a background session. So it resolves the tab by ID: pane_id
+  # (from $ZELLIJ_PANE_ID, matched against `list-panes`'s own `id` field) ->
+  # tab_id -> `rename-tab-by-id`, instead of trusting whatever tab happens to
+  # be focused. Never fails loudly: UserPromptSubmit hooks that exit non-2 are
+  # ignored, but a hard failure here (e.g. mid-race tab close) has no reason
+  # to surface as a Claude Code error either way.
+  claudeTabAttention = pkgs.writeShellApplication {
+    name = "claude-tab-attention";
+    runtimeInputs = [
+      pkgs.jq
+      pkgs.zellij
+      pkgs.coreutils
+    ];
+    text = ''
+      marker='🔔 '
+      mode="''${1:?usage: claude-tab-attention notify|clear}"
+
+      [ -n "''${ZELLIJ:-}" ] || exit 0
+      [ -n "''${ZELLIJ_PANE_ID:-}" ] || exit 0
+
+      panes_json=$(zellij action list-panes -j 2>/dev/null) || exit 0
+      tab_id=$(printf '%s' "$panes_json" | jq -r --argjson pid "$ZELLIJ_PANE_ID" '
+        [.[] | select(.is_plugin | not) | select(.id == $pid)] | .[0].tab_id // empty
+      ')
+      [ -n "$tab_id" ] || exit 0
+
+      tabs_json=$(zellij action list-tabs -j 2>/dev/null) || exit 0
+      name=$(printf '%s' "$tabs_json" | jq -r --argjson tid "$tab_id" '
+        .[] | select(.tab_id == $tid) | .name
+      ')
+      [ -n "$name" ] || exit 0
+
+      case "$mode" in
+        notify)
+          case "$name" in
+            "$marker"*) ;;
+            *) zellij action rename-tab-by-id "$tab_id" "$marker$name" 2>/dev/null || true ;;
+          esac
+          ;;
+        clear)
+          case "$name" in
+            "$marker"*)
+              zellij action rename-tab-by-id "$tab_id" "''${name#"$marker"}" 2>/dev/null || true
+              ;;
+            *) ;;
+          esac
+          ;;
+        *)
+          printf 'claude-tab-attention: unknown mode %s\n' "$mode" >&2
+          exit 1
+          ;;
+      esac
+    '';
+  };
+
   healClaudeState = pkgs.writeShellApplication {
     name = "heal-claude-json";
     runtimeInputs = [
@@ -307,13 +392,60 @@ let
       ${mcpGroupsParserText}
       ${gitlabMcpParserText}
       ${gitlabMcpDenyText}
+      ${noDevarParserText}
 
       ${healClaudeState}/bin/heal-claude-json || true
+      ${noDevarSettingsArgText}
       if [ "''${#_claude_mcp_disallow[@]}" -gt 0 ]; then
         exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} \
-          --disallowedTools "''${_claude_mcp_disallow[@]}" "$@"
+          --disallowedTools "''${_claude_mcp_disallow[@]}" "''${_claude_extra_args[@]}" "$@"
       else
-        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "$@"
+        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "''${_claude_extra_args[@]}" "$@"
+      fi
+    '';
+  };
+
+  # DeepSeek's native Anthropic-compatible endpoint
+  # (https://api-docs.deepseek.com/guides/anthropic_api): base URL
+  # /anthropic, auth via the standard x-api-key header (ANTHROPIC_API_KEY),
+  # server-side maps claude-opus* -> deepseek-v4-pro and
+  # claude-haiku*/claude-sonnet* -> deepseek-v4-flash. Pin the model env vars
+  # explicitly instead of relying on that name-sniffing default so the UI
+  # shows the real model and a typo'd name can't silently fall through.
+  # Key file mirrors glmClaude's $HOME/glm-key convention.
+  deepseekClaude = pkgs.writeShellApplication {
+    name = "deepseek-claude";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = ''
+      key_file="$HOME/deepseek-key"
+      if [ ! -s "$key_file" ]; then
+        printf 'deepseek-claude: missing or empty %s\n' "$key_file" >&2
+        exit 1
+      fi
+
+      ANTHROPIC_API_KEY="$(cat "$key_file")"
+      export ANTHROPIC_API_KEY
+      export ANTHROPIC_BASE_URL="https://api.deepseek.com/anthropic"
+      export ANTHROPIC_MODEL="deepseek-v4-pro"
+      export ANTHROPIC_DEFAULT_OPUS_MODEL="deepseek-v4-pro"
+      export ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek-v4-flash"
+      export ANTHROPIC_DEFAULT_HAIKU_MODEL="deepseek-v4-flash"
+      export ANTHROPIC_SMALL_FAST_MODEL="deepseek-v4-flash"
+      export CLAUDE_CODE_SUBAGENT_MODEL="deepseek-v4-flash"
+      export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/deepseek-claude"
+      ${effortParserText}
+      ${mcpGroupsParserText}
+      ${gitlabMcpParserText}
+      ${gitlabMcpDenyText}
+      ${noDevarParserText}
+
+      ${healClaudeState}/bin/heal-claude-json || true
+      ${noDevarSettingsArgText}
+      if [ "''${#_claude_mcp_disallow[@]}" -gt 0 ]; then
+        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} \
+          --disallowedTools "''${_claude_mcp_disallow[@]}" "''${_claude_extra_args[@]}" "$@"
+      else
+        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "''${_claude_extra_args[@]}" "$@"
       fi
     '';
   };
@@ -497,16 +629,18 @@ let
       ${effortParserText}
       ${agenticMcpParserText}
       ${gitlabMcpParserText}
+      ${noDevarParserText}
       ${healClaudeState}/bin/heal-claude-json || true
+      ${noDevarSettingsArgText}
       if [ "$_claude_agentic_mcps" -eq 1 ]; then
         if [ "$_claude_gitlab_mcp" -eq 1 ]; then
-          exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "$@"
+          exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "''${_claude_extra_args[@]}" "$@"
         else
           exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} \
-            --disallowedTools "mcp__${workMcpServerName}__gitlab_*" "$@"
+            --disallowedTools "mcp__${workMcpServerName}__gitlab_*" "''${_claude_extra_args[@]}" "$@"
         fi
       else
-        exec ${pkgs.claude-code}/bin/claude "$@"
+        exec ${pkgs.claude-code}/bin/claude "''${_claude_extra_args[@]}" "$@"
       fi
     '';
   };
@@ -528,9 +662,12 @@ let
     name = "work-claude";
     runtimeInputs = [
       pkgs.coreutils
+      pkgs.curl
+      pkgs.jq
       pkgs.tzdata
     ];
     text = ''
+      ${ipGuardText}
       export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/work-claude"
       export TZ="Asia/Singapore"
       export TZDIR="${pkgs.tzdata}/share/zoneinfo"
@@ -543,12 +680,14 @@ let
       ${mcpGroupsParserText}
       ${gitlabMcpParserText}
       ${gitlabMcpDenyText}
+      ${noDevarParserText}
       ${healClaudeState}/bin/heal-claude-json || true
+      ${noDevarSettingsArgText}
       if [ "''${#_claude_mcp_disallow[@]}" -gt 0 ]; then
         exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} \
-          --disallowedTools "''${_claude_mcp_disallow[@]}" "$@"
+          --disallowedTools "''${_claude_mcp_disallow[@]}" "''${_claude_extra_args[@]}" "$@"
       else
-        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "$@"
+        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "''${_claude_extra_args[@]}" "$@"
       fi
     '';
   };
@@ -606,6 +745,29 @@ let
 
   pluginType = with lib.types; attrsOf bool;
 
+  # Shared across every variant, so the zellij tab-flag feature works
+  # regardless of which claude wrapper is running. Merged with a variant's own
+  # `base.hooks` (only normalSettings has any today: the IP-guard checks) by
+  # mkSettings below rather than assigned directly, since a plain `//` would
+  # let one clobber the other whenever both define the same event.
+  tabAttentionHooks =
+    let
+      hook = mode: {
+        hooks = [
+          {
+            type = "command";
+            command = "${claudeTabAttention}/bin/claude-tab-attention ${mode}";
+            timeout = 5;
+          }
+        ];
+      };
+    in
+    {
+      Notification = [ (hook "notify") ];
+      Stop = [ (hook "notify") ];
+      UserPromptSubmit = [ (hook "clear") ];
+    };
+
   mkSettings =
     variant: base:
     let
@@ -624,6 +786,15 @@ let
       # Merge, don't clobber: `base` may carry variant-specific entries (e.g.
       # workSettings' conditional "devar@divar"); cfg.plugins toggles win.
       enabledPlugins = (base.enabledPlugins or { }) // plugins;
+    }
+    // {
+      # Per-event array concat, not attrset merge: `// base` above would
+      # otherwise let base.hooks silently replace tabAttentionHooks (or vice
+      # versa) on any event both define, e.g. normalSettings' UserPromptSubmit.
+      hooks = lib.zipAttrsWith (_: lib.concatLists) [
+        tabAttentionHooks
+        (base.hooks or { })
+      ];
     };
 
   localSettings = {
@@ -774,6 +945,34 @@ let
     theme = "dark";
     outputStyle = "concise";
     skipAutoPermissionPrompt = true;
+    # Belt-and-suspenders IP guard, same as normalSettings: the wrapper prehook
+    # blocks initial launch, SessionStart re-checks on /resume of an
+    # already-running claude, and UserPromptSubmit re-checks every message so a
+    # mid-session VPN drop is caught before the next request hits Anthropic.
+    hooks = {
+      SessionStart = [
+        {
+          hooks = [
+            {
+              type = "command";
+              command = "${claudeIpGuard}/bin/claude-ip-guard";
+              timeout = 33;
+            }
+          ];
+        }
+      ];
+      UserPromptSubmit = [
+        {
+          hooks = [
+            {
+              type = "command";
+              command = "${claudeIpGuard}/bin/claude-ip-guard";
+              timeout = 33;
+            }
+          ];
+        }
+      ];
+    };
   };
 
   # glm-claude shares work-claude's settings but swaps in a statusline that
@@ -789,6 +988,14 @@ let
 
   gapSettings = {
     theme = "dark";
+  };
+
+  # devar wiring gated on cfg.enableDevar (work.nix only), same as workSettings.
+  deepseekSettings = {
+    theme = "dark";
+    extraKnownMarketplaces = devarMarketplace;
+    enabledPlugins = devarPlugin;
+    permissions = devarPermissions;
   };
 
   normalSettings = {
@@ -859,6 +1066,9 @@ let
   pickerVariants =
     lib.optional cfg.enable (pickerEntry "gap" "gap-claude" "gapgpt cloud" gapClaude)
     ++ lib.optional cfg.enableGlm (pickerEntry "glm" "glm-claude" "GLM via raytone" glmClaude)
+    ++ lib.optional cfg.enableDeepseek (
+      pickerEntry "deepseek" "deepseek-claude" "DeepSeek, native Anthropic API" deepseekClaude
+    )
     ++ lib.optional cfg.enableWork (pickerEntry "work" "work-claude" "Divar work, xhigh" claudeWork)
     ++ lib.optional cfg.enableNormal (
       pickerEntry "normal" "normal-claude" "Anthropic direct, IP-guarded" normalClaude
@@ -900,6 +1110,11 @@ in
   options.custom.claudeCode = {
     enable = lib.mkEnableOption "Install claude-code and the gap-claude wrapper";
     enableGlm = lib.mkEnableOption "Route the default claude command through GLM";
+    enableDeepseek = lib.mkEnableOption ''
+      the deepseek-claude variant: routes through DeepSeek's native
+      Anthropic-compatible endpoint (https://api.deepseek.com/anthropic).
+      Reads the API key from ~/deepseek-key
+    '';
     enableWork = lib.mkEnableOption "Install the work-claude variant (work-host only)";
     enableLocal = lib.mkEnableOption "Install the local-claude variant (LiteLLM -> local llama-swap model)";
     enableNormal = lib.mkEnableOption ''
@@ -1077,6 +1292,13 @@ in
       );
       home.file.".config/glm-claude/CLAUDE.md".text = nixManagedNote;
     })
+    (lib.mkIf cfg.enableDeepseek {
+      home.packages = [ deepseekClaude ];
+      home.file.".config/deepseek-claude/settings.json".text = builtins.toJSON (
+        withOverrides (mkSettings "work" deepseekSettings)
+      );
+      home.file.".config/deepseek-claude/CLAUDE.md".text = nixManagedNote;
+    })
     (lib.mkIf cfg.enableWork {
       home.packages = [ claudeWork ];
       home.file.".config/work-claude/settings.json".text = builtins.toJSON (
@@ -1084,7 +1306,7 @@ in
       );
       home.file.".config/work-claude/CLAUDE.md".text = nixManagedNote;
     })
-    (lib.mkIf (cfg.enableWork || cfg.enableGlm || cfg.enableNormal) {
+    (lib.mkIf (cfg.enableWork || cfg.enableGlm || cfg.enableNormal || cfg.enableDeepseek) {
       home.file.${workMcpConfigRel}.text = builtins.toJSON workMcpServers;
     })
     (lib.mkIf cfg.enableLocal {
@@ -1104,7 +1326,7 @@ in
       );
       home.file.".config/normal-claude/CLAUDE.md".text = nixManagedNote;
     })
-    (lib.mkIf (cfg.enable || cfg.enableWork || cfg.enableLocal || cfg.enableNormal) {
+    (lib.mkIf (cfg.enable || cfg.enableWork || cfg.enableLocal || cfg.enableNormal || cfg.enableDeepseek) {
       # Claude Code persists runtime changes (/effort, enabling a plugin, theme,
       # adding a marketplace, …) by rewriting settings.json — which replaces the
       # read-only Nix symlink with a plain file. With home-manager's
@@ -1127,6 +1349,7 @@ in
           (
             lib.optional cfg.enable ".config/gap-claude"
             ++ lib.optional cfg.enableGlm ".config/glm-claude"
+            ++ lib.optional cfg.enableDeepseek ".config/deepseek-claude"
             ++ lib.optional cfg.enableWork ".config/work-claude"
             ++ lib.optional cfg.enableLocal ".config/local-claude"
             ++ lib.optional cfg.enableNormal ".config/normal-claude"

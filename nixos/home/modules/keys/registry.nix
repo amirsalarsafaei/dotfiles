@@ -658,6 +658,20 @@ rec {
       })
     ];
 
+    # Straight to tab N with no Ctrl-b first, for jumping across many project
+    # tabs fast. Alt+digit is free: it isn't one of the top-level-unbound
+    # Ctrl-<key> mode-entry keys, and zellij's own defaults only use Alt for
+    # letters/symbols (Alt-hjkl, Alt-+/-, ...), never Alt-digit.
+    tabJump = map (
+      n:
+      keysLib.zellij.bind {
+        on = on.alt K.${n};
+        run = "GoToTab ${n};";
+        desc = "Jump straight to tab ${n} (no prefix)";
+        group = "Tabs, no prefix";
+      }
+    ) [ "1" "2" "3" "4" "5" "6" "7" "8" "9" ];
+
     # Bindings inside the prefix. Zellij merges these with its own tmux-mode
     # defaults, which is why the extra keys further down are documented but
     # not declared.
@@ -1018,6 +1032,20 @@ rec {
           ''SwitchToMode "Normal";''
         ];
         desc = "File picker";
+        group = "Session & tools";
+      })
+      (keysLib.zellij.bind {
+        on = on.none K.x;
+        run = [
+          ''
+            Run "${cmd.zjClaudeJump}" {
+                floating true
+                close_on_exit true
+                name "claude-jump"
+            };''
+          ''SwitchToMode "Normal";''
+        ];
+        desc = "Jump to a running Claude Code pane";
         group = "Session & tools";
       })
     ];

@@ -296,6 +296,10 @@ in
               binds = registry.zellij.enterPrefix;
             })
             (keysLib.zellij.section {
+              selector = ''shared_except "tmux" "locked"'';
+              binds = registry.zellij.tabJump;
+            })
+            (keysLib.zellij.section {
               selector = "tmux";
               binds = registry.zellij.prefixed;
             })
@@ -326,7 +330,7 @@ in
                 of autolock passing keys through untouched. There is
                 deliberately no key left to exit Locked mode manually;
                 autolock already does it automatically once the trigger
-                process (fzf|lazygit|yazi|less|man) loses focus.'';
+                process (fzf|yazi|less|man) loses focus.'';
             })
           ];
         };

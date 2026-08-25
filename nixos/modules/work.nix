@@ -91,6 +91,7 @@ lib.mkIf config.isWork {
         # `/divar-widgets` etc. work but stay out of the model's context.
         claudeCode.enableGlm = true;
         claudeCode.enableWork = true;
+        claudeCode.enableDeepseek = true;
         # The directory-sourced devar marketplace + plugin only here — this is the
         # host with the ~/divar/devar checkout. See claudeCode.enableDevar.
         claudeCode.enableDevar = true;
