@@ -749,23 +749,15 @@ in
 
       general_settings = {
         master_key = localProxyKey;
-        # Reuses the host's existing services.postgresql (hosts/profiles/desktop.nix),
-        # which has trust auth on 127.0.0.1/::1 — no password needed. Required
-        # for the admin UI (/ui) to log in; without a DB it 500s on auth.
-        database_url = "postgresql://litellm@127.0.0.1:5432/litellm";
+        # No database_url: nixpkgs' litellm package doesn't ship generated
+        # Prisma query-engine binaries, so setting database_url makes the
+        # proxy crash on startup ("Unable to find Prisma binaries. Please run
+        # 'prisma generate' first."). store_model_in_db = false anyway, so the
+        # DB was only wiring the admin /ui login — losing that is an
+        # acceptable trade for a proxy that actually starts.
         store_model_in_db = false;
       };
     };
-  };
-
-  services.postgresql = {
-    ensureDatabases = [ "litellm" ];
-    ensureUsers = [
-      {
-        name = "litellm";
-        ensureDBOwnership = true;
-      }
-    ];
   };
 
   # Systemd unit hardening
@@ -792,13 +784,7 @@ in
   };
 
   systemd.services.litellm = {
-    after = [
-      "llama-swap.service"
-      "postgresql.service"
-    ];
-    wants = [
-      "llama-swap.service"
-      "postgresql.service"
-    ];
+    after = [ "llama-swap.service" ];
+    wants = [ "llama-swap.service" ];
   };
 }
