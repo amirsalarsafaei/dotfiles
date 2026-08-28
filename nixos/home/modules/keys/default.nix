@@ -101,7 +101,7 @@ let
       } tmuxCopyMode.right
     )
     ++ lib.optionals enabled.zellij (
-      rowsFor { app = "zellij"; } (registry.zellij.navigation ++ registry.zellij.enterPrefix)
+      rowsFor { app = "zellij"; } registry.zellij.navigation
       ++ rowsFor {
         app = "zellij";
         prefix = registry.zellij.prefix;
@@ -117,7 +117,105 @@ let
     ++ lib.optionals enabled.zsh (rowsFor { app = "zsh"; } registry.zsh.docs)
     ++ lib.optionals enabled.nvim nvimRows;
 
-  rowsJson = pkgs.writeText "keybindings.json" (builtins.toJSON rows);
+  # Hoisted so the zellij render and the collision check share one copy of the
+  # section list (and the shared_except "locked" unbind list) rather than
+  # drifting apart. See the note on the unbind list in lib.nix's renderer.
+  zellijUnbind = [
+    # Ctrl-h is zellij's default way into Move mode; it is freed here so the
+    # vim-navigator binding can have it. Ctrl-o/g/p/n/t are zellij's other
+    # default mode-entry keys (Session/Locked/Pane/Resize/Tab); freeing them
+    # too means Ctrl-b is the only way into any zellij mode, so no stray
+    # Ctrl-<key> steals a keystroke the shell or an app expects (Ctrl-o for
+    # Claude Code's overlay, Ctrl-p for shell history, etc).
+    (keysLib.on.ctrl keysLib.K.h)
+    (keysLib.on.ctrl keysLib.K.o)
+    (keysLib.on.ctrl keysLib.K.g)
+    (keysLib.on.ctrl keysLib.K.p)
+    (keysLib.on.ctrl keysLib.K.n)
+    (keysLib.on.ctrl keysLib.K.t)
+  ];
+
+  zellijSections = [
+    (keysLib.zellij.section {
+      except = [ "locked" "tmux" ];
+      binds = registry.zellij.navigation;
+      note = ''
+        Seamless nvim <-> pane navigation. This is only half of the
+        mechanism: the plugin notices the focused pane is running nvim
+        and writes the key through to it. Moving between nvim's own
+        windows is zellij-nav.nvim's job, wired up in
+        home/modules/neovim/navigation.nix.'';
+    })
+    (keysLib.zellij.section {
+      except = [ "tmux" "locked" ];
+      binds = registry.zellij.tabJump;
+    })
+    (keysLib.zellij.section {
+      mode = "tmux";
+      binds = registry.zellij.prefixed;
+    })
+    (keysLib.zellij.section {
+      mode = "scroll";
+      binds = registry.zellij.scroll;
+      note = ''
+        Zellij's Copy action copies the *mouse* selection and nothing
+        else, so there is no keyboard select-and-yank to bind.
+        EditScrollback is the stand-in and is strictly more capable:
+        the whole buffer opens in nvim, where selecting is visual mode
+        and the yank reaches the system clipboard (clipboard =
+        "unnamedplus"). Bound to "y" for the tmux muscle memory.'';
+    })
+    (keysLib.zellij.section {
+      mode = "search";
+      binds = registry.zellij.search;
+    })
+    (keysLib.zellij.section {
+      mode = "locked";
+      binds = [ (keysLib.zellij.unbind { key = keysLib.on.ctrl keysLib.K.g; }) ];
+      note = ''
+        Locked mode's own exit bind (Ctrl-g, back to Normal) lives in
+        this block, not one of the shared groups above, so the
+        top-level unbind can't reach it. Left bound it meant Ctrl-g
+        got intercepted to leave Locked mode instead of reaching the
+        app underneath (e.g. fzf's own Ctrl-g), defeating the point
+        of autolock passing keys through untouched. There is
+        deliberately no key left to exit Locked mode manually;
+        autolock already does it automatically once the trigger
+        process (fzf|yazi|less|man) loses focus.'';
+    })
+  ];
+
+  # Build-time collision checks (see lib.nix). Thrown here so a bad bind fails
+  # `home-manager build`/`switch` instead of double-firing at runtime.
+  checkErrors =
+    let
+      defaults = import ./zellij-defaults.nix;
+      dups =
+        keysLib.duplicatesIn keysLib.hyprChord "hyprland" registry.hyprland.binds
+        ++ lib.concatMap (
+          s:
+          keysLib.duplicatesIn keysLib.hyprChord "hyprland submap ${s.name}" s.binds
+        ) registry.hyprland.submaps
+        ++ lib.concatLists (
+          lib.mapAttrsToList
+            (table: binds: keysLib.duplicatesIn keysLib.tmuxChord "tmux ${table}" binds)
+            (lib.groupBy
+              (b: if b.table or null == null then "prefix" else b.table)
+              (lib.filter (b: b ? on) registry.tmux.binds))
+        )
+        ++ lib.concatMap
+          (s: keysLib.duplicatesIn keysLib.zellijChord "zellij ${s.selector}" (lib.filter (b: b ? on) s.binds))
+          zellijSections
+        ++ keysLib.duplicatesIn keysLib.ghosttyChord "ghostty" registry.ghostty.binds;
+    in
+    dups ++ keysLib.zellijDefaultErrors defaults zellijUnbind zellijSections;
+
+  rowsJson = pkgs.writeText "keybindings.json" (
+    if checkErrors == [ ] then
+      builtins.toJSON rows
+    else
+      throw (builtins.concatStringsSep "\n" checkErrors)
+  );
 
   keysScript = pkgs.writeShellApplication {
     name = "keys";
@@ -265,74 +363,8 @@ in
         };
         tmux = keysLib.tmux.render registry.tmux.binds;
         zellij = keysLib.zellij.render {
-          # Ctrl-h is zellij's default way into Move mode; it is freed here so
-          # the vim-navigator binding below can have it. Ctrl-o/g/p/n/t are
-          # zellij's other default mode-entry keys (Session/Locked/Pane/
-          # Resize/Tab); freeing them too means Ctrl-b is the only way into
-          # any zellij mode, so no stray Ctrl-<key> steals a keystroke the
-          # shell or an app expects (Ctrl-o for Claude Code's overlay, Ctrl-p
-          # for shell history, etc).
-          unbind = [
-            (keysLib.on.ctrl keysLib.K.h)
-            (keysLib.on.ctrl keysLib.K.o)
-            (keysLib.on.ctrl keysLib.K.g)
-            (keysLib.on.ctrl keysLib.K.p)
-            (keysLib.on.ctrl keysLib.K.n)
-            (keysLib.on.ctrl keysLib.K.t)
-          ];
-          sections = [
-            (keysLib.zellij.section {
-              selector = ''shared_except "locked" "tmux"'';
-              binds = registry.zellij.navigation;
-              note = ''
-                Seamless nvim <-> pane navigation. This is only half of the
-                mechanism: the plugin notices the focused pane is running nvim
-                and writes the key through to it. Moving between nvim's own
-                windows is zellij-nav.nvim's job, wired up in
-                home/modules/neovim/navigation.nix.'';
-            })
-            (keysLib.zellij.section {
-              selector = ''shared_except "tmux" "locked"'';
-              binds = registry.zellij.enterPrefix;
-            })
-            (keysLib.zellij.section {
-              selector = ''shared_except "tmux" "locked"'';
-              binds = registry.zellij.tabJump;
-            })
-            (keysLib.zellij.section {
-              selector = "tmux";
-              binds = registry.zellij.prefixed;
-            })
-            (keysLib.zellij.section {
-              selector = "scroll";
-              binds = registry.zellij.scroll;
-              note = ''
-                Zellij's Copy action copies the *mouse* selection and nothing
-                else, so there is no keyboard select-and-yank to bind.
-                EditScrollback is the stand-in and is strictly more capable:
-                the whole buffer opens in nvim, where selecting is visual mode
-                and the yank reaches the system clipboard (clipboard =
-                "unnamedplus"). Bound to "y" for the tmux muscle memory.'';
-            })
-            (keysLib.zellij.section {
-              selector = "search";
-              binds = registry.zellij.search;
-            })
-            (keysLib.zellij.section {
-              selector = "locked";
-              binds = [ (keysLib.zellij.unbind { key = keysLib.on.ctrl keysLib.K.g; }) ];
-              note = ''
-                Locked mode's own exit bind (Ctrl-g, back to Normal) lives in
-                this block, not one of the shared groups above, so the
-                top-level unbind can't reach it. Left bound it meant Ctrl-g
-                got intercepted to leave Locked mode instead of reaching the
-                app underneath (e.g. fzf's own Ctrl-g), defeating the point
-                of autolock passing keys through untouched. There is
-                deliberately no key left to exit Locked mode manually;
-                autolock already does it automatically once the trigger
-                process (fzf|yazi|less|man) loses focus.'';
-            })
-          ];
+          unbind = zellijUnbind;
+          sections = zellijSections;
         };
         ghostty = keysLib.ghostty.render registry.ghostty.binds;
       };

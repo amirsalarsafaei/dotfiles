@@ -667,14 +667,31 @@ let
       };
 
     # A mode block: `tmux { ... }`, `shared_except "locked" "tmux" { ... }`.
+    # `mode` is a single mode name; `except` is the list of modes a
+    # shared_except block leaves out. The KDL `selector` is derived from these
+    # so the collision check can also see which modes a section targets.
     section =
       {
-        selector,
+        mode ? null,
+        except ? null,
         binds,
         note ? null,
       }:
+      let
+        selector =
+          if except != null then
+            ''shared_except ${lib.concatMapStringsSep " " (m: "\"${m}\"") except}''
+          else
+            mode;
+      in
       {
-        inherit selector binds note;
+        inherit
+          selector
+          binds
+          note
+          mode
+          except
+          ;
       };
 
     # A key removed from *this specific mode block* rather than from every
@@ -768,6 +785,64 @@ let
     render = binds: map (b: "${ghosttyChord b.on}=${b.action}") binds;
   };
 
+  # ── collision checks ────────────────────────────────────────────────────
+  # Both return a list of error strings (empty = clean). default.nix throws on
+  # any non-empty result, so a bad bind fails the build instead of silently
+  # double-firing at runtime.
+
+  # A chord bound more than once within one namespace. `entries` is a list of
+  # binds, each with `.on` (a chord or a list of chords); `chordF` canonicalizes
+  # a chord to its string form for that app.
+  duplicatesIn =
+    chordF: namespace: entries:
+    let
+      flat = lib.concatMap (b: map (c: chordF c) (toList b.on)) entries;
+      count = lib.foldl' (acc: c: acc // { ${c} = (acc.${c} or 0) + 1; }) { } flat;
+      dups = lib.filterAttrs (_: n: n > 1) count;
+    in
+    lib.mapAttrsToList (c: n: "${namespace}: '${c}' is bound ${toString n} times") dups;
+
+  # A declared zellij bind that lands on a default chord in one of the modes its
+  # section targets, and is not freed by an `unbind`. `defaults` is the
+  # zellij-defaults.nix data; `topUnbind` is the shared_except "locked" chord
+  # list; `sections` are keysLib.zellij.section values.
+  zellijDefaultErrors =
+    defaults: topUnbind: sections:
+    let
+      defaultsForMode =
+        mode:
+        (defaults.named.${mode} or [ ])
+        ++ lib.concatMap
+          (s: if lib.elem mode s.except then [ ] else s.chords)
+          defaults.sharedExcept;
+
+      targetModes =
+        s:
+        if s.except != null then
+          lib.filter (m: !(lib.elem m s.except)) defaults.modes
+        else
+          [ s.mode ];
+
+      sectionErrors =
+        s:
+        let
+          ownUnbinds = map (b: zellijChord b.unbind) (lib.filter (b: b ? unbind) s.binds);
+          freed = map zellijChord topUnbind ++ ownUnbinds;
+          binds = lib.filter (b: !(b ? unbind)) s.binds;
+          chords = lib.concatMap (b: map (c: { inherit c; desc = b.desc; }) (toList b.on)) binds;
+          bad = lib.filter (
+            p:
+            !(lib.elem (zellijChord p.c) freed)
+            && lib.any (m: lib.elem (zellijChord p.c) (defaultsForMode m)) (targetModes s)
+          ) chords;
+        in
+        map (
+          p:
+          "zellij ${s.selector}: '${zellijChord p.c}' (${p.desc or "?"}) is a zellij default in this mode — add an `unbind` for it first"
+        ) bad;
+    in
+    lib.concatMap sectionErrors sections;
+
   # ── documentation-only entries ──────────────────────────────────────────
   # Shortcuts this config does not declare but a user still needs to know:
   # an app's own defaults (zellij's Alt-hjkl), or a technique rather than a
@@ -819,11 +894,17 @@ in
     on
     mkChord
     human
+    hyprChord
+    tmuxChord
+    zellijChord
+    ghosttyChord
     hypr
     tmux
     zellij
     ghostty
     doc
     rowsFor
+    duplicatesIn
+    zellijDefaultErrors
     ;
 }

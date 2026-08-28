@@ -649,15 +649,6 @@ rec {
       }
     );
 
-    enterPrefix = [
-      (keysLib.zellij.bind {
-        on = on.ctrl K.b;
-        run = ''SwitchToMode "Tmux";'';
-        desc = "Enter the prefix mode";
-        group = "Modes";
-      })
-    ];
-
     # Straight to tab N with no Ctrl-b first, for jumping across many project
     # tabs fast. Alt+digit is free: it isn't one of the top-level-unbound
     # Ctrl-<key> mode-entry keys, and zellij's own defaults only use Alt for
@@ -676,22 +667,6 @@ rec {
     # defaults, which is why the extra keys further down are documented but
     # not declared.
     prefixed = [
-      (keysLib.zellij.bind {
-        on = on.ctrl K.b;
-        run = [
-          "Write 2;"
-          ''SwitchToMode "Normal";''
-        ];
-        desc = "Send a literal Ctrl-b to the shell";
-        group = "Modes";
-      })
-      (keysLib.zellij.bind {
-        on = on.none K.esc;
-        run = ''SwitchToMode "Normal";'';
-        desc = "Back to normal mode";
-        group = "Modes";
-      })
-
       (keysLib.zellij.bind {
         on = on.ctrl K.p;
         run = ''SwitchToMode "Pane";'';
@@ -771,6 +746,16 @@ rec {
         group = "Panes";
       })
     ]
+    # h/j/k/l are zellij defaults in tmux mode too, and the defaults append
+    # `SwitchToMode "Normal"` after the move. Unbind them first so only the
+    # custom MoveFocus fires, leaving the prefix up for repeated h/h/h moves.
+    ++ eachDirection (
+      d:
+      keysLib.zellij.unbind {
+        key = on.none d.key;
+        group = "Panes";
+      }
+    )
     ++ eachDirection (
       d:
       keysLib.zellij.bind {
@@ -908,13 +893,17 @@ rec {
         group = "Panes";
       })
 
-      (keysLib.zellij.bind {
-        on = on.none K.c;
-        run = [
-          "NewTab;"
-          ''SwitchToMode "Normal";''
-        ];
-        desc = "New tab";
+      # c is zellij's default NewTab in tmux mode, and its default action
+      # (NewTab; SwitchToMode "Normal") is exactly what we want — so it is
+      # deliberately left undeclared here rather than unbound and rebound.
+      # unbind-then-rebind on the same chord silently dead-ends the key in
+      # zellij 0.44.3 (confirmed: Ctrl-b c fired nothing, not even the
+      # default, once unbound and rebound) instead of restoring it, so this
+      # is the one default kept exactly as-is. Documented in `docs` below.
+      # , is zellij's default way into RenameTab; unbind it so only the
+      # custom bind — which also pre-fills the name — fires.
+      (keysLib.zellij.unbind {
+        key = on.none K.comma;
         group = "Tabs";
       })
       (keysLib.zellij.bind {
@@ -1034,8 +1023,11 @@ rec {
         desc = "File picker";
         group = "Session & tools";
       })
+      # Uppercase C, because lowercase c is zellij's default NewTab and stays
+      # as the new-tab key (see the "New tab" bind above). C is free in
+      # zellij's tmux-mode defaults, so no unbind is needed for it.
       (keysLib.zellij.bind {
-        on = on.none K.x;
+        on = on.none K.C;
         run = [
           ''
             Run "${cmd.zjClaudeJump}" {
@@ -1081,6 +1073,21 @@ rec {
     # what a user reaches for. Not declared above: zellij already binds them.
     docs = [
       (doc {
+        keys = "${prefix}";
+        desc = "Enter the prefix mode";
+        group = "Modes";
+      })
+      (doc {
+        keys = "${prefix} Esc";
+        desc = "Back to normal mode";
+        group = "Modes";
+      })
+      (doc {
+        keys = "${prefix} Ctrl+b";
+        desc = "Send a literal Ctrl-b to the shell";
+        group = "Modes";
+      })
+      (doc {
         keys = "${prefix} d";
         desc = "Detach from the session";
         group = "Session & tools";
@@ -1104,6 +1111,11 @@ rec {
         keys = "${prefix} z";
         desc = "Zoom the pane (fullscreen)";
         group = "Panes";
+      })
+      (doc {
+        keys = "${prefix} c";
+        desc = "New tab (zellij default)";
+        group = "Tabs";
       })
       (doc {
         keys = "${prefix} n / p";

@@ -268,8 +268,8 @@
     "devar": {
       "flake": false,
       "locked": {
-        "lastModified": 1787576256,
-        "narHash": "sha256-b85CkGUvCjNQr5V+VwAtXoxyEFsMv8eoUCEHmtZb61c=",
+        "lastModified": 1787900658,
+        "narHash": "sha256-2qR+aB8t7pK8N1fBVGhI3MBdSw9lVqkGHVHNKJXgHuk=",
         "path": "/home/amirsalar/divar/devar",
         "type": "path"
       },

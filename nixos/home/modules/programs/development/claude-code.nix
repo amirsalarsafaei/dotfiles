@@ -10,23 +10,6 @@ let
 
   workEffortLevel = "xhigh";
 
-  # Shared bash snippet inlined into every claude wrapper. It strips a custom
-  # `--effort=LEVEL` (or `--effort LEVEL`) flag from the wrapper's args, exports
-  # CLAUDE_CODE_EFFORT_LEVEL, and leaves the remaining args in "$@" for the
-  # wrapped binary. With no --effort given it falls back to the
-  # $CLAUDE_CODE_EFFORT_DEFAULT the wrapper exports (per-variant); if that is
-  # empty too, the env var is left unset.
-  #
-  # We intercept --effort instead of letting Claude Code see it because the
-  # binary persists /effort and `--effort` by rewriting settings.json, which here
-  # is a read-only Nix symlink — so a persisted value can't stick and can even
-  # clobber the link on next switch. The env var is honored at startup and never
-  # touches disk, so it always wins and survives rebuilds.
-  # Fail-closed geo guard for the normal-claude variant. Direct Anthropic
-  # traffic from an Iranian IP risks an account ban under US sanctions, so
-  # refuse to launch until the outbound IP is verified as non-Iranian. It tries
-  # independent providers in order and blocks only if none returns a valid
-  # country code.
   ipGuardText = ''
     country=""
 
@@ -149,12 +132,6 @@ let
     };
   };
 
-  # Tool-name prefixes registered by the single agentic-development-mcps
-  # server (see ~/divar/platform-mcps src/platform_mcps/platform/server.py) —
-  # every tool it exposes is named "<group>_<verb>", so a prefix glob deny
-  # (mcp__<server>__<group>_*) hides that whole group from the model's tool
-  # list rather than merely blocking calls to it. Keep in sync with that
-  # repo's registered families if it adds/renames one.
   workMcpGroups = [
     "tempo"
     "metrics"
@@ -166,13 +143,6 @@ let
     "mattermost"
   ];
 
-  # `work-claude --mcp-groups=tempo,logs` restricts the agentic-development-mcps
-  # server to the named groups for that launch; the rest are hidden from the
-  # model via a glob permission-deny (see workMcpGroups above), not just
-  # blocked at call time. Omitting the flag keeps every group enabled
-  # (today's default behavior). Runtime-only (not Nix-persisted) by design —
-  # this is meant as a quick per-session toggle, mirroring effortParserText's
-  # --effort flag.
   mcpGroupsParserText = ''
     _claude_mcp_groups=""
     ${mkValueFlagParser {
@@ -226,14 +196,6 @@ let
     resultVar = "_claude_no_devar";
   };
 
-  # `--no-devar` disables the devar plugin (devar@divar) for a single launch
-  # without touching the Nix-managed settings.json — same reasoning as
-  # --effort: `claude plugin disable` persists by rewriting settings.json,
-  # which here is a read-only symlink. --settings JSON merges per-plugin-id
-  # over the loaded enabledPlugins map (verified empirically: overriding just
-  # "devar@divar" leaves every other plugin's enabled state untouched), so a
-  # single-key override is enough — no need to enumerate the other plugins.
-  # Harmless as a no-op on variants where devar isn't installed.
   noDevarSettingsArgText = ''
     _claude_extra_args=()
     if [ "$_claude_no_devar" -eq 1 ]; then
@@ -257,31 +219,6 @@ let
     };
   };
 
-  # Claude Code rewrites ~/.config/<variant>/.claude.json (its mutable runtime
-  # state: projects, history, MRU lists) on nearly every action, and several
-  # Claude processes routinely share one config dir. Concurrent, non-atomic
-  # writes occasionally truncate it to 0 bytes; Claude then refuses to start and
-  # leaves backups/.claude.json.corrupted.* behind (32 such files vs 5 good
-  # backups at the time this was written). Claude itself keeps rolling
-  # backups/.claude.json.backup.<epoch-ms> snapshots, so on every launch we
-  # restore the newest VALID backup whenever the live file is missing, empty, or
-  # unparseable. A healthy file is left untouched. This only runs on an
-  # already-broken file, so it can never lose state the user still had.
-  # Flags the zellij tab a Claude Code session is running in when it needs
-  # attention (Notification/Stop hooks) and clears the flag once the user
-  # re-engages (UserPromptSubmit hook), so a session working in a background
-  # tab is visible from whichever tab you're actually looking at.
-  #
-  # Unlike the zsh auto-rename hook in home/modules/shell/zsh.nix (plain
-  # `rename-tab`, correct there because preexec/precmd only fire in the pane
-  # you're actively typing in), this fires from hook subprocesses that may run
-  # while a *different* tab is focused — the whole point of the feature is
-  # noticing a background session. So it resolves the tab by ID: pane_id
-  # (from $ZELLIJ_PANE_ID, matched against `list-panes`'s own `id` field) ->
-  # tab_id -> `rename-tab-by-id`, instead of trusting whatever tab happens to
-  # be focused. Never fails loudly: UserPromptSubmit hooks that exit non-2 are
-  # ignored, but a hard failure here (e.g. mid-race tab close) has no reason
-  # to surface as a Claude Code error either way.
   claudeTabAttention = pkgs.writeShellApplication {
     name = "claude-tab-attention";
     runtimeInputs = [
@@ -341,12 +278,10 @@ let
       dir="''${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
       target="$dir/.claude.json"
 
-      # Non-empty and parseable JSON? Nothing to do.
       if [ -s "$target" ] && jq -e . "$target" >/dev/null 2>&1; then
         exit 0
       fi
 
-      # Pick the newest valid backup by its millisecond timestamp suffix.
       best=""
       best_ts=0
       for b in "$dir"/backups/.claude.json.backup.*; do
@@ -368,18 +303,45 @@ let
     '';
   };
 
+  mkKeyAuth =
+    { name, keyFile, authVar }:
+    ''
+      key_file="$HOME/${keyFile}"
+      if [ ! -s "$key_file" ]; then
+        printf '${name}: missing or empty %s\n' "$key_file" >&2
+        exit 1
+      fi
+
+      ${authVar}="$(cat "$key_file")"
+      export ${authVar}
+    '';
+
+  workWrapperTail = ''
+    ${effortParserText}
+    ${mcpGroupsParserText}
+    ${gitlabMcpParserText}
+    ${gitlabMcpDenyText}
+    ${noDevarParserText}
+
+    ${healClaudeState}/bin/heal-claude-json || true
+    ${noDevarSettingsArgText}
+    if [ "''${#_claude_mcp_disallow[@]}" -gt 0 ]; then
+      exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} \
+        --disallowedTools "''${_claude_mcp_disallow[@]}" "''${_claude_extra_args[@]}" "$@"
+    else
+      exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "''${_claude_extra_args[@]}" "$@"
+    fi
+  '';
+
   glmClaude = pkgs.writeShellApplication {
     name = "glm-claude";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
-      key_file="$HOME/glm-key"
-      if [ ! -s "$key_file" ]; then
-        printf 'glm-claude: missing or empty %s\n' "$key_file" >&2
-        exit 1
-      fi
-
-      ANTHROPIC_AUTH_TOKEN="$(cat "$key_file")"
-      export ANTHROPIC_AUTH_TOKEN
+      ${mkKeyAuth {
+        name = "glm-claude";
+        keyFile = "glm-key";
+        authVar = "ANTHROPIC_AUTH_TOKEN";
+      }}
       export ANTHROPIC_BASE_URL="https://api.raytone.ai"
       export ANTHROPIC_MODEL="glm-5.2[1m]"
       export ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.2[1m]"
@@ -388,43 +350,21 @@ let
       export CLAUDE_CODE_SUBAGENT_MODEL="glm-5.2[1m]"
       export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/glm-claude"
       export CLAUDE_CODE_EFFORT_DEFAULT="${workEffortLevel}"
-      ${effortParserText}
-      ${mcpGroupsParserText}
-      ${gitlabMcpParserText}
-      ${gitlabMcpDenyText}
-      ${noDevarParserText}
-
-      ${healClaudeState}/bin/heal-claude-json || true
-      ${noDevarSettingsArgText}
-      if [ "''${#_claude_mcp_disallow[@]}" -gt 0 ]; then
-        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} \
-          --disallowedTools "''${_claude_mcp_disallow[@]}" "''${_claude_extra_args[@]}" "$@"
-      else
-        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "''${_claude_extra_args[@]}" "$@"
-      fi
+      export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1048576"
+      export CLAUDE_CODE_MAX_CONTEXT_TOKENS="1048576"
+      ${workWrapperTail}
     '';
   };
 
-  # DeepSeek's native Anthropic-compatible endpoint
-  # (https://api-docs.deepseek.com/guides/anthropic_api): base URL
-  # /anthropic, auth via the standard x-api-key header (ANTHROPIC_API_KEY),
-  # server-side maps claude-opus* -> deepseek-v4-pro and
-  # claude-haiku*/claude-sonnet* -> deepseek-v4-flash. Pin the model env vars
-  # explicitly instead of relying on that name-sniffing default so the UI
-  # shows the real model and a typo'd name can't silently fall through.
-  # Key file mirrors glmClaude's $HOME/glm-key convention.
   deepseekClaude = pkgs.writeShellApplication {
     name = "deepseek-claude";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
-      key_file="$HOME/deepseek-key"
-      if [ ! -s "$key_file" ]; then
-        printf 'deepseek-claude: missing or empty %s\n' "$key_file" >&2
-        exit 1
-      fi
-
-      ANTHROPIC_API_KEY="$(cat "$key_file")"
-      export ANTHROPIC_API_KEY
+      ${mkKeyAuth {
+        name = "deepseek-claude";
+        keyFile = "deepseek-key";
+        authVar = "ANTHROPIC_API_KEY";
+      }}
       export ANTHROPIC_BASE_URL="https://api.deepseek.com/anthropic"
       export ANTHROPIC_MODEL="deepseek-v4-pro"
       export ANTHROPIC_DEFAULT_OPUS_MODEL="deepseek-v4-pro"
@@ -433,31 +373,12 @@ let
       export ANTHROPIC_SMALL_FAST_MODEL="deepseek-v4-flash"
       export CLAUDE_CODE_SUBAGENT_MODEL="deepseek-v4-flash"
       export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/deepseek-claude"
-      ${effortParserText}
-      ${mcpGroupsParserText}
-      ${gitlabMcpParserText}
-      ${gitlabMcpDenyText}
-      ${noDevarParserText}
-
-      ${healClaudeState}/bin/heal-claude-json || true
-      ${noDevarSettingsArgText}
-      if [ "''${#_claude_mcp_disallow[@]}" -gt 0 ]; then
-        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} \
-          --disallowedTools "''${_claude_mcp_disallow[@]}" "''${_claude_extra_args[@]}" "$@"
-      else
-        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "''${_claude_extra_args[@]}" "$@"
-      fi
+      export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1048576"
+      export CLAUDE_CODE_MAX_CONTEXT_TOKENS="1048576"
+      ${workWrapperTail}
     '';
   };
 
-  # Standalone binary form of ipGuardText, referenced by the SessionStart and
-  # UserPromptSubmit hooks in normalSettings. Same fail-closed semantics: any
-  # non-verified state exits 2, which Claude Code treats as a hard block for
-  # UserPromptSubmit (stderr goes to the user) and as an error message shown
-  # to the user for SessionStart. The wrapper's inlined copy of ipGuardText
-  # (below) still fires first — the hooks are defense-in-depth for
-  # already-running sessions and per-prompt checks in case the IP shifts
-  # (VPN drop, tether swap) mid-session.
   claudeIpGuard = pkgs.writeShellApplication {
     name = "claude-ip-guard";
     runtimeInputs = [
@@ -468,14 +389,6 @@ let
     text = ipGuardText;
   };
 
-  # Shared statusline across every variant. Claude Code invokes the command
-  # frequently (roughly every ~300ms while idle) and pipes a JSON blob to stdin
-  # describing the session — model, cwd, transcript_path, running cost, lines
-  # touched, output style, etc. We echo one line to stdout; that becomes the
-  # bottom-of-terminal status. Context tokens are read from the tail of the
-  # transcript's JSONL (last message with a `.message.usage`), so the number
-  # reflects what was actually sent to the model on the previous turn — the
-  # closest thing to a "live context size" the harness exposes.
   claudeStatusLine = pkgs.writeShellApplication {
     name = "claude-statusline";
     runtimeInputs = [
@@ -487,8 +400,6 @@ let
     text = ''
       input=$(cat)
 
-      # Pull a JSON field with a default. jq failures fall back to $2 so a
-      # malformed status payload never blanks the whole line.
       jq_get() {
         printf '%s' "$input" | jq -r "$1" 2>/dev/null || printf '%s' "$2"
       }
@@ -510,17 +421,10 @@ let
                  || git -C "$cwd" rev-parse --short HEAD 2>/dev/null || true)
       fi
 
-      # $TZ is exported by the variant wrapper (e.g. normal-claude -> Europe/Berlin,
-      # work-claude -> Asia/Singapore) and inherited here since Claude Code runs
-      # this command as its own subprocess; `date` honors it with no extra flags.
       now=$(date +'%H:%M %Z' 2>/dev/null || true)
 
       kctx=$(kubectl config current-context 2>/dev/null || true)
 
-      # Context = input + cache_read + cache_creation of the most recent
-      # assistant turn. Tail the last 40 lines so this stays O(1) even on
-      # multi-MB transcripts; every assistant message carries usage, so 40 is
-      # more than enough to find one. All errors swallowed → fall back to 0.
       ctx_tokens=0
       if [ -n "$transcript" ] && [ -f "$transcript" ]; then
         usage=$( { tail -n 40 "$transcript" 2>/dev/null \
@@ -533,7 +437,6 @@ let
         fi
       fi
 
-      # Limit switches to 1M when Claude Code flags the >200k extended window.
       if [ "$exceeds" = "true" ]; then
         ctx_limit=1000000
         limit_label="1M"
@@ -550,10 +453,6 @@ let
       [ -n "$branch" ]    && parts+=("($branch)")
       [ -n "$kctx" ]      && parts+=("k8s:$kctx")
       parts+=("ctx ''${ctx_k}k/''${limit_label} (''${ctx_pct}%)")
-      # Third-party endpoints (raytone/GLM, gapgpt, the local llama-swap) don't
-      # report Anthropic-billed cost, so total_cost_usd is stuck at 0 and $0.00
-      # is just noise. Only show cost when the endpoint actually reports a
-      # nonzero value (normal-claude → Anthropic direct does; the others don't).
       if [ "$(printf '%s' "$input" | jq -r '(.cost.total_cost_usd // 0) > 0' 2>/dev/null)" = "true" ]; then
         parts+=("$(printf '$%.2f' "$cost")")
       fi
@@ -563,7 +462,6 @@ let
       [ -n "$style" ] && [ "$style" != "default" ] && parts+=("$style")
       [ -n "$now" ] && parts+=("$now")
 
-      # Join with ' | '.
       out=""
       for p in "''${parts[@]}"; do
         if [ -z "$out" ]; then out="$p"; else out="$out | $p"; fi
@@ -572,10 +470,6 @@ let
     '';
   };
 
-  # `glm-usage` — token-usage tracker for the glm-claude variant. Prices come
-  # from cfg.glmPrices (Nix config); the wrapper exports them so the python
-  # script (./glm-usage.py) picks them up, and an explicit env export still
-  # overrides per-invocation.
   glmUsage = pkgs.writeShellApplication {
     name = "glm-usage";
     runtimeInputs = [ pkgs.python3 ];
@@ -589,10 +483,6 @@ let
     '';
   };
 
-  # glm-claude's statusline = the shared claude-statusline (model/cwd/branch/
-  # ctx/...) with a glm-usage week+month cost segment appended. The shared line
-  # suppresses its always-$0.00 session cost for zero-cost endpoints (raytone
-  # reports 0), so this appends the real usage cost instead.
   glmStatusLine = pkgs.writeShellApplication {
     name = "glm-claude-statusline";
     runtimeInputs = [ pkgs.coreutils ];
@@ -610,9 +500,6 @@ let
     '';
   };
 
-  # Vanilla claude → Anthropic direct. Nothing set beyond the isolated config
-  # dir, the shared effort/heal helpers, and the ipGuardText prehook that
-  # refuses to launch from an Iranian IP (fail-closed).
   normalClaude = pkgs.writeShellApplication {
     name = "normal-claude";
     runtimeInputs = [
@@ -671,31 +558,11 @@ let
       export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/work-claude"
       export TZ="Asia/Singapore"
       export TZDIR="${pkgs.tzdata}/share/zoneinfo"
-      # Default effort for the work variant; override at runtime with --effort=.
       export CLAUDE_CODE_EFFORT_DEFAULT="${workEffortLevel}"
-      ${effortParserText}
-      # Restrict the agentic-development-mcps tool groups for this launch with
-      # --mcp-groups=tempo,logs (see mcpGroupsParserText). Omit to keep every
-      # group enabled.
-      ${mcpGroupsParserText}
-      ${gitlabMcpParserText}
-      ${gitlabMcpDenyText}
-      ${noDevarParserText}
-      ${healClaudeState}/bin/heal-claude-json || true
-      ${noDevarSettingsArgText}
-      if [ "''${#_claude_mcp_disallow[@]}" -gt 0 ]; then
-        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} \
-          --disallowedTools "''${_claude_mcp_disallow[@]}" "''${_claude_extra_args[@]}" "$@"
-      else
-        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "''${_claude_extra_args[@]}" "$@"
-      fi
+      ${workWrapperTail}
     '';
   };
 
-  # Local-model variant: a thin wrapper that points Claude Code at a local
-  # GGUF served by llama-swap (see hosts/g14/local-llm.nix). LiteLLM exposes an
-  # Anthropic-compatible /v1/messages API and translates to OpenAI
-  # chat-completions for llama-swap.
   localClaude = pkgs.writeShellApplication {
     name = "local-claude";
     runtimeInputs = [
@@ -706,30 +573,14 @@ let
       export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/local-claude"
       export ANTHROPIC_BASE_URL="${localAnthropicBaseUrl}"
       export ANTHROPIC_AUTH_TOKEN="${localProxyKey}"
-      # Pin the model names so the UI reflects reality and nothing can fall
-      # through to Anthropic.
-      #   - main model      -> qwen3.6-apex
-      #   - small/fast model-> qwen3.6-apex-nothink  (LiteLLM model group that
-      #     injects chat_template_kwargs.enable_thinking=false on the
-      #     thinking-less background chores: titles, topic checks, summaries).
-      # Both names resolve to the SAME loaded llama-swap process (alias), so there
-      # is no second model in VRAM and no swapping.
       export ANTHROPIC_MODEL="${localModel}"
       export ANTHROPIC_SMALL_FAST_MODEL="${localModelFast}"
-      # Effort override at runtime: --effort=LEVEL (e.g. `local-claude --effort=high`).
-      # No default here — the local model is slow, so leave effort unset unless asked.
       ${effortParserText}
-      # Restore .claude.json from a backup if a prior run left it corrupted
-      # (same self-heal the other variants get; see healClaudeState).
       ${healClaudeState}/bin/heal-claude-json || true
       exec claude --mcp-config "${localMcpConfigPath}" "$@"
     '';
   };
 
-  # LiteLLM routing config lives in hosts/g14/local-llm.nix. Both model groups
-  # point at the same single llama-swap model and inject llama.cpp's Qwen3
-  # no-thinking chat_template_kwargs. Timeouts are generous
-  # since local generation is far slower than the cloud.
   localAnthropicBaseUrl = "http://127.0.0.1:18081";
   localProxyKey = "sk-local";
   localModel = "qwen3.6-apex";
@@ -745,11 +596,6 @@ let
 
   pluginType = with lib.types; attrsOf bool;
 
-  # Shared across every variant, so the zellij tab-flag feature works
-  # regardless of which claude wrapper is running. Merged with a variant's own
-  # `base.hooks` (only normalSettings has any today: the IP-guard checks) by
-  # mkSettings below rather than assigned directly, since a plain `//` would
-  # let one clobber the other whenever both define the same event.
   tabAttentionHooks =
     let
       hook = mode: {
@@ -773,8 +619,6 @@ let
     let
       plugins = cfg.plugins.default // cfg.plugins.${variant};
     in
-    # Default statusLine listed first so a variant's `base` can override it by
-    # setting its own `statusLine` — none currently do.
     {
       statusLine = {
         type = "command";
@@ -783,14 +627,9 @@ let
     }
     // base
     // lib.optionalAttrs (plugins != { } || base ? enabledPlugins) {
-      # Merge, don't clobber: `base` may carry variant-specific entries (e.g.
-      # workSettings' conditional "devar@divar"); cfg.plugins toggles win.
       enabledPlugins = (base.enabledPlugins or { }) // plugins;
     }
     // {
-      # Per-event array concat, not attrset merge: `// base` above would
-      # otherwise let base.hooks silently replace tabAttentionHooks (or vice
-      # versa) on any event both define, e.g. normalSettings' UserPromptSubmit.
       hooks = lib.zipAttrsWith (_: lib.concatLists) [
         tabAttentionHooks
         (base.hooks or { })
@@ -798,13 +637,8 @@ let
     };
 
   localSettings = {
-    # Explicit toggle so nothing silently disables auto-compact for the local
-    # model (small effective context; letting the conversation grow past the
-    # window is far worse than the compaction cost). The env vars below tune
-    # *when* it fires; this makes sure it fires at all.
     autoCompactEnabled = true;
     env = {
-      CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = "80";
       CLAUDE_CODE_AUTO_COMPACT_WINDOW = "131072";
     };
     permissions = {
@@ -812,10 +646,6 @@ let
         "Bash(*)"
         "mcp__exa"
       ];
-      # The local model has no access to Anthropic's hosted WebFetch/WebSearch
-      # (those require a paid Anthropic subscription and go through their
-      # backend). Deny them so the model doesn't try — it should reach for the
-      # exa MCP tools instead (see CLAUDE.md addendum below).
       deny = [
         "WebFetch"
         "WebSearch"
@@ -825,16 +655,6 @@ let
     theme = "dark";
   };
 
-  # Register the local devar plugin checkout as the "divar" marketplace so the
-  # plugin below is enabled non-interactively instead of via `/plugin
-  # marketplace add`. Gated on enableDevar (set by modules/work.nix → isWork)
-  # so it lands only on the work laptop, the host that has the ~/divar/devar
-  # checkout (the inputs.devar flake-input path). A directory source needs no
-  # clone and no git.divar.cloud SSH key, and a directory path (unlike an
-  # SCP-style git URL) is a valid source that /doctor accepts. The nested
-  # `source` shape mirrors what Claude Code writes to known_marketplaces.json.
-  # Shared by workSettings and normalSettings — the work laptop runs both
-  # variants and wants devar (flags CLI + divarrpc lookups) in either.
   devarMarketplace = lib.optionalAttrs cfg.enableDevar {
     divar = {
       source = {
@@ -844,30 +664,10 @@ let
     };
   };
 
-  # Divar SDUI helper: `devar flags` cookie editor + offline divarrpc
-  # widget/payload/enum lookup (CLI + the `devar` MCP server) + the Divar
-  # skill set. plugin "devar" @ marketplace "divar" (devarMarketplace above).
   devarPlugin = lib.optionalAttrs cfg.enableDevar {
     "devar@divar" = true;
   };
 
-  # devar plugin CLI (flags cookie editor + offline divarrpc lookup:
-  # widget/struct/list/enum/support/services/godoc/grep/usages/repos) plus its
-  # bundled MCP server. Server id is plugin_<plugin>_<server> =
-  # plugin_devar_devar; trust the whole server so its read-only lookup tools
-  # don't prompt.
-  #
-  # The two Read rules cover the files a devar skill tells the model to open.
-  # The "divar" marketplace is a *directory* source (devarMarketplace above), so
-  # the plugin's installLocation is the checkout itself and a skill body lives at
-  # ~/divar/devar/skills/<name>/{SKILL.md,references/*.md}. Those paths sit
-  # outside whatever repo the session is cwd'd into, so progressive disclosure —
-  # SKILL.md pointing at references/<topic>.md — asked for approval on every
-  # single reference read, in every repo except devar itself. Same story for the
-  # skill source repos devar clones into ~/.cache/devar/repos (`devar repos
-  # sync`), which the skills grep for widget/proto/service lookups; the MCP
-  # server above already reads those unprompted, so allowing plain Read grants
-  # nothing new. Both are read-only rules over content this host already trusts.
   devarPermissions = lib.optionalAttrs cfg.enableDevar {
     allow = [
       "Bash(devar:*)"
@@ -877,19 +677,6 @@ let
     ];
   };
 
-  # Registers JuliusBrussee/caveman (https://github.com/juliusbrussee/caveman) —
-  # an output-compression skill/plugin that instructs the model to "talk like
-  # caveman" (fragments, minimal filler) to cut reply tokens while preserving
-  # code/commands/errors verbatim — as a known marketplace + enabled plugin,
-  # non-interactively. Same trick as devarMarketplace/devarPlugin above, just
-  # with a github source instead of a local directory: the repo's own
-  # .claude-plugin/marketplace.json declares marketplace "caveman" with a
-  # single plugin also named "caveman", so the entry below is the declarative
-  # equivalent of `claude plugin marketplace add JuliusBrussee/caveman &&
-  # claude plugin install caveman@caveman` (what upstream's installer runs)
-  # without needing to run their npm installer or mutate settings.json
-  # ourselves. Gated on cfg.enableCaveman since it's opt-in experimentation,
-  # not something every normal-claude launch should carry.
   cavemanMarketplace = lib.optionalAttrs cfg.enableCaveman {
     caveman = {
       source = {
@@ -926,29 +713,13 @@ let
       defaultMode = "auto";
     };
     extraKnownMarketplaces = devarMarketplace;
-    # Only the variant-specific additions here; the shared LSP plugins come from
-    # cfg.plugins.default and are merged in by mkSettings.
     enabledPlugins = {
-      # Figma's official plugin: registers the remote Figma MCP server
-      # (https://mcp.figma.com/mcp, OAuth) so the work Claude can pull design
-      # data — components, variables, layout — for design-to-code. Same built-in
-      # "claude-plugins-official" marketplace as the LSP plugins, so it needs no
-      # extraKnownMarketplaces entry. First use needs a one-time browser OAuth:
-      # run `/plugin` (or `/mcp`) and authenticate; that token lives in mutable
-      # runtime state, not in this Nix-managed settings.json.
       "figma@claude-plugins-official" = true;
     }
     // devarPlugin;
-    # effortLevel intentionally omitted: set via the CLAUDE_CODE_EFFORT_LEVEL
-    # env var in claudeWork's wrapper instead (see note there). Keeping it here
-    # too would be a redundant second source of truth, and the env var wins.
     theme = "dark";
     outputStyle = "concise";
     skipAutoPermissionPrompt = true;
-    # Belt-and-suspenders IP guard, same as normalSettings: the wrapper prehook
-    # blocks initial launch, SessionStart re-checks on /resume of an
-    # already-running claude, and UserPromptSubmit re-checks every message so a
-    # mid-session VPN drop is caught before the next request hits Anthropic.
     hooks = {
       SessionStart = [
         {
@@ -975,10 +746,6 @@ let
     };
   };
 
-  # glm-claude shares work-claude's settings but swaps in a statusline that
-  # appends a glm-usage week/month cost segment (mkSettings lets `base` override
-  # the default statusLine). Variant stays "work" so plugin lookup resolves to
-  # cfg.plugins.work (glm has no separate plugin set).
   glmSettings = workSettings // {
     statusLine = {
       type = "command";
@@ -990,7 +757,6 @@ let
     theme = "dark";
   };
 
-  # devar wiring gated on cfg.enableDevar (work.nix only), same as workSettings.
   deepseekSettings = {
     theme = "dark";
     extraKnownMarketplaces = devarMarketplace;
@@ -1000,18 +766,9 @@ let
 
   normalSettings = {
     theme = "dark";
-    # devar wiring is shared with workSettings: gated on cfg.enableDevar, which
-    # modules/work.nix only sets true on the work laptop (the host with the
-    # ~/divar/devar checkout). On any other host these are all empty attrsets.
     extraKnownMarketplaces = devarMarketplace // cavemanMarketplace;
     enabledPlugins = devarPlugin // cavemanPlugin;
     permissions = devarPermissions;
-    # Belt-and-suspenders IP guard: the wrapper prehook blocks initial launch,
-    # SessionStart re-checks on /resume of an already-running claude, and
-    # UserPromptSubmit re-checks every message so a mid-session VPN drop is
-    # caught before the next request hits Anthropic. Hook exit 2 hard-blocks
-    # the prompt (UserPromptSubmit contract) and surfaces the stderr banner.
-    # Timeout covers up to three sequential provider checks.
     hooks = {
       SessionStart = [
         {
@@ -1047,14 +804,6 @@ let
 
   nixManagedNote = "settings.json is Nix-managed (home/modules/programs/development/claude-code.nix in your dotfiles flake) — edits won't persist; change Nix and rebuild.\n";
 
-  # `claude` on PATH is an interactive picker: it asks which variant to launch
-  # and execs it with every arg intact, so `claude --resume <session-id>` (or
-  # any other flags) flow through to the chosen variant. Only the enabled cloud
-  # variants are offered; local-claude is intentionally excluded (launch it
-  # explicitly via `local-claude`). The real claude-code binary is NOT put on
-  # PATH — each variant references it by absolute store path, and local-claude
-  # points ccr at it via CLAUDE_CODE_COMMAND (see localClaude) so ccr never
-  # recurses into this picker.
   pickerEntry = tag: name: desc: bin: {
     inherit
       tag
@@ -1159,7 +908,6 @@ in
           };
           cacheCreate = lib.mkOption {
             type = lib.types.float;
-            # GLM reports 0 cache_creation today; priced at input by convention.
             default = 1.40;
             description = "USD per 1M cache-creation input tokens.";
           };
@@ -1327,16 +1075,6 @@ in
       home.file.".config/normal-claude/CLAUDE.md".text = nixManagedNote;
     })
     (lib.mkIf (cfg.enable || cfg.enableWork || cfg.enableLocal || cfg.enableNormal || cfg.enableDeepseek) {
-      # Claude Code persists runtime changes (/effort, enabling a plugin, theme,
-      # adding a marketplace, …) by rewriting settings.json — which replaces the
-      # read-only Nix symlink with a plain file. With home-manager's
-      # backupFileExtension = "backup", the next `home-manager switch` moves that
-      # file aside to settings.json.backup, and then FAILS the whole rebuild the
-      # moment a settings.json.backup from an earlier clobber is already there
-      # ("would be clobbered"). settings.json is fully reproducible from this
-      # module, so drop the clobbered copy (and any stale backup) before the link
-      # check — exactly like obsidianClobberGuard does for the vault. Runs every
-      # switch, so it self-heals instead of needing a manual `rm`.
       home.activation.claudeSettingsClobberGuard = lib.hm.dag.entryBefore [ "checkLinkTargets" ] (
         lib.concatMapStringsSep "\n"
           (dir: ''
