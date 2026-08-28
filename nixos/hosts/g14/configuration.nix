@@ -143,6 +143,7 @@ in
         # Local model bridge (`local-claude` -> LiteLLM -> llama-swap).
         # The server side lives in ./local-llm.nix.
         enableLocal = true;
+        plugins.local."clangd-lsp@claude-plugins-official" = true;
       };
       opencode.enableLocal = true;
     };

@@ -17,7 +17,7 @@ let
   systemBattery =
     {
       mac = "macsmc-battery"; # Asahi / Apple Silicon
-      g14 = "BAT0"; # ASUS ROG laptop (ACPI)
+      g14 = "BAT1"; # ASUS ROG laptop (ACPI)
       t14 = "BAT0"; # Lenovo ThinkPad (ACPI)
     }.${currentHostname} or "";
   hasBattery = systemBattery != "";

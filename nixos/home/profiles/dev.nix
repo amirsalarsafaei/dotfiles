@@ -21,6 +21,7 @@
     claudeCode.enable = true;
     claudeCode.enableNormal = true;
     claudeCode.enableCaveman = true;
+    claudeCode.plugins.normal."clangd-lsp@claude-plugins-official" = true;
 
     agentSkills = {
       enable = true;
