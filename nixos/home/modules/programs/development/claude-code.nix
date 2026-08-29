@@ -8,6 +8,10 @@
 let
   cfg = config.custom.claudeCode;
 
+  # The zellij status-bar plugin and its Claude Code hook bridge are one
+  # package; the plugin half is used by home/modules/programs/terminal/zelij.nix.
+  zellaude = pkgs.callPackage ../../../../pkgs/zellaude.nix { };
+
   workEffortLevel = "xhigh";
 
   ipGuardText = ''
@@ -219,55 +223,6 @@ let
     };
   };
 
-  claudeTabAttention = pkgs.writeShellApplication {
-    name = "claude-tab-attention";
-    runtimeInputs = [
-      pkgs.jq
-      pkgs.zellij
-      pkgs.coreutils
-    ];
-    text = ''
-      marker='🔔 '
-      mode="''${1:?usage: claude-tab-attention notify|clear}"
-
-      [ -n "''${ZELLIJ:-}" ] || exit 0
-      [ -n "''${ZELLIJ_PANE_ID:-}" ] || exit 0
-
-      panes_json=$(zellij action list-panes -j 2>/dev/null) || exit 0
-      tab_id=$(printf '%s' "$panes_json" | jq -r --argjson pid "$ZELLIJ_PANE_ID" '
-        [.[] | select(.is_plugin | not) | select(.id == $pid)] | .[0].tab_id // empty
-      ')
-      [ -n "$tab_id" ] || exit 0
-
-      tabs_json=$(zellij action list-tabs -j 2>/dev/null) || exit 0
-      name=$(printf '%s' "$tabs_json" | jq -r --argjson tid "$tab_id" '
-        .[] | select(.tab_id == $tid) | .name
-      ')
-      [ -n "$name" ] || exit 0
-
-      case "$mode" in
-        notify)
-          case "$name" in
-            "$marker"*) ;;
-            *) zellij action rename-tab-by-id "$tab_id" "$marker$name" 2>/dev/null || true ;;
-          esac
-          ;;
-        clear)
-          case "$name" in
-            "$marker"*)
-              zellij action rename-tab-by-id "$tab_id" "''${name#"$marker"}" 2>/dev/null || true
-              ;;
-            *) ;;
-          esac
-          ;;
-        *)
-          printf 'claude-tab-attention: unknown mode %s\n' "$mode" >&2
-          exit 1
-          ;;
-      esac
-    '';
-  };
-
   healClaudeState = pkgs.writeShellApplication {
     name = "heal-claude-json";
     runtimeInputs = [
@@ -304,7 +259,11 @@ let
   };
 
   mkKeyAuth =
-    { name, keyFile, authVar }:
+    {
+      name,
+      keyFile,
+      authVar,
+    }:
     ''
       key_file="$HOME/${keyFile}"
       if [ ! -s "$key_file" ]; then
@@ -596,23 +555,47 @@ let
 
   pluginType = with lib.types; attrsOf bool;
 
-  tabAttentionHooks =
+  # zellij's status bar (zellaude, see home/modules/programs/terminal/zelij.nix)
+  # shows what each Claude pane is doing — thinking, running a tool, waiting on
+  # a permission prompt — and it learns that from these hooks: each one pipes
+  # the event into the plugin with `zellij pipe`. The script no-ops instantly
+  # outside zellij, so it is safe on every variant.
+  #
+  # These replaced a hook that prefixed the zellij tab name with a bell glyph on
+  # Notification/Stop. Two things renaming tabs at once (that hook and a zsh
+  # precmd hook that named the tab after the cwd) made the bar flicker, and the
+  # plugin says strictly more than the glyph did.
+  #
+  # zellaude normally installs itself into ~/.claude/settings.json on first run;
+  # that file is generated from this module, so the plugin's copy is patched out
+  # (pkgs/zellaude.nix) and the registration lives here instead.
+  zellaudeHooks =
     let
-      hook = mode: {
-        hooks = [
-          {
-            type = "command";
-            command = "${claudeTabAttention}/bin/claude-tab-attention ${mode}";
-            timeout = 5;
-          }
-        ];
-      };
+      entry = [
+        {
+          hooks = [
+            {
+              type = "command";
+              command = "${zellaude.hook}/bin/zellaude-hook";
+              timeout = 5;
+              async = true;
+            }
+          ];
+        }
+      ];
     in
-    {
-      Notification = [ (hook "notify") ];
-      Stop = [ (hook "notify") ];
-      UserPromptSubmit = [ (hook "clear") ];
-    };
+    lib.genAttrs [
+      "PreToolUse"
+      "PostToolUse"
+      "PostToolUseFailure"
+      "UserPromptSubmit"
+      "PermissionRequest"
+      "Notification"
+      "Stop"
+      "SubagentStop"
+      "SessionStart"
+      "SessionEnd"
+    ] (_: entry);
 
   mkSettings =
     variant: base:
@@ -631,7 +614,7 @@ let
     }
     // {
       hooks = lib.zipAttrsWith (_: lib.concatLists) [
-        tabAttentionHooks
+        zellaudeHooks
         (base.hooks or { })
       ];
     };
@@ -1074,25 +1057,28 @@ in
       );
       home.file.".config/normal-claude/CLAUDE.md".text = nixManagedNote;
     })
-    (lib.mkIf (cfg.enable || cfg.enableWork || cfg.enableLocal || cfg.enableNormal || cfg.enableDeepseek) {
-      home.activation.claudeSettingsClobberGuard = lib.hm.dag.entryBefore [ "checkLinkTargets" ] (
-        lib.concatMapStringsSep "\n"
-          (dir: ''
-            s="${config.home.homeDirectory}/${dir}/settings.json"
-            if [ -e "$s" ] && [ ! -L "$s" ]; then
-              run rm -f $VERBOSE_ARG "$s"
-            fi
-            run rm -f $VERBOSE_ARG "$s.backup"
-          '')
-          (
-            lib.optional cfg.enable ".config/gap-claude"
-            ++ lib.optional cfg.enableGlm ".config/glm-claude"
-            ++ lib.optional cfg.enableDeepseek ".config/deepseek-claude"
-            ++ lib.optional cfg.enableWork ".config/work-claude"
-            ++ lib.optional cfg.enableLocal ".config/local-claude"
-            ++ lib.optional cfg.enableNormal ".config/normal-claude"
-          )
-      );
-    })
+    (lib.mkIf
+      (cfg.enable || cfg.enableWork || cfg.enableLocal || cfg.enableNormal || cfg.enableDeepseek)
+      {
+        home.activation.claudeSettingsClobberGuard = lib.hm.dag.entryBefore [ "checkLinkTargets" ] (
+          lib.concatMapStringsSep "\n"
+            (dir: ''
+              s="${config.home.homeDirectory}/${dir}/settings.json"
+              if [ -e "$s" ] && [ ! -L "$s" ]; then
+                run rm -f $VERBOSE_ARG "$s"
+              fi
+              run rm -f $VERBOSE_ARG "$s.backup"
+            '')
+            (
+              lib.optional cfg.enable ".config/gap-claude"
+              ++ lib.optional cfg.enableGlm ".config/glm-claude"
+              ++ lib.optional cfg.enableDeepseek ".config/deepseek-claude"
+              ++ lib.optional cfg.enableWork ".config/work-claude"
+              ++ lib.optional cfg.enableLocal ".config/local-claude"
+              ++ lib.optional cfg.enableNormal ".config/normal-claude"
+            )
+        );
+      }
+    )
   ];
 }

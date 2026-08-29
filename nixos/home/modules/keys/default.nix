@@ -101,15 +101,32 @@ let
       } tmuxCopyMode.right
     )
     ++ lib.optionals enabled.zellij (
+      let
+        # Every zellij mode is reached through the prefix, so each mode's rows
+        # carry the keys that get there — a row reads as the whole sequence to
+        # type, not as a bare letter.
+        inherit (registry.zellij) prefix;
+        inMode =
+          via: binds:
+          rowsFor {
+            app = "zellij";
+            prefix = "${prefix} ${via} then";
+          } binds;
+      in
       rowsFor { app = "zellij"; } registry.zellij.navigation
+      ++ rowsFor { app = "zellij"; } registry.zellij.prefixEnter
+      ++ rowsFor { app = "zellij"; } registry.zellij.leaveMode
       ++ rowsFor {
         app = "zellij";
-        prefix = registry.zellij.prefix;
+        inherit prefix;
       } registry.zellij.prefixed
-      ++ rowsFor {
-        app = "zellij";
-        prefix = "${registry.zellij.prefix} [ then";
-      } registry.zellij.scroll
+      ++ inMode "Ctrl+p" registry.zellij.paneMode
+      ++ inMode "Ctrl+t" registry.zellij.tabMode
+      ++ inMode "Ctrl+n" registry.zellij.resizeMode
+      ++ inMode "m" registry.zellij.moveMode
+      ++ inMode "Ctrl+o" registry.zellij.sessionMode
+      ++ inMode "[" registry.zellij.scrollMode
+      ++ inMode "[ s" registry.zellij.searchMode
       ++ rowsFor { app = "zellij"; } registry.zellij.docs
     )
     ++ lib.optionals enabled.ghostty (rowsFor { app = "ghostty"; } registry.ghostty.binds)
@@ -118,70 +135,79 @@ let
     ++ lib.optionals enabled.nvim nvimRows;
 
   # Hoisted so the zellij render and the collision check share one copy of the
-  # section list (and the shared_except "locked" unbind list) rather than
-  # drifting apart. See the note on the unbind list in lib.nix's renderer.
-  zellijUnbind = [
-    # Ctrl-h is zellij's default way into Move mode; it is freed here so the
-    # vim-navigator binding can have it. Ctrl-o/g/p/n/t are zellij's other
-    # default mode-entry keys (Session/Locked/Pane/Resize/Tab); freeing them
-    # too means Ctrl-b is the only way into any zellij mode, so no stray
-    # Ctrl-<key> steals a keystroke the shell or an app expects (Ctrl-o for
-    # Claude Code's overlay, Ctrl-p for shell history, etc).
-    (keysLib.on.ctrl keysLib.K.h)
-    (keysLib.on.ctrl keysLib.K.o)
-    (keysLib.on.ctrl keysLib.K.g)
-    (keysLib.on.ctrl keysLib.K.p)
-    (keysLib.on.ctrl keysLib.K.n)
-    (keysLib.on.ctrl keysLib.K.t)
-  ];
-
+  # section list rather than drifting apart. Zellij's own defaults are cleared
+  # (see keysLib.zellij.render), so these sections are the whole keymap: a mode
+  # with no section here has no keys at all, which is exactly what Locked mode
+  # wants — autolock switches into it precisely so that every key reaches the
+  # app underneath untouched, and there is deliberately no bind to leave it by
+  # hand (autolock switches back once the trigger process loses focus).
   zellijSections = [
     (keysLib.zellij.section {
-      except = [ "locked" "tmux" ];
-      binds = registry.zellij.navigation;
+      except = [
+        "locked"
+        "tmux"
+      ];
+      binds = registry.zellij.navigation ++ registry.zellij.prefixEnter;
       note = ''
         Seamless nvim <-> pane navigation. This is only half of the
         mechanism: the plugin notices the focused pane is running nvim
         and writes the key through to it. Moving between nvim's own
         windows is zellij-nav.nvim's job, wired up in
-        home/modules/neovim/navigation.nix.'';
+        home/modules/neovim/navigation.nix.
+
+        The prefix lives in this block too, because it has to be
+        reachable from every mode except the one it opens.'';
     })
     (keysLib.zellij.section {
-      except = [ "tmux" "locked" ];
-      binds = registry.zellij.tabJump;
+      except = [
+        "normal"
+        "locked"
+      ];
+      binds = registry.zellij.leaveMode;
     })
     (keysLib.zellij.section {
       mode = "tmux";
       binds = registry.zellij.prefixed;
     })
     (keysLib.zellij.section {
+      mode = "pane";
+      binds = registry.zellij.paneMode;
+    })
+    (keysLib.zellij.section {
+      mode = "tab";
+      binds = registry.zellij.tabMode;
+    })
+    (keysLib.zellij.section {
+      mode = "resize";
+      binds = registry.zellij.resizeMode;
+    })
+    (keysLib.zellij.section {
+      mode = "move";
+      binds = registry.zellij.moveMode;
+    })
+    (keysLib.zellij.section {
       mode = "scroll";
-      binds = registry.zellij.scroll;
-      note = ''
-        Zellij's Copy action copies the *mouse* selection and nothing
-        else, so there is no keyboard select-and-yank to bind.
-        EditScrollback is the stand-in and is strictly more capable:
-        the whole buffer opens in nvim, where selecting is visual mode
-        and the yank reaches the system clipboard (clipboard =
-        "unnamedplus"). Bound to "y" for the tmux muscle memory.'';
+      binds = registry.zellij.scrollMode;
     })
     (keysLib.zellij.section {
       mode = "search";
-      binds = registry.zellij.search;
+      binds = registry.zellij.searchMode;
     })
     (keysLib.zellij.section {
-      mode = "locked";
-      binds = [ (keysLib.zellij.unbind { key = keysLib.on.ctrl keysLib.K.g; }) ];
-      note = ''
-        Locked mode's own exit bind (Ctrl-g, back to Normal) lives in
-        this block, not one of the shared groups above, so the
-        top-level unbind can't reach it. Left bound it meant Ctrl-g
-        got intercepted to leave Locked mode instead of reaching the
-        app underneath (e.g. fzf's own Ctrl-g), defeating the point
-        of autolock passing keys through untouched. There is
-        deliberately no key left to exit Locked mode manually;
-        autolock already does it automatically once the trigger
-        process (fzf|yazi|less|man) loses focus.'';
+      mode = "entersearch";
+      binds = registry.zellij.enterSearchMode;
+    })
+    (keysLib.zellij.section {
+      mode = "renametab";
+      binds = registry.zellij.renameTabMode;
+    })
+    (keysLib.zellij.section {
+      mode = "renamepane";
+      binds = registry.zellij.renamePaneMode;
+    })
+    (keysLib.zellij.section {
+      mode = "session";
+      binds = registry.zellij.sessionMode;
     })
   ];
 
@@ -189,26 +215,21 @@ let
   # `home-manager build`/`switch` instead of double-firing at runtime.
   checkErrors =
     let
-      defaults = import ./zellij-defaults.nix;
       dups =
         keysLib.duplicatesIn keysLib.hyprChord "hyprland" registry.hyprland.binds
         ++ lib.concatMap (
-          s:
-          keysLib.duplicatesIn keysLib.hyprChord "hyprland submap ${s.name}" s.binds
+          s: keysLib.duplicatesIn keysLib.hyprChord "hyprland submap ${s.name}" s.binds
         ) registry.hyprland.submaps
         ++ lib.concatLists (
-          lib.mapAttrsToList
-            (table: binds: keysLib.duplicatesIn keysLib.tmuxChord "tmux ${table}" binds)
-            (lib.groupBy
-              (b: if b.table or null == null then "prefix" else b.table)
-              (lib.filter (b: b ? on) registry.tmux.binds))
+          lib.mapAttrsToList (table: binds: keysLib.duplicatesIn keysLib.tmuxChord "tmux ${table}" binds) (
+            lib.groupBy (b: if b.table or null == null then "prefix" else b.table) (
+              lib.filter (b: b ? on) registry.tmux.binds
+            )
+          )
         )
-        ++ lib.concatMap
-          (s: keysLib.duplicatesIn keysLib.zellijChord "zellij ${s.selector}" (lib.filter (b: b ? on) s.binds))
-          zellijSections
         ++ keysLib.duplicatesIn keysLib.ghosttyChord "ghostty" registry.ghostty.binds;
     in
-    dups ++ keysLib.zellijDefaultErrors defaults zellijUnbind zellijSections;
+    dups ++ keysLib.zellijModeConflicts zellijSections;
 
   rowsJson = pkgs.writeText "keybindings.json" (
     if checkErrors == [ ] then
@@ -321,7 +342,7 @@ in
     commands = lib.mkOption {
       type = lib.types.attrsOf lib.types.str;
       default = { };
-      example = lib.literalExpression "{ zjSshSplit = lib.getExe zjSshSplit; }";
+      example = lib.literalExpression "{ zjClaudeJump = lib.getExe zjClaudeJump; }";
       description = ''
         Commands that bindings in registry.nix run, keyed by the name the
         registry uses. Set by whichever module builds the command, so the
@@ -362,10 +383,7 @@ in
           inherit (registry.hyprland) binds submaps;
         };
         tmux = keysLib.tmux.render registry.tmux.binds;
-        zellij = keysLib.zellij.render {
-          unbind = zellijUnbind;
-          sections = zellijSections;
-        };
+        zellij = keysLib.zellij.render { sections = zellijSections; };
         ghostty = keysLib.ghostty.render registry.ghostty.binds;
       };
 

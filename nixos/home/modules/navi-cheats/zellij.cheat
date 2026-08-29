@@ -1,6 +1,6 @@
 % zellij, multiplexer, terminal
 
-# Show the zellij keybinding cheatsheet (prefix is Ctrl-b)
+# Show the zellij keybinding cheatsheet (prefix is Ctrl-Space)
 zellij-keys
 
 # Look up a single zellij shortcut by what you want to do

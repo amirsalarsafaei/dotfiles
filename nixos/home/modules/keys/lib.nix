@@ -223,6 +223,20 @@ let
       tmux = "!";
       zellij = "!";
     };
+    # KDL quotes every bind key, so a literal double quote has to arrive here
+    # already escaped — `bind "\""`, the same spelling zellij's own defaults use.
+    dquote = mkKey {
+      id = "dquote";
+      label = "\"";
+      tmux = "\"";
+      zellij = "\\\"";
+    };
+    percent = mkKey {
+      id = "percent";
+      label = "%";
+      tmux = "%";
+      zellij = "%";
+    };
     left = mkKey {
       id = "left";
       label = "←";
@@ -246,6 +260,16 @@ let
       label = "↓";
       hypr = "down";
       zellij = "Down";
+    };
+    pageUp = mkKey {
+      id = "pageup";
+      label = "PgUp";
+      zellij = "PageUp";
+    };
+    pageDown = mkKey {
+      id = "pagedown";
+      label = "PgDn";
+      zellij = "PageDown";
     };
     printScreen = mkKey {
       id = "print";
@@ -680,7 +704,7 @@ let
       let
         selector =
           if except != null then
-            ''shared_except ${lib.concatMapStringsSep " " (m: "\"${m}\"") except}''
+            "shared_except ${lib.concatMapStringsSep " " (m: "\"${m}\"") except}"
           else
             mode;
       in
@@ -694,36 +718,18 @@ let
           ;
       };
 
-    # A key removed from *this specific mode block* rather than from every
-    # mode — e.g. Locked mode's own exit bind, which the `unbind` list below
-    # deliberately leaves alone (it renders as `shared_except "locked"`).
-    unbind =
-      {
-        key,
-        group ? null,
-      }:
-      {
-        app = "zellij";
-        unbind = key;
-        desc = null;
-        inherit group;
-      };
-
     line =
       b:
-      if b ? unbind then
-        ''unbind "${zellijChord b.unbind}"''
-      else
-        let
-          keys = lib.concatMapStringsSep " " (c: ''"${zellijChord c}"'') b.on;
-          multiline = lib.any (a: lib.hasInfix "\n" a) b.run;
-          body =
-            if multiline then
-              "\n" + lib.concatMapStringsSep "\n" (indent "    ") b.run + "\n"
-            else
-              " " + lib.concatStringsSep " " b.run + " ";
-        in
-        "bind ${keys} {${body}}";
+      let
+        keys = lib.concatMapStringsSep " " (c: ''"${zellijChord c}"'') b.on;
+        multiline = lib.any (a: lib.hasInfix "\n" a) b.run;
+        body =
+          if multiline then
+            "\n" + lib.concatMapStringsSep "\n" (indent "    ") b.run + "\n"
+          else
+            " " + lib.concatStringsSep " " b.run + " ";
+      in
+      "bind ${keys} {${body}}";
 
     renderSection =
       s:
@@ -738,22 +744,20 @@ let
 
     # The whole `keybinds` node, ready to drop into zellij's config: a second
     # keybinds node would be ignored, so this has to be the only one.
+    #
+    # `clear-defaults=true` is the reason the sections below can be read as the
+    # whole keymap. Without it zellij *merges* what is declared here into its
+    # own defaults, so a chord it already binds fires both actions and the only
+    # way to take one back is an `unbind` — which in 0.44.3 dead-ends the key
+    # entirely if it is then re-bound. Starting from nothing costs a longer
+    # registry and buys a keymap that is exactly what the file says.
     render =
       {
-        unbind ? [ ],
         sections ? [ ],
       }:
       ''
-        keybinds {
-        ${indent "    " (
-          lib.concatStringsSep "\n\n" (
-            lib.optional (unbind != [ ]) (''
-              shared_except "locked" {
-              ${indent "    " (lib.concatMapStringsSep "\n" (c: ''unbind "${zellijChord c}"'') unbind)}
-              }'')
-            ++ map zellij.renderSection sections
-          )
-        )}
+        keybinds clear-defaults=true {
+        ${indent "    " (lib.concatMapStringsSep "\n\n" zellij.renderSection sections)}
         }'';
   };
 
@@ -802,46 +806,70 @@ let
     in
     lib.mapAttrsToList (c: n: "${namespace}: '${c}' is bound ${toString n} times") dups;
 
-  # A declared zellij bind that lands on a default chord in one of the modes its
-  # section targets, and is not freed by an `unbind`. `defaults` is the
-  # zellij-defaults.nix data; `topUnbind` is the shared_except "locked" chord
-  # list; `sections` are keysLib.zellij.section values.
-  zellijDefaultErrors =
-    defaults: topUnbind: sections:
+  # Every zellij mode, in the order zellij names them. Sections say which modes
+  # they target (`mode = "pane"`, or `except = [ "locked" ]`), and the conflict
+  # check below expands those into concrete modes against this list.
+  zellijModes = [
+    "normal"
+    "locked"
+    "resize"
+    "pane"
+    "move"
+    "tab"
+    "scroll"
+    "search"
+    "entersearch"
+    "renametab"
+    "renamepane"
+    "session"
+    "tmux"
+  ];
+
+  # One chord bound twice in the same mode. With clear-defaults there are no
+  # hidden defaults left to collide with, so the only way to bind a key twice is
+  # to declare it twice — which zellij resolves silently, leaving a key that
+  # does the wrong thing.
+  #
+  # A mode block and a `shared_except` block are *not* a conflict: zellij lets
+  # the mode-specific bind win, and the defaults rely on that (entersearch binds
+  # Enter/Esc itself while shared_except "normal" "locked" also covers it). So
+  # the two kinds are checked against themselves, not against each other.
+  zellijModeConflicts =
+    sections:
     let
-      defaultsForMode =
-        mode:
-        (defaults.named.${mode} or [ ])
-        ++ lib.concatMap
-          (s: if lib.elem mode s.except then [ ] else s.chords)
-          defaults.sharedExcept;
-
       targetModes =
-        s:
-        if s.except != null then
-          lib.filter (m: !(lib.elem m s.except)) defaults.modes
-        else
-          [ s.mode ];
+        s: if s.except != null then lib.filter (m: !(lib.elem m s.except)) zellijModes else [ s.mode ];
 
-      sectionErrors =
+      # [{ mode, chord, kind, desc }] for every chord of every bind.
+      entries = lib.concatMap (
         s:
         let
-          ownUnbinds = map (b: zellijChord b.unbind) (lib.filter (b: b ? unbind) s.binds);
-          freed = map zellijChord topUnbind ++ ownUnbinds;
-          binds = lib.filter (b: !(b ? unbind)) s.binds;
-          chords = lib.concatMap (b: map (c: { inherit c; desc = b.desc; }) (toList b.on)) binds;
-          bad = lib.filter (
-            p:
-            !(lib.elem (zellijChord p.c) freed)
-            && lib.any (m: lib.elem (zellijChord p.c) (defaultsForMode m)) (targetModes s)
-          ) chords;
+          kind = if s.except != null then "shared" else "mode";
         in
-        map (
-          p:
-          "zellij ${s.selector}: '${zellijChord p.c}' (${p.desc or "?"}) is a zellij default in this mode — add an `unbind` for it first"
-        ) bad;
+        lib.concatMap (
+          b:
+          lib.concatMap (
+            c:
+            map (mode: {
+              inherit mode kind;
+              chord = zellijChord c;
+              desc = b.desc or "?";
+            }) (targetModes s)
+          ) (toList b.on)
+        ) s.binds
+      ) sections;
+
+      byKey = lib.groupBy (e: "${e.mode}\t${e.kind}\t${e.chord}") entries;
     in
-    lib.concatMap sectionErrors sections;
+    lib.mapAttrsToList (
+      _: es:
+      let
+        e = lib.head es;
+      in
+      "zellij ${e.mode} mode: '${e.chord}' is bound ${toString (lib.length es)} times (${
+        lib.concatMapStringsSep ", " (x: x.desc) es
+      })"
+    ) (lib.filterAttrs (_: es: lib.length es > 1) byKey);
 
   # ── documentation-only entries ──────────────────────────────────────────
   # Shortcuts this config does not declare but a user still needs to know:
@@ -905,6 +933,6 @@ in
     doc
     rowsFor
     duplicatesIn
-    zellijDefaultErrors
+    zellijModeConflicts
     ;
 }

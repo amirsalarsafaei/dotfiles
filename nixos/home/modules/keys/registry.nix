@@ -22,11 +22,13 @@ let
     doc
     ;
 
-  # vi directions, spelled once for every app that binds hjkl.
+  # vi directions, spelled once for every app that binds hjkl. `arrow` is the
+  # matching arrow key: zellij's mode blocks bind both on one action.
   directions = {
     h = {
       key = K.h;
       upper = K.H;
+      arrow = K.left;
       hypr = "l";
       zellij = "Left";
       tmux = "L";
@@ -35,6 +37,7 @@ let
     j = {
       key = K.j;
       upper = K.J;
+      arrow = K.down;
       hypr = "d";
       zellij = "Down";
       tmux = "D";
@@ -43,6 +46,7 @@ let
     k = {
       key = K.k;
       upper = K.K;
+      arrow = K.up;
       hypr = "u";
       zellij = "Up";
       tmux = "U";
@@ -51,12 +55,17 @@ let
     l = {
       key = K.l;
       upper = K.L;
+      arrow = K.right;
       hypr = "r";
       zellij = "Right";
       tmux = "R";
       word = "right";
     };
   };
+
+  # zellij declares its whole keymap here (clear-defaults, see lib.nix), which
+  # is a few hundred binds; the alias keeps them one screenful each.
+  zbind = keysLib.zellij.bind;
 
   eachDirection =
     f:
@@ -629,15 +638,38 @@ rec {
     };
 
   # ── zellij ──────────────────────────────────────────────────────────────
+  # Zellij's own keybinds are cleared wholesale (`keybinds clear-defaults=true`,
+  # emitted by keysLib.zellij.render), so this section is the entire keymap —
+  # if a key is not here, zellij does nothing with it. The defaults worth
+  # keeping were transcribed from `zellij setup --dump-config` at 0.44.3 and
+  # are declared below like everything else.
+  #
+  # Why clear them: zellij *merges* declared binds into its defaults, so any
+  # chord it already used fired twice, and taking one back needed an `unbind`
+  # — which in 0.44.3 dead-ends the key for good if it is then re-bound
+  # (measured: unbind + rebind of Ctrl-b c fired nothing at all). Starting
+  # from empty costs a longer registry and buys a keymap with no invisible
+  # half.
   zellij = rec {
-    prefix = "Ctrl+b";
+    # Ctrl+Space, not tmux's Ctrl+b: one key either way, but this one is
+    # pinky + thumb instead of a stretch down to `b`, and it costs nothing —
+    # readline's Ctrl+b is backward-char, which is what the arrow keys do.
+    # It reaches zellij through the kitty keyboard protocol (ghostty speaks
+    # it; support_kitty_keyboard_protocol is on in zelij.nix).
+    prefix = "Ctrl+Space";
 
-    # Ctrl-hjkl reaches the plugin, which forwards the key into nvim when nvim
-    # has focus and moves zellij's own focus otherwise. The nvim half lives in
-    # home/modules/neovim/navigation.nix.
+    # ── outside the prefix ────────────────────────────────────────────
+    # Deliberately almost empty. Every chord grabbed here is a chord that
+    # Claude Code, nvim and zsh can never see again — Claude Code alone wants
+    # Ctrl+o, Ctrl+p, Ctrl+n, Ctrl+t, Ctrl+r and Ctrl+s — so the only
+    # no-prefix binds left are the prefix itself and Ctrl+hjkl, which pays for
+    # itself by passing the key through to nvim rather than swallowing it.
+    #
+    # navigation and prefixEnter render into one `shared_except` block: two
+    # blocks with the same selector would be two KDL nodes for the same mode.
     navigation = eachDirection (
       d:
-      keysLib.zellij.bind {
+      zbind {
         on = on.ctrl d.key;
         run = ''
           MessagePlugin "vim-zellij-navigator" {
@@ -649,51 +681,82 @@ rec {
       }
     );
 
-    # Straight to tab N with no Ctrl-b first, for jumping across many project
-    # tabs fast. Alt+digit is free: it isn't one of the top-level-unbound
-    # Ctrl-<key> mode-entry keys, and zellij's own defaults only use Alt for
-    # letters/symbols (Alt-hjkl, Alt-+/-, ...), never Alt-digit.
-    tabJump = map (
-      n:
-      keysLib.zellij.bind {
-        on = on.alt K.${n};
-        run = "GoToTab ${n};";
-        desc = "Jump straight to tab ${n} (no prefix)";
-        group = "Tabs, no prefix";
-      }
-    ) [ "1" "2" "3" "4" "5" "6" "7" "8" "9" ];
+    prefixEnter = [
+      (zbind {
+        on = on.ctrl K.space;
+        run = ''SwitchToMode "Tmux";'';
+        desc = "Prefix — everything else is behind this key";
+        group = "Modes";
+      })
+    ];
 
-    # Bindings inside the prefix. Zellij merges these with its own tmux-mode
-    # defaults, which is why the extra keys further down are documented but
-    # not declared.
+    # Enter and Esc leave whatever mode is up. Mode blocks that need Esc for
+    # something else (rename, search) bind it themselves and win.
+    leaveMode = [
+      (zbind {
+        on = [
+          (on.none K.enter)
+          (on.none K.esc)
+        ];
+        run = ''SwitchToMode "Normal";'';
+        desc = "Back to normal mode";
+        group = "Modes";
+      })
+    ];
+
+    # ── behind the prefix (zellij's Tmux mode) ────────────────────────
     prefixed = [
-      (keysLib.zellij.bind {
+      (zbind {
+        on = on.ctrl K.space;
+        # Ctrl+Space is byte 0, so that is what gets written through to the
+        # app when the prefix is pressed twice.
+        run = [
+          "Write 0;"
+          ''SwitchToMode "Normal";''
+        ];
+        desc = "Send a literal Ctrl+Space to the app";
+        group = "Modes";
+      })
+      (zbind {
         on = on.ctrl K.p;
         run = ''SwitchToMode "Pane";'';
         desc = "Pane mode (Esc to leave)";
         group = "Modes";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.ctrl K.n;
         run = ''SwitchToMode "Resize";'';
         desc = "Resize mode, hjkl grows and HJKL shrinks (Esc to leave)";
         group = "Modes";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.ctrl K.t;
         run = ''SwitchToMode "Tab";'';
         desc = "Tab mode, x closes the tab (Esc to leave)";
         group = "Modes";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.ctrl K.o;
         run = ''SwitchToMode "Session";'';
         desc = "Session mode (Esc to leave)";
         group = "Modes";
       })
+      (zbind {
+        on = on.none K.bracketOpen;
+        run = ''SwitchToMode "Scroll";'';
+        desc = "Scroll mode";
+        group = "Modes";
+      })
+      (zbind {
+        on = on.none K.m;
+        run = ''SwitchToMode "Move";'';
+        desc = "Move mode";
+        group = "Modes";
+      })
 
-      (keysLib.zellij.bind {
+      (zbind {
         on = [
+          (on.none K.dquote)
           (on.none K.minus)
           (on.none K.equal)
         ];
@@ -704,8 +767,9 @@ rec {
         desc = "Split down";
         group = "Panes";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = [
+          (on.none K.percent)
           (on.none K.pipe)
           (on.none K.underscore)
           (on.none K.plus)
@@ -717,48 +781,12 @@ rec {
         desc = "Split right";
         group = "Panes";
       })
-      (keysLib.zellij.bind {
-        on = on.none K.s;
-        run = [
-          ''
-            Run "${cmd.zjSshSplit}" "right" {
-                floating true
-                close_on_exit true
-                name "ssh"
-            };''
-          ''SwitchToMode "Normal";''
-        ];
-        desc = "Pick an ssh host and split right into it";
-        group = "Panes";
-      })
-      (keysLib.zellij.bind {
-        on = on.none K.S;
-        run = [
-          ''
-            Run "${cmd.zjSshSplit}" "down" {
-                floating true
-                close_on_exit true
-                name "ssh"
-            };''
-          ''SwitchToMode "Normal";''
-        ];
-        desc = "Pick an ssh host and split down into it";
-        group = "Panes";
-      })
     ]
-    # h/j/k/l are zellij defaults in tmux mode too, and the defaults append
-    # `SwitchToMode "Normal"` after the move. Unbind them first so only the
-    # custom MoveFocus fires, leaving the prefix up for repeated h/h/h moves.
+    # hjkl keeps the prefix up so h/h/h walks across panes; the arrows do the
+    # same move and drop back to normal, matching what tmux's prefix arrows do.
     ++ eachDirection (
       d:
-      keysLib.zellij.unbind {
-        key = on.none d.key;
-        group = "Panes";
-      }
-    )
-    ++ eachDirection (
-      d:
-      keysLib.zellij.bind {
+      zbind {
         on = on.none d.key;
         run = ''MoveFocus "${d.zellij}";'';
         desc = "Focus ${d.word}";
@@ -767,7 +795,19 @@ rec {
     )
     ++ eachDirection (
       d:
-      keysLib.zellij.bind {
+      zbind {
+        on = on.none d.arrow;
+        run = [
+          ''MoveFocus "${d.zellij}";''
+          ''SwitchToMode "Normal";''
+        ];
+        desc = "Focus ${d.word} and leave the prefix";
+        group = "Panes";
+      }
+    )
+    ++ eachDirection (
+      d:
+      zbind {
         on = on.none d.upper;
         run = ''Resize "Increase ${d.zellij}";'';
         desc = "Resize ${d.word}";
@@ -775,25 +815,43 @@ rec {
       }
     )
     ++ [
-      (keysLib.zellij.bind {
+      (zbind {
+        on = on.none K.o;
+        run = "FocusNextPane;";
+        desc = "Next pane";
+        group = "Panes";
+      })
+      (zbind {
+        on = on.none K.x;
+        run = [
+          "CloseFocus;"
+          ''SwitchToMode "Normal";''
+        ];
+        desc = "Close pane";
+        group = "Panes";
+      })
+      (zbind {
+        on = on.none K.z;
+        run = [
+          "ToggleFocusFullscreen;"
+          ''SwitchToMode "Normal";''
+        ];
+        desc = "Zoom the pane (fullscreen)";
+        group = "Panes";
+      })
+      (zbind {
         on = on.none K.less;
         run = "MovePaneBackwards;";
         desc = "Move pane back";
         group = "Panes";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.none K.greater;
         run = "MovePane;";
         desc = "Move pane forward";
         group = "Panes";
       })
-      (keysLib.zellij.bind {
-        on = on.none K.m;
-        run = ''SwitchToMode "Move";'';
-        desc = "Move mode";
-        group = "Panes";
-      })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.none K.r;
         run = [
           ''SwitchToMode "RenamePane";''
@@ -802,7 +860,7 @@ rec {
         desc = "Rename pane";
         group = "Panes";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = [
           (on.none K.b)
           (on.none K.bang)
@@ -814,7 +872,7 @@ rec {
         desc = "Break pane out to its own tab";
         group = "Panes";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.none K.braceOpen;
         run = [
           "BreakPaneLeft;"
@@ -823,7 +881,7 @@ rec {
         desc = "Break pane to the tab on the left";
         group = "Panes";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.none K.braceClose;
         run = [
           "BreakPaneRight;"
@@ -832,19 +890,19 @@ rec {
         desc = "Break pane to the tab on the right";
         group = "Panes";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.none K.g;
         run = "TogglePaneInGroup;";
         desc = "Add or remove this pane from the group";
         group = "Panes";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.none K.G;
         run = "ToggleGroupMarking;";
         desc = "Toggle group marking";
         group = "Panes";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.none K.w;
         run = [
           "ToggleFloatingPanes;"
@@ -853,7 +911,7 @@ rec {
         desc = "Toggle the floating layer";
         group = "Panes";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.none K.e;
         run = [
           "TogglePaneEmbedOrFloating;"
@@ -862,7 +920,7 @@ rec {
         desc = "Float or tile this pane";
         group = "Panes";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.none K.i;
         run = [
           "TogglePanePinned;"
@@ -871,7 +929,7 @@ rec {
         desc = "Pin a floating pane on top";
         group = "Panes";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.none K.t;
         run = [
           ''NewPane "stacked";''
@@ -880,33 +938,32 @@ rec {
         desc = "New stacked pane";
         group = "Panes";
       })
-      (keysLib.zellij.bind {
-        on = on.none K.u;
+      (zbind {
+        on = [
+          (on.none K.u)
+          (on.none K.space)
+        ];
         run = "NextSwapLayout;";
         desc = "Next swap layout";
         group = "Panes";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.none K.U;
         run = "PreviousSwapLayout;";
         desc = "Previous swap layout";
         group = "Panes";
       })
 
-      # c is zellij's default NewTab in tmux mode, and its default action
-      # (NewTab; SwitchToMode "Normal") is exactly what we want — so it is
-      # deliberately left undeclared here rather than unbound and rebound.
-      # unbind-then-rebind on the same chord silently dead-ends the key in
-      # zellij 0.44.3 (confirmed: Ctrl-b c fired nothing, not even the
-      # default, once unbound and rebound) instead of restoring it, so this
-      # is the one default kept exactly as-is. Documented in `docs` below.
-      # , is zellij's default way into RenameTab; unbind it so only the
-      # custom bind — which also pre-fills the name — fires.
-      (keysLib.zellij.unbind {
-        key = on.none K.comma;
+      (zbind {
+        on = on.none K.c;
+        run = [
+          "NewTab;"
+          ''SwitchToMode "Normal";''
+        ];
+        desc = "New tab";
         group = "Tabs";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.none K.comma;
         run = [
           ''SwitchToMode "RenameTab";''
@@ -915,19 +972,25 @@ rec {
         desc = "Rename tab";
         group = "Tabs";
       })
-      (keysLib.zellij.bind {
-        on = on.ctrl K.h;
+      (zbind {
+        on = [
+          (on.ctrl K.h)
+          (on.none K.p)
+        ];
         run = "GoToPreviousTab;";
         desc = "Previous tab";
         group = "Tabs";
       })
-      (keysLib.zellij.bind {
-        on = on.ctrl K.l;
+      (zbind {
+        on = [
+          (on.ctrl K.l)
+          (on.none K.n)
+        ];
         run = "GoToNextTab;";
         desc = "Next tab";
         group = "Tabs";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.none K.tab;
         run = [
           "ToggleTab;"
@@ -936,13 +999,13 @@ rec {
         desc = "Last tab";
         group = "Tabs";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.none K.semicolon;
         run = ''MoveTab "Left";'';
         desc = "Move tab left";
         group = "Tabs";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.none K.period;
         run = ''MoveTab "Right";'';
         desc = "Move tab right";
@@ -953,7 +1016,7 @@ rec {
       map
         (
           n:
-          keysLib.zellij.bind {
+          zbind {
             on = on.none K.${n};
             run = [
               "GoToTab ${n};"
@@ -975,7 +1038,21 @@ rec {
           "9"
         ]
     ++ [
-      (keysLib.zellij.bind {
+      (zbind {
+        on = on.none K.d;
+        run = "Detach;";
+        desc = "Detach from the session";
+        group = "Session & tools";
+      })
+      (zbind {
+        on = on.none K.Q;
+        # Zellij's own Quit is Ctrl+q, which is a no-prefix Ctrl grab and so
+        # is not declared; this is the replacement.
+        run = "Quit;";
+        desc = "Quit zellij";
+        group = "Session & tools";
+      })
+      (zbind {
         on = on.none K.E;
         run = [
           "EditScrollback;"
@@ -984,7 +1061,7 @@ rec {
         desc = "Open the whole scrollback in nvim";
         group = "Session & tools";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.none K.f;
         run = [
           ''
@@ -997,7 +1074,7 @@ rec {
         desc = "Session manager";
         group = "Session & tools";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.none K.P;
         run = [
           ''
@@ -1010,7 +1087,7 @@ rec {
         desc = "Plugin manager";
         group = "Session & tools";
       })
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.none K.slash;
         run = [
           ''
@@ -1023,10 +1100,7 @@ rec {
         desc = "File picker";
         group = "Session & tools";
       })
-      # Uppercase C, because lowercase c is zellij's default NewTab and stays
-      # as the new-tab key (see the "New tab" bind above). C is free in
-      # zellij's tmux-mode defaults, so no unbind is needed for it.
-      (keysLib.zellij.bind {
+      (zbind {
         on = on.none K.C;
         run = [
           ''
@@ -1042,20 +1116,396 @@ rec {
       })
     ];
 
-    scroll = [
-      (keysLib.zellij.bind {
-        on = on.none K.y;
+    # ── Pane mode (prefix, then Ctrl+p) ───────────────────────────────
+    paneMode =
+      eachDirection (
+        d:
+        zbind {
+          on = [
+            (on.none d.key)
+            (on.none d.arrow)
+          ];
+          run = ''MoveFocus "${d.zellij}";'';
+          desc = "Focus ${d.word}";
+          group = "Pane mode";
+        }
+      )
+      ++ [
+        (zbind {
+          on = on.none K.p;
+          run = "SwitchFocus;";
+          desc = "Focus the previously focused pane";
+          group = "Pane mode";
+        })
+        (zbind {
+          on = on.none K.n;
+          run = [
+            "NewPane;"
+            ''SwitchToMode "Normal";''
+          ];
+          desc = "New pane";
+          group = "Pane mode";
+        })
+        (zbind {
+          on = on.none K.d;
+          run = [
+            ''NewPane "Down";''
+            ''SwitchToMode "Normal";''
+          ];
+          desc = "Split down";
+          group = "Pane mode";
+        })
+        (zbind {
+          on = on.none K.r;
+          run = [
+            ''NewPane "Right";''
+            ''SwitchToMode "Normal";''
+          ];
+          desc = "Split right";
+          group = "Pane mode";
+        })
+        (zbind {
+          on = on.none K.s;
+          run = [
+            ''NewPane "stacked";''
+            ''SwitchToMode "Normal";''
+          ];
+          desc = "New stacked pane";
+          group = "Pane mode";
+        })
+        (zbind {
+          on = on.none K.x;
+          run = [
+            "CloseFocus;"
+            ''SwitchToMode "Normal";''
+          ];
+          desc = "Close pane";
+          group = "Pane mode";
+        })
+        (zbind {
+          on = on.none K.f;
+          run = [
+            "ToggleFocusFullscreen;"
+            ''SwitchToMode "Normal";''
+          ];
+          desc = "Zoom the pane (fullscreen)";
+          group = "Pane mode";
+        })
+        (zbind {
+          on = on.none K.z;
+          run = [
+            "TogglePaneFrames;"
+            ''SwitchToMode "Normal";''
+          ];
+          desc = "Toggle pane frames";
+          group = "Pane mode";
+        })
+        (zbind {
+          on = on.none K.w;
+          run = [
+            "ToggleFloatingPanes;"
+            ''SwitchToMode "Normal";''
+          ];
+          desc = "Toggle the floating layer";
+          group = "Pane mode";
+        })
+        (zbind {
+          on = on.none K.e;
+          run = [
+            "TogglePaneEmbedOrFloating;"
+            ''SwitchToMode "Normal";''
+          ];
+          desc = "Float or tile this pane";
+          group = "Pane mode";
+        })
+        (zbind {
+          on = on.none K.c;
+          run = [
+            ''SwitchToMode "RenamePane";''
+            "PaneNameInput 0;"
+          ];
+          desc = "Rename pane";
+          group = "Pane mode";
+        })
+        (zbind {
+          on = on.none K.i;
+          run = [
+            "TogglePanePinned;"
+            ''SwitchToMode "Normal";''
+          ];
+          desc = "Pin a floating pane on top";
+          group = "Pane mode";
+        })
+      ];
+
+    # ── Tab mode (prefix, then Ctrl+t) ────────────────────────────────
+    tabMode = [
+      (zbind {
+        on = on.none K.r;
         run = [
-          "EditScrollback;"
+          ''SwitchToMode "RenameTab";''
+          "TabNameInput 0;"
+        ];
+        desc = "Rename tab";
+        group = "Tab mode";
+      })
+      (zbind {
+        on = [
+          (on.none K.h)
+          (on.none K.left)
+          (on.none K.k)
+          (on.none K.up)
+        ];
+        run = "GoToPreviousTab;";
+        desc = "Previous tab";
+        group = "Tab mode";
+      })
+      (zbind {
+        on = [
+          (on.none K.l)
+          (on.none K.right)
+          (on.none K.j)
+          (on.none K.down)
+        ];
+        run = "GoToNextTab;";
+        desc = "Next tab";
+        group = "Tab mode";
+      })
+      (zbind {
+        on = on.none K.n;
+        run = [
+          "NewTab;"
           ''SwitchToMode "Normal";''
         ];
-        desc = "Hand the scrollback to nvim (tmux muscle memory)";
+        desc = "New tab";
+        group = "Tab mode";
+      })
+      (zbind {
+        on = on.none K.x;
+        run = [
+          "CloseTab;"
+          ''SwitchToMode "Normal";''
+        ];
+        desc = "Close tab";
+        group = "Tab mode";
+      })
+      (zbind {
+        on = on.none K.s;
+        run = [
+          "ToggleActiveSyncTab;"
+          ''SwitchToMode "Normal";''
+        ];
+        desc = "Type into every pane of this tab at once";
+        group = "Tab mode";
+      })
+      (zbind {
+        on = on.none K.b;
+        run = [
+          "BreakPane;"
+          ''SwitchToMode "Normal";''
+        ];
+        desc = "Break pane out to its own tab";
+        group = "Tab mode";
+      })
+      (zbind {
+        on = on.none K.bracketClose;
+        run = [
+          "BreakPaneRight;"
+          ''SwitchToMode "Normal";''
+        ];
+        desc = "Break pane to the tab on the right";
+        group = "Tab mode";
+      })
+      (zbind {
+        on = on.none K.bracketOpen;
+        run = [
+          "BreakPaneLeft;"
+          ''SwitchToMode "Normal";''
+        ];
+        desc = "Break pane to the tab on the left";
+        group = "Tab mode";
+      })
+      (zbind {
+        on = on.none K.tab;
+        run = "ToggleTab;";
+        desc = "Last tab";
+        group = "Tab mode";
+      })
+    ]
+    ++
+      map
+        (
+          n:
+          zbind {
+            on = on.none K.${n};
+            run = [
+              "GoToTab ${n};"
+              ''SwitchToMode "Normal";''
+            ];
+            desc = "Go to tab ${n}";
+            group = "Tab mode";
+          }
+        )
+        [
+          "1"
+          "2"
+          "3"
+          "4"
+          "5"
+          "6"
+          "7"
+          "8"
+          "9"
+        ];
+
+    # ── Resize mode (prefix, then Ctrl+n) ─────────────────────────────
+    resizeMode =
+      eachDirection (
+        d:
+        zbind {
+          on = [
+            (on.none d.key)
+            (on.none d.arrow)
+          ];
+          run = ''Resize "Increase ${d.zellij}";'';
+          desc = "Grow ${d.word}";
+          group = "Resize mode";
+        }
+      )
+      ++ eachDirection (
+        d:
+        zbind {
+          on = on.none d.upper;
+          run = ''Resize "Decrease ${d.zellij}";'';
+          desc = "Shrink ${d.word}";
+          group = "Resize mode";
+        }
+      )
+      ++ [
+        (zbind {
+          on = [
+            (on.none K.equal)
+            (on.none K.plus)
+          ];
+          run = ''Resize "Increase";'';
+          desc = "Grow the pane";
+          group = "Resize mode";
+        })
+        (zbind {
+          on = on.none K.minus;
+          run = ''Resize "Decrease";'';
+          desc = "Shrink the pane";
+          group = "Resize mode";
+        })
+      ];
+
+    # ── Move mode (prefix, then m) ────────────────────────────────────
+    moveMode =
+      eachDirection (
+        d:
+        zbind {
+          on = [
+            (on.none d.key)
+            (on.none d.arrow)
+          ];
+          run = ''MovePane "${d.zellij}";'';
+          desc = "Move the pane ${d.word}";
+          group = "Move mode";
+        }
+      )
+      ++ [
+        (zbind {
+          on = [
+            (on.none K.n)
+            (on.none K.tab)
+          ];
+          run = "MovePane;";
+          desc = "Move the pane forward";
+          group = "Move mode";
+        })
+        (zbind {
+          on = on.none K.p;
+          run = "MovePaneBackwards;";
+          desc = "Move the pane back";
+          group = "Move mode";
+        })
+      ];
+
+    # ── Scroll mode (prefix, then [) ──────────────────────────────────
+    # Shared with search mode below: once a search is running the same motion
+    # keys have to keep working.
+    scrollMotions = [
+      (zbind {
+        on = on.ctrl K.c;
+        run = [
+          "ScrollToBottom;"
+          ''SwitchToMode "Normal";''
+        ];
+        desc = "Jump to the bottom and leave";
+        group = "Scrollback";
+      })
+      (zbind {
+        on = [
+          (on.none K.j)
+          (on.none K.down)
+        ];
+        run = "ScrollDown;";
+        desc = "Down a line";
+        group = "Scrollback";
+      })
+      (zbind {
+        on = [
+          (on.none K.k)
+          (on.none K.up)
+        ];
+        run = "ScrollUp;";
+        desc = "Up a line";
+        group = "Scrollback";
+      })
+      (zbind {
+        on = [
+          (on.ctrl K.f)
+          (on.none K.pageDown)
+          (on.none K.right)
+          (on.none K.l)
+        ];
+        run = "PageScrollDown;";
+        desc = "Down a page";
+        group = "Scrollback";
+      })
+      (zbind {
+        on = [
+          (on.ctrl K.b)
+          (on.none K.pageUp)
+          (on.none K.left)
+          (on.none K.h)
+        ];
+        run = "PageScrollUp;";
+        desc = "Up a page";
+        group = "Scrollback";
+      })
+      (zbind {
+        on = on.none K.d;
+        run = "HalfPageScrollDown;";
+        desc = "Down half a page";
+        group = "Scrollback";
+      })
+      (zbind {
+        on = on.none K.u;
+        run = "HalfPageScrollUp;";
+        desc = "Up half a page";
         group = "Scrollback";
       })
     ];
 
-    search = [
-      (keysLib.zellij.bind {
+    # Zellij's Copy action copies the *mouse* selection and nothing else, so
+    # there is no keyboard select-and-yank to bind. EditScrollback is the
+    # stand-in and is strictly more capable: the whole buffer opens in nvim,
+    # where selecting is visual mode and the yank reaches the system clipboard
+    # (clipboard = "unnamedplus"). On "y" for the tmux muscle memory, and on
+    # "e" because that is where zellij's own default put it.
+    scrollMode = scrollMotions ++ [
+      (zbind {
         on = [
           (on.none K.y)
           (on.none K.e)
@@ -1067,103 +1517,161 @@ rec {
         desc = "Hand the scrollback to nvim";
         group = "Scrollback";
       })
+      (zbind {
+        on = on.none K.s;
+        run = [
+          ''SwitchToMode "EnterSearch";''
+          "SearchInput 0;"
+        ];
+        desc = "Search the buffer";
+        group = "Scrollback";
+      })
     ];
 
-    # Zellij's own defaults, kept in the cheatsheet because they are half of
-    # what a user reaches for. Not declared above: zellij already binds them.
+    searchMode = scrollMotions ++ [
+      (zbind {
+        on = [
+          (on.none K.y)
+          (on.none K.e)
+        ];
+        run = [
+          "EditScrollback;"
+          ''SwitchToMode "Normal";''
+        ];
+        desc = "Hand the scrollback to nvim";
+        group = "Search";
+      })
+      (zbind {
+        on = on.none K.n;
+        run = ''Search "down";'';
+        desc = "Next hit";
+        group = "Search";
+      })
+      (zbind {
+        on = on.none K.p;
+        run = ''Search "up";'';
+        desc = "Previous hit";
+        group = "Search";
+      })
+      (zbind {
+        on = on.none K.c;
+        run = ''SearchToggleOption "CaseSensitivity";'';
+        desc = "Toggle case sensitivity";
+        group = "Search";
+      })
+      (zbind {
+        on = on.none K.w;
+        run = ''SearchToggleOption "Wrap";'';
+        desc = "Toggle wrap-around";
+        group = "Search";
+      })
+      (zbind {
+        on = on.none K.o;
+        run = ''SearchToggleOption "WholeWord";'';
+        desc = "Toggle whole-word matching";
+        group = "Search";
+      })
+    ];
+
+    enterSearchMode = [
+      (zbind {
+        on = [
+          (on.ctrl K.c)
+          (on.none K.esc)
+        ];
+        run = ''SwitchToMode "Scroll";'';
+        desc = "Cancel the search";
+        group = "Search";
+      })
+      (zbind {
+        on = on.none K.enter;
+        run = ''SwitchToMode "Search";'';
+        desc = "Run the search";
+        group = "Search";
+      })
+    ];
+
+    # ── the two rename prompts ────────────────────────────────────────
+    renameTabMode = [
+      (zbind {
+        on = on.ctrl K.c;
+        run = ''SwitchToMode "Normal";'';
+        desc = "Keep the new name";
+        group = "Tabs";
+      })
+      (zbind {
+        on = on.none K.esc;
+        run = [
+          "UndoRenameTab;"
+          ''SwitchToMode "Tab";''
+        ];
+        desc = "Cancel the rename";
+        group = "Tabs";
+      })
+    ];
+
+    renamePaneMode = [
+      (zbind {
+        on = on.ctrl K.c;
+        run = ''SwitchToMode "Normal";'';
+        desc = "Keep the new name";
+        group = "Panes";
+      })
+      (zbind {
+        on = on.none K.esc;
+        run = [
+          "UndoRenamePane;"
+          ''SwitchToMode "Pane";''
+        ];
+        desc = "Cancel the rename";
+        group = "Panes";
+      })
+    ];
+
+    # ── Session mode (prefix, then Ctrl+o) ────────────────────────────
+    sessionMode =
+      let
+        plugin = key: name: desc: {
+          inherit key name desc;
+        };
+      in
+      [
+        (zbind {
+          on = on.none K.d;
+          run = "Detach;";
+          desc = "Detach from the session";
+          group = "Session mode";
+        })
+      ]
+      ++
+        map
+          (
+            p:
+            zbind {
+              on = on.none p.key;
+              run = [
+                ''
+                  LaunchOrFocusPlugin "${p.name}" {
+                      floating true
+                      move_to_focused_tab true
+                  };''
+                ''SwitchToMode "Normal";''
+              ];
+              desc = p.desc;
+              group = "Session mode";
+            }
+          )
+          [
+            (plugin K.w "session-manager" "Session manager")
+            (plugin K.c "configuration" "Zellij's own configuration screen")
+            (plugin K.p "plugin-manager" "Plugin manager")
+            (plugin K.a "zellij:about" "About zellij")
+            (plugin K.s "zellij:share" "Share the session")
+            (plugin K.l "zellij:layout-manager" "Layout manager")
+          ];
+
+    # Techniques rather than single chords, so they have nowhere else to live.
     docs = [
-      (doc {
-        keys = "${prefix}";
-        desc = "Enter the prefix mode";
-        group = "Modes";
-      })
-      (doc {
-        keys = "${prefix} Esc";
-        desc = "Back to normal mode";
-        group = "Modes";
-      })
-      (doc {
-        keys = "${prefix} Ctrl+b";
-        desc = "Send a literal Ctrl-b to the shell";
-        group = "Modes";
-      })
-      (doc {
-        keys = "${prefix} d";
-        desc = "Detach from the session";
-        group = "Session & tools";
-      })
-      (doc {
-        keys = "${prefix} [";
-        desc = "Scroll mode";
-        group = "Session & tools";
-      })
-      (doc {
-        keys = "${prefix} o";
-        desc = "Next pane";
-        group = "Panes";
-      })
-      (doc {
-        keys = "${prefix} x";
-        desc = "Close pane";
-        group = "Panes";
-      })
-      (doc {
-        keys = "${prefix} z";
-        desc = "Zoom the pane (fullscreen)";
-        group = "Panes";
-      })
-      (doc {
-        keys = "${prefix} c";
-        desc = "New tab (zellij default)";
-        group = "Tabs";
-      })
-      (doc {
-        keys = "${prefix} n / p";
-        desc = "Next / previous tab";
-        group = "Tabs";
-      })
-      (doc {
-        keys = "${prefix} Space";
-        desc = "Next swap layout";
-        group = "Panes";
-      })
-      (doc {
-        keys = "Alt+n";
-        desc = "New pane (no prefix)";
-        group = "No prefix";
-      })
-      (doc {
-        keys = "Alt+f";
-        desc = "Toggle floating (no prefix)";
-        group = "No prefix";
-      })
-      (doc {
-        keys = "Alt+h/j/k/l";
-        desc = "Focus pane or tab (no prefix)";
-        group = "No prefix";
-      })
-      (doc {
-        keys = "Alt++ / Alt+-";
-        desc = "Resize pane (no prefix)";
-        group = "No prefix";
-      })
-      (doc {
-        keys = "Alt+[ / Alt+]";
-        desc = "Previous / next swap layout (no prefix)";
-        group = "No prefix";
-      })
-      (doc {
-        keys = "Alt+i / Alt+o";
-        desc = "Move tab left / right (no prefix)";
-        group = "No prefix";
-      })
-      (doc {
-        keys = "Ctrl+q";
-        desc = "Quit zellij";
-        group = "No prefix";
-      })
-      # Zellij has no keyboard select-and-yank: Copy only copies the mouse
-      # selection. These are the ways that do work.
       (doc {
         keys = "drag the mouse";
         desc = "Selects and copies on release, no mode needed";

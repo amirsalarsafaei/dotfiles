@@ -1,7 +1,8 @@
-{ lib
-, pkgs
-, hostname
-, ...
+{
+  lib,
+  pkgs,
+  hostname,
+  ...
 }:
 let
   dataPython = pkgs.python312.withPackages (
@@ -66,5 +67,12 @@ in
       OnCalendar = "weekly";
       Persistent = true;
     };
+  };
+
+  security.wrappers.bwrap = {
+    source = "${pkgs.bubblewrap}/bin/bwrap";
+    owner = "root";
+    group = "root";
+    setuid = true;
   };
 }

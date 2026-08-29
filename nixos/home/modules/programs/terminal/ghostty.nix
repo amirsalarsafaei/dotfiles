@@ -107,7 +107,16 @@ in
       clipboard-read = "allow";
       clipboard-write = "allow";
 
-      command = "zj-attach";
+      # Open zellij's session manager (welcome screen) instead of blindly
+      # starting a new session. This used to run a zj-attach wrapper that
+      # hunted for a session no other window was attached to and asked
+      # "start a new one? [Y/n]" when it found none; the prompt was the first
+      # thing every terminal showed, so the wrapper is gone. `--layout welcome`
+      # is the builtin `zellij:session-manager` plugin with welcome_screen=true
+      # (see zelij.nix), listing existing sessions with an option to create a
+      # new one; session_serialization is off for this layout only, so
+      # skipping the picker never leaves a garbage session behind.
+      command = "zellij --layout welcome";
 
       window-decoration = false;
       window-padding-x = 8;
