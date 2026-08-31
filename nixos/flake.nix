@@ -80,6 +80,11 @@
 
     claude-code.url = "github:sadjow/claude-code-nix";
 
+    crit = {
+      url = "github:tomasz-tomczyk/crit";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Skill packs (raw SKILL.md repos — `flake = false`).
     # Wire them up under `custom.agentSkills.sources` and opt-in per skill
     # ID via `custom.agentSkills.skills`.
@@ -422,12 +427,19 @@
       # changes — see the comment there. Only x86_64-linux carries this: it's
       # the only host that sets isWork (modules/work.nix), which is what
       # actually installs the built devarCli.
+      # `nix-update --flake zellij-harpoon` / `zellij-tabula` (run from the repo
+      # root) bumps pkgs/zellij-plugins.nix's version + hash to the latest
+      # GitHub release, since both fetchurl calls there template the version
+      # into the release-asset URL.
       packages.${systems.x86_64} =
         let
           pkgs = import nixpkgs ({ system = systems.x86_64; } // commonNixpkgsConfig systems.x86_64);
+          zellijExtraPlugins = pkgs.callPackage ./pkgs/zellij-plugins.nix { };
         in
         {
           devar = pkgs.callPackage ./pkgs/devar.nix { devarSrc = inputs.devar; };
+          zellij-harpoon = zellijExtraPlugins.harpoon;
+          zellij-tabula = zellijExtraPlugins.tabula;
         };
 
       devShells.${systems.x86_64}.default =

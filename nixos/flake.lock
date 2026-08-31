@@ -265,11 +265,31 @@
         "url": "https://github.com/3commas-io/commas-claude.git"
       }
     },
+    "crit": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1787987434,
+        "narHash": "sha256-I8xvEaSTVW49v34HUAyGGIfi9XBPbR6bSRm6mEyiC8I=",
+        "owner": "tomasz-tomczyk",
+        "repo": "crit",
+        "rev": "b81febd8e2cf01855a20530f3f00b64ed0b21f71",
+        "type": "github"
+      },
+      "original": {
+        "owner": "tomasz-tomczyk",
+        "repo": "crit",
+        "type": "github"
+      }
+    },
     "devar": {
       "flake": false,
       "locked": {
-        "lastModified": 1787900658,
-        "narHash": "sha256-2qR+aB8t7pK8N1fBVGhI3MBdSw9lVqkGHVHNKJXgHuk=",
+        "lastModified": 1788162712,
+        "narHash": "sha256-1ZgLWLrrdwLXsdAcp4YXO7Df7jTex+qxgANops/DpNE=",
         "path": "/home/amirsalar/divar/devar",
         "type": "path"
       },
@@ -1153,6 +1173,7 @@
         "avosh-bot": "avosh-bot",
         "claude-code": "claude-code",
         "commas-claude": "commas-claude",
+        "crit": "crit",
         "devar": "devar",
         "disko": "disko",
         "fast-syntax-highlighting": "fast-syntax-highlighting",

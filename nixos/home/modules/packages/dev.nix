@@ -1,6 +1,7 @@
 {
   pkgs,
   luaPackages,
+  inputs,
   ...
 }:
 let
@@ -41,4 +42,6 @@ in
   pkgs.luaPackages.tree-sitter-cli
   pkgs.buildah
   pkgs.podman
+  pkgs.ast-grep
+  inputs.crit.packages.${pkgs.stdenv.hostPlatform.system}.default
 ]

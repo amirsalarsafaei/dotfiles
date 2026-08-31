@@ -14,6 +14,7 @@
     ../modules/programs/development/claude-code.nix
     ../modules/programs/development/opencode.nix
     ../modules/programs/development/agent-skills.nix
+    ../modules/programs/development/ntfy.nix
   ];
 
   custom = {

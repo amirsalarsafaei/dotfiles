@@ -1,16 +1,19 @@
-{ lib, config, ... }:
+{ lib, config, pkgs, ... }:
 # Declarative config for the amirsalar-vault Obsidian vault.
 #
-# Only the vault's *configuration* under `.obsidian/` is managed here — the
-# notes themselves and the obsidian-git-synced `remote-vault/` subdir are
-# untouched (obsidian-git's basePath is `remote-vault`, so it never sees this
-# config). The managed files become read-only symlinks into the Nix store, so
-# the trade-off is deliberate: settings change in Nix, not in-app. Runtime/view
-# state (workspace.json, graph.json, types.json) is intentionally left
-# unmanaged and mutable.
+# The vault root itself IS the obsidian-git remote (git@github.com:amirsalarsafaei/obsidian-vault.git,
+# SSH so no PAT/token is ever needed) — obsidian-git's basePath is "" (vault
+# root). Notes and most plugin state live in that repo and are synced by
+# obsidian-git in-app; only the pieces below are Nix-managed. The managed
+# files become read-only symlinks into the Nix store, so the trade-off is
+# deliberate: settings change in Nix, not in-app. Runtime/view state
+# (workspace.json, graph.json, types.json) is intentionally left unmanaged
+# and mutable, as is the obsidian-tasks-plugin install (not packaged in
+# nixpkgs, installed once by hand, tracked by the vault's own git repo).
 let
   vaultRel = "Documents/amirsalar-vault";
   vaultAbs = "${config.home.homeDirectory}/${vaultRel}";
+  vaultRemote = "git@github.com:amirsalarsafaei/obsidian-vault.git";
 
   managedFiles = [
     "app.json"
@@ -19,7 +22,106 @@ let
     "hotkeys.json"
     "community-plugins.json"
     "daily-notes.json"
+    "plugins/obsidian-git"
   ];
+
+  obsidianGitVersion = "2.39.0";
+  obsidianGitSettings = {
+    commitMessage = "vault backup: {{date}}";
+    autoCommitMessage = "vault backup: {{date}}";
+    commitMessageScript = "";
+    commitDateFormat = "YYYY-MM-DD HH:mm:ss";
+    autoSaveInterval = 0;
+    autoPushInterval = 0;
+    autoPullInterval = 0;
+    autoPullOnBoot = false;
+    autoCommitOnlyStaged = false;
+    disablePush = false;
+    pullBeforePush = true;
+    squashCommitsBeforePush = false;
+    disablePopups = false;
+    showErrorNotices = true;
+    disablePopupsForNoChanges = false;
+    listChangedFilesInMessageBody = false;
+    showStatusBar = true;
+    updateSubmodules = false;
+    syncMethod = "merge";
+    mergeStrategy = "none";
+    customMessageOnAutoBackup = false;
+    autoBackupAfterFileChange = false;
+    treeStructure = false;
+    refreshSourceControl = true;
+    basePath = "";
+    differentIntervalCommitAndPush = false;
+    changedFilesInStatusBar = false;
+    showedMobileNotice = true;
+    refreshSourceControlTimer = 7000;
+    showBranchStatusBar = true;
+    setLastSaveToLastCommit = false;
+    submoduleRecurseCheckout = false;
+    gitDir = "";
+    showFileMenu = true;
+    authorInHistoryView = "hide";
+    dateInHistoryView = false;
+    diffStyle = "split";
+    hunks = {
+      showSigns = false;
+      hunkCommands = false;
+      statusBar = "disabled";
+    };
+    lineAuthor = {
+      show = false;
+      followMovement = "inactive";
+      authorDisplay = "initials";
+      showCommitHash = false;
+      dateTimeFormatOptions = "date";
+      dateTimeFormatCustomString = "YYYY-MM-DD HH:mm";
+      dateTimeTimezone = "viewer-local";
+      coloringMaxAge = "1y";
+      colorNew = {
+        r = 255;
+        g = 150;
+        b = 150;
+      };
+      colorOld = {
+        r = 120;
+        g = 160;
+        b = 255;
+      };
+      textColorCss = "var(--text-muted)";
+      ignoreWhitespace = false;
+    };
+    showBranchStatusBarLabel = true;
+    refreshSourceControlOnEditorFileChange = true;
+    commitAndSync = true;
+  };
+
+  # Packaged from upstream release assets (not in nixpkgs). data.json is baked
+  # in too, so the whole plugin dir is one pinned, fully-declarative unit —
+  # in-app tweaks to git settings get overwritten on the next switch.
+  obsidianGitPlugin =
+    let
+      mainJs = pkgs.fetchurl {
+        url = "https://github.com/Vinzent03/obsidian-git/releases/download/${obsidianGitVersion}/main.js";
+        sha256 = "1d1ybzchkym19hvw8hanaa1szwvwwickzwy1awls1h8prwv419ym";
+      };
+      manifestJson = pkgs.fetchurl {
+        url = "https://github.com/Vinzent03/obsidian-git/releases/download/${obsidianGitVersion}/manifest.json";
+        sha256 = "0p329w89n9ad4vbfayh5dqpm16c3xhlnwg1lfkcm2kz6svni0117";
+      };
+      stylesCss = pkgs.fetchurl {
+        url = "https://github.com/Vinzent03/obsidian-git/releases/download/${obsidianGitVersion}/styles.css";
+        sha256 = "0bcjwry89rc90ip39b28skgplzq8g5f4r1kpwp8ippdlsps97azm";
+      };
+      dataJson = builtins.toFile "obsidian-git-data.json" (builtins.toJSON obsidianGitSettings);
+    in
+    pkgs.runCommand "obsidian-git-plugin-${obsidianGitVersion}" { } ''
+      mkdir -p $out
+      cp ${mainJs} $out/main.js
+      cp ${manifestJson} $out/manifest.json
+      cp ${stylesCss} $out/styles.css
+      cp ${dataJson} $out/data.json
+    '';
 in
 {
   programs.obsidian = {
@@ -62,10 +164,10 @@ in
           ];
         };
 
-        # Community plugins are already installed in the vault and aren't
-        # packaged in nixpkgs, so we don't let the module reinstall them
-        # (that path needs a `pkg`). We only pin the enabled list + their
-        # vault-level config files as text.
+        # obsidian-git is packaged above from upstream release assets and
+        # fully pinned (binary + data.json). obsidian-tasks-plugin isn't
+        # packaged in nixpkgs, so it stays hand-installed and git-tracked in
+        # the vault repo itself — we only pin the enabled list here.
         # NB: extraFiles targets are relative to the vault's `.obsidian/` dir
         # (the module prepends it), so no `.obsidian/` prefix here.
         extraFiles = {
@@ -76,6 +178,7 @@ in
           "daily-notes.json".text = builtins.toJSON {
             folder = "daily notes";
           };
+          "plugins/obsidian-git".source = obsidianGitPlugin;
         };
       };
     };
@@ -88,8 +191,23 @@ in
     obs="${vaultAbs}/.obsidian"
     ${lib.concatMapStringsSep "\n" (f: ''
       if [ -e "$obs/${f}" ] && [ ! -L "$obs/${f}" ]; then
+        run mkdir -p $VERBOSE_ARG "$(dirname "$obs/${f}.pre-nix.bak")"
         run mv $VERBOSE_ARG "$obs/${f}" "$obs/${f}.pre-nix.bak"
       fi
     '') managedFiles}
+  '';
+
+  # Fresh machine: vault root doesn't exist as a git repo yet. Clone the vault
+  # in place over SSH (no PAT needed — relies on an SSH key already trusted by
+  # GitHub). Skipped once `.git` exists, so this never touches an existing
+  # vault or fights obsidian-git's own commits.
+  home.activation.obsidianVaultClone = lib.hm.dag.entryBefore [ "obsidianClobberGuard" ] ''
+    if [ ! -d "${vaultAbs}/.git" ]; then
+      run mkdir -p $VERBOSE_ARG "${vaultAbs}"
+      run ${pkgs.git}/bin/git init "${vaultAbs}"
+      run ${pkgs.git}/bin/git -C "${vaultAbs}" remote add origin "${vaultRemote}"
+      run ${pkgs.git}/bin/git -C "${vaultAbs}" fetch origin master
+      run ${pkgs.git}/bin/git -C "${vaultAbs}" checkout -f master
+    fi
   '';
 }

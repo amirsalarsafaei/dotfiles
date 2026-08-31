@@ -12,6 +12,8 @@ let
     colors = config.custom.theme.resolved.colors;
   };
 
+  zellijExtraPlugins = pkgs.callPackage ../../../../pkgs/zellij-plugins.nix { };
+
   # Pick a running Claude Code session by tab + live status/task title (Claude
   # Code sets its own pane title -- spinner glyph + task description -- which
   # shows up in `title` here for free) and jump straight to it. Matches
@@ -102,6 +104,16 @@ in
           "ReadApplicationState"
           "ChangeApplicationState"
         ];
+        "harpoon.wasm" = [
+          "RunCommands"
+          "ReadApplicationState"
+          "ChangeApplicationState"
+        ];
+        "tabula.wasm" = [
+          "ReadApplicationState"
+          "ChangeApplicationState"
+          "RunCommands"
+        ];
       };
 
       grantsJson = builtins.toJSON (
@@ -131,10 +143,16 @@ in
     #   vim-zellij-navigator  - replaces tmuxPlugins.vim-tmux-navigator
     #   autolock              - drops to Locked mode while nvim/fzf/etc has focus,
     #                           so their keys are never swallowed by zellij
+    #   harpoon               - pin panes to a list, jump straight back to one
+    #                           (Ctrl+Space h, see keys/registry.nix)
+    #   tabula                - renames each tab after its panes' cwd (or git
+    #                           worktree), replacing the default "Tab #1"
     plugins = [
       zellaude.plugin
       pkgs.zellijPlugins.vim-zellij-navigator
       pkgs.zellijPlugins.autolock
+      zellijExtraPlugins.harpoon
+      zellijExtraPlugins.tabula
     ];
 
     # Note: theme is deliberately unset. Stylix writes themes/stylix.kdl with the
@@ -192,15 +210,26 @@ in
       show_release_notes = false;
     };
 
-    # The module adds every entry of `plugins` to load_plugins. Only autolock
-    # wants to run in the background: zellaude is instantiated by the layout and
-    # vim-zellij-navigator is messaged on demand from a keybind.
+    # The module adds every entry of `plugins` to load_plugins. autolock and
+    # tabula want to run in the background from the start (locking/renaming
+    # only work if they are already watching); zellaude is instantiated by the
+    # layout instead, and vim-zellij-navigator/harpoon are messaged or
+    # launched on demand from a keybind.
     settings.load_plugins = lib.mkForce {
-      _children = [ { autolock = [ ]; } ];
+      _children = [
+        { autolock = [ ]; }
+        { tabula = [ ]; }
+      ];
     };
 
     # Plugin configuration is read from a plugin alias' child nodes, not from
     # properties on the node itself, so this has to go through _children.
+    settings.plugins.tabula._children = [
+      { home_dir = config.home.homeDirectory; }
+      { worktree_name_display = "repo_and_worktree"; }
+      { worktree_name_preview_length = "10"; }
+    ];
+
     settings.plugins.autolock._children = [
       { is_enabled = true; }
       # Deliberately no nvim/vim here. Locking on nvim would stop the Ctrl-hjkl

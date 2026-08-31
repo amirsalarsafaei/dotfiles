@@ -1,4 +1,4 @@
-{ funFortunes }:
+{ funFortunes, flagPluginsZshArgs }:
 {
   gavgo = "fortune ${funFortunes} | cowsay | lolcat";
 
@@ -10,16 +10,21 @@
     ssh -fNT git@git.divar.cloud
   '';
 
+  # flagPluginsZshArgs is generated from custom.claudeCode.flagPlugins (see
+  # home/modules/programs/development/claude-code.nix) — every claude variant
+  # wrapper accepts those flags (e.g. --crit, --no-devar) to toggle a plugin
+  # for one launch, and this keeps completion in sync with zero extra edits.
   "_claude-common" = ''
     #compdef gap-claude local-claude
 
     _arguments \
       '--effort[effort level for this session]:level:(low medium high xhigh max)' \
+      ${flagPluginsZshArgs} \
       '*:: :_default'
   '';
 
   "_claude-mcp" = ''
-    #compdef work-claude glm-claude normal-claude claude
+    #compdef work-claude glm-claude deepseek-claude normal-claude claude
 
     local curcontext="$curcontext" state line
     _arguments \
@@ -27,6 +32,7 @@
       '--mcp-groups[agentic-development-mcps tool groups to keep enabled, comma-separated]:groups:->mcpgroups' \
       '--agentic-mcps[attach agentic-development-mcps for this launch]' \
       '--gitlab-mcp[allow the gitlab_* tool family on agentic-development-mcps]' \
+      ${flagPluginsZshArgs} \
       '*:: :_default'
 
     case $state in

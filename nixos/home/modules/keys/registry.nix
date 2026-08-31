@@ -1114,6 +1114,21 @@ rec {
         desc = "Jump to a running Claude Code pane";
         group = "Session & tools";
       })
+      (zbind {
+        # 'h' is taken (pane-focus-left, h/j/k/l); upstream's own suggested
+        # bind is Ctrl+y, so plain 'y' stays close to that and is free here.
+        on = on.none K.y;
+        run = [
+          ''
+            LaunchOrFocusPlugin "harpoon" {
+                floating true
+                move_to_focused_tab true
+            };''
+          ''SwitchToMode "Normal";''
+        ];
+        desc = "Harpoon — pin panes, jump straight back to one";
+        group = "Session & tools";
+      })
     ];
 
     # ── Pane mode (prefix, then Ctrl+p) ───────────────────────────────

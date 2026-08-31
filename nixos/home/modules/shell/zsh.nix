@@ -79,7 +79,10 @@ in
       fi
     '';
 
-    siteFunctions = import ./zsh/functions.nix { inherit funFortunes; };
+    siteFunctions = import ./zsh/functions.nix {
+      inherit funFortunes;
+      inherit (config.custom.claudeCode) flagPluginsZshArgs;
+    };
 
     initContent = ''
       if [ -f "$HOME/zshsecret" ]; then

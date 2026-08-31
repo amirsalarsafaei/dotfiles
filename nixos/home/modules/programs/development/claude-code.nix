@@ -195,17 +195,81 @@ let
     unset _claude_gitlab_mcp
   '';
 
-  noDevarParserText = mkBoolFlagParser {
-    flag = "--no-devar";
-    resultVar = "_claude_no_devar";
-  };
+  # Single source of truth for CLI flags that flip a plugin on or off for one
+  # launch, via a `--settings` JSON overlay merged over the variant's
+  # settings.json (the same trick --no-devar always used). Add an entry here
+  # to get: the CLI flag on every variant (pluginFlagsParserText below), the
+  # marketplace registered in every variant's settings.json (flagPluginsMarketplaces,
+  # so the plugin is resolvable once enabled), and zsh completion for the flag
+  # (flagPluginsZshArgs, consumed by home/modules/shell/zsh/functions.nix) —
+  # nothing else to touch.
+  flagPlugins = [
+    {
+      flag = "--no-devar";
+      plugin = "devar@divar";
+      enable = false;
+      desc = "disable the devar plugin for this launch";
+    }
+    {
+      flag = "--crit";
+      plugin = "crit@crit";
+      enable = true;
+      desc = "enable the crit review plugin (tomasz-tomczyk/crit) for this launch";
+      marketplace = {
+        crit = {
+          source = {
+            source = "github";
+            repo = "tomasz-tomczyk/crit";
+          };
+        };
+      };
+    }
+  ];
 
-  noDevarSettingsArgText = ''
+  flagPluginsMarketplaces = lib.foldl' (acc: p: acc // (p.marketplace or { })) { } flagPlugins;
+
+  flagPluginsZshArgs = lib.concatMapStringsSep " " (
+    p: "'${p.flag}[${p.desc}]'"
+  ) flagPlugins;
+
+  pluginFlagsParserText =
+    let
+      caseArms = lib.concatMapStringsSep "\n" (p: ''
+        ${p.flag})
+          _claude_plugin_flags+=("${p.plugin}=${if p.enable then "true" else "false"}")
+          shift
+          ;;
+      '') flagPlugins;
+    in
+    ''
+      _claude_plugin_flags=()
+      _claude_flag_rest=()
+      while [ "$#" -gt 0 ]; do
+        case "$1" in
+      ${caseArms}
+          *)
+            _claude_flag_rest+=("$1")
+            shift
+            ;;
+        esac
+      done
+      set -- "''${_claude_flag_rest[@]}"
+      unset _claude_flag_rest
+    '';
+
+  pluginSettingsArgText = ''
     _claude_extra_args=()
-    if [ "$_claude_no_devar" -eq 1 ]; then
-      _claude_extra_args+=(--settings '{"enabledPlugins":{"devar@divar":false}}')
+    if [ "''${#_claude_plugin_flags[@]}" -gt 0 ]; then
+      _claude_settings_overlay="{}"
+      for _claude_pf in "''${_claude_plugin_flags[@]}"; do
+        _claude_settings_overlay=$(${pkgs.jq}/bin/jq -c \
+          --arg id "''${_claude_pf%=*}" --argjson val "''${_claude_pf##*=}" \
+          '.enabledPlugins[$id] = $val' <<<"$_claude_settings_overlay")
+      done
+      _claude_extra_args+=(--settings "$_claude_settings_overlay")
+      unset _claude_settings_overlay _claude_pf
     fi
-    unset _claude_no_devar
+    unset _claude_plugin_flags
   '';
 
   localMcpConfigRel = ".config/local-claude/mcp-servers.json";
@@ -280,10 +344,10 @@ let
     ${mcpGroupsParserText}
     ${gitlabMcpParserText}
     ${gitlabMcpDenyText}
-    ${noDevarParserText}
+    ${pluginFlagsParserText}
 
     ${healClaudeState}/bin/heal-claude-json || true
-    ${noDevarSettingsArgText}
+    ${pluginSettingsArgText}
     if [ "''${#_claude_mcp_disallow[@]}" -gt 0 ]; then
       exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} \
         --disallowedTools "''${_claude_mcp_disallow[@]}" "''${_claude_extra_args[@]}" "$@"
@@ -301,12 +365,13 @@ let
         keyFile = "glm-key";
         authVar = "ANTHROPIC_AUTH_TOKEN";
       }}
-      export ANTHROPIC_BASE_URL="https://api.raytone.ai"
-      export ANTHROPIC_MODEL="glm-5.2[1m]"
-      export ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.2[1m]"
-      export ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5.2[1m]"
-      export ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-5.2[1m]"
-      export CLAUDE_CODE_SUBAGENT_MODEL="glm-5.2[1m]"
+      export CLAUDE_VARIANT_NAME="glm-claude"
+      export ANTHROPIC_BASE_URL="https://api.z.ai/api/anthropic"
+      export ANTHROPIC_MODEL="glm-5.3[1m]"
+      export ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.3[1m]"
+      export ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5.3[1m]"
+      export ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-5.3-flash[1m]"
+      export CLAUDE_CODE_SUBAGENT_MODEL="glm-5.3[1m]"
       export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/glm-claude"
       export CLAUDE_CODE_EFFORT_DEFAULT="${workEffortLevel}"
       export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1048576"
@@ -324,6 +389,7 @@ let
         keyFile = "deepseek-key";
         authVar = "ANTHROPIC_API_KEY";
       }}
+      export CLAUDE_VARIANT_NAME="deepseek-claude"
       export ANTHROPIC_BASE_URL="https://api.deepseek.com/anthropic"
       export ANTHROPIC_MODEL="deepseek-v4-pro"
       export ANTHROPIC_DEFAULT_OPUS_MODEL="deepseek-v4-pro"
@@ -469,15 +535,16 @@ let
     ];
     text = ''
       ${ipGuardText}
+      export CLAUDE_VARIANT_NAME="normal-claude"
       export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/normal-claude"
       export TZ="Europe/Berlin"
       export TZDIR="${pkgs.tzdata}/share/zoneinfo"
       ${effortParserText}
       ${agenticMcpParserText}
       ${gitlabMcpParserText}
-      ${noDevarParserText}
+      ${pluginFlagsParserText}
       ${healClaudeState}/bin/heal-claude-json || true
-      ${noDevarSettingsArgText}
+      ${pluginSettingsArgText}
       if [ "$_claude_agentic_mcps" -eq 1 ]; then
         if [ "$_claude_gitlab_mcp" -eq 1 ]; then
           exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "''${_claude_extra_args[@]}" "$@"
@@ -495,12 +562,15 @@ let
     name = "gap-claude";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
+      export CLAUDE_VARIANT_NAME="gap-claude"
       export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/gap-claude"
       export ANTHROPIC_API_KEY="${secrets.gapgpt.apiKey or ""}"
       export ANTHROPIC_BASE_URL="https://api.gapgpt.app/"
       ${effortParserText}
+      ${pluginFlagsParserText}
       ${healClaudeState}/bin/heal-claude-json || true
-      exec ${pkgs.claude-code}/bin/claude "$@"
+      ${pluginSettingsArgText}
+      exec ${pkgs.claude-code}/bin/claude "''${_claude_extra_args[@]}" "$@"
     '';
   };
 
@@ -514,6 +584,7 @@ let
     ];
     text = ''
       ${ipGuardText}
+      export CLAUDE_VARIANT_NAME="work-claude"
       export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/work-claude"
       export TZ="Asia/Singapore"
       export TZDIR="${pkgs.tzdata}/share/zoneinfo"
@@ -529,14 +600,17 @@ let
       pkgs.nodejs
     ];
     text = ''
+      export CLAUDE_VARIANT_NAME="local-claude"
       export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/local-claude"
       export ANTHROPIC_BASE_URL="${localAnthropicBaseUrl}"
       export ANTHROPIC_AUTH_TOKEN="${localProxyKey}"
       export ANTHROPIC_MODEL="${localModel}"
       export ANTHROPIC_SMALL_FAST_MODEL="${localModelFast}"
       ${effortParserText}
+      ${pluginFlagsParserText}
       ${healClaudeState}/bin/heal-claude-json || true
-      exec claude --mcp-config "${localMcpConfigPath}" "$@"
+      ${pluginSettingsArgText}
+      exec claude --mcp-config "${localMcpConfigPath}" "''${_claude_extra_args[@]}" "$@"
     '';
   };
 
@@ -597,6 +671,24 @@ let
       "SessionEnd"
     ] (_: entry);
 
+  # Best-effort ntfy ping on the "claude" topic (home/modules/programs/
+  # development/ntfy.nix) when any variant's session ends. The hook script
+  # itself swallows failures, so a missing token or dead network never blocks
+  # Claude from finishing.
+  ntfyStopHooks = lib.optionalAttrs config.custom.ntfy.enableClaudeHook {
+    Stop = [
+      {
+        hooks = [
+          {
+            type = "command";
+            command = "${config.custom.ntfy.claudeHookPackage}/bin/ntfy-claude-hook";
+            timeout = 10;
+          }
+        ];
+      }
+    ];
+  };
+
   mkSettings =
     variant: base:
     let
@@ -615,6 +707,7 @@ let
     // {
       hooks = lib.zipAttrsWith (_: lib.concatLists) [
         zellaudeHooks
+        ntfyStopHooks
         (base.hooks or { })
       ];
     };
@@ -623,6 +716,7 @@ let
     autoCompactEnabled = true;
     env = {
       CLAUDE_CODE_AUTO_COMPACT_WINDOW = "131072";
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1";
     };
     permissions = {
       allow = [
@@ -635,6 +729,8 @@ let
       ];
       defaultMode = "auto";
     };
+    extraKnownMarketplaces = astGrepMarketplace // flagPluginsMarketplaces;
+    enabledPlugins = astGrepPlugin;
     theme = "dark";
   };
 
@@ -660,17 +756,34 @@ let
     ];
   };
 
-  cavemanMarketplace = lib.optionalAttrs cfg.enableCaveman {
-    caveman = {
-      source = {
-        source = "github";
-        repo = "JuliusBrussee/caveman";
-      };
+  # github-sourced marketplace registration, same shape devarMarketplace above
+  # uses for its directory source: non-interactive `extraKnownMarketplaces`
+  # entry + a matching `enabledPlugins` toggle.
+  mkGithubMarketplace = repo: {
+    source = {
+      source = "github";
+      inherit repo;
     };
+  };
+
+  cavemanMarketplace = lib.optionalAttrs cfg.enableCaveman {
+    caveman = mkGithubMarketplace "JuliusBrussee/caveman";
   };
 
   cavemanPlugin = lib.optionalAttrs cfg.enableCaveman {
     "caveman@caveman" = true;
+  };
+
+  # ast-grep's official Claude Code skill (github.com/ast-grep/agent-skill):
+  # teaches structural/AST-based code search with the `ast-grep` CLI (see
+  # home/modules/packages/dev.nix for the package). Always on, every variant —
+  # unlike devar/caveman there is no host- or preference-gate for it.
+  astGrepMarketplace = {
+    "ast-grep-marketplace" = mkGithubMarketplace "ast-grep/agent-skill";
+  };
+
+  astGrepPlugin = {
+    "ast-grep@ast-grep-marketplace" = true;
   };
 
   workSettings = {
@@ -695,11 +808,12 @@ let
       ];
       defaultMode = "auto";
     };
-    extraKnownMarketplaces = devarMarketplace;
+    extraKnownMarketplaces = devarMarketplace // astGrepMarketplace // flagPluginsMarketplaces;
     enabledPlugins = {
       "figma@claude-plugins-official" = true;
     }
-    // devarPlugin;
+    // devarPlugin
+    // astGrepPlugin;
     theme = "dark";
     outputStyle = "concise";
     skipAutoPermissionPrompt = true;
@@ -738,19 +852,25 @@ let
 
   gapSettings = {
     theme = "dark";
+    extraKnownMarketplaces = astGrepMarketplace // flagPluginsMarketplaces;
+    enabledPlugins = astGrepPlugin;
   };
 
   deepseekSettings = {
     theme = "dark";
-    extraKnownMarketplaces = devarMarketplace;
-    enabledPlugins = devarPlugin;
+    env = {
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1";
+    };
+    extraKnownMarketplaces = devarMarketplace // astGrepMarketplace // flagPluginsMarketplaces;
+    enabledPlugins = devarPlugin // astGrepPlugin;
     permissions = devarPermissions;
   };
 
   normalSettings = {
     theme = "dark";
-    extraKnownMarketplaces = devarMarketplace // cavemanMarketplace;
-    enabledPlugins = devarPlugin // cavemanPlugin;
+    extraKnownMarketplaces =
+      devarMarketplace // cavemanMarketplace // astGrepMarketplace // flagPluginsMarketplaces;
+    enabledPlugins = devarPlugin // cavemanPlugin // astGrepPlugin;
     permissions = devarPermissions;
     hooks = {
       SessionStart = [
@@ -797,7 +917,7 @@ let
   };
   pickerVariants =
     lib.optional cfg.enable (pickerEntry "gap" "gap-claude" "gapgpt cloud" gapClaude)
-    ++ lib.optional cfg.enableGlm (pickerEntry "glm" "glm-claude" "GLM via raytone" glmClaude)
+    ++ lib.optional cfg.enableGlm (pickerEntry "glm" "glm-claude" "GLM via z.ai" glmClaude)
     ++ lib.optional cfg.enableDeepseek (
       pickerEntry "deepseek" "deepseek-claude" "DeepSeek, native Anthropic API" deepseekClaude
     )
@@ -877,7 +997,7 @@ in
           input = lib.mkOption {
             type = lib.types.float;
             default = 1.40;
-            description = "USD per 1M non-cache input tokens for the glm-5.2 endpoint.";
+            description = "USD per 1M non-cache input tokens for the glm-5.3 endpoint.";
           };
           output = lib.mkOption {
             type = lib.types.float;
@@ -898,7 +1018,7 @@ in
       };
       default = { };
       description = ''
-        Per-1M-token USD prices for the glm-5.2 (raytone) endpoint, consumed by
+        Per-1M-token USD prices for the glm-5.3 (z.ai) endpoint, consumed by
         the `glm-usage` tracker and its statusline week/month cost. Override
         per-host if your plan's rates differ.
       '';
@@ -908,7 +1028,7 @@ in
       type = lib.types.ints.between 1 31;
       default = 5;
       description = ''
-        Day of month the glm-5.2 billing cycle resets. The statusline's "mo"
+        Day of month the glm-5.3 billing cycle resets. The statusline's "mo"
         window runs from this day to the day before next month's same day
         (default the 5th).
       '';
@@ -1000,6 +1120,20 @@ in
           - "user-invocable-only" : installed and `/skill-name` works, hidden from model
           - "name-only"           : name listed, description hidden
           - "off"                 : fully hidden
+      '';
+    };
+
+    flagPluginsZshArgs = lib.mkOption {
+      type = lib.types.str;
+      internal = true;
+      readOnly = true;
+      default = flagPluginsZshArgs;
+      description = ''
+        Generated zsh `_arguments` fragment (one `'--flag[desc]'` per entry in
+        `flagPlugins`) for the CLI plugin-toggle flags every claude variant
+        wrapper accepts (e.g. `--crit`, `--no-devar`). Consumed by
+        home/modules/shell/zsh/functions.nix so a new flagPlugins entry gets
+        shell completion automatically, no separate edit needed.
       '';
     };
   };

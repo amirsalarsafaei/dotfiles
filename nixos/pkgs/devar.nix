@@ -28,7 +28,7 @@ buildGoModule {
   # literal string (not the `lib.fakeHash` symbol): nix-update patches the
   # file by searching for the literal old hash text, so a symbolic reference
   # can never be found and silently never gets replaced.
-  vendorHash = "sha256-S1CrXTgt6k+UVZRRiFRk0i50o+U38iGF0dqpQaAfYKA=";
+  vendorHash = "sha256-PTdeo/7Vw8Kgfgx/VhlUNyGfBmBh2v84jRkgaPbDfOo=";
   subPackages = [ "." ];
   # Build tags. usage_monitor enables local MCP/skill usage recording. The
   # devar_submit / devar_proxy tags enable the submit-post and proxy/browser
