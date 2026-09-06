@@ -4,6 +4,7 @@
     type = lib.types.enum [
       "normal"
       "low-power"
+      "performance"
     ];
     default = "normal";
     description = ''

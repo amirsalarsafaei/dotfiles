@@ -6,6 +6,7 @@
     ./hyprlock.nix
     ./obsidian.nix
     ./rofi.nix
+    ./spicetify.nix
     ./waybar.nix
     ./wlogout.nix
   ];

@@ -12,6 +12,8 @@
     ../../modules/laptop.nix
     # Work host configuration (work-claude variant, private skills)
     ../../modules/work.nix
+    # Logitech wireless mouse support (solaar: battery, DPI, buttons)
+    ../../modules/logitech.nix
     ./virtualization.nix
   ];
 
@@ -63,6 +65,11 @@
   specialisation.low-power.configuration = {
     system.nixos.tags = [ "low-power" ];
     custom.powerProfile = "low-power";
+  };
+
+  specialisation.performance.configuration = {
+    system.nixos.tags = [ "performance" ];
+    custom.powerProfile = "performance";
   };
 
   system.stateVersion = "25.11";

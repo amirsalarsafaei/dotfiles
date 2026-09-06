@@ -199,8 +199,9 @@ let
   # launch, via a `--settings` JSON overlay merged over the variant's
   # settings.json (the same trick --no-devar always used). Add an entry here
   # to get: the CLI flag on every variant (pluginFlagsParserText below), the
-  # marketplace registered in every variant's settings.json (flagPluginsMarketplaces,
-  # so the plugin is resolvable once enabled), and zsh completion for the flag
+  # marketplace injected into that same overlay when — and only when — the flag
+  # is passed (so an unflagged launch never sees it in /plugin, yet the plugin
+  # stays resolvable once enabled), and zsh completion for the flag
   # (flagPluginsZshArgs, consumed by home/modules/shell/zsh/functions.nix) —
   # nothing else to touch.
   flagPlugins = [
@@ -226,8 +227,6 @@ let
     }
   ];
 
-  flagPluginsMarketplaces = lib.foldl' (acc: p: acc // (p.marketplace or { })) { } flagPlugins;
-
   flagPluginsZshArgs = lib.concatMapStringsSep " " (
     p: "'${p.flag}[${p.desc}]'"
   ) flagPlugins;
@@ -237,12 +236,16 @@ let
       caseArms = lib.concatMapStringsSep "\n" (p: ''
         ${p.flag})
           _claude_plugin_flags+=("${p.plugin}=${if p.enable then "true" else "false"}")
+          ${lib.optionalString (p ? marketplace)
+            ''_claude_plugin_marketplaces+=('${builtins.toJSON p.marketplace}')''
+          }
           shift
           ;;
       '') flagPlugins;
     in
     ''
       _claude_plugin_flags=()
+      _claude_plugin_marketplaces=()
       _claude_flag_rest=()
       while [ "$#" -gt 0 ]; do
         case "$1" in
@@ -266,10 +269,29 @@ let
           --arg id "''${_claude_pf%=*}" --argjson val "''${_claude_pf##*=}" \
           '.enabledPlugins[$id] = $val' <<<"$_claude_settings_overlay")
       done
+      if [ "''${#_claude_plugin_marketplaces[@]}" -gt 0 ]; then
+        # Seed the overlay with the marketplaces the variant's own settings.json
+        # already registers, then add the flag's own — a --settings overlay
+        # replaces this key wholesale, so re-stating them keeps devar/caveman/
+        # ast-grep resolvable on a flagged launch.
+        _claude_settings_file="''${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
+        _claude_known="{}"
+        if [ -s "$_claude_settings_file" ]; then
+          _claude_known=$(${pkgs.jq}/bin/jq -c '.extraKnownMarketplaces // {}' \
+            "$_claude_settings_file" 2>/dev/null || printf '{}')
+        fi
+        for _claude_pm in "''${_claude_plugin_marketplaces[@]}"; do
+          _claude_known=$(${pkgs.jq}/bin/jq -c --argjson add "$_claude_pm" \
+            '. + $add' <<<"$_claude_known")
+        done
+        _claude_settings_overlay=$(${pkgs.jq}/bin/jq -c --argjson km "$_claude_known" \
+          '.extraKnownMarketplaces = $km' <<<"$_claude_settings_overlay")
+        unset _claude_settings_file _claude_known _claude_pm
+      fi
       _claude_extra_args+=(--settings "$_claude_settings_overlay")
       unset _claude_settings_overlay _claude_pf
     fi
-    unset _claude_plugin_flags
+    unset _claude_plugin_flags _claude_plugin_marketplaces
   '';
 
   localMcpConfigRel = ".config/local-claude/mcp-servers.json";
@@ -525,6 +547,28 @@ let
     '';
   };
 
+  divarPathGuardText = ''
+    case "$PWD" in
+      *divar*)
+        case "$PWD" in
+          *devar*) ;;
+          *)
+            printf 'normal-claude: cwd looks like a divar path (%s). Launch anyway? [y/N] ' "$PWD" >&2
+            read -r _claude_divar_confirm </dev/tty || _claude_divar_confirm=""
+            case "$_claude_divar_confirm" in
+              y | Y | yes | YES) ;;
+              *)
+                printf 'normal-claude: aborted.\n' >&2
+                exit 1
+                ;;
+            esac
+            unset _claude_divar_confirm
+            ;;
+        esac
+        ;;
+    esac
+  '';
+
   normalClaude = pkgs.writeShellApplication {
     name = "normal-claude";
     runtimeInputs = [
@@ -535,6 +579,7 @@ let
     ];
     text = ''
       ${ipGuardText}
+      ${divarPathGuardText}
       export CLAUDE_VARIANT_NAME="normal-claude"
       export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/normal-claude"
       export TZ="Europe/Berlin"
@@ -729,7 +774,7 @@ let
       ];
       defaultMode = "auto";
     };
-    extraKnownMarketplaces = astGrepMarketplace // flagPluginsMarketplaces;
+    extraKnownMarketplaces = astGrepMarketplace;
     enabledPlugins = astGrepPlugin;
     theme = "dark";
   };
@@ -808,7 +853,7 @@ let
       ];
       defaultMode = "auto";
     };
-    extraKnownMarketplaces = devarMarketplace // astGrepMarketplace // flagPluginsMarketplaces;
+    extraKnownMarketplaces = devarMarketplace // astGrepMarketplace;
     enabledPlugins = {
       "figma@claude-plugins-official" = true;
     }
@@ -852,7 +897,7 @@ let
 
   gapSettings = {
     theme = "dark";
-    extraKnownMarketplaces = astGrepMarketplace // flagPluginsMarketplaces;
+    extraKnownMarketplaces = astGrepMarketplace;
     enabledPlugins = astGrepPlugin;
   };
 
@@ -861,15 +906,14 @@ let
     env = {
       CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1";
     };
-    extraKnownMarketplaces = devarMarketplace // astGrepMarketplace // flagPluginsMarketplaces;
+    extraKnownMarketplaces = devarMarketplace // astGrepMarketplace;
     enabledPlugins = devarPlugin // astGrepPlugin;
     permissions = devarPermissions;
   };
 
   normalSettings = {
     theme = "dark";
-    extraKnownMarketplaces =
-      devarMarketplace // cavemanMarketplace // astGrepMarketplace // flagPluginsMarketplaces;
+    extraKnownMarketplaces = devarMarketplace // cavemanMarketplace // astGrepMarketplace;
     enabledPlugins = devarPlugin // cavemanPlugin // astGrepPlugin;
     permissions = devarPermissions;
     hooks = {
@@ -1139,6 +1183,14 @@ in
   };
 
   config = lib.mkMerge [
+    {
+      # The crit@crit plugin's hooks shell out to a bare `crit` on PATH (its
+      # own binary, built from the crit flake input via the overlay in
+      # flake.nix). The plugin marketplace registration only ships the
+      # skill/slash-command; without this the `--crit` flag enables a plugin
+      # whose commands fail with "crit: command not found".
+      home.packages = [ pkgs.crit ];
+    }
     (lib.mkIf cfg.enable {
       home.packages = [
         claudePicker

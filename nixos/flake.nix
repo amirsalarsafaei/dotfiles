@@ -6,7 +6,6 @@
       "https://cache.nixos.org"
       "https://nix-community.cachix.org"
       "https://devenv.cachix.org"
-      "https://nixos-apple-silicon.cachix.org"
       # Enable after creating the cache and replacing the matching public key below.
       # "https://amirsalarsafaei-com.cachix.org"
     ];
@@ -15,7 +14,6 @@
       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
       "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw="
       "nixpkgs-python.cachix.org-1:hxjI7pFxTyuTHn2NkvWCrAUcNZLNS3ZAvfYNuYifcEU="
-      "nixos-apple-silicon.cachix.org-1:8psDu5SA5dAD7qA0zMy5UT292TxeEPzIz8VVEr2Js20="
       # Replace TODO with the exact public key from `cachix use amirsalarsafaei-com`.
       # "amirsalarsafaei-com.cachix.org-1:TODO"
     ];
@@ -48,9 +46,6 @@
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    # Asahi support - don't follow nixpkgs to get cache hits
-    apple-silicon-support.url = "github:nix-community/nixos-apple-silicon/main";
 
     argonaut = {
       url = "github:darksworm/argonaut?ref=v2.7.0";
@@ -165,7 +160,6 @@
     , nixpkgs-stable
     , home-manager
     , nixvim
-    , apple-silicon-support
     , sops-nix
     , claude-code
     , agent-skills
@@ -197,6 +191,7 @@
         };
         overlays = import ./overlays { inherit nixpkgs-stable system; } ++ [
           claude-code.overlays.default
+          (final: prev: { crit = inputs.crit.packages.${system}.crit; })
         ];
       };
 
@@ -233,13 +228,6 @@
 
       # Host definitions with multi-user support
       allHosts = {
-        mac = {
-          system = systems.aarch64;
-          type = "nixos";
-          users = [ "amirsalar" ];
-          extraModules = [ apple-silicon-support.nixosModules.apple-silicon-support ];
-        };
-
         g14 = {
           system = systems.x86_64;
           type = "nixos";
@@ -327,7 +315,6 @@
             inherit
               secrets
               inputs
-              apple-silicon-support
               hostname
               ;
           };

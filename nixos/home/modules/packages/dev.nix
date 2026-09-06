@@ -43,5 +43,6 @@ in
   pkgs.buildah
   pkgs.podman
   pkgs.ast-grep
+  pkgs.istioctl
   inputs.crit.packages.${pkgs.stdenv.hostPlatform.system}.default
 ]

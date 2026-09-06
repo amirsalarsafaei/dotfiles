@@ -1,0 +1,38 @@
+% istioctl, istio
+
+# Clusters for a pod - use when wrong upstream is hit or cluster missing
+istioctl proxy-config cluster <pod> -n <namespace>
+
+# Listeners for a pod - use when traffic not reaching sidecar / wrong port
+istioctl proxy-config listener <pod> -n <namespace>
+
+# Routes for a pod - use when request goes 404 or wrong destination
+istioctl proxy-config route <pod> -n <namespace>
+
+# Endpoints for a pod - use when traffic lands on wrong/unhealthy backend
+istioctl proxy-config endpoint <pod> -n <namespace>
+
+# Certs/mTLS state for a pod - use when connection reset or TLS handshake fails
+istioctl proxy-config secret <pod> -n <namespace>
+
+# Full Envoy bootstrap - use when static config itself is suspect (rare, deep dive)
+istioctl proxy-config bootstrap <pod> -n <namespace>
+
+# Get/set Envoy log level - use when config looks right but runtime behavior doesn't match
+istioctl proxy-config log <pod> -n <namespace>
+
+# Bump one component to debug (router/http/connection/tls/upstream/filter)
+istioctl proxy-config log <pod> -n <namespace> --level <component>:debug
+
+# Filter cluster config by name/fqdn - use to narrow a large cluster dump fast
+istioctl proxy-config cluster <pod> -n <namespace> --fqdn <fqdn>
+
+# Output proxy config as json - use when piping to jq for scripting/diffing
+istioctl proxy-config cluster <pod> -n <namespace> -o json
+
+# Validate a local manifest file - use pre-apply, no cluster access needed
+istioctl validate -f <file>
+
+$ namespace: kubectl get namespaces --no-headers --- --column 1
+$ pod: kubectl get pods -n <namespace> --no-headers --- --column 1
+$ component: echo -e "router\nhttp\nconnection\ntls\nupstream\nfilter"
