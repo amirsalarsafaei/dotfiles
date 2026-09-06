@@ -144,7 +144,7 @@
     # edits flow straight through, no commit/push/re-lock cycle. Run
     # `nix flake update avosh-bot` to pick up on-disk changes for a build.
     avosh-bot = {
-      url = "path:/home/amirsalar/personal/avosh-bot";
+      url = "path:/etc/avosh-bot";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -155,17 +155,18 @@
   };
 
   outputs =
-    { self
-    , nixpkgs
-    , nixpkgs-stable
-    , home-manager
-    , nixvim
-    , sops-nix
-    , claude-code
-    , agent-skills
-    , stylix
-    , disko
-    , ...
+    {
+      self,
+      nixpkgs,
+      nixpkgs-stable,
+      home-manager,
+      nixvim,
+      sops-nix,
+      claude-code,
+      agent-skills,
+      stylix,
+      disko,
+      ...
     }@inputs:
     let
       inherit (nixpkgs) lib;
@@ -292,12 +293,13 @@
       ];
 
       mkNixOS =
-        { hostname
-        , system
-        , users
-        , extraModules ? [ ]
-        , useSops ? true
-        , ...
+        {
+          hostname,
+          system,
+          users,
+          extraModules ? [ ],
+          useSops ? true,
+          ...
         }@hostConfig:
         let
           sopsNixosModules = lib.optionals useSops [
@@ -354,11 +356,12 @@
 
       # Build standalone home-manager configuration
       mkHomeManager =
-        { hostname
-        , system
-        , username
-        , useSops ? true
-        , ...
+        {
+          hostname,
+          system,
+          username,
+          useSops ? true,
+          ...
         }@hostConfig:
         let
           sopsHomeSharedModules = lib.optionals useSops [
@@ -389,22 +392,18 @@
       homeManagerHosts = lib.filterAttrs (_: hostConfig: hostConfig.type == "home-manager") allHosts;
 
       standaloneHomeConfigs = lib.flatten (
-        lib.mapAttrsToList
-          (
-            hostname: hostConfig:
-              let
-                users = normalizeUsers hostConfig;
-              in
-              map
-                (
-                  username:
-                  lib.nameValuePair "${username}@${hostname}" (
-                    mkHomeManager (hostConfig // { inherit hostname username; })
-                  )
-                )
-                users
-          )
-          homeManagerHosts
+        lib.mapAttrsToList (
+          hostname: hostConfig:
+          let
+            users = normalizeUsers hostConfig;
+          in
+          map (
+            username:
+            lib.nameValuePair "${username}@${hostname}" (
+              mkHomeManager (hostConfig // { inherit hostname username; })
+            )
+          ) users
+        ) homeManagerHosts
       );
 
     in
@@ -453,18 +452,16 @@
         };
 
       # NixOS configurations (with integrated home-manager for all users)
-      nixosConfigurations = lib.mapAttrs
-        (
-          hostname: hostConfig:
-            mkNixOS (
-              hostConfig
-              // {
-                inherit hostname;
-                users = normalizeUsers hostConfig;
-              }
-            )
+      nixosConfigurations = lib.mapAttrs (
+        hostname: hostConfig:
+        mkNixOS (
+          hostConfig
+          // {
+            inherit hostname;
+            users = normalizeUsers hostConfig;
+          }
         )
-        nixosHosts;
+      ) nixosHosts;
 
       homeConfigurations = builtins.listToAttrs standaloneHomeConfigs;
     };
