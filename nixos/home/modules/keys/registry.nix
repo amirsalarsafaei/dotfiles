@@ -401,6 +401,12 @@ rec {
         group = "Media";
         flavor = "media";
       })
+      (keysLib.hypr.exec {
+        on = on.superShift K.o;
+        cmd = "oled-toggle";
+        desc = "Toggle internal OLED display";
+        group = "Media";
+      })
     ];
 
     # Modal layers. Both are the same submap with a different dispatcher, so

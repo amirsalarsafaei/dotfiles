@@ -1,80 +1,124 @@
 { pkgs, ... }:
 
+let
+  oledSet = pkgs.writeShellScriptBin "oled-set" ''
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "''${1:-}" in
+      on)
+        hyprctl keyword monitor "eDP-1,preferred,auto,1.6"
+        notify-send "Internal Display" "Enabled"
+        ;;
+      off)
+        hyprctl keyword monitor "eDP-1,disable"
+        notify-send "Internal Display" "Disabled"
+        ;;
+      *)
+        echo "Usage: oled-set {on|off}" >&2
+        exit 1
+        ;;
+    esac
+  '';
+
+  # AC-power-driven policy: plugged in -> assume desk/dual-monitor use, spare
+  # the OLED; unplugged -> assume laptop-only use, bring it back. Runs inside
+  # the user's own systemd session (started via `systemctl --user`, see the
+  # udev rule in the g14 host config) so it inherits the same PATH/env as a
+  # normal shell — no root/Wayland-socket plumbing needed.
+  oledPowerSync = pkgs.writeShellScriptBin "oled-power-sync" ''
+    #!/usr/bin/env bash
+    set -euo pipefail
+    online=$(cat /sys/class/power_supply/ACAD/online 2>/dev/null || echo 0)
+    if [ "$online" = "1" ]; then
+      "${oledSet}/bin/oled-set" off
+    else
+      "${oledSet}/bin/oled-set" on
+    fi
+  '';
+in
+
 {
+  systemd.user.services.oled-power-sync = {
+    Unit.Description = "Sync internal OLED panel to AC power state";
+    Service = {
+      Type = "oneshot";
+      ExecStart = "${oledPowerSync}/bin/oled-power-sync";
+    };
+  };
+
   home.packages = with pkgs; [
+    oledSet
+    oledPowerSync
+
     (writeShellScriptBin "volume" ''
       #!/usr/bin/env bash
+      set -euo pipefail
 
-
-      function get_volume {
-          echo $(wpctl get-volume @DEFAULT_SINK@  | sed -e 's/[^0-9]*\([0-9]\+\)\.\([0-9]\+\)[^0-9]*/\1\2/g')
+      get_volume() {
+        wpctl get-volume @DEFAULT_SINK@ | sed -e 's/[^0-9]*\([0-9]\+\)\.\([0-9]\+\)[^0-9]*/\1\2/g'
       }
 
-      function is_mute {
-           if [[ $(wpctl get-volume @DEFAULT_SINK@) == *"MUTED"* ]]; then
-              return 0  # success, true (muted)
-          else
-              return 1  # failure, false (not muted)
-          fi 
+      is_mute() {
+        [[ "$(wpctl get-volume @DEFAULT_SINK@)" == *"MUTED"* ]]
       }
 
-      function send_notification {
-      	volume=$(get_volume)
-          if is_mute; then
-              notify-send "Muted"
-          else
-              notify-send -h int:value:$volume "Volume"
-          fi
+      send_notification() {
+        if is_mute; then
+          notify-send "Muted"
+        else
+          notify-send -h int:value:"$(get_volume)" "Volume"
+        fi
       }
 
-      case $1 in
-          up)
+      case "''${1:-}" in
+        up)
           wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ -l 1
-      	send_notification
-      	;;
-          down)
+          send_notification
+          ;;
+        down)
           wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
-      	send_notification
-      	;;
-          mute)
+          send_notification
+          ;;
+        mute)
           wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
-      	if is_mute ; then
-      	    dunstify -i audio-volume-muted-panel -t 8000 -r 2593 -u normal "Mute"
-      	else
-      	    send_notification
-      	fi
-      	;;
+          if is_mute; then
+            dunstify -i audio-volume-muted-panel -t 8000 -r 2593 -u normal "Mute"
+          else
+            send_notification
+          fi
+          ;;
+        *)
+          echo "Usage: volume {up|down|mute}" >&2
+          exit 1
+          ;;
       esac
-
-
     '')
 
     (writeShellScriptBin "brightness" ''
       #!/usr/bin/env bash
-      DEVICES=$(brightnessctl -l -m | awk -F',' '$2 == "backlight" {print $1}')
+      set -euo pipefail
 
-      case "$1" in
+      case "''${1:-}" in
         up)
-          SET="+10%"
+          set_to="+10%"
           ;;
         down)
-          SET="10%-"
+          set_to="10%-"
           ;;
         *)
-          echo "Usage: brightness {up|down}"
+          echo "Usage: brightness {up|down}" >&2
           exit 1
           ;;
       esac
 
-      for DEV in $DEVICES; do
-        brightnessctl -d "$DEV" set "$SET" > /dev/null
+      mapfile -t devices < <(brightnessctl -l -m | awk -F',' '$2 == "backlight" {print $1}')
+
+      for dev in "''${devices[@]}"; do
+        brightnessctl -d "$dev" set "$set_to" > /dev/null
       done
 
-      FIRST_DEV=$(echo "$DEVICES" | head -n 1)
-
-      if [ -n "$FIRST_DEV" ]; then
-        current=$(brightnessctl -d "$FIRST_DEV" -m | cut -d',' -f4 | tr -d '%')
-        
+      if [ "''${#devices[@]}" -gt 0 ]; then
+        current=$(brightnessctl -d "''${devices[0]}" -m | cut -d',' -f4 | tr -d '%')
         notify-send -h string:x-canonical-private-synchronous:brightness -h int:value:"$current" "Brightness: $current%"
       fi
     '')
@@ -123,28 +167,48 @@
       esac
     '')
 
+    # oled-toggle — dual-monitor mode: disable/re-enable the G14's internal
+    # OLED panel. Disabled monitors drop out of `hyprctl monitors -j`
+    # entirely, so presence there is the toggle state.
+    (writeShellScriptBin "oled-toggle" ''
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      if hyprctl monitors -j | jq -e '.[] | select(.name == "eDP-1")' > /dev/null; then
+        "${oledSet}/bin/oled-set" off
+      else
+        "${oledSet}/bin/oled-set" on
+      fi
+    '')
+
     (writeShellScriptBin "kbdbacklight" ''
       #!/usr/bin/env bash
-      # Find keyboard backlight device (works across different systems)
-      KBD_DEV=$(brightnessctl -l | grep -i kbd | head -1 | cut -d"'" -f2)
+      set -euo pipefail
 
-      if [ -z "$KBD_DEV" ]; then
+      case "''${1:-}" in
+        up)
+          set_to="+20%"
+          ;;
+        down)
+          set_to="20%-"
+          ;;
+        *)
+          echo "Usage: kbdbacklight {up|down}" >&2
+          exit 1
+          ;;
+      esac
+
+      # Find keyboard backlight device (works across different systems)
+      kbd_dev=$(brightnessctl -l | grep -i kbd | head -1 | cut -d"'" -f2)
+
+      if [ -z "$kbd_dev" ]; then
         notify-send "Keyboard Backlight" "No keyboard backlight found"
         exit 1
       fi
 
-      case $1 in
-      	up)
-      	brightnessctl -d "$KBD_DEV" set +20%
-      	;;
-      	down)
-      	brightnessctl -d "$KBD_DEV" set 20%-
-      	;;
-      esac
-
-      current=$(brightnessctl -d "$KBD_DEV" -m | cut -d',' -f4 | tr -d '%')
-      notify-send -h int:value:$current "Keyboard Backlight"
+      brightnessctl -d "$kbd_dev" set "$set_to" > /dev/null
+      current=$(brightnessctl -d "$kbd_dev" -m | cut -d',' -f4 | tr -d '%')
+      notify-send -h int:value:"$current" "Keyboard Backlight"
     '')
-
   ];
 }

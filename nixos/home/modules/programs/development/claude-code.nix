@@ -507,6 +507,17 @@ let
         parts+=("+$added -$removed")
       fi
       [ -n "$style" ] && [ "$style" != "default" ] && parts+=("$style")
+
+      cfg_dir="''${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+      caveman_level=""
+      [ -f "$cfg_dir/.caveman-active" ] && caveman_level=$(cat "$cfg_dir/.caveman-active" 2>/dev/null || true)
+      caveman_suffix=""
+      [ -f "$cfg_dir/.caveman-statusline-suffix" ] && caveman_suffix=$(cat "$cfg_dir/.caveman-statusline-suffix" 2>/dev/null || true)
+      if [ -n "$caveman_level" ] && [ "$caveman_level" != "off" ]; then
+        parts+=("🦴 $caveman_level")
+      fi
+      [ -n "$caveman_suffix" ] && parts+=("$caveman_suffix")
+
       [ -n "$now" ] && parts+=("$now")
 
       out=""

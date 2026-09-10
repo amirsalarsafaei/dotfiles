@@ -328,10 +328,18 @@ in
     # Disable nvidia-gpu exporter since nvidia is disabled
     services.prometheus.exporters.nvidia-gpu.enable = lib.mkForce false;
 
-    hyprland.monitorConfig = "eDP-1,2880x1800@60,0x0,1.6";
+    hyprland.monitorConfig = "eDP-1,2880x1800@120,0x0,1.6";
   };
 
   hardware.nvidia-container-toolkit.enable = true;
+
+  # OLED burn-in guard: plugging/unplugging AC flips the internal panel
+  # (see home/modules/scripts/default.nix's oled-power-sync). Delegates to
+  # the user's own systemd session rather than running hyprctl as root, so
+  # it doesn't need to reach into the Wayland socket/env by hand.
+  services.udev.extraRules = ''
+    SUBSYSTEM=="power_supply", KERNEL=="ACAD", ACTION=="change", RUN+="${pkgs.systemd}/bin/systemctl --machine=amirsalar@ --user start oled-power-sync.service"
+  '';
 
   system.stateVersion = "25.05";
   # programs.wireshark.enable = true; # temporarily disabled: upstream hash mismatch
