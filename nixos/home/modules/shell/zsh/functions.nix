@@ -24,7 +24,7 @@
   '';
 
   "_claude-mcp" = ''
-    #compdef work-claude glm-claude deepseek-claude normal-claude claude
+    #compdef work-claude glm-claude deepseek-claude personal-deepseek-claude personal-claude claude
 
     local curcontext="$curcontext" state line
     _arguments \

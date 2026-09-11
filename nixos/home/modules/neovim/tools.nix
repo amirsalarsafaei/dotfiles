@@ -143,6 +143,15 @@ in
           settings.render.max_type_length = 0;
         };
         dap-virtual-text = lib.mkIf cfg.features.debug { enable = true; };
+
+        # https://github.com/coder/claudecode.nvim — talks to a running Claude
+        # Code session over its terminal protocol (selections, diffs, @-mentions)
+        # rather than shelling out a one-shot command. terminal_cmd defaults to
+        # "claude", which resolves to the claudePicker wrapper on $PATH.
+        claudecode = lib.mkIf cfg.features.ai {
+          enable = true;
+          settings.diff_opts.auto_close_on_accept = true;
+        };
       };
 
       keymaps = [
@@ -200,6 +209,56 @@ in
           action = "<cmd>ToggleTerm<CR>";
           options = {
             desc = "Toggle terminal";
+            silent = true;
+          };
+        }
+      ]
+      ++ lib.optionals cfg.features.ai [
+        {
+          mode = "n";
+          key = "<leader>ac";
+          action = "<cmd>ClaudeCode<CR>";
+          options = {
+            desc = "Claude Code: toggle";
+            silent = true;
+          };
+        }
+        {
+          mode = "n";
+          key = "<leader>af";
+          action = "<cmd>ClaudeCodeFocus<CR>";
+          options = {
+            desc = "Claude Code: focus";
+            silent = true;
+          };
+        }
+        {
+          mode = [
+            "n"
+            "v"
+          ];
+          key = "<leader>as";
+          action = "<cmd>ClaudeCodeSend<CR>";
+          options = {
+            desc = "Claude Code: send selection";
+            silent = true;
+          };
+        }
+        {
+          mode = "n";
+          key = "<leader>aa";
+          action = "<cmd>ClaudeCodeDiffAccept<CR>";
+          options = {
+            desc = "Claude Code: accept diff";
+            silent = true;
+          };
+        }
+        {
+          mode = "n";
+          key = "<leader>ad";
+          action = "<cmd>ClaudeCodeDiffDeny<CR>";
+          options = {
+            desc = "Claude Code: reject diff";
             silent = true;
           };
         }

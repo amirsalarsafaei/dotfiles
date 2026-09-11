@@ -20,9 +20,10 @@
   custom = {
     neovim.enable = true;
     claudeCode.enable = true;
-    claudeCode.enableNormal = true;
+    claudeCode.enablePersonal = true;
+    claudeCode.enablePersonalDeepseek = true;
     claudeCode.enableCaveman = true;
-    claudeCode.plugins.normal."clangd-lsp@claude-plugins-official" = true;
+    claudeCode.plugins.personal."clangd-lsp@claude-plugins-official" = true;
 
     agentSkills = {
       enable = true;

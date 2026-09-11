@@ -18,7 +18,7 @@ let
   # Code sets its own pane title -- spinner glyph + task description -- which
   # shows up in `title` here for free) and jump straight to it. Matches
   # `pane_command` ending in `/bin/claude`, which is what every variant's pane
-  # resolves to regardless of which wrapper (normal-claude, work-claude, ...)
+  # resolves to regardless of which wrapper (personal-claude, work-claude, ...)
   # launched it: each wrapper `exec`s the real claude-code binary, so the
   # process image zellij reports is always the same one.
   zjClaudeJump = pkgs.writeShellApplication {

@@ -18,7 +18,12 @@ let
   };
 
   # These fun ones come from https://github.com/0xhckr/ghostty-shaders
-  remoteShaders = pkgs.callPackage ../../../../pkgs/ghostty-shaders.nix { };
+  # callPackage wraps the returned attrset in makeOverridable, which injects
+  # an extra "override" (function) attr alongside the real shader
+  # derivations — filter it out or it ends up as a fake shader.
+  remoteShaders = lib.filterAttrs (
+    _: v: lib.isDerivation v
+  ) (pkgs.callPackage ../../../../pkgs/ghostty-shaders.nix { });
 
   allShaders = localShaders // remoteShaders;
   shaderNames = lib.attrNames allShaders;

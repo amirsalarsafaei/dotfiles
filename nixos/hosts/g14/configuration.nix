@@ -73,7 +73,7 @@ let
     gnome-keyring
     libsecret
     libgnome-keyring
-    gcr
+    gcr_4
 
     # Nvidia/graphics
     nvidia-vaapi-driver

@@ -585,7 +585,7 @@ in
     };
 
     services.dbus.packages = [
-      pkgs.gcr
+      pkgs.gcr_4
       pkgs.gnome-keyring
     ];
 

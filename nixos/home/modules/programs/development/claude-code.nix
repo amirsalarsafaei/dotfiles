@@ -14,6 +14,21 @@ let
 
   workEffortLevel = "xhigh";
 
+  # Paths the bwrap sandbox must never let a Bash-tool subprocess read or
+  # write, regardless of variant: SSH/GPG keyrings and every provider API key
+  # file on disk. Nix derivations never get ambient access to secrets either
+  # (git-crypt'd secrets.json, no impure env) — this is the same discipline
+  # applied to the sandboxed Bash tool.
+  sandboxSecretDenyPaths = [
+    "${config.home.homeDirectory}/.ssh"
+    "${config.home.homeDirectory}/.gnupg"
+    "${config.home.homeDirectory}/.aws"
+    "${config.home.homeDirectory}/.config/gh"
+    "${config.home.homeDirectory}/glm-key"
+    "${config.home.homeDirectory}/deepseek-key"
+    "${config.home.homeDirectory}/personal-deepseek"
+  ];
+
   ipGuardText = ''
     country=""
 
@@ -426,6 +441,37 @@ let
     '';
   };
 
+  # Same DeepSeek native-Anthropic endpoint as deepseek-claude above, but for
+  # personal (non-work) use: its own key file, its own config dir, and no
+  # work MCP config / devar plugin pulled in via workWrapperTail.
+  personalDeepseekClaude = pkgs.writeShellApplication {
+    name = "personal-deepseek-claude";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = ''
+      ${mkKeyAuth {
+        name = "personal-deepseek-claude";
+        keyFile = "personal-deepseek";
+        authVar = "ANTHROPIC_API_KEY";
+      }}
+      export CLAUDE_VARIANT_NAME="personal-deepseek-claude"
+      export ANTHROPIC_BASE_URL="https://api.deepseek.com/anthropic"
+      export ANTHROPIC_MODEL="deepseek-v4-pro"
+      export ANTHROPIC_DEFAULT_OPUS_MODEL="deepseek-v4-pro"
+      export ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek-v4-flash"
+      export ANTHROPIC_DEFAULT_HAIKU_MODEL="deepseek-v4-flash"
+      export ANTHROPIC_SMALL_FAST_MODEL="deepseek-v4-flash"
+      export CLAUDE_CODE_SUBAGENT_MODEL="deepseek-v4-flash"
+      export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/personal-deepseek-claude"
+      export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1048576"
+      export CLAUDE_CODE_MAX_CONTEXT_TOKENS="1048576"
+      ${effortParserText}
+      ${pluginFlagsParserText}
+      ${healClaudeState}/bin/heal-claude-json || true
+      ${pluginSettingsArgText}
+      exec ${pkgs.claude-code}/bin/claude "''${_claude_extra_args[@]}" "$@"
+    '';
+  };
+
   claudeIpGuard = pkgs.writeShellApplication {
     name = "claude-ip-guard";
     runtimeInputs = [
@@ -564,12 +610,12 @@ let
         case "$PWD" in
           *devar*) ;;
           *)
-            printf 'normal-claude: cwd looks like a divar path (%s). Launch anyway? [y/N] ' "$PWD" >&2
+            printf 'personal-claude: cwd looks like a divar path (%s). Launch anyway? [y/N] ' "$PWD" >&2
             read -r _claude_divar_confirm </dev/tty || _claude_divar_confirm=""
             case "$_claude_divar_confirm" in
               y | Y | yes | YES) ;;
               *)
-                printf 'normal-claude: aborted.\n' >&2
+                printf 'personal-claude: aborted.\n' >&2
                 exit 1
                 ;;
             esac
@@ -580,8 +626,8 @@ let
     esac
   '';
 
-  normalClaude = pkgs.writeShellApplication {
-    name = "normal-claude";
+  personalClaude = pkgs.writeShellApplication {
+    name = "personal-claude";
     runtimeInputs = [
       pkgs.coreutils
       pkgs.curl
@@ -591,8 +637,8 @@ let
     text = ''
       ${ipGuardText}
       ${divarPathGuardText}
-      export CLAUDE_VARIANT_NAME="normal-claude"
-      export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/normal-claude"
+      export CLAUDE_VARIANT_NAME="personal-claude"
+      export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/personal-claude"
       export TZ="Europe/Berlin"
       export TZDIR="${pkgs.tzdata}/share/zoneinfo"
       ${effortParserText}
@@ -766,6 +812,14 @@ let
         ntfyStopHooks
         (base.hooks or { })
       ];
+      # denyRead/denyWrite here are bwrap sandbox paths (OS-level, for the
+      # Bash tool), unrelated to the Read/Edit tool permission deny rules
+      # above — keeping every variant's Bash tool blind to key material even
+      # if a permission rule is misconfigured.
+      sandbox = {
+        denyRead = sandboxSecretDenyPaths;
+        denyWrite = sandboxSecretDenyPaths;
+      } // (base.sandbox or { });
     };
 
   localSettings = {
@@ -922,7 +976,16 @@ let
     permissions = devarPermissions;
   };
 
-  normalSettings = {
+  personalDeepseekSettings = {
+    theme = "dark";
+    env = {
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1";
+    };
+    extraKnownMarketplaces = astGrepMarketplace;
+    enabledPlugins = astGrepPlugin;
+  };
+
+  personalSettings = {
     theme = "dark";
     extraKnownMarketplaces = devarMarketplace // cavemanMarketplace // astGrepMarketplace;
     enabledPlugins = devarPlugin // cavemanPlugin // astGrepPlugin;
@@ -976,9 +1039,13 @@ let
     ++ lib.optional cfg.enableDeepseek (
       pickerEntry "deepseek" "deepseek-claude" "DeepSeek, native Anthropic API" deepseekClaude
     )
+    ++ lib.optional cfg.enablePersonalDeepseek (
+      pickerEntry "personal-deepseek" "personal-deepseek-claude" "DeepSeek, personal key"
+        personalDeepseekClaude
+    )
     ++ lib.optional cfg.enableWork (pickerEntry "work" "work-claude" "Divar work, xhigh" claudeWork)
-    ++ lib.optional cfg.enableNormal (
-      pickerEntry "normal" "normal-claude" "Anthropic direct, IP-guarded" normalClaude
+    ++ lib.optional cfg.enablePersonal (
+      pickerEntry "personal" "personal-claude" "Anthropic direct, IP-guarded" personalClaude
     );
 
   pickerTags = map (v: v.tag) pickerVariants;
@@ -1022,13 +1089,20 @@ in
       Anthropic-compatible endpoint (https://api.deepseek.com/anthropic).
       Reads the API key from ~/deepseek-key
     '';
+    enablePersonalDeepseek = lib.mkEnableOption ''
+      the personal-deepseek-claude variant: same DeepSeek native
+      Anthropic-compatible endpoint as deepseek-claude, but for personal
+      (non-work) use — its own config dir and no work MCP config / devar
+      plugin. Reads the API key from ~/personal-deepseek
+    '';
     enableWork = lib.mkEnableOption "Install the work-claude variant (work-host only)";
     enableLocal = lib.mkEnableOption "Install the local-claude variant (LiteLLM -> local llama-swap model)";
-    enableNormal = lib.mkEnableOption ''
-      the normal-claude variant: vanilla Anthropic-direct claude wrapped with
-      a fail-closed Iran IP guard with multiple country lookup providers. A
-      failure across all providers blocks the launch — this is deliberate,
-      since connecting to Anthropic from a sanctioned region risks the account
+    enablePersonal = lib.mkEnableOption ''
+      the personal-claude variant: vanilla Anthropic-direct claude wrapped
+      with a fail-closed Iran IP guard with multiple country lookup
+      providers. A failure across all providers blocks the launch — this is
+      deliberate, since connecting to Anthropic from a sanctioned region
+      risks the account
     '';
     enableDevar = lib.mkEnableOption ''
       the Divar `devar` plugin in the work variant: the directory-sourced
@@ -1039,7 +1113,7 @@ in
     '';
     enableCaveman = lib.mkEnableOption ''
       the caveman plugin (JuliusBrussee/caveman, github.com/juliusbrussee/caveman)
-      in the normal-claude variant: a "talk like caveman" output-compression
+      in the personal-claude variant: a "talk like caveman" output-compression
       skill that trims reply tokens (fragments, minimal filler) while keeping
       code/commands/errors byte-for-byte. Registered as a github plugin
       marketplace non-interactively, same mechanism as enableDevar; try it via
@@ -1122,10 +1196,16 @@ in
         description = "Per-plugin overrides for the local-claude variant.";
       };
 
-      normal = lib.mkOption {
+      personal = lib.mkOption {
         type = pluginType;
         default = { };
-        description = "Per-plugin overrides for the normal-claude variant.";
+        description = "Per-plugin overrides for the personal-claude variant.";
+      };
+
+      personalDeepseek = lib.mkOption {
+        type = pluginType;
+        default = { };
+        description = "Per-plugin overrides for the personal-deepseek-claude variant.";
       };
     };
 
@@ -1234,8 +1314,15 @@ in
       );
       home.file.".config/work-claude/CLAUDE.md".text = nixManagedNote;
     })
-    (lib.mkIf (cfg.enableWork || cfg.enableGlm || cfg.enableNormal || cfg.enableDeepseek) {
+    (lib.mkIf (cfg.enableWork || cfg.enableGlm || cfg.enablePersonal || cfg.enableDeepseek) {
       home.file.${workMcpConfigRel}.text = builtins.toJSON workMcpServers;
+    })
+    (lib.mkIf cfg.enablePersonalDeepseek {
+      home.packages = [ personalDeepseekClaude ];
+      home.file.".config/personal-deepseek-claude/settings.json".text = builtins.toJSON (
+        withOverrides (mkSettings "personalDeepseek" personalDeepseekSettings)
+      );
+      home.file.".config/personal-deepseek-claude/CLAUDE.md".text = nixManagedNote;
     })
     (lib.mkIf cfg.enableLocal {
       home.packages = [ localClaude ];
@@ -1247,15 +1334,22 @@ in
         + "Use mcp__exa__web_search_exa for web searches and mcp__exa__web_fetch_exa for webpage retrieval. The built-in WebSearch and WebFetch tools are unavailable with the local model.\n";
       home.file.${localMcpConfigRel}.text = builtins.toJSON localMcpServers;
     })
-    (lib.mkIf cfg.enableNormal {
-      home.packages = [ normalClaude ];
-      home.file.".config/normal-claude/settings.json".text = builtins.toJSON (
-        withOverrides (mkSettings "normal" normalSettings)
+    (lib.mkIf cfg.enablePersonal {
+      home.packages = [ personalClaude ];
+      home.file.".config/personal-claude/settings.json".text = builtins.toJSON (
+        withOverrides (mkSettings "personal" personalSettings)
       );
-      home.file.".config/normal-claude/CLAUDE.md".text = nixManagedNote;
+      home.file.".config/personal-claude/CLAUDE.md".text = nixManagedNote;
     })
     (lib.mkIf
-      (cfg.enable || cfg.enableWork || cfg.enableLocal || cfg.enableNormal || cfg.enableDeepseek)
+      (
+        cfg.enable
+        || cfg.enableWork
+        || cfg.enableLocal
+        || cfg.enablePersonal
+        || cfg.enableDeepseek
+        || cfg.enablePersonalDeepseek
+      )
       {
         home.activation.claudeSettingsClobberGuard = lib.hm.dag.entryBefore [ "checkLinkTargets" ] (
           lib.concatMapStringsSep "\n"
@@ -1270,9 +1364,10 @@ in
               lib.optional cfg.enable ".config/gap-claude"
               ++ lib.optional cfg.enableGlm ".config/glm-claude"
               ++ lib.optional cfg.enableDeepseek ".config/deepseek-claude"
+              ++ lib.optional cfg.enablePersonalDeepseek ".config/personal-deepseek-claude"
               ++ lib.optional cfg.enableWork ".config/work-claude"
               ++ lib.optional cfg.enableLocal ".config/local-claude"
-              ++ lib.optional cfg.enableNormal ".config/normal-claude"
+              ++ lib.optional cfg.enablePersonal ".config/personal-claude"
             )
         );
       }

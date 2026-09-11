@@ -6,7 +6,6 @@
 
   pkgs.wl-clipboard
   pkgs.wl-clip-persist
-  pkgs.rofi-pass
   pkgs.wtype
   pkgs.libnotify
   pkgs.pavucontrol

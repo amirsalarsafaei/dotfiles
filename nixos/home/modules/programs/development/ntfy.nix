@@ -253,7 +253,8 @@ let
         deepseek-claude) emoji="🐋" ;;
         work-claude) emoji="💼" ;;
         local-claude) emoji="🏠" ;;
-        normal-claude) emoji="🤖" ;;
+        personal-claude) emoji="🤖" ;;
+        personal-deepseek-claude) emoji="🐋" ;;
         *) emoji="🤖" ;;
       esac
 
@@ -342,7 +343,7 @@ in
     enableClaudeHook = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Wire a Stop hook into the normal-claude variant that notifies `claudeTopic` when a session ends.";
+      description = "Wire a Stop hook into the personal-claude variant that notifies `claudeTopic` when a session ends.";
     };
 
     package = lib.mkOption {
