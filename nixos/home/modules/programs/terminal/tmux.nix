@@ -1,6 +1,7 @@
 { pkgs, config, ... }:
 let
   t = config.custom.theme.resolved.colors;
+  tmuxExtraPlugins = pkgs.callPackage ../../../../pkgs/tmux-plugins.nix { };
 in
 {
   programs.tmux = {
@@ -69,19 +70,7 @@ in
 
     plugins = [
       pkgs.tmuxPlugins.yank
-      {
-        plugin = pkgs.tmuxPlugins.mkTmuxPlugin {
-          pname = "battery";
-          pluginName = "battery";
-          version = "2023-12-01";
-          src = pkgs.fetchFromGitHub {
-            owner = "tmux-plugins";
-            repo = "tmux-battery";
-            rev = "48fae59ba4503cf345d25e4e66d79685aa3ceb75";
-            sha256 = "1gx5f6qylzcqn6y3i1l92j277rqjrin7kn86njvn174d32wi78y8";
-          };
-        };
-      }
+      { plugin = tmuxExtraPlugins.battery; }
     ];
   };
 }

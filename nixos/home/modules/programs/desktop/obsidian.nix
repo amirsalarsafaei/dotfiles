@@ -1,4 +1,9 @@
-{ lib, config, pkgs, ... }:
+{
+  lib,
+  config,
+  pkgs,
+  ...
+}:
 # Declarative config for the amirsalar-vault Obsidian vault.
 #
 # The vault root itself IS the obsidian-git remote (git@github.com:amirsalarsafaei/obsidian-vault.git,
@@ -25,7 +30,8 @@ let
     "plugins/obsidian-git"
   ];
 
-  obsidianGitVersion = "2.39.0";
+  obsidianGitAssets = pkgs.callPackage ../../../../pkgs/obsidian-git-assets.nix { };
+  obsidianGitVersion = obsidianGitAssets.version;
   obsidianGitSettings = {
     commitMessage = "vault backup: {{date}}";
     autoCommitMessage = "vault backup: {{date}}";
@@ -101,25 +107,13 @@ let
   # in-app tweaks to git settings get overwritten on the next switch.
   obsidianGitPlugin =
     let
-      mainJs = pkgs.fetchurl {
-        url = "https://github.com/Vinzent03/obsidian-git/releases/download/${obsidianGitVersion}/main.js";
-        sha256 = "1d1ybzchkym19hvw8hanaa1szwvwwickzwy1awls1h8prwv419ym";
-      };
-      manifestJson = pkgs.fetchurl {
-        url = "https://github.com/Vinzent03/obsidian-git/releases/download/${obsidianGitVersion}/manifest.json";
-        sha256 = "0p329w89n9ad4vbfayh5dqpm16c3xhlnwg1lfkcm2kz6svni0117";
-      };
-      stylesCss = pkgs.fetchurl {
-        url = "https://github.com/Vinzent03/obsidian-git/releases/download/${obsidianGitVersion}/styles.css";
-        sha256 = "0bcjwry89rc90ip39b28skgplzq8g5f4r1kpwp8ippdlsps97azm";
-      };
       dataJson = builtins.toFile "obsidian-git-data.json" (builtins.toJSON obsidianGitSettings);
     in
     pkgs.runCommand "obsidian-git-plugin-${obsidianGitVersion}" { } ''
       mkdir -p $out
-      cp ${mainJs} $out/main.js
-      cp ${manifestJson} $out/manifest.json
-      cp ${stylesCss} $out/styles.css
+      cp ${obsidianGitAssets.mainJs} $out/main.js
+      cp ${obsidianGitAssets.manifestJson} $out/manifest.json
+      cp ${obsidianGitAssets.stylesCss} $out/styles.css
       cp ${dataJson} $out/data.json
     '';
 in
@@ -208,6 +202,11 @@ in
       run ${pkgs.git}/bin/git -C "${vaultAbs}" remote add origin "${vaultRemote}"
       run ${pkgs.git}/bin/git -C "${vaultAbs}" fetch origin master
       run ${pkgs.git}/bin/git -C "${vaultAbs}" checkout -f master
+    else
+      currentVaultRemote="$(${pkgs.git}/bin/git -C "${vaultAbs}" remote get-url origin 2>/dev/null || true)"
+      if [ "$currentVaultRemote" != "${vaultRemote}" ]; then
+        run ${pkgs.git}/bin/git -C "${vaultAbs}" remote set-url origin "${vaultRemote}"
+      fi
     fi
   '';
 }

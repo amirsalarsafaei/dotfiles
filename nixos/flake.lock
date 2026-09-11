@@ -109,13 +109,13 @@
         ]
       },
       "locked": {
-        "lastModified": 1787231691,
-        "narHash": "sha256-sqlv2A/cvfdD6ha14c/sJNfX/O4DEMdCTQUbc4OnzYc=",
-        "path": "/home/amirsalar/personal/avosh-bot",
+        "lastModified": 1787837205,
+        "narHash": "sha256-WMVOIFEXgU7mAD5oHg/Q7XEz2KmU9A+RDg3P0KdIzqg=",
+        "path": "/etc/avosh-bot",
         "type": "path"
       },
       "original": {
-        "path": "/home/amirsalar/personal/avosh-bot",
+        "path": "/etc/avosh-bot",
         "type": "path"
       }
     },

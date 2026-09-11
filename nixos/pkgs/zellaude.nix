@@ -76,7 +76,8 @@ let
         substituteInPlace src/main.rs \
           --replace-fail 'installer::run_install();' \
             '/* installer disabled: hooks are declared in claude-code.nix */'
-
+      ''
+      + lib.optionalString (themeLib != null) ''
         substituteInPlace src/render.rs \
           --replace-fail 'const PREFIX_BG: Color = (60, 50, 80);' \
             'const PREFIX_BG: Color = (${rgb "base02"});' \
@@ -113,6 +114,8 @@ let
       });
 in
 {
+  inherit unwrapped;
+
   plugin = zellijPlugins.wrapper "zellaude" unwrapped;
 
   # Exposed so a base16 slot's patched-in RGB triple can be checked without

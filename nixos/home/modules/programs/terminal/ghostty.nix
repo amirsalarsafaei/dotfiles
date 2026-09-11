@@ -17,25 +17,8 @@ let
     pacman = ./shaders/pacman-neo.glsl;
   };
 
-  # Shaders fetched from the internet at build time. Add an entry with a url +
-  # sha256, then enable it by name below. Get the hash with:
-  #   nix-prefetch-url <url>
   # These fun ones come from https://github.com/0xhckr/ghostty-shaders
-  fetchShader =
-    name: sha256:
-    pkgs.fetchurl {
-      url = "https://raw.githubusercontent.com/0xhckr/ghostty-shaders/main/${name}.glsl";
-      inherit sha256;
-    };
-  remoteShaders = {
-    inside-the-matrix = fetchShader "inside-the-matrix" "0cdximbq8h3pscdmlcnylcph0yii6fvnp3cj2fx1266xvildy8ib"; # green Matrix rain
-    galaxy = fetchShader "galaxy" "185n5wgav66a3w32xs4jmps9bgib3pc13lnzc6c06ms5apn158bg"; # swirling galaxy
-    just-snow = fetchShader "just-snow" "1g8pk2pagsg5hrqyhfpfs81qqflnkwdm3qfgr5fns12ylnxlh88z"; # falling snow
-    fireworks = fetchShader "fireworks" "17sjk8zfx62a0djfjyd1yj76n16rxqra45ckqlhfya4l9plwx8bf"; # fireworks bursts
-    underwater = fetchShader "underwater" "1l5bhh6i7sir6dwn73f1rzs29a0zca1ny4nsm5s6aipyq5xqivph"; # underwater caustics
-    glitchy = fetchShader "glitchy" "0g6i3wkys2cl33r1jyypqyw4n8033i6p5w3m9l2nxs6dz1smk5m3"; # glitch / RGB split
-    starfield = fetchShader "starfield" "1hvdjbnaa8lx24x5065x059pnq60d77kyf0pv0bzra7bvq4pgnsi"; # flying through stars
-  };
+  remoteShaders = pkgs.callPackage ../../../../pkgs/ghostty-shaders.nix { };
 
   allShaders = localShaders // remoteShaders;
   shaderNames = lib.attrNames allShaders;
