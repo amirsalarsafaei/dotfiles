@@ -12,11 +12,6 @@
     inputs.avosh-bot.nixosModules.default
   ];
 
-  home-manager.users.amirsalar = {
-    custom.neovim.enable = lib.mkForce false;
-    home.packages = [ pkgs.neovim ];
-  };
-
   # Personal website, built from source via the upstream flake's nix module.
   # nginx reverse proxy + ACME certs live in the private franksalar module.
   services.amirsalarsafaei-com = {
