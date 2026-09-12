@@ -139,6 +139,17 @@ let
     unset _claude_effort
   '';
 
+  # Shared CLAUDE_CONFIG_DIR per group, so that `--resume` can list and load
+  # sessions started under any sibling variant: work-claude/glm-claude/
+  # deepseek-claude all point here, and personal-claude/personal-deepseek-
+  # claude both point at the personal one. Each variant still keeps its own
+  # settings.json at its historical path (statusLine, env, permissions,
+  # plugins) — that file is layered on top via --settings at launch (see
+  # mkGroupedSettingsArgText) rather than becoming the active config dir, so
+  # variants sharing a group dir don't clobber each other's settings.
+  workClaudeConfigDir = "${config.home.homeDirectory}/.config/work-claude";
+  personalClaudeConfigDir = "${config.home.homeDirectory}/.config/personal-claude";
+
   workMcpConfigRel = ".config/work-claude/mcp-servers.json";
   workMcpConfigPath = "${config.home.homeDirectory}/${workMcpConfigRel}";
   workMcpServerName = "agentic-development-mcps";
@@ -309,6 +320,40 @@ let
     unset _claude_plugin_flags _claude_plugin_marketplaces
   '';
 
+  # For variants that share their CLAUDE_CONFIG_DIR with siblings (so
+  # `--resume` can see sessions started under any of them, see
+  # workClaudeConfigDir/personalClaudeConfigDir below): CLAUDE_CONFIG_DIR/
+  # settings.json belongs to whichever sibling is the group's "base" variant,
+  # not to this one, so pluginSettingsArgText's usual trick of reading it for
+  # a --settings seed would silently drop this variant's own model/env/
+  # permissions on every launch. Seed the overlay from this variant's own
+  # settings.json (still written to its historical own path by home.file)
+  # instead, and always pass it — not just when a plugin flag is used.
+  mkGroupedSettingsArgText =
+    { ownSettingsFile }:
+    ''
+      _claude_extra_args=()
+      _claude_settings_overlay=$(cat "${ownSettingsFile}" 2>/dev/null || printf '{}')
+      for _claude_pf in "''${_claude_plugin_flags[@]}"; do
+        _claude_settings_overlay=$(${pkgs.jq}/bin/jq -c \
+          --arg id "''${_claude_pf%=*}" --argjson val "''${_claude_pf##*=}" \
+          '.enabledPlugins[$id] = $val' <<<"$_claude_settings_overlay")
+      done
+      if [ "''${#_claude_plugin_marketplaces[@]}" -gt 0 ]; then
+        _claude_known=$(${pkgs.jq}/bin/jq -c '.extraKnownMarketplaces // {}' \
+          <<<"$_claude_settings_overlay")
+        for _claude_pm in "''${_claude_plugin_marketplaces[@]}"; do
+          _claude_known=$(${pkgs.jq}/bin/jq -c --argjson add "$_claude_pm" \
+            '. + $add' <<<"$_claude_known")
+        done
+        _claude_settings_overlay=$(${pkgs.jq}/bin/jq -c --argjson km "$_claude_known" \
+          '.extraKnownMarketplaces = $km' <<<"$_claude_settings_overlay")
+        unset _claude_known _claude_pm
+      fi
+      _claude_extra_args+=(--settings "$_claude_settings_overlay")
+      unset _claude_settings_overlay _claude_pf _claude_plugin_flags _claude_plugin_marketplaces
+    '';
+
   localMcpConfigRel = ".config/local-claude/mcp-servers.json";
   localMcpConfigPath = "${config.home.homeDirectory}/${localMcpConfigRel}";
   localMcpServers = {
@@ -376,22 +421,26 @@ let
       export ${authVar}
     '';
 
-  workWrapperTail = ''
-    ${effortParserText}
-    ${mcpGroupsParserText}
-    ${gitlabMcpParserText}
-    ${gitlabMcpDenyText}
-    ${pluginFlagsParserText}
+  mkWorkWrapperTail =
+    { settingsArgText ? pluginSettingsArgText }:
+    ''
+      ${effortParserText}
+      ${mcpGroupsParserText}
+      ${gitlabMcpParserText}
+      ${gitlabMcpDenyText}
+      ${pluginFlagsParserText}
 
-    ${healClaudeState}/bin/heal-claude-json || true
-    ${pluginSettingsArgText}
-    if [ "''${#_claude_mcp_disallow[@]}" -gt 0 ]; then
-      exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} \
-        --disallowedTools "''${_claude_mcp_disallow[@]}" "''${_claude_extra_args[@]}" "$@"
-    else
-      exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "''${_claude_extra_args[@]}" "$@"
-    fi
-  '';
+      ${healClaudeState}/bin/heal-claude-json || true
+      ${settingsArgText}
+      if [ "''${#_claude_mcp_disallow[@]}" -gt 0 ]; then
+        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} \
+          --disallowedTools "''${_claude_mcp_disallow[@]}" "''${_claude_extra_args[@]}" "$@"
+      else
+        exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "''${_claude_extra_args[@]}" "$@"
+      fi
+    '';
+
+  workWrapperTail = mkWorkWrapperTail { };
 
   glmClaude = pkgs.writeShellApplication {
     name = "glm-claude";
@@ -409,11 +458,15 @@ let
       export ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5.3[1m]"
       export ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-5.3-flash[1m]"
       export CLAUDE_CODE_SUBAGENT_MODEL="glm-5.3[1m]"
-      export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/glm-claude"
+      export CLAUDE_CONFIG_DIR="${workClaudeConfigDir}"
       export CLAUDE_CODE_EFFORT_DEFAULT="${workEffortLevel}"
       export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1048576"
       export CLAUDE_CODE_MAX_CONTEXT_TOKENS="1048576"
-      ${workWrapperTail}
+      ${mkWorkWrapperTail {
+        settingsArgText = mkGroupedSettingsArgText {
+          ownSettingsFile = "${config.home.homeDirectory}/.config/glm-claude/settings.json";
+        };
+      }}
     '';
   };
 
@@ -434,16 +487,21 @@ let
       export ANTHROPIC_DEFAULT_HAIKU_MODEL="deepseek-v4-flash"
       export ANTHROPIC_SMALL_FAST_MODEL="deepseek-v4-flash"
       export CLAUDE_CODE_SUBAGENT_MODEL="deepseek-v4-flash"
-      export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/deepseek-claude"
+      export CLAUDE_CONFIG_DIR="${workClaudeConfigDir}"
       export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1048576"
       export CLAUDE_CODE_MAX_CONTEXT_TOKENS="1048576"
-      ${workWrapperTail}
+      ${mkWorkWrapperTail {
+        settingsArgText = mkGroupedSettingsArgText {
+          ownSettingsFile = "${config.home.homeDirectory}/.config/deepseek-claude/settings.json";
+        };
+      }}
     '';
   };
 
   # Same DeepSeek native-Anthropic endpoint as deepseek-claude above, but for
-  # personal (non-work) use: its own key file, its own config dir, and no
-  # work MCP config / devar plugin pulled in via workWrapperTail.
+  # personal (non-work) use: its own key file, no work MCP config / devar
+  # plugin, and CLAUDE_CONFIG_DIR shared with personal-claude (see
+  # personalClaudeConfigDir) so `--resume` sees sessions from either.
   personalDeepseekClaude = pkgs.writeShellApplication {
     name = "personal-deepseek-claude";
     runtimeInputs = [ pkgs.coreutils ];
@@ -457,17 +515,19 @@ let
       export ANTHROPIC_BASE_URL="https://api.deepseek.com/anthropic"
       export ANTHROPIC_MODEL="deepseek-v4-pro"
       export ANTHROPIC_DEFAULT_OPUS_MODEL="deepseek-v4-pro"
-      export ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek-v4-flash"
-      export ANTHROPIC_DEFAULT_HAIKU_MODEL="deepseek-v4-flash"
-      export ANTHROPIC_SMALL_FAST_MODEL="deepseek-v4-flash"
-      export CLAUDE_CODE_SUBAGENT_MODEL="deepseek-v4-flash"
-      export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/personal-deepseek-claude"
+      export ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek-flash"
+      export ANTHROPIC_DEFAULT_HAIKU_MODEL="deepseek-flash"
+      export ANTHROPIC_SMALL_FAST_MODEL="deepseek-flash"
+      export CLAUDE_CODE_SUBAGENT_MODEL="deepseek-flash"
+      export CLAUDE_CONFIG_DIR="${personalClaudeConfigDir}"
       export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1048576"
       export CLAUDE_CODE_MAX_CONTEXT_TOKENS="1048576"
       ${effortParserText}
       ${pluginFlagsParserText}
       ${healClaudeState}/bin/heal-claude-json || true
-      ${pluginSettingsArgText}
+      ${mkGroupedSettingsArgText {
+        ownSettingsFile = "${config.home.homeDirectory}/.config/personal-deepseek-claude/settings.json";
+      }}
       exec ${pkgs.claude-code}/bin/claude "''${_claude_extra_args[@]}" "$@"
     '';
   };
@@ -488,13 +548,55 @@ let
       pkgs.coreutils
       pkgs.jq
       pkgs.git
-      pkgs.kubectl
     ];
     text = ''
       input=$(cat)
 
       jq_get() {
         printf '%s' "$input" | jq -r "$1" 2>/dev/null || printf '%s' "$2"
+      }
+
+      # Abbreviate every path segment but the leading ~ (if any) and the
+      # final one down to its first character, e.g.
+      # ~/personal/dotfiles/nixos -> ~/p/d/nixos
+      abbrev_path() {
+        local input_path="$1" prefix="" body seg segs out i n joined
+        case "$input_path" in
+          /*)
+            prefix="/"
+            body="''${input_path#/}"
+            ;;
+          *) body="$input_path" ;;
+        esac
+        IFS='/' read -ra segs <<< "$body"
+        n=''${#segs[@]}
+        out=()
+        for ((i = 0; i < n; i++)); do
+          seg="''${segs[i]}"
+          [ -z "$seg" ] && continue
+          if { [ "$i" -eq 0 ] && [ "$seg" = "~" ]; } || [ "$i" -eq $((n - 1)) ]; then
+            out+=("$seg")
+          else
+            out+=("''${seg:0:1}")
+          fi
+        done
+        joined=$(IFS=/; printf '%s' "''${out[*]}")
+        printf '%s%s' "$prefix" "$joined"
+      }
+
+      # Render a used-percentage as a compact 5-block gauge, e.g. "███░░42%"
+      pct_bar() {
+        local pct_raw="$1" pct_int filled bar i
+        pct_int="''${pct_raw%%.*}"
+        case "$pct_int" in *[!0-9]*) pct_int=0 ;; esac
+        [ -z "$pct_int" ] && pct_int=0
+        [ "$pct_int" -gt 100 ] && pct_int=100
+        filled=$(( pct_int * 5 / 100 ))
+        bar=""
+        for ((i = 0; i < 5; i++)); do
+          if [ "$i" -lt "$filled" ]; then bar="''${bar}█"; else bar="''${bar}░"; fi
+        done
+        printf '%s%d%%' "$bar" "$pct_int"
       }
 
       model=$(jq_get '.model.display_name // .model.id // ""' "")
@@ -505,8 +607,10 @@ let
       removed=$(jq_get '.cost.total_lines_removed // 0' "0")
       style=$(jq_get '.output_style.name // ""' "")
       exceeds=$(jq_get '.exceeds_200k_tokens // false' "false")
+      five_hour_pct=$(jq_get '.rate_limits.five_hour.used_percentage // empty' "")
+      seven_day_pct=$(jq_get '.rate_limits.seven_day.used_percentage // empty' "")
 
-      short_cwd="''${cwd/#$HOME/\~}"
+      short_cwd=$(abbrev_path "''${cwd/#$HOME/\~}")
 
       branch=""
       if [ -n "$cwd" ] && git -C "$cwd" rev-parse --git-dir >/dev/null 2>&1; then
@@ -515,8 +619,6 @@ let
       fi
 
       now=$(date +'%H:%M %Z' 2>/dev/null || true)
-
-      kctx=$(kubectl config current-context 2>/dev/null || true)
 
       ctx_tokens=0
       if [ -n "$transcript" ] && [ -f "$transcript" ]; then
@@ -531,21 +633,25 @@ let
       fi
 
       if [ "$exceeds" = "true" ]; then
-        ctx_limit=1000000
         limit_label="1M"
       else
-        ctx_limit=200000
         limit_label="200k"
       fi
       ctx_k=$(( ctx_tokens / 1000 ))
-      ctx_pct=$(( ctx_tokens * 100 / ctx_limit ))
+
+      usage_seg=""
+      [ -n "$five_hour_pct" ] && usage_seg="5h $(pct_bar "$five_hour_pct")"
+      if [ -n "$seven_day_pct" ]; then
+        [ -n "$usage_seg" ] && usage_seg="$usage_seg  "
+        usage_seg="''${usage_seg}wk $(pct_bar "$seven_day_pct")"
+      fi
 
       parts=()
       [ -n "$model" ]     && parts+=("[$model]")
       [ -n "$short_cwd" ] && parts+=("$short_cwd")
       [ -n "$branch" ]    && parts+=("($branch)")
-      [ -n "$kctx" ]      && parts+=("k8s:$kctx")
-      parts+=("ctx ''${ctx_k}k/''${limit_label} (''${ctx_pct}%)")
+      [ -n "$usage_seg" ] && parts+=("$usage_seg")
+      parts+=("ctx ''${ctx_k}k/''${limit_label}")
       if [ "$(printf '%s' "$input" | jq -r '(.cost.total_cost_usd // 0) > 0' 2>/dev/null)" = "true" ]; then
         parts+=("$(printf '$%.2f' "$cost")")
       fi
@@ -566,11 +672,11 @@ let
 
       [ -n "$now" ] && parts+=("$now")
 
-      out=""
+      result=""
       for p in "''${parts[@]}"; do
-        if [ -z "$out" ]; then out="$p"; else out="$out | $p"; fi
+        if [ -z "$result" ]; then result="$p"; else result="$result | $p"; fi
       done
-      printf '%s\n' "$out"
+      printf '%s\n' "$result"
     '';
   };
 
@@ -638,7 +744,7 @@ let
       ${ipGuardText}
       ${divarPathGuardText}
       export CLAUDE_VARIANT_NAME="personal-claude"
-      export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/personal-claude"
+      export CLAUDE_CONFIG_DIR="${personalClaudeConfigDir}"
       export TZ="Europe/Berlin"
       export TZDIR="${pkgs.tzdata}/share/zoneinfo"
       ${effortParserText}
@@ -687,7 +793,7 @@ let
     text = ''
       ${ipGuardText}
       export CLAUDE_VARIANT_NAME="work-claude"
-      export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/work-claude"
+      export CLAUDE_CONFIG_DIR="${workClaudeConfigDir}"
       export TZ="Asia/Singapore"
       export TZDIR="${pkgs.tzdata}/share/zoneinfo"
       export CLAUDE_CODE_EFFORT_DEFAULT="${workEffortLevel}"
