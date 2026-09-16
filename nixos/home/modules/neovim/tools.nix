@@ -7,6 +7,9 @@
 let
   cfg = config.custom.neovim;
 
+  helpers = import ./lib.nix { inherit lib config; };
+  inherit (helpers) mkKeymap normalKeymap;
+
   neovimPlugins = pkgs.callPackage ../../../pkgs/neovim-plugins.nix { };
   inherit (neovimPlugins) base64Plugin platformioPlugin;
 
@@ -52,6 +55,8 @@ in
             '';
             formatters_by_ft = {
               lua = [ "stylua" ];
+              c = [ "clang-format" ];
+              cpp = [ "clang-format" ];
               go = [
                 "gofmt"
                 "goimports_reviser"
@@ -73,6 +78,9 @@ in
               proto = [ "buf" ];
             };
             formatters = {
+              "clang-format".prepend_args = [
+                "--fallback-style={BasedOnStyle: LLVM, IndentWidth: 4, UseTab: Never}"
+              ];
               shfmt.prepend_args = [
                 "-i"
                 "2"
@@ -101,6 +109,12 @@ in
           lintersByFt = {
             yaml = [ "yamllint" ];
             dockerfile = [ "hadolint" ];
+            nix = [ "statix" ];
+            sh = [ "shellcheck" ];
+            bash = [ "shellcheck" ];
+            zsh = [ "shellcheck" ];
+            python = [ "mypy" ];
+            rust = [ "clippy" ];
           };
         };
 
@@ -143,6 +157,21 @@ in
           settings.render.max_type_length = 0;
         };
         dap-virtual-text = lib.mkIf cfg.features.debug { enable = true; };
+        dap-python = lib.mkIf cfg.features.debug { enable = true; };
+        dap-lldb = lib.mkIf cfg.features.debug {
+          enable = true;
+          settings.codelldb_path = "${pkgs.vscode-extensions.vadimcn.vscode-lldb.adapter}/bin/codelldb";
+        };
+
+        neotest = lib.mkIf cfg.features.debug {
+          enable = true;
+          adapters = {
+            go.enable = true;
+            python.enable = true;
+            jest.enable = true;
+            vitest.enable = true;
+          };
+        };
 
         # https://github.com/coder/claudecode.nvim — talks to a running Claude
         # Code session over its terminal protocol (selections, diffs, @-mentions)
@@ -318,24 +347,91 @@ in
             silent = true;
           };
         }
+      ]
+      ++ [
+        (mkKeymap [ "n" "v" ] "<leader>cf" {
+          __raw = ''
+            function()
+              local bufnr = vim.api.nvim_get_current_buf()
+              if vim.bo[bufnr].filetype:match("helm") or _G.nvim_is_helm_template(bufnr) then
+                vim.notify("Skipping format for Helm template", vim.log.levels.WARN)
+                return
+              end
+
+              require("conform").format({ timeout_ms = 3000, lsp_format = "fallback" })
+            end
+          '';
+        } { desc = "Format buffer/selection"; })
+        (normalKeymap "<leader>uf" "<cmd>FormatToggle!<CR>" { desc = "Toggle global autoformat"; })
+        (normalKeymap "<leader>uF" "<cmd>FormatToggle<CR>" { desc = "Toggle buffer autoformat"; })
+        (mkKeymap "x" "<leader>b" "<Plug>(FromBase64)" { desc = "Decode base64"; })
+        (mkKeymap "x" "<leader>B" "<Plug>(ToBase64)" { desc = "Encode base64"; })
+      ]
+      ++ lib.optionals cfg.features.debug [
+        (normalKeymap "<leader>rp" {
+          __raw = ''function() require("dap").toggle_breakpoint() end'';
+        } { desc = "Toggle breakpoint"; })
+        (normalKeymap "<leader>rbc" {
+          __raw = ''function() require("dap").set_breakpoint(vim.fn.input("Breakpoint condition: ")) end'';
+        } { desc = "Conditional breakpoint"; })
+        (normalKeymap "<leader>rbl" {
+          __raw = ''function() require("dap").set_breakpoint(nil, nil, vim.fn.input("Log point message: ")) end'';
+        } { desc = "Log point"; })
+        (normalKeymap "<leader>rc" { __raw = ''function() require("dap").continue() end''; } {
+          desc = "Continue debugging";
+        })
+        (normalKeymap "<leader>rs" { __raw = ''function() require("dap").close() end''; } {
+          desc = "Close the debugger";
+        })
+        (normalKeymap "<leader>rl" { __raw = ''function() require("dap").run_last() end''; } {
+          desc = "Run the last debug profile";
+        })
+        (normalKeymap "<leader>rj" { __raw = ''function() require("dap").down() end''; } {
+          desc = "Down the stack trace";
+        })
+        (normalKeymap "<leader>rk" { __raw = ''function() require("dap").up() end''; } {
+          desc = "Up the stack trace";
+        })
+        (normalKeymap "<leader>rq" { __raw = ''function() require("dapui").close() end''; } {
+          desc = "Close the debugger UI";
+        })
+        (normalKeymap "<leader>ri" { __raw = ''function() require("dap").step_into() end''; } {
+          desc = "Step into";
+        })
+        (normalKeymap "<leader>r0" { __raw = ''function() require("dap").step_out() end''; } {
+          desc = "Step out";
+        })
+        (normalKeymap "<leader>ro" { __raw = ''function() require("dap").step_over() end''; } {
+          desc = "Step over";
+        })
+        (normalKeymap "<leader>rf" {
+          __raw = ''function() require("dapui").float_element("scopes", { enter = true }) end'';
+        } { desc = "Float the scopes window"; })
+
+        (normalKeymap "<leader>rn" { __raw = ''function() require("neotest").run.run() end''; } {
+          desc = "Run the nearest test";
+        })
+        (normalKeymap "<leader>rF" {
+          __raw = ''function() require("neotest").run.run(vim.fn.expand("%")) end'';
+        } { desc = "Run the test file"; })
+        (normalKeymap "<leader>ra" {
+          __raw = ''function() require("neotest").run.run(vim.fn.getcwd()) end'';
+        } { desc = "Run all tests"; })
+        (normalKeymap "<leader>rd" {
+          __raw = ''function() require("neotest").run.run({ strategy = "dap" }) end'';
+        } { desc = "Debug the nearest test"; })
+        (normalKeymap "<leader>rS" { __raw = ''function() require("neotest").run.stop() end''; } {
+          desc = "Stop the test run";
+        })
+        (normalKeymap "<leader>ru" {
+          __raw = ''function() require("neotest").summary.toggle() end'';
+        } { desc = "Toggle the test summary"; })
+        (normalKeymap "<leader>rw" {
+          __raw = ''function() require("neotest").output_panel.toggle() end'';
+        } { desc = "Toggle the test output panel"; })
       ];
 
       extraConfigLua = ''
-        -- conform format keymaps
-        vim.keymap.set("n", "<leader>cf", function()
-          local bufnr = vim.api.nvim_get_current_buf()
-          if vim.bo[bufnr].filetype:match("helm") or _G.nvim_is_helm_template(bufnr) then
-            vim.notify("Skipping format for Helm template", vim.log.levels.WARN)
-            return
-          end
-
-          require("conform").format({ timeout_ms = 3000, lsp_format = "fallback" })
-        end, { desc = "Format buffer", silent = true })
-
-        vim.keymap.set("n", "<leader>uf", "<cmd>FormatToggle<CR>", { desc = "Toggle buffer autoformat", silent = true })
-        vim.keymap.set("n", "<leader>uF", "<cmd>FormatToggle!<CR>", { desc = "Toggle global autoformat", silent = true })
-
-        -- toggleterm terminal-mode mappings
         vim.api.nvim_create_autocmd("TermOpen", {
           pattern = "term://*toggleterm#*",
           callback = function()
@@ -364,8 +460,6 @@ in
             base64.setup()
           end
         end
-        vim.keymap.set("x", "<Leader>b", "<Plug>(FromBase64)", { desc = "Decode base64" })
-        vim.keymap.set("x", "<Leader>B", "<Plug>(ToBase64)", { desc = "Encode base64" })
       ''
       + lib.optionalString cfg.features.debug ''
         do
@@ -438,26 +532,6 @@ in
           dap.listeners.before.launch.dapui_config = function()
             dapui.open()
           end
-
-          vim.keymap.set("n", "<leader>rp", dap.toggle_breakpoint, { desc = "toggle debug break points", noremap = true, silent = true })
-          vim.keymap.set("n", "<leader>rbc", function()
-            dap.set_breakpoint(vim.fn.input("Breakpoint condition: "))
-          end, { desc = "conditional break point", noremap = true, silent = true })
-          vim.keymap.set("n", "<leader>rbl", function()
-            dap.set_breakpoint(nil, nil, vim.fn.input("Log point message: "))
-          end, { desc = "logging break point", noremap = true, silent = true })
-          vim.keymap.set("n", "<leader>rc", dap.continue, { desc = "continue debugger", noremap = true, silent = true })
-          vim.keymap.set("n", "<leader>rs", dap.close, { desc = "closes debugger", noremap = true, silent = true })
-          vim.keymap.set("n", "<leader>rl", dap.run_last, { desc = "runs last debug profile", noremap = true, silent = true })
-          vim.keymap.set("n", "<leader>rj", dap.down, { desc = "go down in stack trace", noremap = true, silent = true })
-          vim.keymap.set("n", "<leader>rk", dap.up, { desc = "go up in stack trace", noremap = true, silent = true })
-          vim.keymap.set("n", "<leader>rq", dapui.close, { desc = "close debugger ui", noremap = true, silent = true })
-          vim.keymap.set("n", "<leader>ri", dap.step_into, { desc = "step into code", noremap = true, silent = true })
-          vim.keymap.set("n", "<leader>r0", dap.step_out, { desc = "step out of the code", noremap = true, silent = true })
-          vim.keymap.set("n", "<leader>ro", dap.step_over, { desc = "step over the code", noremap = true, silent = true })
-          vim.keymap.set("n", "<leader>rf", function()
-            dapui.float_element("scopes", { enter = true })
-          end, { noremap = true, silent = true })
         end
       '';
     };

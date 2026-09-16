@@ -43,84 +43,93 @@ in
         (normalKeymap "<leader>gH" "<cmd>DiffviewFileHistory %<CR>" { desc = "Diffview: current file history"; })
         (normalKeymap "<leader>gA" "<cmd>DiffviewFileHistory<CR>" { desc = "Diffview: branch/repo history"; })
         (mkKeymap "v" "<leader>gl" ":GcLog<CR>" { desc = "Git log for selection"; })
+
+        (normalKeymap "]h" {
+          __raw = ''
+            function()
+              if vim.wo.diff then
+                vim.cmd.normal({ "]c", bang = true })
+              else
+                require("gitsigns").nav_hunk("next")
+              end
+            end
+          '';
+        } { desc = "Next hunk"; })
+        (normalKeymap "[h" {
+          __raw = ''
+            function()
+              if vim.wo.diff then
+                vim.cmd.normal({ "[c", bang = true })
+              else
+                require("gitsigns").nav_hunk("prev")
+              end
+            end
+          '';
+        } { desc = "Previous hunk"; })
+        (normalKeymap "<leader>hs" {
+          __raw = ''function() require("gitsigns").stage_hunk() end'';
+        } { desc = "Stage hunk"; })
+        (mkKeymap "v" "<leader>hs" {
+          __raw = ''function() require("gitsigns").stage_hunk({ vim.fn.line("."), vim.fn.line("v") }) end'';
+        } { desc = "Stage hunk"; })
+        (normalKeymap "<leader>hr" {
+          __raw = ''function() require("gitsigns").reset_hunk() end'';
+        } { desc = "Reset hunk"; })
+        (mkKeymap "v" "<leader>hr" {
+          __raw = ''function() require("gitsigns").reset_hunk({ vim.fn.line("."), vim.fn.line("v") }) end'';
+        } { desc = "Reset hunk"; })
+        (normalKeymap "<leader>hS" {
+          __raw = ''function() require("gitsigns").stage_buffer() end'';
+        } { desc = "Stage buffer"; })
+        (normalKeymap "<leader>hu" {
+          __raw = ''function() require("gitsigns").undo_stage_hunk() end'';
+        } { desc = "Undo stage hunk"; })
+        (normalKeymap "<leader>hR" {
+          __raw = ''function() require("gitsigns").reset_buffer() end'';
+        } { desc = "Reset buffer"; })
+        (normalKeymap "<leader>hp" {
+          __raw = ''function() require("gitsigns").preview_hunk() end'';
+        } { desc = "Preview hunk"; })
+        (normalKeymap "<leader>hb" {
+          __raw = ''function() require("gitsigns").blame_line({ full = true }) end'';
+        } { desc = "Blame line"; })
+        (normalKeymap "<leader>hB" {
+          __raw = ''function() require("gitsigns").toggle_current_line_blame() end'';
+        } { desc = "Toggle line blame"; })
+        (normalKeymap "<leader>hd" {
+          __raw = ''function() require("gitsigns").diffthis() end'';
+        } { desc = "Diff this"; })
+        (normalKeymap "<leader>hD" {
+          __raw = ''function() require("gitsigns").diffthis("~") end'';
+        } { desc = "Diff this ~"; })
+        (mkKeymap [ "o" "x" ] "ih" ":<C-U>Gitsigns select_hunk<CR>" { desc = "Select hunk"; })
+
+        (normalKeymap "<leader>gD" {
+          __raw = ''
+            function()
+              vim.ui.input({ prompt = "Diffview — diff against ref: " }, function(ref)
+                if ref and ref ~= "" then
+                  vim.cmd("DiffviewOpen " .. ref)
+                end
+              end)
+            end
+          '';
+        } { desc = "Diffview: compare against ref"; })
+        (normalKeymap "<leader>gh" {
+          __raw = ''
+            function()
+              local line = vim.api.nvim_win_get_cursor(0)[1]
+              _G.diffview_line_history(line, line)
+            end
+          '';
+        } { desc = "Toggle git line history"; })
+        (mkKeymap "x" "<leader>gh" {
+          __raw = ''function() _G.diffview_line_history(vim.fn.line("v"), vim.fn.line(".")) end'';
+        } { desc = "Toggle git selection history"; })
       ];
 
       extraConfigLua = ''
-        vim.keymap.set("n", "]h", function()
-          if vim.wo.diff then
-            vim.cmd.normal({ "]c", bang = true })
-          else
-            require("gitsigns").nav_hunk("next")
-          end
-        end, { desc = "Next hunk", silent = true })
-
-        vim.keymap.set("n", "[h", function()
-          if vim.wo.diff then
-            vim.cmd.normal({ "[c", bang = true })
-          else
-            require("gitsigns").nav_hunk("prev")
-          end
-        end, { desc = "Previous hunk", silent = true })
-
-        vim.keymap.set("n", "<leader>hs", function()
-          require("gitsigns").stage_hunk()
-        end, { desc = "Stage hunk", silent = true })
-
-        vim.keymap.set("v", "<leader>hs", function()
-          require("gitsigns").stage_hunk({ vim.fn.line("."), vim.fn.line("v") })
-        end, { desc = "Stage hunk", silent = true })
-
-        vim.keymap.set("n", "<leader>hr", function()
-          require("gitsigns").reset_hunk()
-        end, { desc = "Reset hunk", silent = true })
-
-        vim.keymap.set("v", "<leader>hr", function()
-          require("gitsigns").reset_hunk({ vim.fn.line("."), vim.fn.line("v") })
-        end, { desc = "Reset hunk", silent = true })
-
-        vim.keymap.set("n", "<leader>hS", function()
-          require("gitsigns").stage_buffer()
-        end, { desc = "Stage buffer", silent = true })
-
-        vim.keymap.set("n", "<leader>hu", function()
-          require("gitsigns").undo_stage_hunk()
-        end, { desc = "Undo stage hunk", silent = true })
-
-        vim.keymap.set("n", "<leader>hR", function()
-          require("gitsigns").reset_buffer()
-        end, { desc = "Reset buffer", silent = true })
-
-        vim.keymap.set("n", "<leader>hp", function()
-          require("gitsigns").preview_hunk()
-        end, { desc = "Preview hunk", silent = true })
-
-        vim.keymap.set("n", "<leader>hb", function()
-          require("gitsigns").blame_line({ full = true })
-        end, { desc = "Blame line", silent = true })
-
-        vim.keymap.set("n", "<leader>hB", function()
-          require("gitsigns").toggle_current_line_blame()
-        end, { desc = "Toggle line blame", silent = true })
-
-        vim.keymap.set("n", "<leader>hd", function()
-          require("gitsigns").diffthis()
-        end, { desc = "Diff this", silent = true })
-
-        vim.keymap.set("n", "<leader>hD", function()
-          require("gitsigns").diffthis("~")
-        end, { desc = "Diff this ~", silent = true })
-
-        vim.keymap.set({ "o", "x" }, "ih", ":<C-U>Gitsigns select_hunk<CR>", { desc = "Select hunk", silent = true })
-
-        vim.keymap.set("n", "<leader>gD", function()
-          vim.ui.input({ prompt = "Diffview — diff against ref: " }, function(ref)
-            if ref and ref ~= "" then
-              vim.cmd("DiffviewOpen " .. ref)
-            end
-          end)
-        end, { desc = "Diffview: compare against ref…", silent = true })
-
-        local function toggle_line_history(start_line, end_line)
+        _G.diffview_line_history = function(start_line, end_line)
           local view = require("diffview.lib").get_current_view()
           if view then
             vim.cmd.DiffviewClose()
@@ -133,15 +142,6 @@ in
 
           vim.cmd(("%d,%dDiffviewFileHistory %%"):format(start_line, end_line))
         end
-
-        vim.keymap.set("n", "<leader>gh", function()
-          local line = vim.api.nvim_win_get_cursor(0)[1]
-          toggle_line_history(line, line)
-        end, { desc = "Toggle git line history", silent = true })
-
-        vim.keymap.set("x", "<leader>gh", function()
-          toggle_line_history(vim.fn.line("v"), vim.fn.line("."))
-        end, { desc = "Toggle git selection history", silent = true })
       '';
     };
   };

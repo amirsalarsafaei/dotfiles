@@ -23,6 +23,7 @@
     claudeCode.enablePersonal = true;
     claudeCode.enablePersonalDeepseek = true;
     claudeCode.enableCaveman = true;
+    claudeCode.enableObsidian = true;
     claudeCode.plugins.personal."clangd-lsp@claude-plugins-official" = true;
 
     agentSkills = {
@@ -47,13 +48,10 @@
           structure = "symlink-tree";
         };
       };
-      skills = [
-        "golang-grpc"
-        "golang-how-to"
-        "golang-naming"
-        "golang-stretchr-testify"
-        "golang-testing"
-      ];
+      # All 46 golang-* skills from samber/cc-skills-golang. defaultSkillMode
+      # ("user-invocable-only") keeps every one hidden from the model — invokable
+      # via /golang-* only — so enabling the whole pack doesn't flood context.
+      enableAll = [ "samber-go" ];
     };
   };
 }

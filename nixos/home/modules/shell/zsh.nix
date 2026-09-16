@@ -159,8 +159,4 @@ in
     EDITOR = "nvim";
     DISABLE_MAGIC_FUNCTIONS = "true"; # from virtualenv plugin
   };
-
-  home.sessionPath = [
-    "$HOME/.local/bin"
-  ];
 }

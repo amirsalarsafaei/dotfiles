@@ -27,6 +27,7 @@ let
     "hotkeys.json"
     "community-plugins.json"
     "daily-notes.json"
+    "templates.json"
     "plugins/obsidian-git"
   ];
 
@@ -38,9 +39,9 @@ let
     commitMessageScript = "";
     commitDateFormat = "YYYY-MM-DD HH:mm:ss";
     autoSaveInterval = 0;
-    autoPushInterval = 0;
-    autoPullInterval = 0;
-    autoPullOnBoot = false;
+    autoPushInterval = 10;
+    autoPullInterval = 10;
+    autoPullOnBoot = true;
     autoCommitOnlyStaged = false;
     disablePush = false;
     pullBeforePush = true;
@@ -54,7 +55,7 @@ let
     syncMethod = "merge";
     mergeStrategy = "none";
     customMessageOnAutoBackup = false;
-    autoBackupAfterFileChange = false;
+    autoBackupAfterFileChange = true;
     treeStructure = false;
     refreshSourceControl = true;
     basePath = "";
@@ -147,6 +148,7 @@ in
           "word-count"
           "file-recovery"
           "bases"
+          "properties"
         ];
 
         hotkeys = {
@@ -156,21 +158,47 @@ in
               key = "\\";
             }
           ];
+          "daily-notes" = [
+            {
+              modifiers = [ "Mod" "Shift" ];
+              key = "D";
+            }
+          ];
+          "templates:insert-template" = [
+            {
+              modifiers = [ "Mod" "Shift" ];
+              key = "T";
+            }
+          ];
+          "quickadd:runQuickAdd" = [
+            {
+              modifiers = [ "Mod" "Shift" ];
+              key = "N";
+            }
+          ];
         };
 
         # obsidian-git is packaged above from upstream release assets and
-        # fully pinned (binary + data.json). obsidian-tasks-plugin isn't
-        # packaged in nixpkgs, so it stays hand-installed and git-tracked in
-        # the vault repo itself — we only pin the enabled list here.
+        # fully pinned (binary + data.json). obsidian-tasks-plugin,
+        # obsidian-reminder-plugin and google-calendar aren't packaged in
+        # nixpkgs, so they stay hand-installed and git-tracked in the vault
+        # repo itself — we only pin the enabled list here.
         # NB: extraFiles targets are relative to the vault's `.obsidian/` dir
         # (the module prepends it), so no `.obsidian/` prefix here.
         extraFiles = {
           "community-plugins.json".text = builtins.toJSON [
             "obsidian-tasks-plugin"
             "obsidian-git"
+            "obsidian-reminder-plugin"
+            "google-calendar"
+            "quickadd"
           ];
           "daily-notes.json".text = builtins.toJSON {
             folder = "daily notes";
+            template = "Templates/Daily note.md";
+          };
+          "templates.json".text = builtins.toJSON {
+            folder = "Templates";
           };
           "plugins/obsidian-git".source = obsidianGitPlugin;
         };

@@ -152,7 +152,6 @@ in
 
     systemd.services.tailscaled-autoconnect.serviceConfig.TimeoutStartSec = "5s";
 
-    networking.hostName = hostname; # Define your hostname.
     networking.hosts = {
       # "216.239.38.120"= [
       #    "google.com"
@@ -249,9 +248,6 @@ in
         };
       };
     };
-    # Set your time zone.
-    time.timeZone = "Asia/Tehran";
-
     # Configure network proxy if necessary
     # networking.proxy.default = "http://user:password@proxy:port/";
     # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
@@ -357,9 +353,6 @@ in
     programs.hyprland = {
       enable = true;
       withUWSM = true;
-      package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
-      portalPackage =
-        inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
     };
 
     programs.zsh = {
@@ -401,14 +394,6 @@ in
       tarball-ttl = 2419200;
       min-free = 1073741824;
       max-free = 5368709120;
-      trusted-users = [
-        "root"
-        "@wheel"
-      ];
-      experimental-features = [
-        "nix-command"
-        "flakes"
-      ];
     };
 
     services.blueman.enable = true;
@@ -418,26 +403,6 @@ in
     fonts.fontconfig.enable = true;
 
     services.acpid.enable = true;
-    systemd.services.nix-cleanup = {
-      description = "NixOS generation cleanup";
-      serviceConfig = {
-        Type = "oneshot";
-        ExecStart = "${pkgs.writeShellScript "nix-cleanup" ''
-          ${pkgs.nix}/bin/nix-env --delete-generations 30d --profile /nix/var/nix/profiles/system
-          ${pkgs.nix}/bin/nix-collect-garbage --delete-older-than 30d
-        ''}";
-      };
-    };
-
-    systemd.timers.nix-cleanup = {
-      wantedBy = [ "timers.target" ];
-      partOf = [ "nix-cleanup.service" ];
-      timerConfig = {
-        OnCalendar = "weekly";
-        Persistent = true;
-      };
-    };
-
     xdg.autostart.enable = true;
 
     xdg.portal = {
@@ -484,8 +449,6 @@ in
       };
     };
 
-    zramSwap.enable = true;
-
     # Create a 16GB swapfile
     swapDevices = [
       {
@@ -493,9 +456,6 @@ in
         size = 16 * 1024; # 16GB
       }
     ];
-
-    # Select internationalisation properties.
-    i18n.defaultLocale = "en_US.UTF-8";
 
     # Enable the X11 windowing system.
     # You can disable this if you're only using the Wayland session.

@@ -74,6 +74,37 @@ let
     desc = nvimDesc km;
   }) config.programs.nixvim.keymaps;
 
+  # nixvim registers LSP keymaps through a separate option rather than the
+  # top-level keymaps list, so they are harvested here or they would be missing
+  # from the cheatsheet. `extra` is a keymap list like the top-level one; the
+  # other two are plain key -> action attrsets that nixvim prefixes with
+  # `vim.lsp.buf.` / `vim.diagnostic.`, which is stripped back off for display.
+  nvimLspRows =
+    let
+      lsp = config.programs.nixvim.plugins.lsp.keymaps;
+
+      strip =
+        value:
+        lib.removePrefix "vim.lsp.buf." (lib.removePrefix "vim.diagnostic." value);
+
+      fromAttrs =
+        group: attrs:
+        lib.mapAttrsToList (key: value: {
+          app = "nvim";
+          inherit group;
+          keys = key;
+          desc = strip (if lib.isAttrs value then value.action else value);
+        }) attrs;
+    in
+    fromAttrs "LSP diagnostics" lsp.diagnostic
+    ++ fromAttrs "LSP (buffer-local)" lsp.lspBuf
+    ++ map (km: {
+      app = "nvim";
+      group = "LSP (buffer-local)";
+      keys = km.key;
+      desc = km.options.desc or "(lua function)";
+    }) lsp.extra;
+
   # wlogout's power menu is modal and already declares label + keybind per
   # button, so its rows are read off that layout rather than restated.
   wlogoutRows = map (button: {
@@ -132,7 +163,7 @@ let
     ++ lib.optionals enabled.ghostty (rowsFor { app = "ghostty"; } registry.ghostty.binds)
     ++ lib.optionals enabled.wlogout wlogoutRows
     ++ lib.optionals enabled.zsh (rowsFor { app = "zsh"; } registry.zsh.docs)
-    ++ lib.optionals enabled.nvim nvimRows;
+    ++ lib.optionals enabled.nvim (nvimRows ++ nvimLspRows);
 
   # Hoisted so the zellij render and the collision check share one copy of the
   # section list rather than drifting apart. Zellij's own defaults are cleared
@@ -152,8 +183,8 @@ let
         Seamless nvim <-> pane navigation. This is only half of the
         mechanism: the plugin notices the focused pane is running nvim
         and writes the key through to it. Moving between nvim's own
-        windows is zellij-nav.nvim's job, wired up in
-        home/modules/neovim/navigation.nix.
+        windows, and out into a neighbouring pane at the edge, is
+        smart-splits' job, wired up in home/modules/neovim/editor.nix.
 
         The prefix lives in this block too, because it has to be
         reachable from every mode except the one it opens.'';
@@ -373,8 +404,6 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    _module.args.keysLib = keysLib;
-
     custom.keys = {
       inherit registry rows;
 

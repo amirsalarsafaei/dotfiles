@@ -417,6 +417,18 @@ let
     ctrl = mkChord [ M.ctrl ];
     alt = mkChord [ M.alt ];
     shift = mkChord [ M.shift ];
+    ctrlShift = mkChord [
+      M.ctrl
+      M.shift
+    ];
+    ctrlAlt = mkChord [
+      M.ctrl
+      M.alt
+    ];
+    altShift = mkChord [
+      M.alt
+      M.shift
+    ];
   };
 
   # Human-readable form, used by the cheatsheet: "Super+Shift+Q", "Ctrl-b".
@@ -921,10 +933,8 @@ in
     M
     on
     mkChord
-    human
     hyprChord
     tmuxChord
-    zellijChord
     ghosttyChord
     hypr
     tmux

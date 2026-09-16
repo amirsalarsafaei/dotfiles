@@ -6,7 +6,7 @@
 let
   cfg = config.custom.neovim;
   helpers = import ./lib.nix { inherit lib config; };
-  inherit (helpers) normalKeymap;
+  inherit (helpers) mkKeymap normalKeymap;
 in
 {
   config = lib.mkIf cfg.enable {
@@ -29,6 +29,300 @@ in
         (normalKeymap "<leader>xq" "<cmd>Trouble qflist toggle<CR>" { desc = "Quickfix list"; })
         (normalKeymap "<leader>xt" "<cmd>Trouble todo toggle<CR>" { desc = "TODOs (Trouble)"; })
         (normalKeymap "<leader>ft" "<cmd>TodoTelescope<CR>" { desc = "Find TODOs"; })
+
+        (normalKeymap "<leader>qs" { __raw = ''function() require("persistence").load() end''; } {
+          desc = "Restore Session";
+        })
+        (normalKeymap "<leader>qS" { __raw = ''function() require("persistence").select() end''; } {
+          desc = "Select Session";
+        })
+        (normalKeymap "<leader>ql" {
+          __raw = ''function() require("persistence").load({ last = true }) end'';
+        } { desc = "Restore Last Session"; })
+        (normalKeymap "<leader>qd" { __raw = ''function() require("persistence").stop() end''; } {
+          desc = "Don't Save Session";
+        })
+
+        (normalKeymap "]t" {
+          __raw = ''function() require("todo-comments").jump_next() end'';
+        } { desc = "Next TODO"; })
+        (normalKeymap "[t" {
+          __raw = ''function() require("todo-comments").jump_prev() end'';
+        } { desc = "Prev TODO"; })
+
+        (normalKeymap "<leader>A" {
+          __raw = ''function() require("harpoon"):list():add() end'';
+        } { desc = "Harpoon add file"; })
+        (normalKeymap "<C-e>" {
+          __raw = ''
+            function()
+              local harpoon = require("harpoon")
+              harpoon.ui:toggle_quick_menu(harpoon:list())
+            end
+          '';
+        } { desc = "Harpoon menu"; })
+      ]
+      ++ map (i: normalKeymap "<C-${toString i}" {
+        __raw = ''function() require("harpoon"):list():select(${toString i}) end'';
+      } { desc = "Harpoon file ${toString i}"; }) (lib.range 1 5)
+      ++ [
+        (normalKeymap "<leader>R" { __raw = ''function() require("spectre").toggle() end''; } {
+          desc = "Toggle Spectre";
+        })
+        (normalKeymap "<leader>Rw" {
+          __raw = ''function() require("spectre").open_visual({ select_word = true }) end'';
+        } { desc = "Search current word"; })
+        (mkKeymap "v" "<leader>Rw" {
+          __raw = ''function() require("spectre").open_visual() end'';
+        } { desc = "Search current word"; })
+        (normalKeymap "<leader>Rf" {
+          __raw = ''function() require("spectre").open_file_search({ select_word = true }) end'';
+        } { desc = "Search on current file"; })
+
+        (normalKeymap "<A-h>" { __raw = ''function() require("smart-splits").resize_left() end''; } {
+          desc = "Resize left";
+        })
+        (normalKeymap "<A-j>" { __raw = ''function() require("smart-splits").resize_down() end''; } {
+          desc = "Resize down";
+        })
+        (normalKeymap "<A-k>" { __raw = ''function() require("smart-splits").resize_up() end''; } {
+          desc = "Resize up";
+        })
+        (normalKeymap "<A-l>" { __raw = ''function() require("smart-splits").resize_right() end''; } {
+          desc = "Resize right";
+        })
+        (normalKeymap "<C-h>" {
+          __raw = ''function() require("smart-splits").move_cursor_left() end'';
+        } { desc = "Move to the left window or pane"; })
+        (normalKeymap "<C-j>" {
+          __raw = ''function() require("smart-splits").move_cursor_down() end'';
+        } { desc = "Move to the window or pane below"; })
+        (normalKeymap "<C-k>" {
+          __raw = ''function() require("smart-splits").move_cursor_up() end'';
+        } { desc = "Move to the window or pane above"; })
+        (normalKeymap "<C-l>" {
+          __raw = ''function() require("smart-splits").move_cursor_right() end'';
+        } { desc = "Move to the right window or pane"; })
+        (normalKeymap "<leader><leader>h" {
+          __raw = ''function() require("smart-splits").swap_buf_left() end'';
+        } { desc = "Swap left"; })
+        (normalKeymap "<leader><leader>j" {
+          __raw = ''function() require("smart-splits").swap_buf_down() end'';
+        } { desc = "Swap down"; })
+        (normalKeymap "<leader><leader>k" {
+          __raw = ''function() require("smart-splits").swap_buf_up() end'';
+        } { desc = "Swap up"; })
+        (normalKeymap "<leader><leader>l" {
+          __raw = ''function() require("smart-splits").swap_buf_right() end'';
+        } { desc = "Swap right"; })
+
+        (mkKeymap [ "n" "x" "o" ] "s" { __raw = ''function() require("flash").jump() end''; } {
+          desc = "Flash";
+        })
+        (mkKeymap [ "n" "x" "o" ] "S" {
+          __raw = ''function() require("flash").treesitter() end'';
+        } { desc = "Flash Treesitter"; })
+        (mkKeymap "o" "r" { __raw = ''function() require("flash").remote() end''; } {
+          desc = "Remote Flash";
+        })
+        (mkKeymap [ "o" "x" ] "R" {
+          __raw = ''function() require("flash").treesitter_search() end'';
+        } { desc = "Treesitter Search"; })
+        (mkKeymap "c" "<c-s>" { __raw = ''function() require("flash").toggle() end''; } {
+          desc = "Toggle Flash Search";
+        })
+
+        (normalKeymap "<leader>bd" {
+          __raw = ''function() require("mini.bufremove").delete(0, false) end'';
+        } { desc = "Delete buffer"; })
+        (normalKeymap "<leader>bD" {
+          __raw = ''function() require("mini.bufremove").delete(0, true) end'';
+        } { desc = "Delete buffer (force)"; })
+
+        (normalKeymap "<leader>?" {
+          __raw = ''function() require("which-key").show({ global = false }) end'';
+        } { desc = "Buffer keymaps"; })
+
+        (normalKeymap "<leader>un" {
+          __raw = ''function() require("snacks").notifier.hide() end'';
+        } { desc = "Dismiss notifications"; })
+        (normalKeymap "<leader>gg" {
+          __raw = ''function() require("snacks").lazygit() end'';
+        } { desc = "Lazygit"; })
+        (normalKeymap "<leader>gb" {
+          __raw = ''function() require("snacks").git.blame_line() end'';
+        } { desc = "Git blame line"; })
+        (normalKeymap "<leader>gB" {
+          __raw = ''function() require("snacks").gitbrowse() end'';
+        } { desc = "Git browse"; })
+        (normalKeymap "<leader>gf" {
+          __raw = ''function() require("snacks").lazygit.log_file() end'';
+        } { desc = "Lazygit file log"; })
+        (normalKeymap "<leader>gl" {
+          __raw = ''function() require("snacks").lazygit.log() end'';
+        } { desc = "Lazygit log"; })
+        (mkKeymap [ "n" "t" ] "]r" {
+          __raw = ''function() require("snacks").words.jump(1, true) end'';
+        } { desc = "Next reference"; })
+        (mkKeymap [ "n" "t" ] "[r" {
+          __raw = ''function() require("snacks").words.jump(-1, true) end'';
+        } { desc = "Prev reference"; })
+        (normalKeymap "<leader>N" {
+          __raw = ''
+            function()
+              require("snacks").win({
+                file = vim.api.nvim_get_runtime_file("doc/news.txt", false)[1],
+                width = 0.6,
+                height = 0.6,
+                wo = { spell = false, wrap = false, signcolumn = "yes", statuscolumn = " ", conceallevel = 3 },
+              })
+            end
+          '';
+        } { desc = "Neovim News"; })
+
+        (normalKeymap "<leader>us" {
+          __raw = ''function() require("snacks").toggle.option("spell", { name = "Spelling" }):toggle() end'';
+        } { desc = "Toggle spelling"; })
+        (normalKeymap "<leader>uw" {
+          __raw = ''function() require("snacks").toggle.option("wrap", { name = "Wrap" }):toggle() end'';
+        } { desc = "Toggle wrap"; })
+        (normalKeymap "<leader>uL" {
+          __raw = ''function() require("snacks").toggle.option("relativenumber", { name = "Relative Number" }):toggle() end'';
+        } { desc = "Toggle relative number"; })
+        (normalKeymap "<leader>ud" {
+          __raw = ''function() require("snacks").toggle.diagnostics():toggle() end'';
+        } { desc = "Toggle diagnostics"; })
+        (normalKeymap "<leader>ul" {
+          __raw = ''function() require("snacks").toggle.line_number():toggle() end'';
+        } { desc = "Toggle line numbers"; })
+        (normalKeymap "<leader>uc" {
+          __raw = ''
+            function()
+              require("snacks").toggle
+                .option("conceallevel", { off = 0, on = vim.o.conceallevel > 0 and vim.o.conceallevel or 2 })
+                :toggle()
+            end
+          '';
+        } { desc = "Toggle conceal level"; })
+        (normalKeymap "<leader>uT" {
+          __raw = ''function() require("snacks").toggle.treesitter():toggle() end'';
+        } { desc = "Toggle treesitter"; })
+        (normalKeymap "<leader>ui" {
+          __raw = ''function() require("snacks").toggle.inlay_hints():toggle() end'';
+        } { desc = "Toggle inlay hints"; })
+
+        (mkKeymap [ "x" "o" ] "af" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.select").select_textobject("@function.outer", "textobjects") end
+          '';
+        } { desc = "Select outer function"; })
+        (mkKeymap [ "x" "o" ] "if" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.select").select_textobject("@function.inner", "textobjects") end
+          '';
+        } { desc = "Select inner function"; })
+        (mkKeymap [ "x" "o" ] "ac" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.select").select_textobject("@class.outer", "textobjects") end
+          '';
+        } { desc = "Select outer class"; })
+        (mkKeymap [ "x" "o" ] "ic" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.select").select_textobject("@class.inner", "textobjects") end
+          '';
+        } { desc = "Select inner class"; })
+        (mkKeymap [ "x" "o" ] "aa" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.select").select_textobject("@parameter.outer", "textobjects") end
+          '';
+        } { desc = "Select outer argument"; })
+        (mkKeymap [ "x" "o" ] "ia" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.select").select_textobject("@parameter.inner", "textobjects") end
+          '';
+        } { desc = "Select inner argument"; })
+        (mkKeymap [ "x" "o" ] "ai" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.select").select_textobject("@conditional.outer", "textobjects") end
+          '';
+        } { desc = "Select outer conditional"; })
+        (mkKeymap [ "x" "o" ] "ii" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.select").select_textobject("@conditional.inner", "textobjects") end
+          '';
+        } { desc = "Select inner conditional"; })
+        (mkKeymap [ "x" "o" ] "al" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.select").select_textobject("@loop.outer", "textobjects") end
+          '';
+        } { desc = "Select outer loop"; })
+        (mkKeymap [ "x" "o" ] "il" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.select").select_textobject("@loop.inner", "textobjects") end
+          '';
+        } { desc = "Select inner loop"; })
+
+        (mkKeymap [ "n" "x" "o" ] "]m" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.move").goto_next_start("@function.outer", "textobjects") end
+          '';
+        } { desc = "Next function start"; })
+        (mkKeymap [ "n" "x" "o" ] "]]" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.move").goto_next_start("@class.outer", "textobjects") end
+          '';
+        } { desc = "Next class start"; })
+        (mkKeymap [ "n" "x" "o" ] "]a" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.move").goto_next_start("@parameter.inner", "textobjects") end
+          '';
+        } { desc = "Next argument"; })
+        (mkKeymap [ "n" "x" "o" ] "]M" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.move").goto_next_end("@function.outer", "textobjects") end
+          '';
+        } { desc = "Next function end"; })
+        (mkKeymap [ "n" "x" "o" ] "][" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.move").goto_next_end("@class.outer", "textobjects") end
+          '';
+        } { desc = "Next class end"; })
+        (mkKeymap [ "n" "x" "o" ] "[m" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.move").goto_previous_start("@function.outer", "textobjects") end
+          '';
+        } { desc = "Previous function start"; })
+        (mkKeymap [ "n" "x" "o" ] "[[" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.move").goto_previous_start("@class.outer", "textobjects") end
+          '';
+        } { desc = "Previous class start"; })
+        (mkKeymap [ "n" "x" "o" ] "[a" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.move").goto_previous_start("@parameter.inner", "textobjects") end
+          '';
+        } { desc = "Previous argument"; })
+        (mkKeymap [ "n" "x" "o" ] "[M" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.move").goto_previous_end("@function.outer", "textobjects") end
+          '';
+        } { desc = "Previous function end"; })
+        (mkKeymap [ "n" "x" "o" ] "[]" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.move").goto_previous_end("@class.outer", "textobjects") end
+          '';
+        } { desc = "Previous class end"; })
+
+        (normalKeymap "<leader>sa" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.swap").swap_next("@parameter.inner") end
+          '';
+        } { desc = "Swap with next argument"; })
+        (normalKeymap "<leader>sA" {
+          __raw = ''
+            function() require("nvim-treesitter-textobjects.swap").swap_previous("@parameter.inner") end
+          '';
+        } { desc = "Swap with previous argument"; })
       ];
 
       plugins = {
@@ -69,6 +363,7 @@ in
               keys = { };
             };
             spec = [
+              { __unkeyed-1 = "<leader>a"; group = "AI"; }
               { __unkeyed-1 = "<leader>b"; group = "buffer"; }
               { __unkeyed-1 = "<leader>c"; group = "code"; }
               { __unkeyed-1 = "<leader>e"; group = "explorer"; }
@@ -286,7 +581,19 @@ in
         refactoring.enable = true;
         harpoon.enable = true;
         spectre.enable = true;
-        smart-splits.enable = true;
+        smart-splits = {
+          enable = true;
+          settings = {
+            ignored_filetypes = [
+              "nofile"
+              "quickfix"
+              "qf"
+              "prompt"
+            ];
+            ignored_buftypes = [ "nofile" ];
+            zellij_move_focus_or_tab = true;
+          };
+        };
 
         persistence = {
           enable = true;
@@ -320,17 +627,6 @@ in
           },
         })
 
-        -- persistence keymaps
-        vim.keymap.set("n", "<leader>qs", function() require("persistence").load() end, { desc = "Restore Session", silent = true })
-        vim.keymap.set("n", "<leader>qS", function() require("persistence").select() end, { desc = "Select Session", silent = true })
-        vim.keymap.set("n", "<leader>ql", function() require("persistence").load({ last = true }) end, { desc = "Restore Last Session", silent = true })
-        vim.keymap.set("n", "<leader>qd", function() require("persistence").stop() end, { desc = "Don't Save Session", silent = true })
-
-        -- todo-comments navigation
-        vim.keymap.set("n", "]t", function() require("todo-comments").jump_next() end, { desc = "Next TODO", silent = true })
-        vim.keymap.set("n", "[t", function() require("todo-comments").jump_prev() end, { desc = "Prev TODO", silent = true })
-
-        -- guess-indent excludes
         require("guess-indent").setup({
           filetype_exclude = {
             "c", "cpp", "objc", "objcpp", "cuda",
@@ -338,87 +634,12 @@ in
           },
         })
 
-        -- harpoon
-        vim.keymap.set("n", "<leader>A", function() require("harpoon"):list():add() end, { desc = "Harpoon add file", silent = true })
-        vim.keymap.set("n", "<C-e>", function()
-          local harpoon = require("harpoon")
-          harpoon.ui:toggle_quick_menu(harpoon:list())
-        end, { desc = "Harpoon menu", silent = true })
-        for i = 1, 5 do
-          vim.keymap.set("n", "<C-" .. i .. ">", function()
-            require("harpoon"):list():select(i)
-          end, { desc = "Harpoon file " .. i, silent = true })
-        end
-
-        -- spectre
-        vim.keymap.set("n", "<leader>R", function() require("spectre").toggle() end, { desc = "Toggle Spectre", silent = true })
-        vim.keymap.set("n", "<leader>Rw", function() require("spectre").open_visual({ select_word = true }) end, { desc = "Search current word", silent = true })
-        vim.keymap.set("v", "<leader>Rw", function() require("spectre").open_visual() end, { desc = "Search current word", silent = true })
-        vim.keymap.set("n", "<leader>Rf", function() require("spectre").open_file_search({ select_word = true }) end, { desc = "Search on current file", silent = true })
-
-        -- smart-splits
-        vim.keymap.set("n", "<A-h>", function() require("smart-splits").resize_left() end, { desc = "Resize left", silent = true })
-        vim.keymap.set("n", "<A-j>", function() require("smart-splits").resize_down() end, { desc = "Resize down", silent = true })
-        vim.keymap.set("n", "<A-k>", function() require("smart-splits").resize_up() end, { desc = "Resize up", silent = true })
-        vim.keymap.set("n", "<A-l>", function() require("smart-splits").resize_right() end, { desc = "Resize right", silent = true })
-        vim.keymap.set("n", "<C-h>", function() require("smart-splits").move_cursor_left() end, { desc = "Move left", silent = true })
-        vim.keymap.set("n", "<C-j>", function() require("smart-splits").move_cursor_down() end, { desc = "Move down", silent = true })
-        vim.keymap.set("n", "<C-k>", function() require("smart-splits").move_cursor_up() end, { desc = "Move up", silent = true })
-        vim.keymap.set("n", "<C-l>", function() require("smart-splits").move_cursor_right() end, { desc = "Move right", silent = true })
-        vim.keymap.set("n", "<leader><leader>h", function() require("smart-splits").swap_buf_left() end, { desc = "Swap left", silent = true })
-        vim.keymap.set("n", "<leader><leader>j", function() require("smart-splits").swap_buf_down() end, { desc = "Swap down", silent = true })
-        vim.keymap.set("n", "<leader><leader>k", function() require("smart-splits").swap_buf_up() end, { desc = "Swap up", silent = true })
-        vim.keymap.set("n", "<leader><leader>l", function() require("smart-splits").swap_buf_right() end, { desc = "Swap right", silent = true })
-
-        -- flash
-        vim.keymap.set({ "n", "x", "o" }, "s", function() require("flash").jump() end, { desc = "Flash", silent = true })
-        vim.keymap.set({ "n", "x", "o" }, "S", function() require("flash").treesitter() end, { desc = "Flash Treesitter", silent = true })
-        vim.keymap.set("o", "r", function() require("flash").remote() end, { desc = "Remote Flash", silent = true })
-        vim.keymap.set({ "o", "x" }, "R", function() require("flash").treesitter_search() end, { desc = "Treesitter Search", silent = true })
-        vim.keymap.set("c", "<c-s>", function() require("flash").toggle() end, { desc = "Toggle Flash Search", silent = true })
-
-        -- mini.bufremove
-        vim.keymap.set("n", "<leader>bd", function() require("mini.bufremove").delete(0, false) end, { desc = "Delete buffer", silent = true })
-        vim.keymap.set("n", "<leader>bD", function() require("mini.bufremove").delete(0, true) end, { desc = "Delete buffer (force)", silent = true })
-
-        -- which-key buffer-local help
-        vim.keymap.set("n", "<leader>?", function() require("which-key").show({ global = false }) end, { desc = "Buffer Keymaps", silent = true })
-
-        -- snacks keymaps + toggles
-        vim.keymap.set("n", "<leader>un", function() Snacks.notifier.hide() end, { desc = "Dismiss notifications", silent = true })
-        vim.keymap.set("n", "<leader>gg", function() Snacks.lazygit() end, { desc = "Lazygit", silent = true })
-        vim.keymap.set("n", "<leader>gb", function() Snacks.git.blame_line() end, { desc = "Git blame line", silent = true })
-        vim.keymap.set("n", "<leader>gB", function() Snacks.gitbrowse() end, { desc = "Git browse", silent = true })
-        vim.keymap.set("n", "<leader>gf", function() Snacks.lazygit.log_file() end, { desc = "Lazygit file log", silent = true })
-        vim.keymap.set("n", "<leader>gl", function() Snacks.lazygit.log() end, { desc = "Lazygit log", silent = true })
-        vim.keymap.set({ "n", "t" }, "]r", function() Snacks.words.jump(1, true) end, { desc = "Next reference", silent = true })
-        vim.keymap.set({ "n", "t" }, "[r", function() Snacks.words.jump(-1, true) end, { desc = "Prev reference", silent = true })
-        vim.keymap.set("n", "<leader>N", function()
-          Snacks.win({
-            file = vim.api.nvim_get_runtime_file("doc/news.txt", false)[1],
-            width = 0.6,
-            height = 0.6,
-            wo = { spell = false, wrap = false, signcolumn = "yes", statuscolumn = " ", conceallevel = 3 },
-          })
-        end, { desc = "Neovim News", silent = true })
-
         vim.api.nvim_create_autocmd("User", {
           pattern = "VeryLazy",
           callback = function()
             _G.dd = function(...) Snacks.debug.inspect(...) end
             _G.bt = function() Snacks.debug.backtrace() end
             vim.print = _G.dd
-
-            Snacks.toggle.option("spell", { name = "Spelling" }):map("<leader>us")
-            Snacks.toggle.option("wrap", { name = "Wrap" }):map("<leader>uw")
-            Snacks.toggle.option("relativenumber", { name = "Relative Number" }):map("<leader>uL")
-            Snacks.toggle.diagnostics():map("<leader>ud")
-            Snacks.toggle.line_number():map("<leader>ul")
-            Snacks.toggle
-              .option("conceallevel", { off = 0, on = vim.o.conceallevel > 0 and vim.o.conceallevel or 2 })
-              :map("<leader>uc")
-            Snacks.toggle.treesitter():map("<leader>uT")
-            Snacks.toggle.inlay_hints():map("<leader>ui")
           end,
         })
 
@@ -438,33 +659,6 @@ in
           },
         })
 
-        local ts_select = require("nvim-treesitter-textobjects.select")
-        vim.keymap.set({ "x", "o" }, "af", function() ts_select.select_textobject("@function.outer", "textobjects") end, { desc = "Select outer function" })
-        vim.keymap.set({ "x", "o" }, "if", function() ts_select.select_textobject("@function.inner", "textobjects") end, { desc = "Select inner function" })
-        vim.keymap.set({ "x", "o" }, "ac", function() ts_select.select_textobject("@class.outer", "textobjects") end, { desc = "Select outer class" })
-        vim.keymap.set({ "x", "o" }, "ic", function() ts_select.select_textobject("@class.inner", "textobjects") end, { desc = "Select inner class" })
-        vim.keymap.set({ "x", "o" }, "aa", function() ts_select.select_textobject("@parameter.outer", "textobjects") end, { desc = "Select outer argument" })
-        vim.keymap.set({ "x", "o" }, "ia", function() ts_select.select_textobject("@parameter.inner", "textobjects") end, { desc = "Select inner argument" })
-        vim.keymap.set({ "x", "o" }, "ai", function() ts_select.select_textobject("@conditional.outer", "textobjects") end, { desc = "Select outer conditional" })
-        vim.keymap.set({ "x", "o" }, "ii", function() ts_select.select_textobject("@conditional.inner", "textobjects") end, { desc = "Select inner conditional" })
-        vim.keymap.set({ "x", "o" }, "al", function() ts_select.select_textobject("@loop.outer", "textobjects") end, { desc = "Select outer loop" })
-        vim.keymap.set({ "x", "o" }, "il", function() ts_select.select_textobject("@loop.inner", "textobjects") end, { desc = "Select inner loop" })
-
-        local ts_move = require("nvim-treesitter-textobjects.move")
-        vim.keymap.set({ "n", "x", "o" }, "]m", function() ts_move.goto_next_start("@function.outer", "textobjects") end, { desc = "Next function start" })
-        vim.keymap.set({ "n", "x", "o" }, "]]", function() ts_move.goto_next_start("@class.outer", "textobjects") end, { desc = "Next class start" })
-        vim.keymap.set({ "n", "x", "o" }, "]a", function() ts_move.goto_next_start("@parameter.inner", "textobjects") end, { desc = "Next argument" })
-        vim.keymap.set({ "n", "x", "o" }, "]M", function() ts_move.goto_next_end("@function.outer", "textobjects") end, { desc = "Next function end" })
-        vim.keymap.set({ "n", "x", "o" }, "][", function() ts_move.goto_next_end("@class.outer", "textobjects") end, { desc = "Next class end" })
-        vim.keymap.set({ "n", "x", "o" }, "[m", function() ts_move.goto_previous_start("@function.outer", "textobjects") end, { desc = "Previous function start" })
-        vim.keymap.set({ "n", "x", "o" }, "[[", function() ts_move.goto_previous_start("@class.outer", "textobjects") end, { desc = "Previous class start" })
-        vim.keymap.set({ "n", "x", "o" }, "[a", function() ts_move.goto_previous_start("@parameter.inner", "textobjects") end, { desc = "Previous argument" })
-        vim.keymap.set({ "n", "x", "o" }, "[M", function() ts_move.goto_previous_end("@function.outer", "textobjects") end, { desc = "Previous function end" })
-        vim.keymap.set({ "n", "x", "o" }, "[]", function() ts_move.goto_previous_end("@class.outer", "textobjects") end, { desc = "Previous class end" })
-
-        local ts_swap = require("nvim-treesitter-textobjects.swap")
-        vim.keymap.set("n", "<leader>sa", function() ts_swap.swap_next("@parameter.inner") end, { desc = "Swap with next argument", silent = true })
-        vim.keymap.set("n", "<leader>sA", function() ts_swap.swap_previous("@parameter.inner") end, { desc = "Swap with previous argument", silent = true })
       '';
     };
   };

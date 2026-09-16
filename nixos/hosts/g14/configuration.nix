@@ -110,12 +110,10 @@ in
     ./hardware-configuration.nix
     ./local-llm.nix
     ../../modules/laptop.nix
-    ../../modules/home-network.nix
   ];
 
   isLaptop = true;
 
-  # SSIDs and mqtt broker live in hosts/common/default.nix.
   custom.homeNetwork = {
     enable = true;
     mqtt = {

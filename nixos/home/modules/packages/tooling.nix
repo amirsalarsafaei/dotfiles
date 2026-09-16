@@ -1,8 +1,6 @@
 { pkgs, ... }:
 [
   pkgs.nixd
-  pkgs.nil
-  pkgs.nixpkgs-fmt
   pkgs.statix
   pkgs.nixfmt
 
@@ -51,11 +49,7 @@
   pkgs.hadolint
 
   pkgs.prettier
-  pkgs.efm-langserver
   pkgs.shellcheck
   pkgs.shfmt # conform: sh/bash format-on-save
-  pkgs.copilot-language-server
   pkgs.vimPlugins.telescope-fzf-native-nvim
-
-  pkgs.helm-ls
 ]

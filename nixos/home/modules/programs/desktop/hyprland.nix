@@ -4,7 +4,6 @@
   osConfig,
   config,
   themeLib,
-  inputs,
   ...
 }:
 let
@@ -111,7 +110,6 @@ in
     enable = true;
     systemd.enable = false;
     configType = "hyprlang";
-    package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
     extraConfig = ''
       $terminal = uwsm app -- ghostty
       $fileManager = uwsm app -- dolphin

@@ -1,15 +1,40 @@
 { config
 , lib
+, pkgs
 , ...
 }:
 let
   cfg = config.custom.neovim;
+
+  helpers = import ./lib.nix { inherit lib config; };
+  inherit (helpers) normalKeymap;
 in
 {
   config = lib.mkIf cfg.enable {
     programs.nixvim = {
+      extraPlugins = [ pkgs.vimPlugins.nvim-lsp-file-operations ];
+
+      keymaps = [
+        (normalKeymap "<leader>uh" {
+          __raw = ''
+            function()
+              local bufnr = vim.api.nvim_get_current_buf()
+              vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({ bufnr = bufnr }), { bufnr = bufnr })
+            end
+          '';
+        } { desc = "Toggle inlay hints"; })
+      ];
+
       plugins = {
-        lazydev.enable = true;
+        lazydev = {
+          enable = true;
+          settings.library = [
+            {
+              path = "${pkgs.vimPlugins.luvit-meta}/library";
+              words = [ "vim%.uv" ];
+            }
+          ];
+        };
         fidget.enable = true;
         lsp = {
           enable = true;
@@ -94,7 +119,6 @@ in
             dockerls.enable = true;
             docker_compose_language_service.enable = true;
             bashls.enable = true;
-            elixirls.enable = true;
             sqls.enable = true;
             systemd_ls.enable = true;
             clangd = {
@@ -122,47 +146,6 @@ in
                 semanticHighlighting = true;
               };
             };
-            jdtls = {
-              enable = true;
-              cmd = [ "jdtls" ];
-              filetypes = [ "java" ];
-              extraOptions.root_markers = [
-                "build.gradle"
-                "build.gradle.kts"
-                "settings.gradle"
-                "settings.gradle.kts"
-                "pom.xml"
-                ".git"
-              ];
-              settings.java = {
-                inlayHints.parameterNames.enabled = "all";
-                signatureHelp.enabled = true;
-                completion = {
-                  favoriteStaticMembers = [
-                    "org.junit.Assert.*"
-                    "org.junit.jupiter.api.Assertions.*"
-                    "org.mockito.Mockito.*"
-                    "java.util.Objects.requireNonNull"
-                    "java.util.Objects.requireNonNullElse"
-                  ];
-                  filteredTypes = [
-                    "com.sun.*"
-                    "io.micrometer.shaded.*"
-                    "java.awt.*"
-                    "jdk.*"
-                    "sun.*"
-                  ];
-                };
-                sources.organizeImports = {
-                  starThreshold = 9999;
-                  staticStarThreshold = 9999;
-                };
-                codeGeneration = {
-                  toString.template = "\${object.className}{\${member.name()}=\${member.value}, \${otherMembers}}";
-                  useBlocks = true;
-                };
-              };
-            };
           };
           keymaps = {
             diagnostic = {
@@ -180,7 +163,13 @@ in
               K = "hover";
               gs = "signature_help";
               "<leader>cr" = "rename";
-              "<leader>ca" = "code_action";
+              "<leader>ca" = {
+                action = "code_action";
+                mode = [
+                  "n"
+                  "v"
+                ];
+              };
             };
           };
         };
@@ -213,10 +202,7 @@ in
           },
         })
 
-        vim.keymap.set("n", "<leader>uh", function()
-          local bufnr = vim.api.nvim_get_current_buf()
-          vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({ bufnr = bufnr }), { bufnr = bufnr })
-        end, { desc = "Toggle inlay hints", silent = true })
+        require("lsp-file-operations").setup()
 
         vim.api.nvim_create_autocmd("LspAttach", {
           group = vim.api.nvim_create_augroup("UserLspDocumentHighlight", { clear = true }),

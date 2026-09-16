@@ -93,3 +93,52 @@ Common match fields: `class`, `title`, `initial_class`, `initial_title`, `tag`, 
 
 ### Inspecting Windows
 Use `hyprctl clients` to see actual window properties (class, title, etc.) for writing accurate match rules. Use `hyprctl getoption <option>` with colon-separated paths (e.g., `decoration:blur:enabled`) to check current settings.
+
+## Neovim
+
+Neovim is NixVim (`programs.nixvim`), configured under `home/modules/neovim/`. The old
+lazy.nvim tree at `nvim/` was deleted along with `modules/server/vim.nix`; do not
+reintroduce a second config, it collides with NixVim over `~/.config/nvim`.
+
+### Keymaps have one source of truth
+`home/modules/keys` builds the `keys` cheatsheet by harvesting
+`config.programs.nixvim.keymaps`. So:
+
+- Declare every **global** keymap in `programs.nixvim.keymaps` with an `options.desc`,
+  never as a bare `vim.keymap.set` in `extraConfigLua`. The harvest skips anything not
+  in that list, so a raw `vim.keymap.set` is invisible to `keys` and silently drifts
+  from the cheatsheet that claims to be complete.
+- A Lua function action goes in `action = { __raw = "function() ... end"; }` (nixvim's
+  `action` is `types.maybeRaw types.str`). Call `require(...)` inside the function body
+  so nothing loads until the key is pressed.
+- **Exceptions**, deliberately absent from the cheatsheet: buffer-local maps registered
+  in an autocmd (toggleterm's terminal-mode maps, `q`-to-close) and LSP-attached maps.
+- LSP keymaps live in `plugins.lsp.keymaps` (`diagnostic`, `lspBuf`, `extra`) and are
+  harvested separately by `home/modules/keys/default.nix`. A `lspBuf` entry takes
+  `{ action = "..."; mode = [ "n" "v" ]; }` when it needs more than normal mode.
+- Use the `mkKeymap` / `normalKeymap` helpers from `home/modules/neovim/lib.nix`; they
+  default `silent = true`.
+
+### Pane navigation
+`<C-h/j/k/l>` is owned by **smart-splits** alone (`home/modules/neovim/editor.nix`).
+It moves between nvim windows and, at the edge, auto-detects the multiplexer and crosses
+into the neighbouring tmux or zellij pane. Do not add a second binding for those keys — a
+previous config had `navigation.nix` binding them to `zellij-nav-nvim` while `editor.nix`
+bound them to smart-splits; the later module silently won, so the documented "seamless
+zellij navigation" never actually worked.
+
+### Ctrl+Space is the multiplexer prefix
+Both tmux and zellij use `Ctrl+Space` (declared in `home/modules/keys/registry.nix`).
+Consequence: inside a multiplexer no application ever sees `Ctrl+Space`. blink.cmp's
+`<C-space>` show/hide is therefore unreachable there — `<C-s>` is the binding that works
+and is already configured in `home/modules/neovim/completion.nix`. zsh accepts
+autosuggestions on `→` / `End`, not `Ctrl+Space`.
+
+### Lazy loading is intentionally off
+No plugin sets `plugins.<name>.lazyLoad`. nixvim marks that option experimental, and
+`lazyLoad.settings.keys` would fight the eagerly-declared keymaps above: lz.n would stub
+a key that is already mapped globally, so the trigger would never fire. If startup time
+needs work, only `cmd` and `ft` triggers are safe with the current design — add those to
+a plugin whose only entry points are commands (nvim-tree, trouble, toggleterm) and
+measure with `nvim --startuptime` before and after. Moving keymaps into
+`lazyLoad.settings.keys` instead would require teaching the `keys` harvest to read them.

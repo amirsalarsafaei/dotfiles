@@ -13,7 +13,6 @@ in
   imports = [
     ./theme.nix
     ./keymaps.nix
-    ./navigation.nix
     ./autocmds.nix
     ./lsp.nix
     ./completion.nix
@@ -107,6 +106,7 @@ in
         synmaxcol = 240;
         updatetime = 250;
         timeoutlen = 300;
+        ttimeoutlen = 10;
         splitkeep = "screen";
         smoothscroll = true;
         virtualedit = "block";

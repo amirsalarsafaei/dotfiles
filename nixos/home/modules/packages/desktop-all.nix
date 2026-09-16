@@ -22,7 +22,7 @@ let
 in
 {
   home.packages = packages.concatCategories {
-    categories = packages.fullCategories;
+    categories = packages.allCategories;
     args = categoryArgs;
   };
 }

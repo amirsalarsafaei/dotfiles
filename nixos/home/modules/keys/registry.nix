@@ -18,7 +18,6 @@ let
     K
     M
     on
-    mkChord
     doc
     ;
 
@@ -75,6 +74,101 @@ let
       "k"
       "l"
     ];
+
+  tabDigits = [
+    "1"
+    "2"
+    "3"
+    "4"
+    "5"
+    "6"
+    "7"
+    "8"
+    "9"
+  ];
+
+  # Bound twice — once behind the tmux-mode prefix, once inside tab mode — so
+  # the group is the only thing that differs between the two blocks.
+  goToTab =
+    group:
+    map (n: zbind {
+      on = on.none K.${n};
+      run = [
+        "GoToTab ${n};"
+        ''SwitchToMode "Normal";''
+      ];
+      desc = "Go to tab ${n}";
+      inherit group;
+    }) tabDigits;
+
+  # Same story: scroll mode and search mode both offer it, under their own
+  # group heading.
+  editScrollback =
+    group:
+    zbind {
+      on = [
+        (on.none K.e)
+      ];
+      run = [
+        "EditScrollback;"
+        ''SwitchToMode "Normal";''
+      ];
+      desc = "Hand the scrollback to nvim";
+      inherit group;
+    };
+
+  # These four pane actions are reachable both behind the tmux-mode prefix and
+  # from inside pane mode, spelled out identically in each. Only the group
+  # heading differs, so each is taken as an argument. Everything else that
+  # looks like a copy across those two modes binds a different key in each
+  # (pane mode's `z` toggles frames, the prefix's `z` zooms) and stays separate.
+  closePane =
+    group:
+    zbind {
+      on = on.none K.x;
+      run = [
+        "CloseFocus;"
+        ''SwitchToMode "Normal";''
+      ];
+      desc = "Close pane";
+      inherit group;
+    };
+
+  toggleFloatingLayer =
+    group:
+    zbind {
+      on = on.none K.w;
+      run = [
+        "ToggleFloatingPanes;"
+        ''SwitchToMode "Normal";''
+      ];
+      desc = "Toggle the floating layer";
+      inherit group;
+    };
+
+  floatOrTilePane =
+    group:
+    zbind {
+      on = on.none K.e;
+      run = [
+        "TogglePaneEmbedOrFloating;"
+        ''SwitchToMode "Normal";''
+      ];
+      desc = "Float or tile this pane";
+      inherit group;
+    };
+
+  pinFloatingPane =
+    group:
+    zbind {
+      on = on.none K.i;
+      run = [
+        "TogglePanePinned;"
+        ''SwitchToMode "Normal";''
+      ];
+      desc = "Pin a floating pane on top";
+      inherit group;
+    };
 in
 rec {
   # ── Hyprland ────────────────────────────────────────────────────────────
@@ -468,7 +562,7 @@ rec {
         + "else tmux split-window ${flag} -c \"#{pane_current_path}\"${sizeArg}; fi'";
     in
     {
-      prefix = "Ctrl+b";
+      prefix = "Ctrl+Space";
 
       binds = [
         (keysLib.tmux.bind {
@@ -657,9 +751,10 @@ rec {
   # from empty costs a longer registry and buys a keymap with no invisible
   # half.
   zellij = rec {
-    # Ctrl+Space, not tmux's Ctrl+b: one key either way, but this one is
-    # pinky + thumb instead of a stretch down to `b`, and it costs nothing —
-    # readline's Ctrl+b is backward-char, which is what the arrow keys do.
+    # Ctrl+Space, which tmux uses too (see the tmux section above) so both
+    # multiplexers answer to one prefix: pinky + thumb instead of a stretch
+    # down to `b`, and it costs nothing readline-wise — Ctrl+Space is no
+    # longer zsh's autosuggest-accept (that is Right arrow/End now).
     # It reaches zellij through the kitty keyboard protocol (ghostty speaks
     # it; support_kitty_keyboard_protocol is on in zelij.nix).
     prefix = "Ctrl+Space";
@@ -827,15 +922,7 @@ rec {
         desc = "Next pane";
         group = "Panes";
       })
-      (zbind {
-        on = on.none K.x;
-        run = [
-          "CloseFocus;"
-          ''SwitchToMode "Normal";''
-        ];
-        desc = "Close pane";
-        group = "Panes";
-      })
+      (closePane "Panes")
       (zbind {
         on = on.none K.z;
         run = [
@@ -908,33 +995,9 @@ rec {
         desc = "Toggle group marking";
         group = "Panes";
       })
-      (zbind {
-        on = on.none K.w;
-        run = [
-          "ToggleFloatingPanes;"
-          ''SwitchToMode "Normal";''
-        ];
-        desc = "Toggle the floating layer";
-        group = "Panes";
-      })
-      (zbind {
-        on = on.none K.e;
-        run = [
-          "TogglePaneEmbedOrFloating;"
-          ''SwitchToMode "Normal";''
-        ];
-        desc = "Float or tile this pane";
-        group = "Panes";
-      })
-      (zbind {
-        on = on.none K.i;
-        run = [
-          "TogglePanePinned;"
-          ''SwitchToMode "Normal";''
-        ];
-        desc = "Pin a floating pane on top";
-        group = "Panes";
-      })
+      (toggleFloatingLayer "Panes")
+      (floatOrTilePane "Panes")
+      (pinFloatingPane "Panes")
       (zbind {
         on = on.none K.t;
         run = [
@@ -1018,31 +1081,7 @@ rec {
         group = "Tabs";
       })
     ]
-    ++
-      map
-        (
-          n:
-          zbind {
-            on = on.none K.${n};
-            run = [
-              "GoToTab ${n};"
-              ''SwitchToMode "Normal";''
-            ];
-            desc = "Go to tab ${n}";
-            group = "Tabs";
-          }
-        )
-        [
-          "1"
-          "2"
-          "3"
-          "4"
-          "5"
-          "6"
-          "7"
-          "8"
-          "9"
-        ]
+    ++ goToTab "Tabs"
     ++ [
       (zbind {
         on = on.none K.d;
@@ -1194,15 +1233,7 @@ rec {
           desc = "New stacked pane";
           group = "Pane mode";
         })
-        (zbind {
-          on = on.none K.x;
-          run = [
-            "CloseFocus;"
-            ''SwitchToMode "Normal";''
-          ];
-          desc = "Close pane";
-          group = "Pane mode";
-        })
+        (closePane "Pane mode")
         (zbind {
           on = on.none K.f;
           run = [
@@ -1221,24 +1252,8 @@ rec {
           desc = "Toggle pane frames";
           group = "Pane mode";
         })
-        (zbind {
-          on = on.none K.w;
-          run = [
-            "ToggleFloatingPanes;"
-            ''SwitchToMode "Normal";''
-          ];
-          desc = "Toggle the floating layer";
-          group = "Pane mode";
-        })
-        (zbind {
-          on = on.none K.e;
-          run = [
-            "TogglePaneEmbedOrFloating;"
-            ''SwitchToMode "Normal";''
-          ];
-          desc = "Float or tile this pane";
-          group = "Pane mode";
-        })
+        (toggleFloatingLayer "Pane mode")
+        (floatOrTilePane "Pane mode")
         (zbind {
           on = on.none K.c;
           run = [
@@ -1248,15 +1263,7 @@ rec {
           desc = "Rename pane";
           group = "Pane mode";
         })
-        (zbind {
-          on = on.none K.i;
-          run = [
-            "TogglePanePinned;"
-            ''SwitchToMode "Normal";''
-          ];
-          desc = "Pin a floating pane on top";
-          group = "Pane mode";
-        })
+        (pinFloatingPane "Pane mode")
       ];
 
     # ── Tab mode (prefix, then Ctrl+t) ────────────────────────────────
@@ -1353,31 +1360,7 @@ rec {
         group = "Tab mode";
       })
     ]
-    ++
-      map
-        (
-          n:
-          zbind {
-            on = on.none K.${n};
-            run = [
-              "GoToTab ${n};"
-              ''SwitchToMode "Normal";''
-            ];
-            desc = "Go to tab ${n}";
-            group = "Tab mode";
-          }
-        )
-        [
-          "1"
-          "2"
-          "3"
-          "4"
-          "5"
-          "6"
-          "7"
-          "8"
-          "9"
-        ];
+    ++ goToTab "Tab mode";
 
     # ── Resize mode (prefix, then Ctrl+n) ─────────────────────────────
     resizeMode =
@@ -1523,21 +1506,12 @@ rec {
     # there is no keyboard select-and-yank to bind. EditScrollback is the
     # stand-in and is strictly more capable: the whole buffer opens in nvim,
     # where selecting is visual mode and the yank reaches the system clipboard
-    # (clipboard = "unnamedplus"). On "y" for the tmux muscle memory, and on
-    # "e" because that is where zellij's own default put it.
+    # (clipboard = "unnamedplus"). Bound on "e" only — that is where zellij's
+    # own default put it; "y" used to alias it too (tmux muscle memory) but
+    # firing nvim from a bare "y" while scrolling was too easy to hit by
+    # accident, so "y" is free in this mode now.
     scrollMode = scrollMotions ++ [
-      (zbind {
-        on = [
-          (on.none K.y)
-          (on.none K.e)
-        ];
-        run = [
-          "EditScrollback;"
-          ''SwitchToMode "Normal";''
-        ];
-        desc = "Hand the scrollback to nvim";
-        group = "Scrollback";
-      })
+      (editScrollback "Scrollback")
       (zbind {
         on = on.none K.s;
         run = [
@@ -1550,18 +1524,7 @@ rec {
     ];
 
     searchMode = scrollMotions ++ [
-      (zbind {
-        on = [
-          (on.none K.y)
-          (on.none K.e)
-        ];
-        run = [
-          "EditScrollback;"
-          ''SwitchToMode "Normal";''
-        ];
-        desc = "Hand the scrollback to nvim";
-        group = "Search";
-      })
+      (editScrollback "Search")
       (zbind {
         on = on.none K.n;
         run = ''Search "down";'';
@@ -1720,19 +1683,13 @@ rec {
   ghostty = {
     binds = [
       (keysLib.ghostty.bind {
-        on = mkChord [
-          M.ctrl
-          M.shift
-        ] K.equal;
+        on = on.ctrlShift K.equal;
         action = "increase_font_size:1";
         desc = "Bigger font";
         group = "Font";
       })
       (keysLib.ghostty.bind {
-        on = mkChord [
-          M.ctrl
-          M.shift
-        ] K.minus;
+        on = on.ctrlShift K.minus;
         action = "decrease_font_size:1";
         desc = "Smaller font";
         group = "Font";
@@ -1744,30 +1701,21 @@ rec {
         group = "Font";
       })
       (keysLib.ghostty.bind {
-        on = mkChord [
-          M.ctrl
-          M.shift
-        ] K.c;
+        on = on.ctrlShift K.c;
         action = "copy_to_clipboard";
         desc = "Copy";
         group = "Clipboard";
       })
       (keysLib.ghostty.bind {
-        on = mkChord [
-          M.ctrl
-          M.shift
-        ] K.v;
+        on = on.ctrlShift K.v;
         action = "paste_from_clipboard";
         desc = "Paste";
         group = "Clipboard";
       })
       (keysLib.ghostty.bind {
-        on = mkChord [
-          M.ctrl
-          M.shift
-        ] K.r;
+        on = on.ctrlShift K.r;
         action = "reload_config";
-        desc = "Reload the config";
+        desc = "Reload the terminal config";
         group = "Terminal";
       })
     ];
@@ -1791,7 +1739,7 @@ rec {
         group = "Line editor";
       })
       (doc {
-        keys = "Ctrl+Space";
+        keys = "→ / End";
         desc = "Accept the autosuggestion";
         group = "Line editor";
       })

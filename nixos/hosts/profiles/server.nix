@@ -6,8 +6,14 @@
     ../../modules/server/security.nix
     ../../modules/server/users.nix
     ../../modules/server/network-optimizations.nix
-    ../../modules/server/vim.nix
   ];
+
+  programs.neovim = {
+    enable = true;
+    defaultEditor = true;
+    viAlias = true;
+    vimAlias = true;
+  };
 
   # Workaround for https://github.com/NixOS/nix/issues/8502
   services.logrotate.checkConfig = false;

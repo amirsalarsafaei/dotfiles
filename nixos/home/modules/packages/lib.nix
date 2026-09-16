@@ -2,14 +2,11 @@
 # Each category file is a function that takes a set of arguments (at minimum { pkgs })
 # and returns a list of packages. This module provides:
 #   - concatCategories: helper to import categories with given arguments
-#   - baseCategories: the standard set of categories used by default.nix
-#   - fullCategories: the full set including games (used by desktop-all.nix)
+#   - allCategories: every category, used by desktop-all.nix
 { pkgs }:
 
 let
-  # The base set of categories shared across profiles.
-  # Each category is a .nix file that takes { pkgs, ... } and returns a list of packages.
-  baseCategories = [
+  allCategories = [
     ./terminals.nix
     ./fun.nix
     ./network.nix
@@ -22,11 +19,8 @@ let
     ./media.nix
     ./platform.nix
     ./host.nix
+    ./games.nix
   ];
-
-  # Full set including games (used by desktop-all.nix).
-  fullCategories = baseCategories ++ [ ./games.nix ];
-
 in
 {
   # Aggregate a list of category files into a single packages list.
@@ -37,5 +31,5 @@ in
     }:
     pkgs.lib.concatMap (category: import category args) categories;
 
-  inherit baseCategories fullCategories;
+  inherit allCategories;
 }
