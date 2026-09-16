@@ -30,12 +30,12 @@ in
   geoip = mkGeoData {
     name = "geoip";
     file = "geoip.dat";
-    hash = "sha256-KLo1xOkqomtDIkzq6acaTPgBa8+riPQoublV1bkyxBY=";
+    hash = "sha256-khlndV55KgsfkW7S2Zq1NO6Zjw4QFvRaYB5cPjytwfs=";
   };
 
   geosite = mkGeoData {
     name = "geosite";
     file = "geosite.dat";
-    hash = "sha256-r/U6qNKA0oA6nUYC1YuacdcbXICXe+KrU5S7qo/rP9Q=";
+    hash = "sha256-T6gY+f+2RePoJUjr0YDzbP0G+rVOS7e3HU/UwJp5seY=";
   };
 }
