@@ -19,6 +19,8 @@
 
     _arguments \
       '--effort[effort level for this session]:level:(low medium high xhigh max)' \
+      '--chrome[attach chrome-devtools-mcp (DevTools inspection + browser automation)]' \
+      '--playwright[attach playwright-mcp]' \
       ${flagPluginsZshArgs} \
       '*:: :_default'
   '';
@@ -30,6 +32,8 @@
       '--effort[effort level for this session]:level:(low medium high xhigh max)' \
       '--agentic-mcps[attach agentic-development-mcps for this launch]' \
       '--gitlab-mcp[allow the gitlab_* tool family on agentic-development-mcps]' \
+      '--chrome[attach chrome-devtools-mcp (DevTools inspection + browser automation)]' \
+      '--playwright[attach playwright-mcp]' \
       ${flagPluginsZshArgs} \
       '*:: :_default'
   '';

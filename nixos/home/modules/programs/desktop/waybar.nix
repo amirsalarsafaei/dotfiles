@@ -35,8 +35,17 @@ in
         border-radius: 0;
       }
 
+      /* One continuous bar, floating clear of the screen edges (see mainBar
+         margin below) so it reads as a rounded pill over the wallpaper
+         instead of a flat rectangle glued to the top edge. The surface
+         carries the background, and that translucency is what the
+         compositor's layer rule blurs (see the `waybar` layerrule in
+         hyprland.nix), so the bar reads as glass, not a flat strip. */
       window#waybar {
-        background: transparent;
+        background: ${themeLib.rgba t.base00 0.86};
+        border-radius: 16px;
+        border: 1px solid ${themeLib.rgba t.base0D 0.4};
+        box-shadow: 0 6px 20px ${themeLib.rgba t.base00 0.5};
         color: ${t.base05};
       }
 
@@ -49,29 +58,42 @@ in
         color: ${t.base07};
       }
 
-      .modules-left, .modules-right {
-        background: ${themeLib.rgba t.base00 0.82};
-        border: 1px solid ${themeLib.rgba t.base03 0.32};
-        border-radius: 12px;
-        padding: 5px 12px;
-        margin-top: 8px;
-        box-shadow: 0 6px 18px ${themeLib.rgba t.base00 0.38};
-      }
-
+      /* Modules share one bar now, so only the outer edges need a gutter. */
       .modules-left { margin-left: 12px; }
       .modules-right { margin-right: 12px; }
 
+      /* Shared pill geometry for every standalone module: identical padding
+         keeps the hover highlights and the clock/group accents aligned. */
+      #workspaces,
+      #idle_inhibitor,
+      #clock,
+      #network,
+      #wireplumber,
+      #tray,
+      #hyprland-language,
+      #custom-power,
+      #battery,
+      #hyprland-window {
+        background-color: transparent;
+        color: ${t.base05};
+        padding: 4px 11px;
+        margin: 0 2px;
+        border-radius: 10px;
+        transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+      }
+
       #workspaces {
-        margin-right: 6px;
+        padding: 3px 8px;
+        margin-right: 4px;
       }
 
       #workspaces button {
-        padding: 0 10px;
+        padding: 2px 9px;
         margin: 0 2px;
         background-color: transparent;
         color: ${t.base04};
-        border-radius: 9px;
-        transition: all 0.2s ease;
+        border-radius: 8px;
+        transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
       }
 
       #workspaces button:hover {
@@ -80,8 +102,9 @@ in
       }
 
       #workspaces button.active {
-        background-color: ${themeLib.rgba t.base0D 0.24};
-        border: 1px solid ${themeLib.rgba t.base0D 0.72};
+        background-color: ${themeLib.rgba t.base0D 0.26};
+        border: 1px solid ${themeLib.rgba t.base0D 0.75};
+        box-shadow: 0 0 8px ${themeLib.rgba t.base0D 0.45};
         color: ${t.base07};
         font-weight: 700;
         min-width: 22px;
@@ -101,65 +124,61 @@ in
         color: ${t.base03};
       }
 
-      #idle_inhibitor {
-        background-color: transparent;
-        color: ${t.base04};
-        padding: 0 10px;
-        margin: 0 2px;
-        border-radius: 9px;
-        transition: all 0.2s ease;
-      }
-      #idle_inhibitor:hover {
-        background-color: ${themeLib.rgba t.base02 0.34};
-      }
-      #idle_inhibitor.activated {
-        color: ${t.base0D};
-      }
+      #idle_inhibitor           { color: ${t.base04}; }
+      #idle_inhibitor.activated { color: ${t.base0D}; }
 
-      #clock, #network, #wireplumber, #tray,
-      #hyprland-language, #hardware, #custom-power,
-      #cpu, #memory, #temperature, #battery {
-        background-color: transparent;
-        color: ${t.base05};
-        padding: 0 10px;
-        margin: 0 2px;
-        border-radius: 9px;
-        transition: all 0.2s ease;
+      /* Hover feedback is shared so no module reads as inert. A slight lift
+         reads as "clickable" without needing a border on every pill. */
+      #idle_inhibitor:hover,
+      #clock:hover,
+      #network:hover,
+      #wireplumber:hover,
+      #hyprland-language:hover,
+      #custom-power:hover,
+      #battery:hover {
+        background-color: ${themeLib.rgba t.base02 0.34};
       }
 
       #clock {
         font-weight: 800;
         color: ${t.base07};
-        background-color: ${themeLib.rgba t.base02 0.24};
+        background: linear-gradient(
+          135deg,
+          ${themeLib.rgba t.base0D 0.28},
+          ${themeLib.rgba t.base02 0.3}
+        );
+        border: 1px solid ${themeLib.rgba t.base0D 0.3};
+        padding: 3px 14px;
+        letter-spacing: 0.02em;
       }
 
-      #clock:hover,
-      #network:hover,
-      #wireplumber:hover,
-      #custom-power:hover {
-        background-color: ${themeLib.rgba t.base02 0.34};
-      }
-
-      #network {
-        color: ${t.base04};
-      }
+      /* Each module gets its own accent color so the right-hand cluster reads
+         as distinct icons at a glance instead of one grey block of text. */
+      #network              { color: ${t.base0C}; }
       #network.disconnected { color: ${t.base08}; }
 
-      #wireplumber         { color: ${t.base05}; }
-      #wireplumber.muted   { color: ${t.base04}; }
+      #wireplumber          { color: ${t.base0B}; }
+      #wireplumber.muted    { color: ${t.base04}; }
 
+      #hyprland-language { color: ${t.base0A}; }
+
+      /* CPU/memory/temperature read as one inset group. */
       #hardware {
         background-color: ${themeLib.rgba t.base02 0.14};
         border: 1px solid ${themeLib.rgba t.base03 0.22};
-        border-radius: 10px;
-        padding: 0 4px;
+        border-radius: 12px;
+        padding: 2px 5px;
         margin: 0 6px;
       }
 
-      #cpu, #memory, #temperature, #battery {
-        padding: 0 9px;
-        color: ${t.base05};
+      #cpu, #memory, #temperature {
+        padding: 2px 9px;
+        border-radius: 8px;
       }
+
+      #cpu         { color: ${t.base0C}; }
+      #memory      { color: ${t.base0B}; }
+      #temperature { color: ${t.base0D}; }
 
       #temperature.critical,
       #battery.warning:not(.charging) {
@@ -182,12 +201,11 @@ in
       #custom-power {
         color: ${t.base0D};
         font-size: 16px;
-        padding: 0 9px;
+        padding: 4px 12px;
       }
 
       #hyprland-window {
         color: ${t.base04};
-        padding: 0 12px;
         font-weight: 600;
       }
 
@@ -195,7 +213,7 @@ in
       #submap {
         color: ${t.base00};
         background-color: ${t.base0A};
-        padding: 0 16px;
+        padding: 4px 16px;
         margin: 0 4px;
         border-radius: 10px;
         font-weight: 800;
@@ -206,10 +224,12 @@ in
       mainBar = {
         layer = "top";
         position = "top";
-        height = 42;
+        height = 34;
         spacing = 6;
-        margin-top = 0;
+        margin-top = 4;
         margin-bottom = 0;
+        margin-left = 10;
+        margin-right = 10;
 
         modules-left = [
           "hyprland/workspaces"
@@ -218,11 +238,11 @@ in
           "network"
           "idle_inhibitor"
         ];
-        modules-center = [ "hyprland/submap" ];
-        modules-right = [
+        modules-center = [
+          "hyprland/submap"
           "clock"
-        ]
-        ++ lib.optional hasBattery "battery"
+        ];
+        modules-right = lib.optional hasBattery "battery"
         ++ [
           "wireplumber"
           "group/hardware"

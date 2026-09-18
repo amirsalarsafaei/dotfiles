@@ -17,6 +17,59 @@ let
 
   workEffortLevel = "xhigh";
 
+  usagePriceModel = lib.types.submodule {
+    options = {
+      input = lib.mkOption {
+        type = lib.types.float;
+        description = "USD per 1M non-cache input tokens (peak/standard rate).";
+      };
+      output = lib.mkOption {
+        type = lib.types.float;
+        description = "USD per 1M output tokens (peak/standard rate).";
+      };
+      cacheRead = lib.mkOption {
+        type = lib.types.float;
+        description = "USD per 1M cache-read input tokens (peak/standard rate).";
+      };
+      cacheCreate = lib.mkOption {
+        type = lib.types.float;
+        description = "USD per 1M cache-creation input tokens (peak/standard rate).";
+      };
+      inputOffpeak = lib.mkOption {
+        type = lib.types.nullOr lib.types.float;
+        default = null;
+        description = "USD per 1M non-cache input tokens during off-peak hours, if discounted.";
+      };
+      outputOffpeak = lib.mkOption {
+        type = lib.types.nullOr lib.types.float;
+        default = null;
+        description = "USD per 1M output tokens during off-peak hours, if discounted.";
+      };
+      cacheReadOffpeak = lib.mkOption {
+        type = lib.types.nullOr lib.types.float;
+        default = null;
+        description = "USD per 1M cache-read input tokens during off-peak hours, if discounted.";
+      };
+      cacheCreateOffpeak = lib.mkOption {
+        type = lib.types.nullOr lib.types.float;
+        default = null;
+        description = "USD per 1M cache-creation input tokens during off-peak hours, if discounted.";
+      };
+    };
+  };
+
+  usagePriceModelToJson =
+    m:
+    {
+      inherit (m) input output;
+      cache_read = m.cacheRead;
+      cache_create = m.cacheCreate;
+    }
+    // lib.optionalAttrs (m.inputOffpeak != null) { input_offpeak = m.inputOffpeak; }
+    // lib.optionalAttrs (m.outputOffpeak != null) { output_offpeak = m.outputOffpeak; }
+    // lib.optionalAttrs (m.cacheReadOffpeak != null) { cache_read_offpeak = m.cacheReadOffpeak; }
+    // lib.optionalAttrs (m.cacheCreateOffpeak != null) { cache_create_offpeak = m.cacheCreateOffpeak; };
+
   # Paths the bwrap sandbox must never let a Bash-tool subprocess read or
   # write, regardless of variant: SSH/GPG keyrings and every provider API key
   # file on disk. Nix derivations never get ambient access to secrets either
@@ -233,6 +286,40 @@ let
     };
   };
 
+  chromeDevtoolsMcp = pkgs.callPackage ../../../../pkgs/chrome-devtools-mcp.nix { };
+
+  browserMcpDirRel = ".config/claude-browser-mcp";
+  chromeMcpConfigRel = "${browserMcpDirRel}/chrome-devtools.json";
+  chromeMcpConfigPath = "${config.home.homeDirectory}/${chromeMcpConfigRel}";
+  playwrightMcpConfigRel = "${browserMcpDirRel}/playwright.json";
+  playwrightMcpConfigPath = "${config.home.homeDirectory}/${playwrightMcpConfigRel}";
+
+  chromeMcpServers = {
+    mcpServers = {
+      chrome-devtools = {
+        command = "${chromeDevtoolsMcp}/bin/chrome-devtools-mcp";
+        args = [
+          "--executablePath"
+          "${pkgs.google-chrome}/bin/google-chrome-stable"
+          "--no-category-performance"
+          "--no-usage-statistics"
+        ];
+      };
+    };
+  };
+
+  playwrightMcpServers = {
+    mcpServers = {
+      playwright = {
+        command = "${pkgs.playwright-mcp}/bin/playwright-mcp";
+        args = [ "--caps=network,storage" ];
+        env = {
+          PLAYWRIGHT_MCP_USER_DATA_DIR = "${config.home.homeDirectory}/.cache/playwright-mcp/chrome-profile";
+        };
+      };
+    };
+  };
+
   agenticMcpParserText = mkBoolFlagParser {
     flag = "--agentic-mcps";
     resultVar = "_claude_agentic_mcps";
@@ -287,6 +374,16 @@ let
     };
     levelEnv = "CAVEMAN_DEFAULT_MODE";
     levels = cavemanLevels;
+  }
+  ++ lib.optional cfg.enableObsidian {
+    flag = "--obsidian";
+    plugin = "claude-obsidian@agricidaniel-claude-obsidian";
+    enable = true;
+    desc = "enable the claude-obsidian vault plugin for this launch";
+    marketplace = obsidianMarketplace;
+    env = {
+      CLAUDE_OBSIDIAN_VAULT = obsidianVaultPath;
+    };
   };
 
   flagPluginsZshArgs = lib.concatMapStringsSep " " (
@@ -401,6 +498,26 @@ let
     unset _claude_plugin_flags _claude_plugin_marketplaces _claude_plugin_env
   '';
 
+  browserMcpParserText =
+    mkBoolFlagParser {
+      flag = "--chrome";
+      resultVar = "_claude_chrome";
+    }
+    + mkBoolFlagParser {
+      flag = "--playwright";
+      resultVar = "_claude_playwright";
+    };
+
+  browserMcpArgText = ''
+    if [ "$_claude_chrome" -eq 1 ]; then
+      _claude_extra_args+=(--mcp-config "${chromeMcpConfigPath}")
+    fi
+    if [ "$_claude_playwright" -eq 1 ]; then
+      _claude_extra_args+=(--mcp-config "${playwrightMcpConfigPath}")
+    fi
+    unset _claude_chrome _claude_playwright
+  '';
+
   localMcpConfigRel = ".config/local-claude/mcp-servers.json";
   localMcpConfigPath = "${config.home.homeDirectory}/${localMcpConfigRel}";
   localMcpServers = {
@@ -410,8 +527,8 @@ let
         url = "https://mcp.exa.ai/mcp";
       };
       godot = {
-        command = "npx";
-        args = [ "@coding-solo/godot-mcp" ];
+        command = "node";
+        args = [ "${config.home.homeDirectory}/personal/godot-mcp/build/index.js" ];
       };
     };
   };
@@ -533,9 +650,11 @@ let
   workWrapperTail = ''
     ${effortParserText}
     ${pluginFlagsParserText}
+    ${browserMcpParserText}
 
     ${healClaudeState}/bin/heal-claude-json || true
     ${pluginSettingsArgText}
+    ${browserMcpArgText}
     exec ${pkgs.claude-code}/bin/claude "''${_claude_extra_args[@]}" "$@"
   '';
 
@@ -614,8 +733,10 @@ let
       export CLAUDE_CODE_MAX_CONTEXT_TOKENS="1048576"
       ${effortParserText}
       ${pluginFlagsParserText}
+      ${browserMcpParserText}
       ${healClaudeState}/bin/heal-claude-json || true
       ${pluginSettingsArgText}
+      ${browserMcpArgText}
       exec ${pkgs.claude-code}/bin/claude "''${_claude_extra_args[@]}" "$@"
     '';
   };
@@ -772,16 +893,36 @@ let
     '';
   };
 
+  glmPricesJson = builtins.toJSON (lib.mapAttrs (_: usagePriceModelToJson) cfg.glmPrices);
+  deepseekPricesJson = builtins.toJSON (lib.mapAttrs (_: usagePriceModelToJson) cfg.deepseekPrices);
+
   glmUsage = pkgs.writeShellApplication {
     name = "glm-usage";
     runtimeInputs = [ pkgs.python3 ];
     text = ''
-      export GLM_PRICE_INPUT="''${GLM_PRICE_INPUT-${toString cfg.glmPrices.input}}"
-      export GLM_PRICE_OUTPUT="''${GLM_PRICE_OUTPUT-${toString cfg.glmPrices.output}}"
-      export GLM_PRICE_CACHE_READ="''${GLM_PRICE_CACHE_READ-${toString cfg.glmPrices.cacheRead}}"
-      export GLM_PRICE_CACHE_CREATE="''${GLM_PRICE_CACHE_CREATE-${toString cfg.glmPrices.cacheCreate}}"
+      if [ -z "''${GLM_PRICES:-}" ]; then
+        export GLM_PRICES=${lib.escapeShellArg glmPricesJson}
+      fi
       export GLM_BILLING_DAY="''${GLM_BILLING_DAY-${toString cfg.glmBillingDay}}"
-      exec ${pkgs.python3}/bin/python3 ${./glm-usage.py} "$@"
+      exec ${pkgs.python3}/bin/python3 ${./usage-tracker.py} GLM "$@"
+    '';
+  };
+
+  deepseekUsage = pkgs.writeShellApplication {
+    name = "deepseek-usage";
+    runtimeInputs = [ pkgs.python3 ];
+    text = ''
+      if [ -z "''${DEEPSEEK_PRICES:-}" ]; then
+        export DEEPSEEK_PRICES=${lib.escapeShellArg deepseekPricesJson}
+      fi
+      if [ -z "''${DEEPSEEK_PEAK_UTC_HOURS:-}" ]; then
+        export DEEPSEEK_PEAK_UTC_HOURS=${lib.escapeShellArg cfg.deepseekPeakUtcHours}
+      fi
+      if [ -z "''${DEEPSEEK_PEAK_WEEKDAYS:-}" ]; then
+        export DEEPSEEK_PEAK_WEEKDAYS=${lib.escapeShellArg cfg.deepseekPeakWeekdays}
+      fi
+      export DEEPSEEK_BILLING_DAY="''${DEEPSEEK_BILLING_DAY-${toString cfg.deepseekBillingDay}}"
+      exec ${pkgs.python3}/bin/python3 ${./usage-tracker.py} DEEPSEEK "$@"
     '';
   };
 
@@ -798,6 +939,23 @@ let
         printf '%s\n' "$base"
       else
         printf 'glm\n'
+      fi
+    '';
+  };
+
+  deepseekStatusLine = pkgs.writeShellApplication {
+    name = "deepseek-claude-statusline";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = ''
+      input=$(cat)
+      base=$(${claudeStatusLine}/bin/claude-statusline <<<"$input" 2>/dev/null || true)
+      seg=$(${deepseekUsage}/bin/deepseek-usage statusline 2>/dev/null || true)
+      if [ -n "$seg" ] && [ -n "$base" ]; then
+        printf '%s | %s\n' "$base" "$seg"
+      elif [ -n "$base" ]; then
+        printf '%s\n' "$base"
+      else
+        printf 'deepseek\n'
       fi
     '';
   };
@@ -837,14 +995,17 @@ let
       ${divarPathGuardText}
       export CLAUDE_VARIANT_NAME="personal-claude"
       export CLAUDE_CONFIG_DIR="${personalClaudeConfigDir}"
+      export CLAUDE_CODE_SUBAGENT_MODEL="sonnet"
       export TZ="Europe/Berlin"
       export TZDIR="${pkgs.tzdata}/share/zoneinfo"
       ${effortParserText}
       ${agenticMcpParserText}
       ${gitlabMcpParserText}
       ${pluginFlagsParserText}
+      ${browserMcpParserText}
       ${healClaudeState}/bin/heal-claude-json || true
       ${pluginSettingsArgText}
+      ${browserMcpArgText}
       if [ "$_claude_agentic_mcps" -eq 1 ]; then
         if [ "$_claude_gitlab_mcp" -eq 1 ]; then
           exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "''${_claude_extra_args[@]}" "$@"
@@ -868,8 +1029,10 @@ let
       export ANTHROPIC_BASE_URL="https://api.gapgpt.app/"
       ${effortParserText}
       ${pluginFlagsParserText}
+      ${browserMcpParserText}
       ${healClaudeState}/bin/heal-claude-json || true
       ${pluginSettingsArgText}
+      ${browserMcpArgText}
       exec ${pkgs.claude-code}/bin/claude "''${_claude_extra_args[@]}" "$@"
     '';
   };
@@ -886,6 +1049,7 @@ let
       ${ipGuardText}
       export CLAUDE_VARIANT_NAME="work-claude"
       export CLAUDE_CONFIG_DIR="${workClaudeConfigDir}"
+      export CLAUDE_CODE_SUBAGENT_MODEL="sonnet"
       export TZ="Asia/Singapore"
       export TZDIR="${pkgs.tzdata}/share/zoneinfo"
       export CLAUDE_CODE_EFFORT_DEFAULT="${workEffortLevel}"
@@ -908,8 +1072,10 @@ let
       export ANTHROPIC_SMALL_FAST_MODEL="${localModelFast}"
       ${effortParserText}
       ${pluginFlagsParserText}
+      ${browserMcpParserText}
       ${healClaudeState}/bin/heal-claude-json || true
       ${pluginSettingsArgText}
+      ${browserMcpArgText}
       exec claude --mcp-config "${localMcpConfigPath}" "''${_claude_extra_args[@]}" "$@"
     '';
   };
@@ -995,13 +1161,9 @@ let
     variant: name: base:
     let
       plugins = cfg.plugins.default // cfg.plugins.${variant};
-      # claude-obsidian goes on every variant except local-claude, which the
-      # user keeps deliberately minimal (fewer plugins = less model context).
-      obsidian = cfg.enableObsidian && variant != "local";
       cavemanMode = cfg.cavemanMode.${name};
       caveman = cfg.enableCaveman && cavemanMode != null;
-      marketplaces =
-        lib.optionalAttrs obsidian obsidianMarketplace // lib.optionalAttrs caveman cavemanMarketplace;
+      marketplaces = lib.optionalAttrs caveman cavemanMarketplace;
       env =
         # Keeps Claude's renderer in the terminal's normal scrollback instead
         # of the alternate screen. Inside zellij (mouse_mode = true, see
@@ -1013,7 +1175,6 @@ let
         {
           CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN = "1";
         }
-        // lib.optionalAttrs obsidian { CLAUDE_OBSIDIAN_VAULT = obsidianVaultPath; }
         // lib.optionalAttrs caveman {
           CLAUDE_CAVEMAN = "1";
           CAVEMAN_DEFAULT_MODE = cavemanMode;
@@ -1026,11 +1187,10 @@ let
       };
     }
     // base
-    // lib.optionalAttrs (plugins != { } || base ? enabledPlugins || obsidian || caveman) {
+    // lib.optionalAttrs (plugins != { } || base ? enabledPlugins || caveman) {
       # cfg.plugins last, so a per-variant `false` can still switch these off.
       enabledPlugins =
         (base.enabledPlugins or { })
-        // lib.optionalAttrs obsidian obsidianPlugin
         // lib.optionalAttrs caveman cavemanPlugin
         // plugins;
     }
@@ -1169,14 +1329,10 @@ let
   # 3.11+, already on PATH via the dev profile), so no compiled binary or flake
   # input is needed — Claude Code clones the repo at first launch.
   #
-  # Not gated with lib.optionalAttrs here; the enableObsidian/`variant != "local"`
-  # decision lives in mkSettings so it lands on every variant but local-claude.
+  # Neither the marketplace nor the plugin reaches a variant's settings.json:
+  # both are injected only by the --obsidian overlay in flagPlugins.
   obsidianMarketplace = {
     "agricidaniel-claude-obsidian" = mkGithubMarketplace "AgriciDaniel/claude-obsidian";
-  };
-
-  obsidianPlugin = {
-    "claude-obsidian@agricidaniel-claude-obsidian" = true;
   };
 
   # Must stay in sync with `vaultRel` in home/modules/programs/desktop/obsidian.nix.
@@ -1261,6 +1417,10 @@ let
     extraKnownMarketplaces = devarMarketplace // astGrepMarketplace;
     enabledPlugins = devarPlugin // astGrepPlugin;
     permissions = devarPermissions;
+    statusLine = {
+      type = "command";
+      command = "${deepseekStatusLine}/bin/deepseek-claude-statusline";
+    };
   };
 
   personalDeepseekSettings = {
@@ -1270,6 +1430,10 @@ let
     };
     extraKnownMarketplaces = astGrepMarketplace;
     enabledPlugins = astGrepPlugin;
+    statusLine = {
+      type = "command";
+      command = "${deepseekStatusLine}/bin/deepseek-claude-statusline";
+    };
   };
 
   personalSettings = {
@@ -1440,42 +1604,38 @@ in
       the claude-obsidian plugin (github.com/AgriciDaniel/claude-obsidian): a
       local-first "second brain" for an Obsidian vault — source-cited wiki
       pages, research/retrieval/lint skills, and recoverable transactions.
-      Registered as a github plugin marketplace, same mechanism as enableCaveman,
-      and enabled on every variant except local-claude (kept minimal on purpose).
-      Points CLAUDE_OBSIDIAN_VAULT at ~/Documents/amirsalar-vault; adopt that
-      vault once with /claude-obsidian:wiki after the first launch
+      Registered as a github plugin marketplace, same mechanism as enableCaveman.
+      Loaded on no variant by default: its 15 skills and 3 agents are worth
+      roughly 1.5k always-on tokens, so it costs nothing until a launch passes
+      --obsidian, which enables the plugin and points CLAUDE_OBSIDIAN_VAULT at
+      ~/Documents/amirsalar-vault for that launch. Adopt that vault once with
+      /claude-obsidian:wiki from an --obsidian launch
     '';
 
     glmPrices = lib.mkOption {
-      type = lib.types.submodule {
-        options = {
-          input = lib.mkOption {
-            type = lib.types.float;
-            default = 1.40;
-            description = "USD per 1M non-cache input tokens for the glm-5.3 endpoint.";
-          };
-          output = lib.mkOption {
-            type = lib.types.float;
-            default = 4.40;
-            description = "USD per 1M output tokens.";
-          };
-          cacheRead = lib.mkOption {
-            type = lib.types.float;
-            default = 0.26;
-            description = "USD per 1M cache-read input tokens.";
-          };
-          cacheCreate = lib.mkOption {
-            type = lib.types.float;
-            default = 1.40;
-            description = "USD per 1M cache-creation input tokens.";
-          };
+      type = lib.types.attrsOf usagePriceModel;
+      default = {
+        "glm-5.3" = {
+          input = 1.40;
+          output = 4.40;
+          cacheRead = 0.26;
+          cacheCreate = 1.40;
+        };
+        "glm-5.3-flash" = {
+          input = 0.15;
+          output = 0.50;
+          cacheRead = 0.03;
+          cacheCreate = 0.15;
         };
       };
-      default = { };
       description = ''
-        Per-1M-token USD prices for the glm-5.3 (z.ai) endpoint, consumed by
-        the `glm-usage` tracker and its statusline week/month cost. Override
-        per-host if your plan's rates differ.
+        Per-model, per-1M-token USD prices for the z.ai GLM endpoint (docs.z.ai
+        pricing), consumed by `usage-tracker` and its statusline week/month
+        cost. Keyed by the model id a turn's transcript records — glm-5.3 is
+        the main model, glm-5.3-flash backs the Haiku/subagent slot (see
+        glmClaude's ANTHROPIC_DEFAULT_HAIKU_MODEL). A turn's model is matched
+        against the longest key it starts with. Override per-host if your
+        plan's rates differ.
       '';
     };
 
@@ -1486,6 +1646,74 @@ in
         Day of month the glm-5.3 billing cycle resets. The statusline's "mo"
         window runs from this day to the day before next month's same day
         (default the 5th).
+      '';
+    };
+
+    deepseekPrices = lib.mkOption {
+      type = lib.types.attrsOf usagePriceModel;
+      default = {
+        "deepseek-v4-pro" = {
+          input = 1.32;
+          output = 3.96;
+          cacheRead = 0.044;
+          cacheCreate = 1.32;
+          inputOffpeak = 0.66;
+          outputOffpeak = 1.98;
+          cacheReadOffpeak = 0.022;
+          cacheCreateOffpeak = 0.66;
+        };
+        "deepseek-flash" = {
+          input = 0.30;
+          output = 1.20;
+          cacheRead = 0.006;
+          cacheCreate = 0.30;
+          inputOffpeak = 0.15;
+          outputOffpeak = 0.60;
+          cacheReadOffpeak = 0.003;
+          cacheCreateOffpeak = 0.15;
+        };
+      };
+      description = ''
+        Per-model, per-1M-token USD prices for the DeepSeek platform
+        (api-docs.deepseek.com pricing), consumed by `usage-tracker` and its
+        statusline week/month cost. Keyed by the model id a turn's transcript
+        records — deepseek-v4-pro backs the deepseek-claude/personal-deepseek-
+        claude Opus/Sonnet slots, deepseek-flash backs Haiku/subagent. The
+        "peak" fields (input/output/cacheRead/cacheCreate) are the standard
+        rate; the "Offpeak" fields are DeepSeek's discounted off-peak rate,
+        applied by `deepseekPeakUtcHours`/`deepseekPeakWeekdays`. Override
+        per-host if DeepSeek's published rates change.
+      '';
+    };
+
+    deepseekPeakUtcHours = lib.mkOption {
+      type = lib.types.str;
+      default = "1-4,6-10";
+      description = ''
+        Comma-separated UTC hour ranges (half-open, e.g. "1-4,6-10") during
+        which DeepSeek bills its standard (peak) rate; every other hour uses
+        each model's *Offpeak price. Empty string disables the peak/off-peak
+        split and always bills the standard rate.
+      '';
+    };
+
+    deepseekPeakWeekdays = lib.mkOption {
+      type = lib.types.str;
+      default = "0-4";
+      description = ''
+        Comma-separated weekday range that `deepseekPeakUtcHours` applies on,
+        Monday = 0 .. Sunday = 6 (default Mon-Fri; weekends are always
+        off-peak). Only meaningful when deepseekPeakUtcHours is non-empty.
+      '';
+    };
+
+    deepseekBillingDay = lib.mkOption {
+      type = lib.types.ints.between 1 31;
+      default = 1;
+      description = ''
+        Day of month the statusline's DeepSeek "mo" window resets. DeepSeek is
+        prepaid (no subscription cycle), so this just picks a display window
+        — default the 1st (calendar month).
       '';
     };
 
@@ -1703,6 +1931,22 @@ in
       );
       home.file.".config/personal-claude/CLAUDE.md".text = nixManagedNote;
     })
+    (lib.mkIf
+      (
+        cfg.enable
+        || cfg.enableWork
+        || cfg.enableLocal
+        || cfg.enablePersonal
+        || cfg.enableDeepseek
+        || cfg.enablePersonalDeepseek
+      )
+      {
+        home.file = {
+          ${chromeMcpConfigRel}.text = builtins.toJSON chromeMcpServers;
+          ${playwrightMcpConfigRel}.text = builtins.toJSON playwrightMcpServers;
+        };
+      }
+    )
     (lib.mkIf
       (
         cfg.enable

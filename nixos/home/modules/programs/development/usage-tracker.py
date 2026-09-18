@@ -1,22 +1,32 @@
-# glm-usage — whole-usage tracker for glm-claude (glm-5.2).
+#!/usr/bin/env python3
+# usage-tracker — whole-usage tracker for a Claude Code provider variant
+# (glm-claude, deepseek-claude, ...). Parametrized by --price-prefix so one
+# script backs every variant instead of duplicating the transcript parsing.
 #
-# Reads every session transcript under glm-claude's projects/ dir and adds up
-# token usage per assistant turn (message.usage). Two modes:
-#   glm-usage              -> all-time report (totals, by day/project/model)
-#   glm-usage statusline   -> compact "$X/wk $Y/mo" for the Claude Code
-#                             statusline (week starts Saturday), cached + a
-#                             non-blocking background refresh so the ~300ms
-#                             statusline cadence never stalls on the 0.4s scan.
+# Reads every session transcript under the variant's projects/ dir and adds
+# up token usage per assistant turn (message.usage). Two modes:
+#   usage-tracker <prefix> report       -> all-time report (totals, by
+#                                           day/project/model)
+#   usage-tracker <prefix> statusline   -> compact "$X/wk $Y/mo" for the
+#                                           Claude Code statusline (week
+#                                           starts Saturday), cached + a
+#                                           non-blocking background refresh
+#                                           so the ~300ms statusline cadence
+#                                           never stalls on the transcript scan.
 #
-# The transcripts are the source of truth — glm-claude's own stats-cache.json
-# is a stale cache, reports costUSD: 0, AND double-counts (it sums every logged
-# copy of a response), so we parse + dedup the raw JSONL instead.
+# The transcripts are the source of truth — a provider's own stats-cache.json
+# (when it has one) tends to be stale, report costUSD: 0, and double-count (it
+# sums every logged copy of a response), so we parse + dedup the raw JSONL.
 #
-# Prices are Nix-configured: the wrapper (claude-code.nix, glmUsage) exports
-# GLM_PRICE_INPUT/OUTPUT/CACHE_READ/CACHE_CREATE per-1M-token USD from
-# custom.claudeCode.glmPrices, and this script reads them. An explicit env
-# export overrides the wrapper's value for a single invocation. The billing
-# cycle start day comes from GLM_BILLING_DAY (custom.claudeCode.glmBillingDay).
+# Prices are Nix-configured per model: <PREFIX>_PRICES is a JSON object
+# {model-name-or-prefix: {input, output, cache_read, cache_create, and
+# optionally input_offpeak/output_offpeak/cache_read_offpeak/
+# cache_create_offpeak}} in USD per 1M tokens. A record's model is matched
+# against the longest key it starts with. When a model's entry carries
+# *_offpeak fields, <PREFIX>_PEAK_UTC_HOURS ("1-4,6-10") and
+# <PREFIX>_PEAK_WEEKDAYS ("0-4", Mon=0) pick peak vs. off-peak pricing from
+# the turn's UTC timestamp; otherwise the base fields apply to every hour.
+# The billing-month window start day comes from <PREFIX>_BILLING_DAY.
 import argparse
 import calendar
 import json
@@ -25,27 +35,23 @@ import subprocess
 import sys
 import time
 from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-CONFIG_ENV_VARS = ("GLM_CLAUDE_CONFIG_DIR", "CLAUDE_CONFIG_DIR")
-DEFAULT_CONFIG_DIR = "~/.config/glm-claude"
-PRICE_KEYS = ("GLM_PRICE_INPUT", "GLM_PRICE_OUTPUT", "GLM_PRICE_CACHE_READ", "GLM_PRICE_CACHE_CREATE")
 
-
-def find_config_dir(cli_dir):
+def find_config_dir(cli_dir, config_env_var, default_config_dir):
     if cli_dir:
         return Path(cli_dir).expanduser()
-    for var in CONFIG_ENV_VARS:
+    for var in (config_env_var, "CLAUDE_CONFIG_DIR"):
         val = os.environ.get(var)
         if val:
             return Path(val).expanduser()
-    return Path(DEFAULT_CONFIG_DIR).expanduser()
+    return Path(default_config_dir).expanduser()
 
 
-def cache_dir():
+def cache_dir(label):
     base = os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache")
-    return Path(base) / "glm-usage"
+    return Path(base) / f"usage-tracker-{label}"
 
 
 def parse_day(ts):
@@ -54,6 +60,15 @@ def parse_day(ts):
         return None
     try:
         return datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone().strftime("%Y-%m-%d")
+    except ValueError:
+        return None
+
+
+def parse_utc(ts):
+    if not ts:
+        return None
+    try:
+        return datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone(timezone.utc)
     except ValueError:
         return None
 
@@ -68,10 +83,10 @@ def iter_usage_records(projects_dir, min_mtime=None):
     """
     if not projects_dir.is_dir():
         return
-    # Dedup: glm-claude logs each assistant response several times under one
-    # requestId — identical usage, milliseconds apart (a streaming/commit
+    # Dedup: some providers log each assistant response several times under
+    # one requestId — identical usage, milliseconds apart (a streaming/commit
     # artifact, not separate billed API calls). Summing every copy inflates
-    # totals ~3x, so count each requestId once. Fall back to message.id, then
+    # totals, so count each requestId once. Fall back to message.id, then
     # uuid, when requestId is absent.
     seen = set()
     for transcript in sorted(projects_dir.glob("*/*.jsonl")):
@@ -103,8 +118,7 @@ def iter_usage_records(projects_dir, min_mtime=None):
                     cr = usage.get("cache_read_input_tokens", 0)
                     cc = usage.get("cache_creation_input_tokens", 0)
                     # Skip synthetic no-op turns (e.g. "<synthetic>" title
-                    # generation) that carry zero tokens — they clutter counts
-                    # and BY MODEL without contributing usage.
+                    # generation) that carry zero tokens.
                     if not (inp or out or cr or cc):
                         continue
                     key = rec.get("requestId") or msg.get("id") or rec.get("uuid")
@@ -116,6 +130,7 @@ def iter_usage_records(projects_dir, min_mtime=None):
                     stu = usage.get("server_tool_use") or {}
                     yield {
                         "day": parse_day(ts),
+                        "ts": ts,
                         "model": msg.get("model", "unknown"),
                         "project": rec.get("cwd") or project,
                         "project_dir": project,
@@ -157,47 +172,120 @@ def pct(num, denom):
     return f"{100.0 * num / denom:.1f}%"
 
 
-def get_prices():
-    """Per-1M-token USD prices from env; None if none set."""
-    vals = []
-    for k in PRICE_KEYS:
-        v = os.environ.get(k)
-        try:
-            vals.append(float(v) if v not in (None, "") else None)
-        except ValueError:
-            print(f"glm-usage: ignoring non-numeric {k}={v!r}", file=sys.stderr)
-            vals.append(None)
-    if all(v is None for v in vals):
+def get_prices(price_prefix):
+    """Per-model USD-per-1M-token price table from <PREFIX>_PRICES; None if unset/invalid."""
+    raw = os.environ.get(f"{price_prefix}_PRICES")
+    if not raw:
         return None
-    return {k: (v or 0.0) for k, v in zip(PRICE_KEYS, vals)}
+    try:
+        table = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        print(f"usage-tracker: ignoring non-JSON {price_prefix}_PRICES", file=sys.stderr)
+        return None
+    return table if isinstance(table, dict) and table else None
 
 
-def cost_of(totals, prices):
+def parse_hour_ranges(s):
+    ranges = []
+    for part in (s or "").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            a, b = part.split("-")
+            ranges.append((int(a), int(b)))
+        except ValueError:
+            continue
+    return ranges
+
+
+def parse_weekdays(s):
+    days = set()
+    for part in (s or "").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            if "-" in part:
+                a, b = part.split("-")
+                days.update(range(int(a), int(b) + 1))
+            else:
+                days.add(int(part))
+        except ValueError:
+            continue
+    return days
+
+
+def get_peak_schedule(price_prefix):
+    ranges = parse_hour_ranges(os.environ.get(f"{price_prefix}_PEAK_UTC_HOURS", ""))
+    weekdays = parse_weekdays(os.environ.get(f"{price_prefix}_PEAK_WEEKDAYS", "0-6"))
+    return ranges, weekdays
+
+
+def is_peak(dt_utc, ranges, weekdays):
+    if not ranges:
+        return True
+    if dt_utc is None:
+        return True
+    if weekdays and dt_utc.weekday() not in weekdays:
+        return False
+    return any(a <= dt_utc.hour < b for a, b in ranges)
+
+
+def model_entry(prices, model):
     if not prices:
+        return None
+    if model in prices:
+        return prices[model]
+    best = None
+    for key, entry in prices.items():
+        if model.startswith(key) and (best is None or len(key) > len(best[0])):
+            best = (key, entry)
+    if best:
+        return best[1]
+    if len(prices) == 1:
+        return next(iter(prices.values()))
+    return None
+
+
+def unit_price(entry, field, peak):
+    if not peak:
+        off = entry.get(f"{field}_offpeak")
+        if off is not None:
+            return off
+    return entry.get(field, 0.0) or 0.0
+
+
+def record_cost(r, prices, peak_ranges, peak_weekdays):
+    entry = model_entry(prices, r["model"])
+    if entry is None:
         return 0.0
+    peak = is_peak(parse_utc(r["ts"]), peak_ranges, peak_weekdays)
     return (
-        totals["input"] * prices["GLM_PRICE_INPUT"] / 1_000_000
-        + totals["output"] * prices["GLM_PRICE_OUTPUT"] / 1_000_000
-        + totals["cache_read"] * prices["GLM_PRICE_CACHE_READ"] / 1_000_000
-        + totals["cache_create"] * prices["GLM_PRICE_CACHE_CREATE"] / 1_000_000
+        r["input"] * unit_price(entry, "input", peak) / 1_000_000
+        + r["output"] * unit_price(entry, "output", peak) / 1_000_000
+        + r["cache_read"] * unit_price(entry, "cache_read", peak) / 1_000_000
+        + r["cache_create"] * unit_price(entry, "cache_create", peak) / 1_000_000
     )
 
 
 def empty_totals():
-    return defaultdict(int)
+    return defaultdict(float)
 
 
-def add_totals(acc, r):
+def add_totals(acc, r, prices, peak_ranges, peak_weekdays):
     for k in ("input", "output", "cache_read", "cache_create", "web_search"):
         acc[k] += r[k]
     acc["turns"] += 1
+    if prices is not None:
+        acc["cost"] += record_cost(r, prices, peak_ranges, peak_weekdays)
 
 
 # ---------------------------------------------------------------------------
 # report mode
 # ---------------------------------------------------------------------------
 
-def render_report(args, records):
+def render_report(args, records, label, prices, peak_ranges, peak_weekdays):
     keep = []
     for r in records:
         day = r["day"]
@@ -211,14 +299,14 @@ def render_report(args, records):
         return
 
     totals = empty_totals()
-    by_day = defaultdict(lambda: defaultdict(int))
-    by_project = defaultdict(lambda: defaultdict(int))
-    by_model = defaultdict(lambda: defaultdict(int))
+    by_day = defaultdict(lambda: defaultdict(float))
+    by_project = defaultdict(lambda: defaultdict(float))
+    by_model = defaultdict(lambda: defaultdict(float))
     sessions, days = set(), set()
     first_day = last_day = None
 
     for r in keep:
-        add_totals(totals, r)
+        add_totals(totals, r, prices, peak_ranges, peak_weekdays)
         if r["day"]:
             days.add(r["day"])
             first_day = r["day"] if first_day is None else min(first_day, r["day"])
@@ -232,6 +320,8 @@ def render_report(args, records):
         for k in ("input", "output", "cache_read", "cache_create"):
             by_model[r["model"]][k] += r[k]
         by_model[r["model"]]["turns"] += 1
+        if prices is not None:
+            by_model[r["model"]]["cost"] += record_cost(r, prices, peak_ranges, peak_weekdays)
         if r["session"]:
             sessions.add(r["session"])
 
@@ -251,24 +341,23 @@ def render_report(args, records):
         }, indent=2))
         return
 
-    prices = get_prices()
     span = f"{first_day} → {last_day}" if first_day else "(no timestamps)"
-    print(f"\n  glm-claude usage   {span}")
+    print(f"\n  {label} usage   {span}")
     print(f"  {len(keep):,} assistant turns · {len(sessions)} sessions · {len(by_project)} projects\n")
     print("  TOTAL")
-    print(f"    input        {human(totals['input']):>10}   {comma(totals['input'])}")
-    print(f"    output       {human(totals['output']):>10}   {comma(totals['output'])}")
-    print(f"    cache read   {human(totals['cache_read']):>10}   {comma(totals['cache_read'])}")
-    print(f"    cache create {human(totals['cache_create']):>10}   {comma(totals['cache_create'])}")
+    print(f"    input        {human(totals['input']):>10}   {comma(int(totals['input']))}")
+    print(f"    output       {human(totals['output']):>10}   {comma(int(totals['output']))}")
+    print(f"    cache read   {human(totals['cache_read']):>10}   {comma(int(totals['cache_read']))}")
+    print(f"    cache create {human(totals['cache_create']):>10}   {comma(int(totals['cache_create']))}")
     print(f"    {'─' * 44}")
-    print(f"    total        {human(totals['total']):>10}   {comma(totals['total'])}")
+    print(f"    total        {human(totals['total']):>10}   {comma(int(totals['total']))}")
     print(f"    cache hit    {pct(totals['cache_read'], input_side):>10}")
     if totals["web_search"]:
         print(f"    web searches {human(totals['web_search']):>10}")
     if prices is not None:
-        print(f"    est. cost    ${cost_of(totals, prices):>9.2f}   (env GLM_PRICE_*)")
+        print(f"    est. cost    ${totals['cost']:>9.2f}   (env {args.price_prefix}_PRICES)")
     else:
-        print("    est. cost    (set GLM_PRICE_INPUT/OUTPUT/CACHE_READ/CACHE_CREATE to enable)")
+        print(f"    est. cost    (set {args.price_prefix}_PRICES to enable)")
 
     day_items = sorted(by_day.items())
     show_days = day_items if args.all_days else day_items[-args.days:]
@@ -288,7 +377,7 @@ def render_report(args, records):
         print(f"\n  BY PROJECT  (top {len(proj_rows)}, --top N)")
         for proj, v in proj_rows:
             t = sum(v[k] for k in ("input", "output", "cache_read", "cache_create"))
-            print(f"    {human(t):>8}  {v['turns']:>5} turns  {proj}")
+            print(f"    {human(t):>8}  {int(v['turns']):>5} turns  {proj}")
 
     if len(by_model) > 1 or args.model:
         model_rows = sorted(
@@ -299,7 +388,8 @@ def render_report(args, records):
         print("\n  BY MODEL")
         for model, v in model_rows:
             t = sum(v[k] for k in ("input", "output", "cache_read", "cache_create"))
-            print(f"    {human(t):>8}  {v['turns']:>5} turns  {model}")
+            cost_suffix = f"  ${v['cost']:.2f}" if prices is not None else ""
+            print(f"    {human(t):>8}  {int(v['turns']):>5} turns  {model}{cost_suffix}")
     print()
 
 
@@ -307,13 +397,12 @@ def render_report(args, records):
 # statusline mode (Saturday-start week + billing-month, cached)
 # ---------------------------------------------------------------------------
 
-def get_billing_day():
-    """Billing-cycle reset day-of-month from $GLM_BILLING_DAY (default 5)."""
+def get_billing_day(price_prefix):
     try:
-        d = int(os.environ.get("GLM_BILLING_DAY", "5"))
-        return d if 1 <= d <= 31 else 5
+        d = int(os.environ.get(f"{price_prefix}_BILLING_DAY", "1"))
+        return d if 1 <= d <= 31 else 1
     except ValueError:
-        return 5
+        return 1
 
 
 def billing_month_start(today, day):
@@ -333,12 +422,12 @@ def billing_month_start(today, day):
     return clamp(py, pm)
 
 
-def current_boundaries(billing_day=5):
+def current_boundaries(billing_day):
     """(week_start_str, month_start_str, month_start_epoch) in local time.
 
     Week starts Saturday: shift back so the week's first day is the most recent
     Saturday (Saturday itself is day 0 of its week). Month starts on the
-    configured billing day (GLM_BILLING_DAY, default the 5th).
+    configured billing day (<PREFIX>_BILLING_DAY).
     """
     today = date.today()
     days_since_sat = (today.weekday() - 5) % 7  # Mon=0..Sun=6, Sat=5
@@ -348,8 +437,8 @@ def current_boundaries(billing_day=5):
     return week_start.strftime("%Y-%m-%d"), month_start.strftime("%Y-%m-%d"), month_epoch
 
 
-def compute_window(projects_dir, billing_day):
-    """Token sums for the current week and current billing month."""
+def compute_window(projects_dir, billing_day, prices, peak_ranges, peak_weekdays):
+    """Token+cost sums for the current week and current billing month."""
     week_start, month_start, month_epoch = current_boundaries(billing_day)
     week_epoch = datetime.strptime(week_start, "%Y-%m-%d").timestamp()
     # Scan transcripts modified since the EARLIER of the two window starts
@@ -361,13 +450,13 @@ def compute_window(projects_dir, billing_day):
     month = empty_totals()
     for r in iter_usage_records(projects_dir, min_mtime=min_mtime):
         d = r["day"]
-        # Week and month are independent windows: the billing month (5th) can
-        # start AFTER the Saturday week-start, so neither is a subset of the
-        # other — sum them separately, not nested.
+        # Week and month are independent windows: the billing month can start
+        # AFTER the Saturday week-start, so neither is a subset of the other —
+        # sum them separately, not nested.
         if d and d >= week_start:
-            add_totals(week, r)
+            add_totals(week, r, prices, peak_ranges, peak_weekdays)
         if d and d >= month_start:
-            add_totals(month, r)
+            add_totals(month, r, prices, peak_ranges, peak_weekdays)
     return {
         "ts": time.time(),
         "week_start": week_start,
@@ -392,13 +481,13 @@ def write_cache(path, data):
         pass
 
 
-def spawn_refresh():
+def spawn_refresh(label, price_prefix):
     """Detach a background recompute so the statusline never blocks.
 
     A lockfile prevents pile-up if the statusline fires several times while a
     refresh is already running; the child removes it on completion.
     """
-    lock = cache_dir() / ".refresh.lock"
+    lock = cache_dir(label) / ".refresh.lock"
     # Reclaim a lock abandoned by a refresh that crashed mid-scan.
     try:
         if time.time() - lock.stat().st_mtime > 60:
@@ -413,7 +502,7 @@ def spawn_refresh():
     script = os.path.abspath(__file__)
     try:
         subprocess.Popen(
-            [sys.executable, script, "statusline", "--refresh"],
+            [sys.executable, script, price_prefix, "statusline", "--refresh"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             stdin=subprocess.DEVNULL,
@@ -429,21 +518,20 @@ def spawn_refresh():
 
 def fmt_window(totals, prices):
     if prices is not None:
-        return f"${cost_of(totals, prices):.2f}"
+        return f"${totals.get('cost', 0.0):.2f}"
     t = totals["input"] + totals["output"] + totals["cache_read"] + totals["cache_create"]
     return human(t)
 
 
-def render_statusline(args, projects_dir):
-    path = cache_dir() / "statusline.json"
-    prices = get_prices()
-    billing_day = get_billing_day()
+def render_statusline(args, projects_dir, label, price_prefix, prices, peak_ranges, peak_weekdays):
+    path = cache_dir(label) / "statusline.json"
+    billing_day = get_billing_day(price_prefix)
     week_start, month_start, _ = current_boundaries(billing_day)
 
     if args.refresh:
-        lock = cache_dir() / ".refresh.lock"
+        lock = cache_dir(label) / ".refresh.lock"
         try:
-            data = compute_window(projects_dir, billing_day)
+            data = compute_window(projects_dir, billing_day, prices, peak_ranges, peak_weekdays)
             write_cache(path, data)
             print(f"wk {fmt_window(data['week'], prices)} mo {fmt_window(data['month'], prices)}")
         finally:
@@ -468,22 +556,26 @@ def render_statusline(args, projects_dir):
     if cache:
         # Stale but present: show it now, refresh in the background.
         print(f"wk {fmt_window(cache['week'], prices)} mo {fmt_window(cache['month'], prices)}")
-        spawn_refresh()
+        spawn_refresh(label, price_prefix)
         return
     # No cache yet: compute once synchronously (first ever run).
-    data = compute_window(projects_dir, billing_day)
+    data = compute_window(projects_dir, billing_day, prices, peak_ranges, peak_weekdays)
     write_cache(path, data)
     print(f"wk {fmt_window(data['week'], prices)} mo {fmt_window(data['month'], prices)}")
 
 
 def main():
     ap = argparse.ArgumentParser(
-        prog="glm-usage",
-        description="Track whole token usage for glm-claude (parses session transcripts).",
+        prog="usage-tracker",
+        description="Track whole token usage for a Claude Code provider variant (parses session transcripts).",
     )
+    ap.add_argument("price_prefix", help="env var prefix, e.g. GLM or DEEPSEEK (reads <PREFIX>_PRICES etc.)")
     ap.add_argument("command", nargs="?", choices=["report", "statusline"], default="report",
                     help="report (default) or statusline")
-    ap.add_argument("--config-dir", help=f"glm-claude config dir (default: {DEFAULT_CONFIG_DIR} or $GLM_CLAUDE_CONFIG_DIR)")
+    ap.add_argument("--label", default=None, help="display label (default: price_prefix lowercased)")
+    ap.add_argument("--config-env-var", default=None, help="env var naming the config dir (falls back to CLAUDE_CONFIG_DIR)")
+    ap.add_argument("--default-config-dir", default="~/.claude", help="config dir if no env var is set")
+    ap.add_argument("--config-dir", help="override the config dir directly")
     # report options
     ap.add_argument("--since", help="start date YYYY-MM-DD (inclusive)")
     ap.add_argument("--until", help="end date YYYY-MM-DD (inclusive)")
@@ -498,22 +590,27 @@ def main():
     ap.add_argument("--ttl", type=int, default=300, help="statusline cache TTL seconds (default 300)")
     args = ap.parse_args()
 
-    cfg = find_config_dir(args.config_dir)
+    label = args.label or args.price_prefix.lower()
+    config_env_var = args.config_env_var or f"{args.price_prefix}_CLAUDE_CONFIG_DIR"
+    cfg = find_config_dir(args.config_dir, config_env_var, args.default_config_dir)
     projects_dir = cfg / "projects"
+    prices = get_prices(args.price_prefix)
+    peak_ranges, peak_weekdays = get_peak_schedule(args.price_prefix)
+
     if not projects_dir.is_dir():
         if args.command == "statusline":
             # A missing projects dir (fresh machine) is not worth a stderr
             # banner on every statusline tick — just stay silent.
             return
-        print(f"glm-usage: no projects/ dir at {projects_dir}", file=sys.stderr)
+        print(f"usage-tracker: no projects/ dir at {projects_dir}", file=sys.stderr)
         sys.exit(1)
 
     try:
         if args.command == "statusline":
-            render_statusline(args, projects_dir)
+            render_statusline(args, projects_dir, label, args.price_prefix, prices, peak_ranges, peak_weekdays)
         else:
             records = list(iter_usage_records(projects_dir))
-            render_report(args, records)
+            render_report(args, records, label, prices, peak_ranges, peak_weekdays)
     except Exception:  # statusline must never spew a traceback
         if args.command == "statusline":
             return

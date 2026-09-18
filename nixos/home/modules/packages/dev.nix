@@ -16,6 +16,7 @@ in
   pkgs.gcc
   pkgs.libgcc
   pkgs.python3
+  pkgs.uv
   luaPackages
 
   pkgs.cmake

@@ -104,6 +104,24 @@ let
         }
       '';
 
+  # Blur the compositor's own layer-shell surfaces so the bar, the launchers and
+  # the notification popups read as glass over the wallpaper instead of flat
+  # rectangles sitting on top of it. Values are the namespaces the apps set on
+  # their layer surfaces (`hyprctl layers` lists the live ones) and they are
+  # matched as regexes. `ignore_alpha` is the per-pixel threshold below which
+  # nothing is blurred, so the transparent margin around a rounded panel stays
+  # clear instead of smearing a square of blur around it.
+  #
+  # Not gated on the power profile: blur is already enabled in both decoration
+  # blocks above, and these rules only extend it to panels.
+  layerRuleBlock = ''
+    layerrule = blur on, ignore_alpha 0.20, match:namespace waybar
+    layerrule = blur on, ignore_alpha 0.10, match:namespace rofi
+    layerrule = blur on, ignore_alpha 0.10, match:namespace wlogout
+    layerrule = blur on, ignore_alpha 0.10, match:namespace swaync-control-center
+    layerrule = blur on, ignore_alpha 0.20, match:namespace swaync-notification-window
+  '';
+
 in
 {
   wayland.windowManager.hyprland = {
@@ -164,6 +182,8 @@ in
       gesture = 3, horizontal, workspace
 
       ${decorationBlock}
+
+      ${layerRuleBlock}
 
       ${animationBlock}
 
