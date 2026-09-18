@@ -8,8 +8,8 @@ license: MIT
 
 A minimal, well-formed starter skill. Copy this directory to a new name
 (gerund form, e.g. `reviewing-prs/`), update the `name:` frontmatter to
-match, rewrite the body below, then opt the new ID
-(`local/<new-name>`) into `custom.agentSkills.skills` in
+match, rewrite the body below, then opt the new ID (the directory name) into
+`custom.agentSkills.skills` in
 `home/profiles/dev.nix`.
 
 ## When to load

@@ -320,6 +320,30 @@ let
     };
   };
 
+  nixosMcpDirRel = ".config/claude-nixos-mcp";
+  nixosMcpConfigRel = "${nixosMcpDirRel}/nixos.json";
+  nixosMcpConfigPath = "${config.home.homeDirectory}/${nixosMcpConfigRel}";
+
+  nixosMcpServers = {
+    mcpServers = {
+      nixos = {
+        command = "${pkgs.mcp-nixos}/bin/mcp-nixos";
+      };
+    };
+  };
+
+  nixosMcpParserText = mkBoolFlagParser {
+    flag = "--nixos";
+    resultVar = "_claude_nixos";
+  };
+
+  nixosMcpArgText = ''
+    if [ "$_claude_nixos" -eq 1 ]; then
+      _claude_extra_args+=(--mcp-config "${nixosMcpConfigPath}")
+    fi
+    unset _claude_nixos
+  '';
+
   agenticMcpParserText = mkBoolFlagParser {
     flag = "--agentic-mcps";
     resultVar = "_claude_agentic_mcps";
@@ -734,9 +758,11 @@ let
       ${effortParserText}
       ${pluginFlagsParserText}
       ${browserMcpParserText}
+      ${nixosMcpParserText}
       ${healClaudeState}/bin/heal-claude-json || true
       ${pluginSettingsArgText}
       ${browserMcpArgText}
+      ${nixosMcpArgText}
       exec ${pkgs.claude-code}/bin/claude "''${_claude_extra_args[@]}" "$@"
     '';
   };
@@ -1003,9 +1029,11 @@ let
       ${gitlabMcpParserText}
       ${pluginFlagsParserText}
       ${browserMcpParserText}
+      ${nixosMcpParserText}
       ${healClaudeState}/bin/heal-claude-json || true
       ${pluginSettingsArgText}
       ${browserMcpArgText}
+      ${nixosMcpArgText}
       if [ "$_claude_agentic_mcps" -eq 1 ]; then
         if [ "$_claude_gitlab_mcp" -eq 1 ]; then
           exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "''${_claude_extra_args[@]}" "$@"
@@ -1906,6 +1934,9 @@ in
           ++ lib.optional cfg.enablePersonalDeepseek personalDeepseekClaudeConfigDir
         )
       );
+    })
+    (lib.mkIf (cfg.enablePersonal || cfg.enablePersonalDeepseek) {
+      home.file.${nixosMcpConfigRel}.text = builtins.toJSON nixosMcpServers;
     })
     (lib.mkIf cfg.enablePersonalDeepseek {
       home.packages = [ personalDeepseekClaude ];

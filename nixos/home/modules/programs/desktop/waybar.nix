@@ -1,5 +1,6 @@
 { config
 , lib
+, pkgs
 , themeLib
 , currentHostname
 , ...
@@ -28,7 +29,7 @@ in
     style = ''
       * {
         font-family: 'JetBrainsMono Nerd Font', 'Font Awesome 6 Free', monospace;
-        font-size: 14px;
+        font-size: 12px;
         font-weight: 700;
         min-height: 0;
         border: none;
@@ -45,7 +46,6 @@ in
         background: ${themeLib.rgba t.base00 0.86};
         border-radius: 16px;
         border: 1px solid ${themeLib.rgba t.base0D 0.4};
-        box-shadow: 0 6px 20px ${themeLib.rgba t.base00 0.5};
         color: ${t.base05};
       }
 
@@ -67,6 +67,8 @@ in
       #workspaces,
       #idle_inhibitor,
       #clock,
+      #custom-jalali,
+      #custom-gregorian,
       #network,
       #wireplumber,
       #tray,
@@ -76,7 +78,7 @@ in
       #hyprland-window {
         background-color: transparent;
         color: ${t.base05};
-        padding: 4px 11px;
+        padding: 3px 8px;
         margin: 0 2px;
         border-radius: 10px;
         transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
@@ -148,7 +150,7 @@ in
           ${themeLib.rgba t.base02 0.3}
         );
         border: 1px solid ${themeLib.rgba t.base0D 0.3};
-        padding: 3px 14px;
+        padding: 3px 10px;
         letter-spacing: 0.02em;
       }
 
@@ -240,7 +242,9 @@ in
         ];
         modules-center = [
           "hyprland/submap"
+          "custom/jalali"
           "clock"
+          "custom/gregorian"
         ];
         modules-right = lib.optional hasBattery "battery"
         ++ [
@@ -307,6 +311,20 @@ in
               today = "<span color='${t.base08}'><b><u>{}</u></b></span>";
             };
           };
+        };
+
+        "custom/jalali" = {
+          format = "{}";
+          exec = "${pkgs.jcal}/bin/jdate +%Y/%b/%d";
+          interval = 60;
+          tooltip = false;
+        };
+
+        "custom/gregorian" = {
+          format = "{}";
+          exec = "${pkgs.coreutils}/bin/date +%Y/%^b/%d";
+          interval = 60;
+          tooltip = false;
         };
 
         wireplumber = {

@@ -32,6 +32,7 @@
       '--effort[effort level for this session]:level:(low medium high xhigh max)' \
       '--agentic-mcps[attach agentic-development-mcps for this launch]' \
       '--gitlab-mcp[allow the gitlab_* tool family on agentic-development-mcps]' \
+      '--nixos[attach mcp-nixos (nixpkgs/NixOS/Home Manager/nix-darwin search)]' \
       '--chrome[attach chrome-devtools-mcp (DevTools inspection + browser automation)]' \
       '--playwright[attach playwright-mcp]' \
       ${flagPluginsZshArgs} \

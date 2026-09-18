@@ -25,6 +25,7 @@
     claudeCode.enableCaveman = true;
     claudeCode.enableObsidian = true;
     claudeCode.plugins.personal."clangd-lsp@claude-plugins-official" = true;
+    claudeCode.skillOverrides.nix-environment = "on";
 
     agentSkills = {
       enable = true;
@@ -35,11 +36,27 @@
           subdir = "skills";
         };
       };
+      skills = [ "nix-environment" ];
       targets = {
         agents.enable = true;
         gap-claude = {
           enable = true;
           dest = "${config.home.homeDirectory}/.config/gap-claude/skills";
+          structure = "symlink-tree";
+        };
+        local-claude = {
+          enable = true;
+          dest = "${config.home.homeDirectory}/.config/local-claude/skills";
+          structure = "symlink-tree";
+        };
+        personal-claude = {
+          enable = true;
+          dest = "${config.home.homeDirectory}/.config/personal-claude/skills";
+          structure = "symlink-tree";
+        };
+        personal-deepseek-claude = {
+          enable = true;
+          dest = "${config.home.homeDirectory}/.config/personal-deepseek-claude/skills";
           structure = "symlink-tree";
         };
         work-claude = {

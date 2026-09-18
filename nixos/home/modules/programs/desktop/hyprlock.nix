@@ -62,9 +62,9 @@ in
           color = themeLib.rgba t.base07 0.95;
           font_size = 150;
           font_family = theme.fonts.mono;
-          position = "0, -200";
+          position = "0, 180";
           halign = "center";
-          valign = "top";
+          valign = "center";
         }
         {
           monitor = "";
@@ -72,9 +72,9 @@ in
           color = themeLib.rgba t.base04 0.60;
           font_size = 30;
           font_family = theme.fonts.mono;
-          position = "0, -430";
+          position = "0, 300";
           halign = "center";
-          valign = "top";
+          valign = "center";
         }
         {
           monitor = "";
@@ -82,9 +82,9 @@ in
           color = themeLib.rgba t.base05 1.0;
           font_size = 24;
           font_family = theme.fonts.mono;
-          position = "0, -490"; # Adjust Y offset as needed
+          position = "0, 350";
           halign = "center";
-          valign = "top";
+          valign = "center";
         }
         {
           monitor = "";
