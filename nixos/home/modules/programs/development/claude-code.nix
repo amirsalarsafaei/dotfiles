@@ -77,13 +77,82 @@ let
   # applied to the sandboxed Bash tool.
   sandboxSecretDenyPaths = [
     "${config.home.homeDirectory}/.ssh"
-    "${config.home.homeDirectory}/.gnupg"
+    "${config.home.homeDirectory}/.gnupg/private-keys-v1.d"
+    "${config.home.homeDirectory}/.gnupg/openpgp-revocs.d"
+    "${config.home.homeDirectory}/.gnupg/secring.gpg"
     "${config.home.homeDirectory}/.aws"
+    "${config.home.homeDirectory}/.kube"
+    "${config.home.homeDirectory}/.docker"
+    "${config.home.homeDirectory}/.netrc"
+    "${config.home.homeDirectory}/.git-credentials"
+    "${config.home.homeDirectory}/.password-store"
     "${config.home.homeDirectory}/.config/gh"
+    "${config.home.homeDirectory}/.config/glab-cli"
+    "${config.home.homeDirectory}/.config/gcloud"
+    "${config.home.homeDirectory}/.config/sops"
+    "${config.home.homeDirectory}/.config/age"
+    "${config.home.homeDirectory}/.local/share/keyrings"
+    "${config.home.homeDirectory}/.mozilla"
+    "${config.home.homeDirectory}/.pki"
+    "${config.home.homeDirectory}/.config/chromium"
+    "${config.home.homeDirectory}/.config/google-chrome"
+    "${config.home.homeDirectory}/.config/BraveSoftware"
+    "${config.home.homeDirectory}/.config/rclone"
+    "${config.home.homeDirectory}/.cargo/credentials.toml"
+    "${config.home.homeDirectory}/.pypirc"
     "${config.home.homeDirectory}/glm-key"
     "${config.home.homeDirectory}/deepseek-key"
     "${config.home.homeDirectory}/personal-deepseek"
   ];
+
+  claudeSandbox = pkgs.writeShellApplication {
+    name = "claude-sandbox";
+    runtimeInputs = [
+      pkgs.bubblewrap
+      pkgs.coreutils
+    ];
+    text = ''
+      export CLAUDE_SANDBOX_TARGET="${pkgs.claude-code}/bin/claude"
+      export CLAUDE_SANDBOX_DENY=${lib.escapeShellArg (lib.concatStringsSep "\n" cfg.sandbox.denyPaths)}
+      export CLAUDE_SANDBOX_ALLOW=${lib.escapeShellArg (lib.concatStringsSep "\n" cfg.sandbox.allowPaths)}
+      ${builtins.readFile ./claude-sandbox.sh}
+    '';
+  };
+
+  claudeBin =
+    if cfg.sandbox.enable then
+      "${claudeSandbox}/bin/claude-sandbox"
+    else
+      "${pkgs.claude-code}/bin/claude";
+
+  sandboxParserText = lib.optionalString cfg.sandbox.enable (
+    mkBoolFlagParser {
+      flag = "--no-sandbox";
+      resultVar = "_claude_sandbox_off";
+    }
+    + mkBoolFlagParser {
+      flag = "--sandbox-net";
+      resultVar = "_claude_sandbox_net";
+    }
+    + mkBoolFlagParser {
+      flag = "--sandbox-fs";
+      resultVar = "_claude_sandbox_fs";
+    }
+    + ''
+      if [ "$_claude_sandbox_off" -eq 1 ]; then
+        export CLAUDE_SANDBOX_OFF=1
+      fi
+      if [ "$_claude_sandbox_net" -eq 1 ]; then
+        export CLAUDE_SANDBOX_NET=1
+      fi
+      if [ "$_claude_sandbox_fs" -eq 1 ]; then
+        export CLAUDE_SANDBOX_FS=1
+      fi
+      unset _claude_sandbox_off _claude_sandbox_net _claude_sandbox_fs
+    ''
+  );
+
+  commonParserText = effortParserText + sandboxParserText;
 
   ipGuardText = ''
     country=""
@@ -672,14 +741,14 @@ let
   # devar's own — `devar mcp login platform` once). Personal-claude keeps the
   # direct attachment as an opt-in flag (personal runs no devar).
   workWrapperTail = ''
-    ${effortParserText}
+    ${commonParserText}
     ${pluginFlagsParserText}
     ${browserMcpParserText}
 
     ${healClaudeState}/bin/heal-claude-json || true
     ${pluginSettingsArgText}
     ${browserMcpArgText}
-    exec ${pkgs.claude-code}/bin/claude "''${_claude_extra_args[@]}" "$@"
+    exec ${claudeBin} "''${_claude_extra_args[@]}" "$@"
   '';
 
   glmClaude = pkgs.writeShellApplication {
@@ -755,7 +824,7 @@ let
       export CLAUDE_CONFIG_DIR="${personalDeepseekClaudeConfigDir}"
       export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1048576"
       export CLAUDE_CODE_MAX_CONTEXT_TOKENS="1048576"
-      ${effortParserText}
+      ${commonParserText}
       ${pluginFlagsParserText}
       ${browserMcpParserText}
       ${nixosMcpParserText}
@@ -763,7 +832,7 @@ let
       ${pluginSettingsArgText}
       ${browserMcpArgText}
       ${nixosMcpArgText}
-      exec ${pkgs.claude-code}/bin/claude "''${_claude_extra_args[@]}" "$@"
+      exec ${claudeBin} "''${_claude_extra_args[@]}" "$@"
     '';
   };
 
@@ -1024,7 +1093,7 @@ let
       export CLAUDE_CODE_SUBAGENT_MODEL="sonnet"
       export TZ="Europe/Berlin"
       export TZDIR="${pkgs.tzdata}/share/zoneinfo"
-      ${effortParserText}
+      ${commonParserText}
       ${agenticMcpParserText}
       ${gitlabMcpParserText}
       ${pluginFlagsParserText}
@@ -1036,13 +1105,13 @@ let
       ${nixosMcpArgText}
       if [ "$_claude_agentic_mcps" -eq 1 ]; then
         if [ "$_claude_gitlab_mcp" -eq 1 ]; then
-          exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} "''${_claude_extra_args[@]}" "$@"
+          exec ${claudeBin} --mcp-config ${workMcpConfigPath} "''${_claude_extra_args[@]}" "$@"
         else
-          exec ${pkgs.claude-code}/bin/claude --mcp-config ${workMcpConfigPath} \
+          exec ${claudeBin} --mcp-config ${workMcpConfigPath} \
             --disallowedTools "mcp__${workMcpServerName}__gitlab_*" "''${_claude_extra_args[@]}" "$@"
         fi
       else
-        exec ${pkgs.claude-code}/bin/claude "''${_claude_extra_args[@]}" "$@"
+        exec ${claudeBin} "''${_claude_extra_args[@]}" "$@"
       fi
     '';
   };
@@ -1055,13 +1124,13 @@ let
       export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/gap-claude"
       export ANTHROPIC_API_KEY="${secrets.gapgpt.apiKey or ""}"
       export ANTHROPIC_BASE_URL="https://api.gapgpt.app/"
-      ${effortParserText}
+      ${commonParserText}
       ${pluginFlagsParserText}
       ${browserMcpParserText}
       ${healClaudeState}/bin/heal-claude-json || true
       ${pluginSettingsArgText}
       ${browserMcpArgText}
-      exec ${pkgs.claude-code}/bin/claude "''${_claude_extra_args[@]}" "$@"
+      exec ${claudeBin} "''${_claude_extra_args[@]}" "$@"
     '';
   };
 
@@ -1098,13 +1167,13 @@ let
       export ANTHROPIC_AUTH_TOKEN="${localProxyKey}"
       export ANTHROPIC_MODEL="${localModel}"
       export ANTHROPIC_SMALL_FAST_MODEL="${localModelFast}"
-      ${effortParserText}
+      ${commonParserText}
       ${pluginFlagsParserText}
       ${browserMcpParserText}
       ${healClaudeState}/bin/heal-claude-json || true
       ${pluginSettingsArgText}
       ${browserMcpArgText}
-      exec claude --mcp-config "${localMcpConfigPath}" "''${_claude_extra_args[@]}" "$@"
+      exec ${claudeBin} --mcp-config "${localMcpConfigPath}" "''${_claude_extra_args[@]}" "$@"
     '';
   };
 
@@ -1389,9 +1458,7 @@ let
       defaultMode = "auto";
     };
     extraKnownMarketplaces = devarMarketplace // astGrepMarketplace;
-    enabledPlugins = {
-      "figma@claude-plugins-official" = true;
-    }
+    enabledPlugins = { }
     // devarPlugin
     // astGrepPlugin;
     theme = "dark";
@@ -1639,6 +1706,54 @@ in
       ~/Documents/amirsalar-vault for that launch. Adopt that vault once with
       /claude-obsidian:wiki from an --obsidian launch
     '';
+
+    sandbox = {
+      enable = lib.mkEnableOption ''
+        launching every claude variant inside a bubblewrap mount namespace
+        (home/modules/programs/development/claude-sandbox.sh). The whole
+        filesystem stays visible and every binary stays runnable — only
+        `sandbox.denyPaths` are masked, so a `kubectl`, `git push` or `aws`
+        run by the agent finds no credentials. The PID, IPC and UTS namespaces
+        are unshared, so the agent cannot see, signal or ptrace processes
+        outside its own tree. $SSH_AUTH_SOCK is unset and the
+        agent socket masked too, so git over SSH cannot authenticate at all.
+        Network is shared by default. Three per-launch flags every wrapper
+        accepts: `--no-sandbox` skips bwrap entirely, `--sandbox-net` unshares
+        the network namespace (kills the Anthropic API too, so it only makes
+        sense with a local endpoint), and `--sandbox-fs` drops the home
+        directory to a tmpfs holding only $PWD, CLAUDE_CONFIG_DIR and
+        `sandbox.allowPaths`
+      '';
+
+      denyPaths = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = sandboxSecretDenyPaths;
+        description = ''
+          Absolute paths the sandbox masks: directories with an empty tmpfs,
+          files with /dev/null. Paths outside the home directory are instead
+          left out of the mount tree entirely, their parent bound
+          child-by-child. $SSH_AUTH_SOCK and every entry of $KUBECONFIG are
+          added at launch.
+        '';
+      };
+
+      allowPaths = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [
+          "${config.home.homeDirectory}/.cache"
+          "${config.home.homeDirectory}/.gitconfig"
+          "${config.home.homeDirectory}/.config/git"
+          "${config.home.homeDirectory}/.local/share"
+          workClaudeSharedDir
+          personalClaudeSharedDir
+        ];
+        description = ''
+          Extra paths bound into the sandbox under `--sandbox-fs`, on top of
+          $PWD and CLAUDE_CONFIG_DIR. Ignored without that flag, where the
+          whole filesystem minus `denyPaths` is already bound.
+        '';
+      };
+    };
 
     glmPrices = lib.mkOption {
       type = lib.types.attrsOf usagePriceModel;

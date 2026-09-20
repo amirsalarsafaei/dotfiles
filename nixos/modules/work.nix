@@ -96,6 +96,7 @@ lib.mkIf config.isWork {
         # host with the ~/divar/devar checkout. See claudeCode.enableDevar.
         claudeCode.enableDevar = true;
         claudeCode.enableObsidian = true;
+        claudeCode.sandbox.enable = true;
 
         agentSkills = {
           sources.devar = {

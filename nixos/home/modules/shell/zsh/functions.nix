@@ -21,6 +21,9 @@
       '--effort[effort level for this session]:level:(low medium high xhigh max)' \
       '--chrome[attach chrome-devtools-mcp (DevTools inspection + browser automation)]' \
       '--playwright[attach playwright-mcp]' \
+      '--no-sandbox[skip the bubblewrap sandbox for this launch]' \
+      '--sandbox-net[unshare the network namespace for this launch]' \
+      '--sandbox-fs[restrict the sandbox home to \$PWD and the config dir]' \
       ${flagPluginsZshArgs} \
       '*:: :_default'
   '';
@@ -35,6 +38,9 @@
       '--nixos[attach mcp-nixos (nixpkgs/NixOS/Home Manager/nix-darwin search)]' \
       '--chrome[attach chrome-devtools-mcp (DevTools inspection + browser automation)]' \
       '--playwright[attach playwright-mcp]' \
+      '--no-sandbox[skip the bubblewrap sandbox for this launch]' \
+      '--sandbox-net[unshare the network namespace for this launch]' \
+      '--sandbox-fs[restrict the sandbox home to \$PWD and the config dir]' \
       ${flagPluginsZshArgs} \
       '*:: :_default'
   '';
