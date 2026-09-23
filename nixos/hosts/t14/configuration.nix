@@ -12,6 +12,7 @@
     ../../modules/laptop.nix
     # Work host configuration (work-claude variant, private skills)
     ../../modules/work.nix
+    ../../private/hosts/t14
     # Logitech wireless mouse support (solaar: battery, DPI, buttons)
     ../../modules/logitech.nix
     ./virtualization.nix
@@ -27,6 +28,28 @@
   # xwayland.force_zero_scaling in hyprland.nix.
   hyprland.xwaylandDpi = 144;
 
+  hyprland.compactOutput = "eDP-1";
+
+  services.thinkfan = {
+    enable = true;
+    sensors = [
+      {
+        type = "hwmon";
+        query = "/sys/class/hwmon";
+        name = "coretemp";
+        indices = [ 1 ];
+      }
+    ];
+    levels = [
+      [ 0 0 42 ]
+      [ 1 40 50 ]
+      [ 3 48 56 ]
+      [ 5 54 62 ]
+      [ 7 60 72 ]
+      [ "level full-speed" 70 32767 ]
+    ];
+  };
+
   # Built-in fingerprint reader (Synaptics 06cb:00f9, BMKT match-on-chip). It's
   # natively supported by libfprint's open-source "synaptics" driver (no TOD/
   # proprietary blob needed) as of libfprint 1.94.10, which nixpkgs builds with
@@ -35,6 +58,9 @@
   # step ahead of password, so it doesn't lock you out if no finger is
   # enrolled. After rebuilding, enroll with: fprintd-enroll
   services.fprintd.enable = true;
+
+  services.netbird.enable = true;
+  users.users.amirsalar.extraGroups = [ "netbird-wt0" ];
 
   # Use the systemd-boot EFI boot loader.
   boot = {
@@ -60,6 +86,8 @@
     powertop
     linuxPackages_latest.cpupower
     linuxPackages_latest.turbostat
+    netbird
+    netbird-ui
   ];
 
   specialisation.low-power.configuration = {

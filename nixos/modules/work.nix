@@ -92,6 +92,8 @@ lib.mkIf config.isWork {
         claudeCode.enableGlm = true;
         claudeCode.enableWork = true;
         claudeCode.enableDeepseek = true;
+        claudeCode.enableWorkDivarGlm = true;
+        claudeCode.enableWorkDivarDeepseek = true;
         # The directory-sourced devar marketplace + plugin only here — this is the
         # host with the ~/divar/devar checkout. See claudeCode.enableDevar.
         claudeCode.enableDevar = true;

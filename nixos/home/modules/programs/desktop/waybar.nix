@@ -3,6 +3,7 @@
 , pkgs
 , themeLib
 , currentHostname
+, osConfig
 , ...
 }:
 let
@@ -21,15 +22,133 @@ let
       t14 = "BAT0"; # Lenovo ThinkPad (ACPI)
     }.${currentHostname} or "";
   hasBattery = systemBattery != "";
+
+  cpuTemperature =
+    {
+      t14 = {
+        hwmon-path-abs = "/sys/devices/platform/coretemp.0/hwmon";
+        input-filename = "temp1_input";
+      };
+    }.${currentHostname} or { };
+
+  compactOutput = osConfig.hyprland.compactOutput or null;
+
+  comfy = {
+    fontSize = 12;
+    height = 34;
+    spacing = 6;
+    marginTop = 4;
+    marginSide = 10;
+    barRadius = 16;
+    edge = 12;
+    pad = "3px 8px";
+    buttonPad = "2px 9px";
+    powerFont = 16;
+    powerPad = "4px 12px";
+    trayIcon = 18;
+    clockPad = "3px 10px";
+    groupPad = "2px 5px";
+    itemPad = "2px 9px";
+    submapPad = "4px 16px";
+    windowLength = 48;
+  };
+
+  tight = {
+    fontSize = 11;
+    height = 28;
+    spacing = 3;
+    marginTop = 3;
+    marginSide = 6;
+    barRadius = 14;
+    edge = 8;
+    pad = "2px 7px";
+    buttonPad = "1px 7px";
+    powerFont = 14;
+    powerPad = "2px 10px";
+    trayIcon = 16;
+    clockPad = "2px 9px";
+    groupPad = "1px 4px";
+    itemPad = "1px 7px";
+    submapPad = "2px 12px";
+    windowLength = 36;
+  };
+
+  tightCss = ''
+    window#waybar.waybar-compact,
+    window#waybar.waybar-compact * {
+      font-size: ${toString tight.fontSize}px;
+    }
+    window#waybar.waybar-compact { border-radius: ${toString tight.barRadius}px; }
+    window#waybar.waybar-compact .modules-left { margin-left: ${toString tight.edge}px; }
+    window#waybar.waybar-compact .modules-right { margin-right: ${toString tight.edge}px; }
+    window#waybar.waybar-compact #workspaces,
+    window#waybar.waybar-compact #idle_inhibitor,
+    window#waybar.waybar-compact #clock,
+    window#waybar.waybar-compact #custom-jalali,
+    window#waybar.waybar-compact #custom-gregorian,
+    window#waybar.waybar-compact #network,
+    window#waybar.waybar-compact #wireplumber,
+    window#waybar.waybar-compact #tray,
+    window#waybar.waybar-compact #hyprland-language,
+    window#waybar.waybar-compact #battery,
+    window#waybar.waybar-compact #hyprland-window {
+      padding: ${tight.pad};
+    }
+    window#waybar.waybar-compact #workspaces button { padding: ${tight.buttonPad}; }
+    window#waybar.waybar-compact #clock { padding: ${tight.clockPad}; }
+    window#waybar.waybar-compact #hardware { padding: ${tight.groupPad}; }
+    window#waybar.waybar-compact #cpu,
+    window#waybar.waybar-compact #memory,
+    window#waybar.waybar-compact #temperature {
+      padding: ${tight.itemPad};
+    }
+    window#waybar.waybar-compact #custom-power {
+      font-size: ${toString tight.powerFont}px;
+      padding: ${tight.powerPad};
+    }
+    window#waybar.waybar-compact #submap { padding: ${tight.submapPad}; }
+  '';
+
+  waybarToggle = pkgs.writeShellApplication {
+    name = "waybar-toggle";
+    runtimeInputs = [
+      pkgs.jq
+      pkgs.systemd
+    ];
+    text = ''
+      visible() {
+        hyprctl layers -j \
+          | jq -e '[.. | objects | select((.namespace? // "") | startswith("waybar"))] | length > 0' >/dev/null
+      }
+
+      want="''${1:-toggle}"
+      if [ "$want" = toggle ]; then
+        if visible; then want=hide; else want=show; fi
+      fi
+      case "$want" in
+        hide) visible || exit 0 ;;
+        show) visible && exit 0 ;;
+        *)
+          echo "usage: waybar-toggle [toggle|show|hide]" >&2
+          exit 2
+          ;;
+      esac
+      systemctl --user kill --signal=SIGUSR1 waybar.service
+    '';
+  };
 in
 {
+  home.packages = [ waybarToggle ];
+
+  custom.keys.commands.waybarToggle = lib.getExe waybarToggle;
+
   programs.waybar = {
     enable = true;
     systemd.enable = true;
     style = ''
       * {
         font-family: 'JetBrainsMono Nerd Font', 'Font Awesome 6 Free', monospace;
-        font-size: 12px;
+        font-size: ${toString comfy.fontSize}px;
         font-weight: 700;
         min-height: 0;
         border: none;
@@ -44,7 +163,7 @@ in
          hyprland.nix), so the bar reads as glass, not a flat strip. */
       window#waybar {
         background: ${themeLib.rgba t.base00 0.86};
-        border-radius: 16px;
+        border-radius: ${toString comfy.barRadius}px;
         border: 1px solid ${themeLib.rgba t.base0D 0.4};
         color: ${t.base05};
       }
@@ -59,8 +178,8 @@ in
       }
 
       /* Modules share one bar now, so only the outer edges need a gutter. */
-      .modules-left { margin-left: 12px; }
-      .modules-right { margin-right: 12px; }
+      .modules-left { margin-left: ${toString comfy.edge}px; }
+      .modules-right { margin-right: ${toString comfy.edge}px; }
 
       /* Shared pill geometry for every standalone module: identical padding
          keeps the hover highlights and the clock/group accents aligned. */
@@ -78,19 +197,19 @@ in
       #hyprland-window {
         background-color: transparent;
         color: ${t.base05};
-        padding: 3px 8px;
+        padding: ${comfy.pad};
         margin: 0 2px;
         border-radius: 10px;
         transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
       }
 
       #workspaces {
-        padding: 3px 8px;
+        padding: ${comfy.pad};
         margin-right: 4px;
       }
 
       #workspaces button {
-        padding: 2px 9px;
+        padding: ${comfy.buttonPad};
         margin: 0 2px;
         background-color: transparent;
         color: ${t.base04};
@@ -150,7 +269,7 @@ in
           ${themeLib.rgba t.base02 0.3}
         );
         border: 1px solid ${themeLib.rgba t.base0D 0.3};
-        padding: 3px 10px;
+        padding: ${comfy.clockPad};
         letter-spacing: 0.02em;
       }
 
@@ -169,12 +288,12 @@ in
         background-color: ${themeLib.rgba t.base02 0.14};
         border: 1px solid ${themeLib.rgba t.base03 0.22};
         border-radius: 12px;
-        padding: 2px 5px;
+        padding: ${comfy.groupPad};
         margin: 0 6px;
       }
 
       #cpu, #memory, #temperature {
-        padding: 2px 9px;
+        padding: ${comfy.itemPad};
         border-radius: 8px;
       }
 
@@ -202,8 +321,8 @@ in
 
       #custom-power {
         color: ${t.base0D};
-        font-size: 16px;
-        padding: 4px 12px;
+        font-size: ${toString comfy.powerFont}px;
+        padding: ${comfy.powerPad};
       }
 
       #hyprland-window {
@@ -215,198 +334,212 @@ in
       #submap {
         color: ${t.base00};
         background-color: ${t.base0A};
-        padding: 4px 16px;
+        padding: ${comfy.submapPad};
         margin: 0 4px;
         border-radius: 10px;
         font-weight: 800;
       }
-    '';
+    ''
+    + lib.optionalString (compactOutput != null) tightCss;
 
-    settings = {
-      mainBar = {
-        layer = "top";
-        position = "top";
-        height = 34;
-        spacing = 6;
-        margin-top = 4;
-        margin-bottom = 0;
-        margin-left = 10;
-        margin-right = 10;
+    settings =
+      let
+        mkBar = d: {
+          layer = "top";
+          position = "top";
+          inherit (d) height spacing;
+          margin-top = d.marginTop;
+          margin-bottom = 0;
+          margin-left = d.marginSide;
+          margin-right = d.marginSide;
 
-        modules-left = [
-          "hyprland/workspaces"
-          "hyprland/window"
-          "tray"
-          "network"
-          "idle_inhibitor"
-        ];
-        modules-center = [
-          "hyprland/submap"
-          "custom/jalali"
-          "clock"
-          "custom/gregorian"
-        ];
-        modules-right = lib.optional hasBattery "battery"
-        ++ [
-          "wireplumber"
-          "group/hardware"
-          "hyprland/language"
-          "custom/power"
-        ];
-
-        network = {
-          interval = 2;
-          format-wifi = "  {essid}";
-          format-ethernet = "󰈀  LAN";
-          format-disconnected = "󰖪  Offline";
-          tooltip-format = "IP: {ipaddr}\nDOWN: {bandwidthDownBytes} | UP: {bandwidthUpBytes}";
-        };
-
-        "group/hardware" = {
-          orientation = "horizontal";
-          modules = [
-            "cpu"
-            "memory"
-            "temperature"
+          modules-left = [
+            "hyprland/workspaces"
+            "hyprland/window"
+            "tray"
+            "network"
+            "idle_inhibitor"
           ];
-        };
+          modules-center = [
+            "hyprland/submap"
+            "custom/jalali"
+            "clock"
+            "custom/gregorian"
+          ];
+          modules-right = lib.optional hasBattery "battery"
+            ++ [
+            "wireplumber"
+            "group/hardware"
+            "hyprland/language"
+            "custom/power"
+          ];
 
-        "hyprland/workspaces" = {
-          format = "{icon}";
-          format-icons = {
-            urgent = "";
-            active = "";
-            visible = "󰮯";
-            default = "";
-            empty = "";
+          network = {
+            interval = 2;
+            format-wifi = "  {essid}";
+            format-ethernet = "󰈀  LAN";
+            format-disconnected = "󰖪  Offline";
+            tooltip-format = "IP: {ipaddr}\nDOWN: {bandwidthDownBytes} | UP: {bandwidthUpBytes}";
           };
-          on-scroll-up = "hyprctl dispatch split-cycleworkspaces -1";
-          on-scroll-down = "hyprctl dispatch split-cycleworkspaces +1";
-          all-outputs = false;
-        };
 
-        "hyprland/window" = {
-          max-length = 48;
-          separate-outputs = true;
-        };
+          "group/hardware" = {
+            orientation = "horizontal";
+            modules = [
+              "cpu"
+              "memory"
+              "temperature"
+            ];
+          };
 
-        # Active submap indicator (e.g. SUPER+M -> move, SUPER+R -> resize).
-        # Auto-hides when back in the default submap.
-        "hyprland/submap" = {
-          format = "  {}";
-          max-length = 24;
-          tooltip = false;
-        };
+          "hyprland/workspaces" = {
+            format = "{icon}";
+            format-icons = {
+              urgent = "";
+              active = "";
+              visible = "󰮯";
+              default = "";
+              empty = "";
+            };
+            on-scroll-up = "hyprctl dispatch split-cycleworkspaces -1";
+            on-scroll-down = "hyprctl dispatch split-cycleworkspaces +1";
+            all-outputs = false;
+          };
 
-        clock = {
-          format = "󰅐 {:%H:%M}";
-          tooltip-format = "<tt><small>{calendar}</small></tt>";
-          calendar = {
-            mode = "year";
-            mode-mon-col = 3;
-            format = {
-              months = "<span color='${t.base07}'><b>{}</b></span>";
-              days = "<span color='${t.base05}'><b>{}</b></span>";
-              weekdays = "<span color='${t.base0D}'><b>{}</b></span>";
-              today = "<span color='${t.base08}'><b><u>{}</u></b></span>";
+          "hyprland/window" = {
+            max-length = d.windowLength;
+            separate-outputs = true;
+          };
+
+          # Active submap indicator (e.g. SUPER+M -> move, SUPER+R -> resize).
+          # Auto-hides when back in the default submap.
+          "hyprland/submap" = {
+            format = "  {}";
+            max-length = 24;
+            tooltip = false;
+          };
+
+          clock = {
+            format = "󰅐 {:%H:%M}";
+            tooltip-format = "<tt><small>{calendar}</small></tt>";
+            calendar = {
+              mode = "year";
+              mode-mon-col = 3;
+              format = {
+                months = "<span color='${t.base07}'><b>{}</b></span>";
+                days = "<span color='${t.base05}'><b>{}</b></span>";
+                weekdays = "<span color='${t.base0D}'><b>{}</b></span>";
+                today = "<span color='${t.base08}'><b><u>{}</u></b></span>";
+              };
             };
           };
-        };
 
-        "custom/jalali" = {
-          format = "{}";
-          exec = "${pkgs.jcal}/bin/jdate +%Y/%b/%d";
-          interval = 60;
-          tooltip = false;
-        };
-
-        "custom/gregorian" = {
-          format = "{}";
-          exec = "${pkgs.coreutils}/bin/date +%Y/%^b/%d";
-          interval = 60;
-          tooltip = false;
-        };
-
-        wireplumber = {
-          format = "{icon}  {volume}%";
-          format-muted = "󰝟  Muted";
-          on-click = "pavucontrol";
-          format-icons = [
-            ""
-            ""
-            ""
-          ];
-        };
-
-        cpu = {
-          interval = 5;
-          format = "  {usage}%";
-        };
-
-        memory = {
-          interval = 5;
-          format = "  {percentage}%";
-        };
-
-        temperature = {
-          critical-threshold = 80;
-          format = "{icon} {temperatureC}°C";
-          format-icons = [
-            ""
-            ""
-            ""
-          ];
-        };
-
-        battery = {
-          # Pin to the host's real battery so the module never watches a
-          # peripheral's transient power_supply node (see systemBattery above).
-          bat = systemBattery;
-          states = {
-            warning = 30;
-            critical = 15;
+          "custom/jalali" = {
+            format = "{}";
+            exec = "${pkgs.jcal}/bin/jdate +%Y/%b/%d";
+            interval = 60;
+            tooltip = false;
           };
-          format = "{icon} {capacity}%";
-          format-charging = "󱐋 {capacity}%";
-          format-plugged = "󰚥 {capacity}%";
-          format-icons = [
-            "󰂎"
-            "󰁻"
-            "󰁽"
-            "󰁿"
-            "󰂁"
-          ];
-        };
 
-        "hyprland/language" = {
-          format = "󰌌 {}";
-          format-en = "EN";
-          format-fa = "FA";
-        };
-
-        idle_inhibitor = {
-          format = "{icon}";
-          format-icons = {
-            activated = "󰛊";
-            deactivated = "󰾪";
+          "custom/gregorian" = {
+            format = "{}";
+            exec = "${pkgs.coreutils}/bin/date +%Y/%^b/%d";
+            interval = 60;
+            tooltip = false;
           };
-          tooltip-format-activated = "Idle inhibitor: ON";
-          tooltip-format-deactivated = "Idle inhibitor: OFF";
-        };
 
-        tray = {
-          icon-size = 18;
-          spacing = 4;
-        };
+          wireplumber = {
+            format = "{icon}  {volume}%";
+            format-muted = "󰝟  Muted";
+            on-click = "pavucontrol";
+            format-icons = [
+              ""
+              ""
+              ""
+            ];
+          };
 
-        "custom/power" = {
-          format = "";
-          tooltip = true;
-          tooltip-format = "Lock with click · Suspend with right click";
-          on-click = "loginctl lock-session";
-          on-click-right = "systemctl suspend";
+          cpu = {
+            interval = 5;
+            format = "  {usage}%";
+          };
+
+          memory = {
+            interval = 5;
+            format = "  {percentage}%";
+          };
+
+          temperature = cpuTemperature // {
+            critical-threshold = 80;
+            format = "{icon} {temperatureC}°C";
+            format-icons = [
+              ""
+              ""
+              ""
+            ];
+          };
+
+          battery = {
+            # Pin to the host's real battery so the module never watches a
+            # peripheral's transient power_supply node (see systemBattery above).
+            bat = systemBattery;
+            states = {
+              warning = 30;
+              critical = 15;
+            };
+            format = "{icon} {capacity}%";
+            format-charging = "󱐋 {capacity}%";
+            format-plugged = "󰚥 {capacity}%";
+            format-icons = [
+              "󰂎"
+              "󰁻"
+              "󰁽"
+              "󰁿"
+              "󰂁"
+            ];
+          };
+
+          "hyprland/language" = {
+            format = "󰌌 {}";
+            format-en = "EN";
+            format-fa = "FA";
+          };
+
+          idle_inhibitor = {
+            format = "{icon}";
+            format-icons = {
+              activated = "󰛊";
+              deactivated = "󰾪";
+            };
+            tooltip-format-activated = "Idle inhibitor: ON";
+            tooltip-format-deactivated = "Idle inhibitor: OFF";
+          };
+
+          tray = {
+            icon-size = d.trayIcon;
+            spacing = 4;
+          };
+
+          "custom/power" = {
+            format = "";
+            tooltip = true;
+            tooltip-format = "Lock with click · Suspend with right click";
+            on-click = "loginctl lock-session";
+            on-click-right = "systemctl suspend";
+          };
+        };
+      in
+      {
+        mainBar =
+          mkBar comfy
+          // lib.optionalAttrs (compactOutput != null) {
+            output = "!${compactOutput}";
+          };
+      }
+      // lib.optionalAttrs (compactOutput != null) {
+        compactBar = mkBar tight // {
+          name = "waybar-compact";
+          output = compactOutput;
         };
       };
-    };
   };
 }

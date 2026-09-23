@@ -45,5 +45,6 @@ in
   pkgs.podman
   pkgs.ast-grep
   pkgs.istioctl
+  pkgs.jfrog-cli
   inputs.crit.packages.${pkgs.stdenv.hostPlatform.system}.default
 ]

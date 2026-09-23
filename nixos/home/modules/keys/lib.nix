@@ -325,6 +325,16 @@ let
       label = "Bright−";
       hypr = "XF86MonBrightnessDown";
     };
+    lidClose = mkKey {
+      id = "lid-close";
+      label = "Lid closed";
+      hypr = "switch:on:Lid Switch";
+    };
+    lidOpen = mkKey {
+      id = "lid-open";
+      label = "Lid opened";
+      hypr = "switch:off:Lid Switch";
+    };
     launchA = mkKey {
       id = "launch-a";
       label = "KbdLight";
@@ -477,6 +487,7 @@ let
     repeat = "binde"; # held key repeats the dispatch
     mouse = "bindm"; # pointer drag
     media = "bindel"; # repeats *and* works on the lock screen (volume, backlight)
+    switch = "bindl";
   };
 
   hypr = rec {

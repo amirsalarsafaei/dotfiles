@@ -127,7 +127,7 @@ in
 
       # Declared in home/modules/keys/registry.nix, so `keys ghostty` lists
       # them alongside every other shortcut on the machine.
-      keybind = config.custom.keys.rendered.ghostty;
+      keybind = [ "clear" ] ++ config.custom.keys.rendered.ghostty;
     };
   };
 }

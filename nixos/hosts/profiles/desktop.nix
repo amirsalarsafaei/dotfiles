@@ -72,6 +72,17 @@ in
       '';
     };
 
+    hyprland.compactOutput = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      example = "eDP-1";
+      description = ''
+        Output name (as `hyprctl monitors` lists it) that gets tighter desktop
+        chrome: smaller Hyprland gaps and a slimmer Waybar. Meant for a small
+        laptop panel; every other output keeps the default spacing.
+      '';
+    };
+
     hyprland.xwaylandDpi = lib.mkOption {
       type = lib.types.nullOr lib.types.int;
       default = null;

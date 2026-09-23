@@ -49,6 +49,7 @@ let
     ./cli.nix
     ./nix.nix
     ./infra.nix
+    ./infra-security.nix
   ];
 in
 {

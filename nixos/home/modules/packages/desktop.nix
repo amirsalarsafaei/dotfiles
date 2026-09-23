@@ -1,6 +1,5 @@
 { pkgs, ... }:
 [
-  # obsidian is provided by programs.obsidian (see programs/desktop/obsidian.nix)
   pkgs.vlc
   pkgs.telegram-desktop
   pkgs.spotify-player

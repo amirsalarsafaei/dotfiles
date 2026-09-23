@@ -12,6 +12,116 @@ let
   isNormal = config.custom.powerProfile == "normal";
   opaqueWindows = osConfig.hyprland.opaqueWindows or false;
   xwaylandDpi = osConfig.hyprland.xwaylandDpi or null;
+  compactOutput = osConfig.hyprland.compactOutput or null;
+
+  displayLid = pkgs.writeShellApplication {
+    name = "display-lid";
+    runtimeInputs = [
+      pkgs.jq
+      pkgs.coreutils
+      pkgs.gnugrep
+    ];
+    text = ''
+      lid_closed() {
+        grep -qs closed /proc/acpi/button/lid/*/state
+      }
+
+      disable_panel() {
+        hyprctl monitors all -j \
+          | jq -r '.[] | select(.name | startswith("eDP")) | .name' \
+          | while read -r panel; do
+              hyprctl keyword monitor "$panel, disable" >/dev/null
+            done
+      }
+
+      external_count() {
+        hyprctl monitors all -j | jq '[.[] | select(.name | startswith("eDP") | not)] | length'
+      }
+
+      case "''${1:-sync}" in
+        sync)
+          if lid_closed && [ "$(external_count)" -gt 0 ]; then
+            disable_panel
+          fi
+          ;;
+        open)
+          hyprctl reload >/dev/null
+          ;;
+        *)
+          echo "usage: display-lid [sync|open]" >&2
+          exit 2
+          ;;
+      esac
+    '';
+  };
+
+  displayMenu = pkgs.writeShellApplication {
+    name = "display-menu";
+    runtimeInputs = [
+      pkgs.jq
+      pkgs.rofi
+      pkgs.libnotify
+      displayLid
+    ];
+    text = ''
+      panel=$(hyprctl monitors all -j | jq -r '[.[] | select(.name | startswith("eDP")) | .name][0] // empty')
+      external=$(hyprctl monitors all -j | jq -r '[.[] | select(.name | startswith("eDP") | not) | .name][0] // empty')
+
+      if [ -z "$external" ]; then
+        notify-send "Displays" "No external monitor connected"
+        exit 0
+      fi
+
+      choice=$(
+        printf '%s\n' \
+          "Extend right" \
+          "Extend left" \
+          "Extend above" \
+          "Mirror laptop" \
+          "External only" \
+          "Laptop only" \
+          "Reset" \
+          | rofi -dmenu -i -no-custom -p "󰍹  $external"
+      ) || exit 0
+
+      hyprctl reload >/dev/null
+      case "$choice" in
+        "Extend right") hyprctl keyword monitor "$external, preferred, auto-right, auto" ;;
+        "Extend left") hyprctl keyword monitor "$external, preferred, auto-left, auto" ;;
+        "Extend above") hyprctl keyword monitor "$external, preferred, auto-up, auto" ;;
+        "Mirror laptop")
+          if [ -n "$panel" ]; then
+            hyprctl keyword monitor "$external, preferred, auto, auto, mirror, $panel"
+          fi
+          ;;
+        "External only")
+          if [ -n "$panel" ]; then
+            hyprctl keyword monitor "$panel, disable"
+          fi
+          ;;
+        "Laptop only") hyprctl keyword monitor "$external, disable" ;;
+        "Reset") display-lid sync ;;
+      esac >/dev/null
+    '';
+  };
+
+  focusMode = pkgs.writeShellApplication {
+    name = "focus-mode";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = ''
+      state="''${XDG_RUNTIME_DIR:-/tmp}/hypr-focus-mode"
+      if [ -e "$state" ]; then
+        rm -f "$state"
+        hyprctl reload >/dev/null
+        ${lib.getExe displayLid} sync
+        waybar-toggle show
+      else
+        touch "$state"
+        hyprctl --batch "keyword general:gaps_in 0; keyword general:gaps_out 0; keyword decoration:rounding 0${lib.optionalString (compactOutput != null) "; keyword workspace m[${compactOutput}], gapsin:0, gapsout:0"}" >/dev/null
+        waybar-toggle hide
+      fi
+    '';
+  };
 
   decorationBlock =
     if isNormal then
@@ -115,7 +225,7 @@ let
   # Not gated on the power profile: blur is already enabled in both decoration
   # blocks above, and these rules only extend it to panels.
   layerRuleBlock = ''
-    layerrule = blur on, ignore_alpha 0.20, match:namespace waybar
+    layerrule = blur on, ignore_alpha 0.20, match:namespace waybar.*
     layerrule = blur on, ignore_alpha 0.10, match:namespace rofi
     layerrule = blur on, ignore_alpha 0.10, match:namespace wlogout
     layerrule = blur on, ignore_alpha 0.10, match:namespace swaync-control-center
@@ -124,6 +234,18 @@ let
 
 in
 {
+  home.packages = [
+    focusMode
+    displayMenu
+    displayLid
+  ];
+
+  custom.keys.commands = {
+    focusMode = lib.getExe focusMode;
+    displayMenu = lib.getExe displayMenu;
+    displayLid = lib.getExe displayLid;
+  };
+
   wayland.windowManager.hyprland = {
     enable = true;
     systemd.enable = false;
@@ -180,6 +302,10 @@ in
       }
 
       gesture = 3, horizontal, workspace
+
+      ${lib.optionalString (compactOutput != null) ''
+        workspace = m[${compactOutput}], gapsin:3, gapsout:6
+      ''}
 
       ${decorationBlock}
 

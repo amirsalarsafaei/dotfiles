@@ -211,6 +211,18 @@ rec {
         group = "Session";
       })
       (keysLib.hypr.exec {
+        on = on.superShift K.b;
+        cmd = cmd.waybarToggle;
+        desc = "Show or hide the bar";
+        group = "Session";
+      })
+      (keysLib.hypr.exec {
+        on = on.superShift K.g;
+        cmd = cmd.focusMode;
+        desc = "Focus mode: no gaps, no bar";
+        group = "Session";
+      })
+      (keysLib.hypr.exec {
         on = on.super K.N;
         cmd = "swaync-client -t -sw";
         desc = "Toggle the notification centre";
@@ -422,6 +434,54 @@ rec {
         arg = "+1";
         desc = "Focus the next monitor";
         group = "Workspaces";
+      })
+      (keysLib.hypr.bind {
+        on = on.superShift K.left;
+        dispatcher = "movewindow";
+        arg = "mon:-1";
+        desc = "Move window to the previous monitor";
+        group = "Monitors";
+      })
+      (keysLib.hypr.bind {
+        on = on.superShift K.right;
+        dispatcher = "movewindow";
+        arg = "mon:+1";
+        desc = "Move window to the next monitor";
+        group = "Monitors";
+      })
+      (keysLib.hypr.bind {
+        on = on.superAlt K.left;
+        dispatcher = "movecurrentworkspacetomonitor";
+        arg = "-1";
+        desc = "Move workspace to the previous monitor";
+        group = "Monitors";
+      })
+      (keysLib.hypr.bind {
+        on = on.superAlt K.right;
+        dispatcher = "movecurrentworkspacetomonitor";
+        arg = "+1";
+        desc = "Move workspace to the next monitor";
+        group = "Monitors";
+      })
+      (keysLib.hypr.exec {
+        on = on.superShift K.D;
+        cmd = cmd.displayMenu;
+        desc = "Display layout menu";
+        group = "Monitors";
+      })
+      (keysLib.hypr.exec {
+        on = on.none K.lidClose;
+        cmd = "${cmd.displayLid} sync";
+        desc = "Turn the laptop panel off while an external monitor is connected";
+        group = "Monitors";
+        flavor = "switch";
+      })
+      (keysLib.hypr.exec {
+        on = on.none K.lidOpen;
+        cmd = "${cmd.displayLid} open";
+        desc = "Turn the laptop panel back on";
+        group = "Monitors";
+        flavor = "switch";
       })
       (keysLib.hypr.bind {
         on = on.superCtrl K.left;

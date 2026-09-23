@@ -68,7 +68,9 @@ let
     // lib.optionalAttrs (m.inputOffpeak != null) { input_offpeak = m.inputOffpeak; }
     // lib.optionalAttrs (m.outputOffpeak != null) { output_offpeak = m.outputOffpeak; }
     // lib.optionalAttrs (m.cacheReadOffpeak != null) { cache_read_offpeak = m.cacheReadOffpeak; }
-    // lib.optionalAttrs (m.cacheCreateOffpeak != null) { cache_create_offpeak = m.cacheCreateOffpeak; };
+    // lib.optionalAttrs (m.cacheCreateOffpeak != null) {
+      cache_create_offpeak = m.cacheCreateOffpeak;
+    };
 
   # Paths the bwrap sandbox must never let a Bash-tool subprocess read or
   # write, regardless of variant: SSH/GPG keyrings and every provider API key
@@ -103,6 +105,8 @@ let
     "${config.home.homeDirectory}/glm-key"
     "${config.home.homeDirectory}/deepseek-key"
     "${config.home.homeDirectory}/personal-deepseek"
+    "${config.home.homeDirectory}/divar-glm"
+    "${config.home.homeDirectory}/divar-deepseek"
   ];
 
   claudeSandbox = pkgs.writeShellApplication {
@@ -115,6 +119,9 @@ let
       export CLAUDE_SANDBOX_TARGET="${pkgs.claude-code}/bin/claude"
       export CLAUDE_SANDBOX_DENY=${lib.escapeShellArg (lib.concatStringsSep "\n" cfg.sandbox.denyPaths)}
       export CLAUDE_SANDBOX_ALLOW=${lib.escapeShellArg (lib.concatStringsSep "\n" cfg.sandbox.allowPaths)}
+      context_sandbox=${pkgs.writeText "claude-context-sandbox.md" cfg.context.sandbox}
+      context_sandbox_net=${pkgs.writeText "claude-context-sandbox-net.md" cfg.context.sandboxNet}
+      context_sandbox_fs=${pkgs.writeText "claude-context-sandbox-fs.md" cfg.context.sandboxFs}
       ${builtins.readFile ./claude-sandbox.sh}
     '';
   };
@@ -277,6 +284,8 @@ let
   workClaudeConfigDir = "${config.home.homeDirectory}/.config/work-claude";
   glmClaudeConfigDir = "${config.home.homeDirectory}/.config/glm-claude";
   deepseekClaudeConfigDir = "${config.home.homeDirectory}/.config/deepseek-claude";
+  workDivarGlmClaudeConfigDir = "${config.home.homeDirectory}/.config/work-divar-glm-claude";
+  workDivarDeepseekClaudeConfigDir = "${config.home.homeDirectory}/.config/work-divar-deepseek-claude";
   personalClaudeConfigDir = "${config.home.homeDirectory}/.config/personal-claude";
   personalDeepseekClaudeConfigDir = "${config.home.homeDirectory}/.config/personal-deepseek-claude";
 
@@ -294,12 +303,10 @@ let
   mkConversationShareFiles =
     sharedDir: variantDir:
     lib.listToAttrs (
-      map
-        (name: {
-          name = "${variantDir}/${name}";
-          value.source = config.lib.file.mkOutOfStoreSymlink "${sharedDir}/${name}";
-        })
-        conversationShareNames
+      map (name: {
+        name = "${variantDir}/${name}";
+        value.source = config.lib.file.mkOutOfStoreSymlink "${sharedDir}/${name}";
+      }) conversationShareNames
     );
 
   # One-time migration, run before checkLinkTargets so the symlinks above can
@@ -309,39 +316,37 @@ let
   # the shared dir (transcript files are UUID-named, so cp --no-clobber
   # collisions are impossible), then removes the originals. Idempotent: a
   # symlinked or absent store is left alone.
-  mkConversationShareMigration =
-    sharedDir: variantDirs:
-    ''
-      _cc_shared="${sharedDir}"
-      mkdir -p "$_cc_shared/projects"
-      [ -f "$_cc_shared/history.jsonl" ] || : > "$_cc_shared/history.jsonl"
-      for _cc_v in ${lib.concatStringsSep " " variantDirs}; do
-        [ -d "$_cc_v" ] || continue
-        if [ -d "$_cc_v/projects" ] && [ ! -L "$_cc_v/projects" ]; then
-          if [ -z "$(ls -A "$_cc_shared/projects" 2>/dev/null)" ]; then
-            # shared store still empty: -T renames onto the (empty) target —
-            # atomic and lossless, no copy of hundreds of MB
-            if mv -T -- "$_cc_v/projects" "$_cc_shared/projects"; then
-              :
-            else
-              printf 'claude conversation migration: mv %s/projects failed; leaving it in place\n' "$_cc_v" >&2
-            fi
-          elif cp -an -- "$_cc_v/projects/." "$_cc_shared/projects/"; then
-            rm -rf -- "$_cc_v/projects"
+  mkConversationShareMigration = sharedDir: variantDirs: ''
+    _cc_shared="${sharedDir}"
+    mkdir -p "$_cc_shared/projects"
+    [ -f "$_cc_shared/history.jsonl" ] || : > "$_cc_shared/history.jsonl"
+    for _cc_v in ${lib.concatStringsSep " " variantDirs}; do
+      [ -d "$_cc_v" ] || continue
+      if [ -d "$_cc_v/projects" ] && [ ! -L "$_cc_v/projects" ]; then
+        if [ -z "$(ls -A "$_cc_shared/projects" 2>/dev/null)" ]; then
+          # shared store still empty: -T renames onto the (empty) target —
+          # atomic and lossless, no copy of hundreds of MB
+          if mv -T -- "$_cc_v/projects" "$_cc_shared/projects"; then
+            :
           else
-            printf 'claude conversation migration: failed to merge %s/projects; leaving it in place\n' "$_cc_v" >&2
+            printf 'claude conversation migration: mv %s/projects failed; leaving it in place\n' "$_cc_v" >&2
           fi
+        elif cp -an -- "$_cc_v/projects/." "$_cc_shared/projects/"; then
+          rm -rf -- "$_cc_v/projects"
+        else
+          printf 'claude conversation migration: failed to merge %s/projects; leaving it in place\n' "$_cc_v" >&2
         fi
-        if [ -f "$_cc_v/history.jsonl" ] && [ ! -L "$_cc_v/history.jsonl" ]; then
-          if cat -- "$_cc_v/history.jsonl" >> "$_cc_shared/history.jsonl"; then
-            rm -f -- "$_cc_v/history.jsonl"
-          else
-            printf 'claude conversation migration: failed to merge %s/history.jsonl; leaving it in place\n' "$_cc_v" >&2
-          fi
+      fi
+      if [ -f "$_cc_v/history.jsonl" ] && [ ! -L "$_cc_v/history.jsonl" ]; then
+        if cat -- "$_cc_v/history.jsonl" >> "$_cc_shared/history.jsonl"; then
+          rm -f -- "$_cc_v/history.jsonl"
+        else
+          printf 'claude conversation migration: failed to merge %s/history.jsonl; leaving it in place\n' "$_cc_v" >&2
         fi
-      done
-      unset _cc_shared _cc_v
-    '';
+      fi
+    done
+    unset _cc_shared _cc_v
+  '';
 
   workMcpConfigRel = ".config/work-claude/mcp-servers.json";
   workMcpConfigPath = "${config.home.homeDirectory}/${workMcpConfigRel}";
@@ -479,17 +484,15 @@ let
     };
   };
 
-  flagPluginsZshArgs = lib.concatMapStringsSep " " (
-    p: "'${p.flag}[${p.desc}]'"
-  ) flagPlugins;
+  flagPluginsZshArgs = lib.concatMapStringsSep " " (p: "'${p.flag}[${p.desc}]'") flagPlugins;
 
   pluginFlagsParserText =
     let
       armBody = p: ''
         _claude_plugin_flags+=("${p.plugin}=${if p.enable then "true" else "false"}")
-        ${lib.optionalString (p ? marketplace)
-          ''_claude_plugin_marketplaces+=('${builtins.toJSON p.marketplace}')''
-        }
+        ${lib.optionalString (
+          p ? marketplace
+        ) "_claude_plugin_marketplaces+=('${builtins.toJSON p.marketplace}')"}
         ${lib.concatMapStringsSep "\n" (
           k: "_claude_plugin_env+=(${lib.escapeShellArg "${k}=${p.env.${k}}"})"
         ) (lib.attrNames (p.env or { }))}
@@ -766,11 +769,55 @@ let
       export ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.3[1m]"
       export ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5.3[1m]"
       export ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-5.3-flash[1m]"
-      export CLAUDE_CODE_SUBAGENT_MODEL="glm-5.3[1m]"
+      export CLAUDE_CODE_SUBAGENT_MODEL="glm-5.3-flash[1m]"
       export CLAUDE_CONFIG_DIR="${glmClaudeConfigDir}"
       export CLAUDE_CODE_EFFORT_DEFAULT="${workEffortLevel}"
       export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1048576"
       export CLAUDE_CODE_MAX_CONTEXT_TOKENS="1048576"
+      ${workWrapperTail}
+    '';
+  };
+
+  workDivarGlmClaude = pkgs.writeShellApplication {
+    name = "work-divar-glm-claude";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = ''
+      ${mkKeyAuth {
+        name = "work-divar-glm-claude";
+        keyFile = "divar-glm";
+        authVar = "ANTHROPIC_AUTH_TOKEN";
+      }}
+      export CLAUDE_VARIANT_NAME="work-divar-glm-claude"
+      export ANTHROPIC_BASE_URL="http://204.12.171.47:4000"
+      export ANTHROPIC_DEFAULT_HAIKU_MODEL="divar-glm5.3"
+      export ANTHROPIC_DEFAULT_SONNET_MODEL="divar-glm5.3"
+      export ANTHROPIC_DEFAULT_OPUS_MODEL="divar-glm5.3"
+      export CLAUDE_CONFIG_DIR="${workDivarGlmClaudeConfigDir}"
+      export CLAUDE_CODE_AUTO_COMPACT_WINDOW="180000"
+      export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1"
+      export API_TIMEOUT_MS="3000000"
+      ${workWrapperTail}
+    '';
+  };
+
+  workDivarDeepseekClaude = pkgs.writeShellApplication {
+    name = "work-divar-deepseek-claude";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = ''
+      ${mkKeyAuth {
+        name = "work-divar-deepseek-claude";
+        keyFile = "divar-deepseek";
+        authVar = "ANTHROPIC_AUTH_TOKEN";
+      }}
+      export CLAUDE_VARIANT_NAME="work-divar-deepseek-claude"
+      export ANTHROPIC_BASE_URL="http://204.12.171.47:4000"
+      export ANTHROPIC_DEFAULT_HAIKU_MODEL="divar-deepseek"
+      export ANTHROPIC_DEFAULT_SONNET_MODEL="divar-deepseek"
+      export ANTHROPIC_DEFAULT_OPUS_MODEL="divar-deepseek"
+      export CLAUDE_CONFIG_DIR="${workDivarDeepseekClaudeConfigDir}"
+      export CLAUDE_CODE_AUTO_COMPACT_WINDOW="100000"
+      export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1"
+      export API_TIMEOUT_MS="3000000"
       ${workWrapperTail}
     '';
   };
@@ -1286,10 +1333,7 @@ let
     // base
     // lib.optionalAttrs (plugins != { } || base ? enabledPlugins || caveman) {
       # cfg.plugins last, so a per-variant `false` can still switch these off.
-      enabledPlugins =
-        (base.enabledPlugins or { })
-        // lib.optionalAttrs caveman cavemanPlugin
-        // plugins;
+      enabledPlugins = (base.enabledPlugins or { }) // lib.optionalAttrs caveman cavemanPlugin // plugins;
     }
     // lib.optionalAttrs (marketplaces != { }) {
       extraKnownMarketplaces = (base.extraKnownMarketplaces or { }) // marketplaces;
@@ -1303,6 +1347,9 @@ let
         ntfyStopHooks
         (base.hooks or { })
       ];
+      permissions = (base.permissions or { }) // {
+        deny = (base.permissions.deny or [ ]) ++ [ "Bash(git push:*)" ];
+      };
       # denyRead/denyWrite here are bwrap sandbox paths (OS-level, for the
       # Bash tool), unrelated to the Read/Edit tool permission deny rules
       # above — keeping every variant's Bash tool blind to key material even
@@ -1310,7 +1357,8 @@ let
       sandbox = {
         denyRead = sandboxSecretDenyPaths;
         denyWrite = sandboxSecretDenyPaths;
-      } // (base.sandbox or { });
+      }
+      // (base.sandbox or { });
     };
 
   localSettings = {
@@ -1458,9 +1506,7 @@ let
       defaultMode = "auto";
     };
     extraKnownMarketplaces = devarMarketplace // astGrepMarketplace;
-    enabledPlugins = { }
-    // devarPlugin
-    // astGrepPlugin;
+    enabledPlugins = { } // devarPlugin // astGrepPlugin;
     theme = "dark";
     outputStyle = "concise";
     skipAutoPermissionPrompt = true;
@@ -1570,7 +1616,7 @@ let
       skillOverrides = cfg.skillOverrides;
     };
 
-  nixManagedNote = "settings.json is Nix-managed (home/modules/programs/development/claude-code.nix in your dotfiles flake) — edits won't persist; change Nix and rebuild.\n";
+  nixManagedNote = cfg.context.base;
 
   pickerEntry = tag: name: desc: bin: {
     inherit
@@ -1585,6 +1631,14 @@ let
     ++ lib.optional cfg.enableGlm (pickerEntry "glm" "glm-claude" "GLM via z.ai" glmClaude)
     ++ lib.optional cfg.enableDeepseek (
       pickerEntry "deepseek" "deepseek-claude" "DeepSeek, native Anthropic API" deepseekClaude
+    )
+    ++ lib.optional cfg.enableWorkDivarGlm (
+      pickerEntry "work-divar-glm" "work-divar-glm-claude" "Divar work, divar-glm5.3 gateway"
+        workDivarGlmClaude
+    )
+    ++ lib.optional cfg.enableWorkDivarDeepseek (
+      pickerEntry "work-divar-deepseek" "work-divar-deepseek-claude" "Divar work, divar-deepseek gateway"
+        workDivarDeepseekClaude
     )
     ++ lib.optional cfg.enablePersonalDeepseek (
       pickerEntry "personal-deepseek" "personal-deepseek-claude" "DeepSeek, personal key"
@@ -1635,6 +1689,15 @@ in
       the deepseek-claude variant: routes through DeepSeek's native
       Anthropic-compatible endpoint (https://api.deepseek.com/anthropic).
       Reads the API key from ~/deepseek-key
+    '';
+    enableWorkDivarGlm = lib.mkEnableOption ''
+      the work-divar-glm-claude variant: work group, routed through the Divar
+      LiteLLM gateway (divar-glm5.3). Reads the token from ~/divar-glm
+    '';
+    enableWorkDivarDeepseek = lib.mkEnableOption ''
+      the work-divar-deepseek-claude variant: work group, routed through the
+      Divar LiteLLM gateway (divar-deepseek). Reads the token from
+      ~/divar-deepseek
     '';
     enablePersonalDeepseek = lib.mkEnableOption ''
       the personal-deepseek-claude variant: same DeepSeek native
@@ -1691,6 +1754,8 @@ in
         work = mkMode "work-claude" "full";
         glm = mkMode "glm-claude" null;
         deepseek = mkMode "deepseek-claude" null;
+        workDivarGlm = mkMode "work-divar-glm-claude" null;
+        workDivarDeepseek = mkMode "work-divar-deepseek-claude" null;
         personalDeepseek = mkMode "personal-deepseek-claude" null;
         gap = mkMode "gap-claude" null;
         local = mkMode "local-claude" null;
@@ -1706,6 +1771,80 @@ in
       ~/Documents/amirsalar-vault for that launch. Adopt that vault once with
       /claude-obsidian:wiki from an --obsidian launch
     '';
+
+    context = {
+      base = lib.mkOption {
+        type = lib.types.lines;
+        default = ''
+          # Environment
+
+          This machine is NixOS, built from a flake at ~/personal/dotfiles/nixos. The Claude Code
+          config (settings.json, this CLAUDE.md, hooks, plugins) is generated by
+          home/modules/programs/development/claude-code.nix in that flake: files in the config
+          directory are read-only Nix store symlinks, so edits to them do not persist. Change the
+          Nix module and let the user rebuild; never run nixos-rebuild or home-manager switch
+          yourself.
+
+          The system does not follow normal FHS conventions: there is no /usr/lib, /usr/include or
+          /usr/local, /bin holds only sh, and binaries live in /nix/store and reach PATH through
+          profiles. Do not hardcode FHS paths or install packages globally; load the
+          nix-environment skill when a tool or library is missing.
+
+          ~/divar holds work projects and their configuration; ~/personal holds personal projects,
+          including this dotfiles flake. Keep the two apart: do not carry work code, credentials or
+          context into personal repos, or the reverse.
+
+          `git push` is denied by permission rules in every variant. Commit locally when asked and
+          leave pushing, and opening pull requests, to the user.
+        '';
+        description = ''
+          Always-present part of every variant's CLAUDE.md. The per-variant
+          extras (the local variant's MCP note) are appended after it.
+        '';
+      };
+
+      sandbox = lib.mkOption {
+        type = lib.types.lines;
+        default = ''
+          ## Sandbox
+
+          This session runs inside a bubblewrap sandbox. The filesystem is visible, but credential
+          paths are masked: ~/.ssh, the SSH agent socket, ~/.config/gh, ~/.config/glab-cli,
+          ~/.kube, ~/.aws, ~/.docker, cloud CLI configs and keyrings. Consequences:
+
+          - Git over SSH cannot authenticate, so `git push`, `git pull` and `git fetch` against SSH
+            remotes fail. Do not try to work around it; ask the user to run them.
+          - Signed commits work: GPG signing goes through the host gpg-agent, which holds the keys.
+            If the passphrase is not cached, pinentry prompts the user.
+          - gh, glab, kubectl, aws and docker find no credentials.
+          - PID, IPC and UTS namespaces are private, so host processes are invisible.
+        '';
+        description = ''
+          Appended to CLAUDE.md only for sandboxed launches. The sandbox
+          wrapper renders it at launch and bind-mounts the result over
+          CLAUDE.md inside the mount namespace, so a `--no-sandbox` launch
+          reads the base file without it.
+        '';
+      };
+
+      sandboxNet = lib.mkOption {
+        type = lib.types.lines;
+        default = ''
+          - The network namespace is unshared (`--sandbox-net`): there is no network access at all.
+        '';
+        description = "Appended after `sandbox` for `--sandbox-net` launches.";
+      };
+
+      sandboxFs = lib.mkOption {
+        type = lib.types.lines;
+        default = ''
+          - The home directory is a tmpfs (`--sandbox-fs`): only the working directory, the Claude
+            config directory and a few allowlisted paths (~/.cache, git config, ~/.local/share) exist
+            under $HOME.
+        '';
+        description = "Appended after `sandbox` for `--sandbox-fs` launches.";
+      };
+    };
 
     sandbox = {
       enable = lib.mkEnableOption ''
@@ -2004,6 +2143,20 @@ in
       );
       home.file.".config/deepseek-claude/CLAUDE.md".text = nixManagedNote;
     })
+    (lib.mkIf cfg.enableWorkDivarGlm {
+      home.packages = [ workDivarGlmClaude ];
+      home.file.".config/work-divar-glm-claude/settings.json".text = builtins.toJSON (
+        withOverrides (mkSettings "work" "workDivarGlm" workSettings)
+      );
+      home.file.".config/work-divar-glm-claude/CLAUDE.md".text = nixManagedNote;
+    })
+    (lib.mkIf cfg.enableWorkDivarDeepseek {
+      home.packages = [ workDivarDeepseekClaude ];
+      home.file.".config/work-divar-deepseek-claude/settings.json".text = builtins.toJSON (
+        withOverrides (mkSettings "work" "workDivarDeepseek" workSettings)
+      );
+      home.file.".config/work-divar-deepseek-claude/CLAUDE.md".text = nixManagedNote;
+    })
     (lib.mkIf cfg.enableWork {
       home.packages = [ claudeWork ];
       home.file.".config/work-claude/settings.json".text = builtins.toJSON (
@@ -2011,29 +2164,56 @@ in
       );
       home.file.".config/work-claude/CLAUDE.md".text = nixManagedNote;
     })
-    (lib.mkIf (cfg.enableWork || cfg.enableGlm || cfg.enablePersonal || cfg.enableDeepseek) {
-      home.file.${workMcpConfigRel}.text = builtins.toJSON workMcpServers;
-    })
-    (lib.mkIf (cfg.enableWork || cfg.enableGlm || cfg.enableDeepseek) {
-      # Conversation sharing across the work group — see mkConversationShareFiles.
-      home.file =
-        (lib.optionalAttrs cfg.enableWork (
-          mkConversationShareFiles workClaudeSharedDir ".config/work-claude"
-        ))
-        // (lib.optionalAttrs cfg.enableGlm (
-          mkConversationShareFiles workClaudeSharedDir ".config/glm-claude"
-        ))
-        // (lib.optionalAttrs cfg.enableDeepseek (
-          mkConversationShareFiles workClaudeSharedDir ".config/deepseek-claude"
-        ));
-      home.activation.claudeWorkConversationMigration = lib.hm.dag.entryBefore [ "checkLinkTargets" ] (
-        mkConversationShareMigration workClaudeSharedDir (
-          lib.optional cfg.enableWork workClaudeConfigDir
-          ++ lib.optional cfg.enableGlm glmClaudeConfigDir
-          ++ lib.optional cfg.enableDeepseek deepseekClaudeConfigDir
-        )
-      );
-    })
+    (lib.mkIf
+      (
+        cfg.enableWork
+        || cfg.enableGlm
+        || cfg.enablePersonal
+        || cfg.enableDeepseek
+        || cfg.enableWorkDivarGlm
+        || cfg.enableWorkDivarDeepseek
+      )
+      {
+        home.file.${workMcpConfigRel}.text = builtins.toJSON workMcpServers;
+      }
+    )
+    (lib.mkIf
+      (
+        cfg.enableWork
+        || cfg.enableGlm
+        || cfg.enableDeepseek
+        || cfg.enableWorkDivarGlm
+        || cfg.enableWorkDivarDeepseek
+      )
+      {
+        # Conversation sharing across the work group — see mkConversationShareFiles.
+        home.file =
+          (lib.optionalAttrs cfg.enableWork (
+            mkConversationShareFiles workClaudeSharedDir ".config/work-claude"
+          ))
+          // (lib.optionalAttrs cfg.enableGlm (
+            mkConversationShareFiles workClaudeSharedDir ".config/glm-claude"
+          ))
+          // (lib.optionalAttrs cfg.enableDeepseek (
+            mkConversationShareFiles workClaudeSharedDir ".config/deepseek-claude"
+          ))
+          // (lib.optionalAttrs cfg.enableWorkDivarGlm (
+            mkConversationShareFiles workClaudeSharedDir ".config/work-divar-glm-claude"
+          ))
+          // (lib.optionalAttrs cfg.enableWorkDivarDeepseek (
+            mkConversationShareFiles workClaudeSharedDir ".config/work-divar-deepseek-claude"
+          ));
+        home.activation.claudeWorkConversationMigration = lib.hm.dag.entryBefore [ "checkLinkTargets" ] (
+          mkConversationShareMigration workClaudeSharedDir (
+            lib.optional cfg.enableWork workClaudeConfigDir
+            ++ lib.optional cfg.enableGlm glmClaudeConfigDir
+            ++ lib.optional cfg.enableDeepseek deepseekClaudeConfigDir
+            ++ lib.optional cfg.enableWorkDivarGlm workDivarGlmClaudeConfigDir
+            ++ lib.optional cfg.enableWorkDivarDeepseek workDivarDeepseekClaudeConfigDir
+          )
+        );
+      }
+    )
     (lib.mkIf (cfg.enablePersonal || cfg.enablePersonalDeepseek) {
       # Same conversation sharing for the personal pair.
       home.file =
@@ -2043,12 +2223,14 @@ in
         // (lib.optionalAttrs cfg.enablePersonalDeepseek (
           mkConversationShareFiles personalClaudeSharedDir ".config/personal-deepseek-claude"
         ));
-      home.activation.claudePersonalConversationMigration = lib.hm.dag.entryBefore [ "checkLinkTargets" ] (
-        mkConversationShareMigration personalClaudeSharedDir (
-          lib.optional cfg.enablePersonal personalClaudeConfigDir
-          ++ lib.optional cfg.enablePersonalDeepseek personalDeepseekClaudeConfigDir
-        )
-      );
+      home.activation.claudePersonalConversationMigration =
+        lib.hm.dag.entryBefore [ "checkLinkTargets" ]
+          (
+            mkConversationShareMigration personalClaudeSharedDir (
+              lib.optional cfg.enablePersonal personalClaudeConfigDir
+              ++ lib.optional cfg.enablePersonalDeepseek personalDeepseekClaudeConfigDir
+            )
+          );
     })
     (lib.mkIf (cfg.enablePersonal || cfg.enablePersonalDeepseek) {
       home.file.${nixosMcpConfigRel}.text = builtins.toJSON nixosMcpServers;
@@ -2085,6 +2267,8 @@ in
         || cfg.enablePersonal
         || cfg.enableDeepseek
         || cfg.enablePersonalDeepseek
+        || cfg.enableWorkDivarGlm
+        || cfg.enableWorkDivarDeepseek
       )
       {
         home.file = {
@@ -2116,6 +2300,8 @@ in
               lib.optional cfg.enable ".config/gap-claude"
               ++ lib.optional cfg.enableGlm ".config/glm-claude"
               ++ lib.optional cfg.enableDeepseek ".config/deepseek-claude"
+              ++ lib.optional cfg.enableWorkDivarGlm ".config/work-divar-glm-claude"
+              ++ lib.optional cfg.enableWorkDivarDeepseek ".config/work-divar-deepseek-claude"
               ++ lib.optional cfg.enablePersonalDeepseek ".config/personal-deepseek-claude"
               ++ lib.optional cfg.enableWork ".config/work-claude"
               ++ lib.optional cfg.enableLocal ".config/local-claude"

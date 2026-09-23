@@ -1,0 +1,19 @@
+{ pkgs, ... }:
+[
+  pkgs.crane
+  pkgs.skopeo
+  pkgs.dive
+  pkgs.trivy
+  pkgs.grype
+  pkgs.syft
+  pkgs.cosign
+  pkgs.dockle
+  pkgs.hadolint
+  pkgs.kubescape
+  pkgs.kube-linter
+  pkgs.popeye
+  pkgs.gitleaks
+  pkgs.trufflehog
+  pkgs.osv-scanner
+  pkgs.govulncheck
+]

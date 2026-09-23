@@ -123,4 +123,23 @@ if [ "${CLAUDE_SANDBOX_FS:-0}" = 1 ]; then
   done
 fi
 
+claude_md="${CLAUDE_CONFIG_DIR:-$home/.claude}/CLAUDE.md"
+
+render_context() {
+  cat "$claude_md"
+  printf '\n'
+  cat "$context_sandbox"
+  if [ "${CLAUDE_SANDBOX_NET:-0}" = 1 ]; then
+    cat "$context_sandbox_net"
+  fi
+  if [ "${CLAUDE_SANDBOX_FS:-0}" = 1 ]; then
+    cat "$context_sandbox_fs"
+  fi
+}
+
+if [ -e "$claude_md" ] && [ -s "${context_sandbox:-}" ]; then
+  args+=(--ro-bind-data 3 "$(readlink -f "$claude_md")")
+  exec bwrap "${args[@]}" "$target" "$@" 3< <(render_context)
+fi
+
 exec bwrap "${args[@]}" "$target" "$@"
