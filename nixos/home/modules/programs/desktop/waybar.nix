@@ -1,10 +1,11 @@
-{ config
-, lib
-, pkgs
-, themeLib
-, currentHostname
-, osConfig
-, ...
+{
+  config,
+  lib,
+  pkgs,
+  themeLib,
+  currentHostname,
+  osConfig,
+  ...
 }:
 let
   t = config.custom.theme.resolved.colors;
@@ -20,7 +21,8 @@ let
     {
       g14 = "BAT1"; # ASUS ROG laptop (ACPI)
       t14 = "BAT0"; # Lenovo ThinkPad (ACPI)
-    }.${currentHostname} or "";
+    }
+    .${currentHostname} or "";
   hasBattery = systemBattery != "";
 
   cpuTemperature =
@@ -29,7 +31,8 @@ let
         hwmon-path-abs = "/sys/devices/platform/coretemp.0/hwmon";
         input-filename = "temp1_input";
       };
-    }.${currentHostname} or { };
+    }
+    .${currentHostname} or { };
 
   compactOutput = osConfig.hyprland.compactOutput or null;
 
@@ -366,8 +369,7 @@ in
             "clock"
             "custom/gregorian"
           ];
-          modules-right = lib.optional hasBattery "battery"
-            ++ [
+          modules-right = lib.optional hasBattery "battery" ++ [
             "wireplumber"
             "group/hardware"
             "hyprland/language"
@@ -400,8 +402,8 @@ in
               default = "";
               empty = "";
             };
-            on-scroll-up = "hyprctl dispatch split-cycleworkspaces -1";
-            on-scroll-down = "hyprctl dispatch split-cycleworkspaces +1";
+            on-scroll-up = "hyprctl dispatch workspace m-1";
+            on-scroll-down = "hyprctl dispatch workspace m+1";
             all-outputs = false;
           };
 

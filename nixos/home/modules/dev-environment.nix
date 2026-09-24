@@ -1,4 +1,9 @@
-{ pkgs, lib, ... }:
+{
+  pkgs,
+  lib,
+  inputs,
+  ...
+}:
 let
   # Add dev libraries here as needed — both .dev outputs and PKG_CONFIG_PATH
   # are derived automatically from this single list
@@ -8,6 +13,8 @@ let
   ];
 in
 {
+  nix.registry.dev.flake = inputs.self;
+
   home.packages = map (p: p.dev) devLibs;
 
   home.sessionVariables = {

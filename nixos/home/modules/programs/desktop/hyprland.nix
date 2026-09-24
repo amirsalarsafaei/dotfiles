@@ -26,8 +26,20 @@ let
         grep -qs closed /proc/acpi/button/lid/*/state
       }
 
-      disable_panel() {
+      restore_panel() {
         hyprctl monitors all -j \
+          | jq -r '.[] | select(.name | startswith("eDP")) | .name' \
+          | while read -r panel; do
+              rule=${lib.escapeShellArg monitorConfig}
+              if [[ "$rule" != "$panel,"* ]]; then
+                rule="$panel, preferred, auto, auto"
+              fi
+              hyprctl keyword monitor "$rule" >/dev/null
+            done
+      }
+
+      disable_panel() {
+        hyprctl monitors -j \
           | jq -r '.[] | select(.name | startswith("eDP")) | .name' \
           | while read -r panel; do
               hyprctl keyword monitor "$panel, disable" >/dev/null
@@ -35,23 +47,44 @@ let
       }
 
       external_count() {
-        hyprctl monitors all -j | jq '[.[] | select(.name | startswith("eDP") | not)] | length'
+        hyprctl monitors -j | jq '[.[] | select(.name | startswith("eDP") | not)] | length'
       }
 
       case "''${1:-sync}" in
         sync)
-          if lid_closed && [ "$(external_count)" -gt 0 ]; then
+          if [ "$(external_count)" -eq 0 ]; then
+            if ! hyprctl monitors -j | jq -e '.[] | select(.name | startswith("eDP"))' >/dev/null; then
+              restore_panel
+            fi
+          elif lid_closed; then
             disable_panel
           fi
           ;;
         open)
-          hyprctl reload >/dev/null
+          restore_panel
           ;;
         *)
           echo "usage: display-lid [sync|open]" >&2
           exit 2
           ;;
       esac
+    '';
+  };
+
+  displayWatch = pkgs.writeShellApplication {
+    name = "display-watch";
+    runtimeInputs = [
+      pkgs.socat
+      displayLid
+    ];
+    text = ''
+      display-lid sync
+      socat -u UNIX-CONNECT:"$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock" - \
+        | while IFS= read -r event; do
+            case "$event" in
+              monitoradded\>\>*|monitorremoved\>\>*|configreloaded\>\>*) display-lid sync ;;
+            esac
+          done
     '';
   };
 
@@ -64,43 +97,64 @@ let
       displayLid
     ];
     text = ''
-      panel=$(hyprctl monitors all -j | jq -r '[.[] | select(.name | startswith("eDP")) | .name][0] // empty')
-      external=$(hyprctl monitors all -j | jq -r '[.[] | select(.name | startswith("eDP") | not) | .name][0] // empty')
+      monitors=$(hyprctl monitors all -j)
+      panel=$(jq -r '[.[] | select(.name | startswith("eDP")) | .name][0] // empty' <<< "$monitors")
+      mapfile -t externals < <(jq -r '.[] | select(.name | startswith("eDP") | not) | .name' <<< "$monitors")
 
-      if [ -z "$external" ]; then
-        notify-send "Displays" "No external monitor connected"
+      if [ "''${#externals[@]}" -eq 0 ]; then
+        display-lid open
+        notify-send "Displays" "Laptop display restored; no external monitor connected"
         exit 0
       fi
 
+      external="''${externals[0]}"
+      if [ "''${#externals[@]}" -gt 1 ]; then
+        external=$(printf '%s\n' "''${externals[@]}" | rofi -dmenu -i -no-custom -p "Display") || exit 0
+      fi
+
       choice=$(
-        printf '%s\n' \
-          "Extend right" \
-          "Extend left" \
-          "Extend above" \
-          "Mirror laptop" \
-          "External only" \
-          "Laptop only" \
-          "Reset" \
-          | rofi -dmenu -i -no-custom -p "󰍹  $external"
+        {
+          printf '%s\n' "Extend right" "Extend left" "Extend above" "Extend below"
+          if [ -n "$panel" ]; then
+            printf '%s\n' "Mirror laptop" "External only" "Laptop only"
+          fi
+          printf '%s\n' "Reset"
+        } | rofi -dmenu -i -no-custom -p "󰍹  $external"
       ) || exit 0
 
-      hyprctl reload >/dev/null
       case "$choice" in
-        "Extend right") hyprctl keyword monitor "$external, preferred, auto-right, auto" ;;
-        "Extend left") hyprctl keyword monitor "$external, preferred, auto-left, auto" ;;
-        "Extend above") hyprctl keyword monitor "$external, preferred, auto-up, auto" ;;
+        "Extend right"|"Extend left"|"Extend above"|"Extend below")
+          display-lid open
+          case "$choice" in
+            "Extend right") position=auto-right ;;
+            "Extend left") position=auto-left ;;
+            "Extend above") position=auto-up ;;
+            "Extend below") position=auto-down ;;
+          esac
+          hyprctl keyword monitor "$external, preferred, $position, auto"
+          display-lid sync
+          ;;
         "Mirror laptop")
-          if [ -n "$panel" ]; then
-            hyprctl keyword monitor "$external, preferred, auto, auto, mirror, $panel"
-          fi
+          display-lid open
+          hyprctl keyword monitor "$external, preferred, auto, auto, mirror, $panel"
           ;;
         "External only")
-          if [ -n "$panel" ]; then
-            hyprctl keyword monitor "$panel, disable"
-          fi
+          hyprctl keyword monitor "$external, preferred, auto, auto"
+          hyprctl keyword monitor "$panel, disable"
           ;;
-        "Laptop only") hyprctl keyword monitor "$external, disable" ;;
-        "Reset") display-lid sync ;;
+        "Laptop only")
+          display-lid open
+          for output in "''${externals[@]}"; do
+            hyprctl keyword monitor "$output, disable"
+          done
+          ;;
+        "Reset")
+          display-lid open
+          for output in "''${externals[@]}"; do
+            hyprctl keyword monitor "$output, preferred, auto, auto"
+          done
+          display-lid sync
+          ;;
       esac >/dev/null
     '';
   };
@@ -117,7 +171,11 @@ let
         waybar-toggle show
       else
         touch "$state"
-        hyprctl --batch "keyword general:gaps_in 0; keyword general:gaps_out 0; keyword decoration:rounding 0${lib.optionalString (compactOutput != null) "; keyword workspace m[${compactOutput}], gapsin:0, gapsout:0"}" >/dev/null
+        hyprctl --batch "keyword general:gaps_in 0; keyword general:gaps_out 0; keyword decoration:rounding 0${
+          lib.optionalString (
+            compactOutput != null
+          ) "; keyword workspace m[${compactOutput}], gapsin:0, gapsout:0"
+        }" >/dev/null
         waybar-toggle hide
       fi
     '';
@@ -266,7 +324,9 @@ in
       env = SSH_ASKPASS_REQUIRE,force
 
       # Monitor configuration
+      monitor = ,preferred,auto,auto
       monitor = ${monitorConfig}
+      exec-once = ${lib.getExe displayWatch}
 
       # Fix pixelated XWayland apps on fractional monitor scale: by default
       # Hyprland lets XWayland itself scale its output to match the

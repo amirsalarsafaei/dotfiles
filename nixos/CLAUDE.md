@@ -3,16 +3,112 @@
 ## Comments Are Prohibited
 Never write a comment. This applies to every file type and every kind of comment: explanatory blocks above a definition, inline notes, rationale for a workaround, measurement notes, TODOs, section banners, commented-out code. It applies no matter how surprising, hard-won, or non-obvious the fact is — a finding belongs in the chat reply, not in the file. If you believe a comment is genuinely required, ask the user first and add it only after they say yes; approval for one comment is not approval for the next. Leave existing comments exactly as they are unless asked to change them, and do not treat the comment density of surrounding code as license to add more.
 
-## Project Structure & Module Organization
-This repository is a flake-based NixOS and Home Manager setup for multiple machines. `flake.nix` is the entry point and declares all inputs, hosts, and outputs. Host-specific system modules live in `hosts/<host>/`, with `configuration.nix` and `hardware-configuration.nix` per machine. Shared NixOS modules live in `modules/`. Home Manager entrypoints and reusable user modules live in `home/`, with feature modules under `home/modules/` such as `programs/`, `services/`, `shell/`, `systemd/`, and package groups in flat files under `home/modules/packages/` like `dev.nix`, `cli.nix`, `fun.nix`, and `system.nix`. Keep package categories flat in `home/modules/packages/`; avoid adding another nesting layer unless there is a clear new concern beyond grouping package lists. Package overlays are in `overlays/`, and encrypted or local-only secrets are referenced from `secrets/`.
+## Nix reasoning checklist
 
-## Build, Test, and Development Commands
-- `nix flake show` - list available `nixosConfigurations` and `homeConfigurations`.
-- `nix build .#nixosConfigurations.g14.config.system.build.toplevel` - build a host config without switching.
-- `sudo nixos-rebuild switch --flake .#g14` - apply a NixOS host configuration locally.
-- `home-manager switch --flake .#amirsalar@g14Arch` - apply the standalone Home Manager profile. but the hosts dont use standalone home manager.
-- `nixpkgs-fmt .` or `nixfmt <file>` - format Nix expressions before committing.
-- `statix check .` - lint Nix code for simplifications and style issues.
+Treat this as a Nix module-system project. Before editing, identify whether the file is a flake expression, a plain function, a derivation, a NixOS module, or a Home Manager module. These have different evaluation and merge rules. Trace the importing profile and affected hosts before choosing where a change belongs.
+
+1. Read the relevant host inventory, profile, and feature module. Search for existing definitions of the option before adding another owner.
+2. Verify unfamiliar options against the pinned input source or its matching upstream documentation. Do not invent options or assume the latest documentation matches `flake.lock`.
+3. Choose the smallest existing layer that owns the behavior. Preserve host selection, package outputs, state versions, and lockfile pins during structural refactors.
+4. Keep dependencies explicit and evaluation lazy. Do not eagerly traverse every input or package: local/private inputs can be unavailable on other machines.
+5. Format and parse changed files, inspect the diff, and report what was actually verified. Parsing does not prove module evaluation, builds, or runtime behavior.
+
+## Structure and ownership
+
+| Location | Responsibility |
+| --- | --- |
+| `flake.nix` | Input pins, cache settings, and delegation to `flake/` |
+| `flake/default.nix` | Output composition, profile registries, NixOS/Home Manager builders, shared package policy |
+| `flake/packages.nix` | Public package outputs for builds and `nix-update` |
+| `flake/dev-shell.nix` | Existing x86_64 CUDA development shell |
+| `hosts/default.nix` | Host inventory: architecture, users, profiles, extra modules |
+| `hosts/<host>/` | Machine-specific hardware and configuration |
+| `hosts/profiles/` | Shared NixOS role composition: base, desktop, server |
+| `modules/` | Reusable NixOS features; `modules/sops.nix` is also used by Home Manager |
+| `home/profiles/` | Home Manager role composition |
+| `home/modules/` | User programs, services, shell, themes, and flat package categories |
+| `pkgs/` | Derivations and independently updateable fetched assets |
+| `overlays/` | Intentional package-set changes |
+| `private/`, `secrets/` | Private configuration and encrypted secret sources |
+
+`flake/` contains ordinary functions, not NixOS modules. Keep application settings in their feature modules. Keep profile imports explicit; do not automatically import every file in a directory. Add an enable option when a reusable feature needs independent selection, rather than wrapping every small file in a new abstraction. Do not introduce flake frameworks or additional nesting merely to reorganize files.
+
+NixOS hosts are `g14`, `t14`, and `franksalar`; they integrate Home Manager. The standalone output is `homeConfigurations."amirsalar@orangepi"` on aarch64. Desktop hosts default to NixOS base + desktop and Home Manager full. Franksalar explicitly selects base + server and base + dev, with SOPS disabled. Preserve these boundaries when sharing modules.
+
+## Module-system rules
+
+- Use `imports` to compose modules; pass module paths directly rather than manually invoking module functions with `config` and `pkgs`.
+- Keep `imports` independent of `config`. Import optional feature modules statically and gate their definitions with `lib.mkIf`; import-time input selection can use explicit `specialArgs`.
+- Use typed `lib.mkOption` / `lib.mkEnableOption` declarations for shared feature policy. Use `config` for values other modules should consume; avoid expanding the argument plumbing for ordinary settings.
+- Use `lib.mkIf` for conditional module definitions and `lib.mkMerge` for groups of definitions. `//` is a shallow attribute-set update, not a module merge. It remains appropriate for plain host metadata and function arguments.
+- Normal definitions express intent. `lib.mkDefault` supplies an overridable policy; `lib.mkForce` deliberately overrides conflicting definitions and should be exceptional. Import order is not scalar override precedence. `lib.mkBefore` / `lib.mkAfter` control list ordering, not priority.
+- Keep `specialArgs` and Home Manager `extraSpecialArgs` small and explicit. Never replace the module system's `lib`, `config`, or `pkgs` through these arguments. Arguments needed to resolve imports cannot come from `_module.args`.
+- Use the supplied `pkgs` inside modules. Integrated Home Manager uses `useGlobalPkgs = true`; configure its package policy at the NixOS boundary. Keep standalone package configuration in its builder.
+- In overlays, `final` refers to the composed package set and `prev` to the previous layer. Override an existing package from `prev` to avoid self-recursion.
+- Prefer existing `programs.*` and `services.*` options to handwritten files or activation scripts. Use activation only for operations that cannot be expressed declaratively.
+- Never bump `system.stateVersion` or `home.stateVersion` as part of an input upgrade or cleanup; they control compatibility defaults, not the installed release.
+- Prefer store paths and `lib.getExe` / `lib.getExe'` for executables. Use `lib.escapeShellArg` for values interpolated into shell commands; distinguish Nix `${...}` from shell `''${...}`.
+
+Reference semantics: [Nix module-system deep dive](https://nix.dev/tutorials/module-system/deep-dive.html) and [NixOS module manual](https://nixos.org/manual/nixos/stable/#sec-writing-modules). Consult pinned sources for version-specific options.
+
+## Reusable Python and Rust environments for agents
+
+For ad-hoc inspection scripts, use the reusable Python shell instead of base OS
+Python or creating a project-local environment. Always use a run-and-exit command:
+
+```sh
+nix develop dev#python -c python inspect.py
+nix develop dev#python -c python -c 'import pandas; from PIL import Image'
+nix develop dev#python -c bash -c 'uv pip install --python "$VIRTUAL_ENV/bin/python" package-name && python inspect.py'
+nix develop dev#python-data -c python -m jupyterlab
+nix develop dev#rust -c cargo check
+nix develop dev#rust -c pkg-config --modversion openssl
+```
+
+`dev` is the Home Manager registry entry for the activated dotfiles snapshot.
+Before activation, or when testing checkout edits, replace `dev` with
+`~/personal/dotfiles/nixos`. Newly added files must be tracked before Git-backed
+flake commands can see them. Do not switch the system just to run a script.
+
+The Python shells automatically create and activate a persistent writable venv
+under `${XDG_STATE_HOME:-$HOME/.local/state}/nix-dev/`, keyed by the Nix Python
+package environment. It inherits pandas, Pillow/PIL, NumPy, plotting, HTTP, HTML,
+spreadsheet, PDF, and Office-document libraries through a venv-local `.pth` file.
+Install missing task-specific packages with `uv pip install --python
+"$VIRTUAL_ENV/bin/python"` inside the shell. Additions persist across shell entries;
+a different pinned package environment gets a fresh venv. Installed additions are
+mutable and are not captured by `flake.lock`. Prefer adding repeatedly needed
+libraries to `pkgs/python-environment.nix`.
+
+Do not use `pip install --user`, `--system`, or `--break-system-packages`. Do not
+use `uv sync --active` or point `UV_PROJECT_ENVIRONMENT` at this shared venv:
+project syncing can replace its contents. Use direct `python` for inspection;
+`uv run` may select a separate project environment. For actual project work,
+respect that project's declared shell and dependency lock instead. Concurrent
+agents may run scripts in this shared environment, but should avoid installing
+conflicting package versions into it simultaneously.
+
+Both Python shells include Cargo and rustc for building Python extensions. The
+Rust shell adds rustfmt and Clippy. OpenSSL is a `buildInputs` dependency and
+`pkg-config` is in `nativeBuildInputs`; rely on its discovery rather than setting
+a global `OPENSSL_DIR` or `LD_LIBRARY_PATH`. Keep any extra native dependencies
+scoped to the relevant shell. These shells target native compilation; cross
+compilation needs a target-specific toolchain and libraries.
+
+## Local verification
+
+Run from the repository root, targeting changed files:
+
+```sh
+nixfmt --check flake.nix flake/default.nix
+nix-instantiate --parse flake.nix > /dev/null
+statix check flake/
+git diff --check
+```
+
+Use `nixfmt <changed-files>` to format before checking. Do not reformat unrelated files. Parse every changed `.nix` file. Lint findings in existing code are not a reason for unrelated rewrites.
+
+Full host evaluation/builds require an explicit request. Rebuilds and Home Manager switches are performed by the human. Do not update `flake.lock`, run garbage collection, or switch generations as verification. Newly added files must be tracked before a Git-backed flake includes them; a `path:` source can include untracked files, including private material, so it is not an automatic workaround.
 
 ## Coding Style & Naming Conventions
 Use two-space indentation in `.nix` files and keep attribute sets readable by grouping related options. Prefer small, composable modules over large monolithic files. Name host folders with the machine name (`hosts/g14/`), and name modules after the feature they configure (`home/modules/programs/development/git.nix`). For Home Manager package lists, prefer one concern per file and favor clear, flat names over extra directory depth (`home/modules/packages/dev.nix`, `home/modules/packages/fun.nix`, `home/modules/packages/system.nix`). Do not add comments. Only add a comment when explicitly asked to; never infer from context that something needs one. Leave existing comments as they are unless asked to change them.
@@ -20,8 +116,8 @@ Use two-space indentation in `.nix` files and keep attribute sets readable by gr
 ## Adding a New Package
 Any package or asset fetched with a pinned content hash (`fetchurl`, `fetchFromGitHub`, `fetchgit`, `cargoHash`/`vendorHash`, etc.) must be structured so `nix-update` can refresh that hash standalone, without a full host build:
 - Define it in its own file under `pkgs/`, taking only the specific `pkgs` attributes it needs as function arguments (see `pkgs/zellij-plugins.nix`, `pkgs/devar.nix`, `pkgs/zellaude.nix`).
-- The derivation must evaluate and build with no arguments beyond what a plain `import nixpkgs {}` provides — no required arguments (like a theme) that only home-manager can supply. If such context is optional, default it to `null` and skip the parts that need it.
-- Expose it under `packages.${systems.x86_64}` in `flake.nix` so `nix-update --flake <name>` (or `--version skip` for content that has no real version, like a rolling upstream file) can target it.
+- Keep derivations independent of Home Manager configuration. Accept explicit package dependencies through `callPackage`; pass external sources at the output boundary (as with `devarSrc`). Optional UI context should default to `null` and only affect the wrapper that needs it.
+- Expose it in `flake/packages.nix` under the existing x86_64 package outputs so `nix-update --flake <name>` (or `--version skip` for content that has no real version, like a rolling upstream file) can target it.
 - One hash per exposed derivation — `nix-update` finds the fetcher attached to that specific package, so don't bundle multiple unrelated fetches with independent hashes into one derivation.
 - Modules that consume the package should `pkgs.callPackage ./pkgs/<file>.nix { ... }` rather than inlining the fetch.
 
@@ -41,13 +137,13 @@ Recent history favors short, imperative commit subjects such as `unify theme` an
 Agent skills are managed declaratively via `agent-skills-nix` in `home/modules/agent-skills.nix`. To add a new skill repo: (1) add it as a `flake = false` input in `flake.nix`, (2) reference it in `sources` inside `agent-skills.nix` with `input = "<input-name>";` and optionally `subdir`, (3) list skill IDs in `skills.enable` or set `skills.enableAll = true`. Enabled targets (`agents`, `claude`) are already configured; add more under `targets.<name>.enable = true`. Do not add skill source repos anywhere else — keep all skill wiring in `agent-skills.nix`.
 
 ## Security & Configuration Tips
-Do not commit plaintext secrets. Keep SOPS-managed values in `secrets/` and preserve references to `/var/lib/sops-nix/keys.txt` unless you are intentionally rotating keys. Review cache, overlay, and flake input changes carefully because they affect every host.
+Do not commit plaintext secrets. Never add secret values to Nix strings, `writeText`, derivation arguments, or generated configuration in the world-readable Nix store. Prefer runtime SOPS file paths and service credential mechanisms. Existing eval-time `secrets.json` consumers are legacy debt, not a pattern for new services; encryption in Git does not protect their generated store files. Keep SOPS-managed values in `secrets/` and preserve references to `/var/lib/sops-nix/keys.txt` unless you are intentionally rotating keys. Review cache, overlay, and flake input changes carefully because they affect every host.
 
 ## Known Anti-Patterns
 
 ### Consuming `amirsalarsafaei.com` as a flake input (avoid / phase out)
 The `amirsalarsafaei-com` flake input in `flake.nix` and the
-`modules/server/services/amirsalarsafaei-com/` module build that site's
+`hosts/franksalar/configuration.nix` module build that site's
 frontend/backend from source. This is a **bad pattern** and should not be
 copied for other deployments:
 - The website repo is Docker-deployed and its own `CLAUDE.md` says it has
@@ -61,38 +157,8 @@ copied for other deployments:
   app repos as build-from-source flake inputs.
 
 ## Hyprland Configuration
-Hyprland has migrated to a Lua-based configuration API. The old `windowrule` and `windowrulev2` directives are deprecated.
 
-### Window Rules Syntax
-Use `hl.window_rule()` functions instead of the old directive syntax:
-
-```lua
--- Basic anonymous rule
-hl.window_rule({ match = { class = "kitty" }, opacity = "0.9" })
-
--- Named rule
-hl.window_rule({
-  name = "float-kitty",
-  match = { class = "kitty" },
-  float = true
-})
-
--- Multiple match criteria (all must match)
-hl.window_rule({ 
-  match = { class = "chromium-browser", title = ".*YouTube.*" }, 
-  opacity = "1.0 override" 
-})
-```
-
-### Match Properties
-Common match fields: `class`, `title`, `initial_class`, `initial_title`, `tag`, `xwayland`, `float`, `fullscreen`, `workspace`, `content`.
-
-### Effects
-- **Static effects** (evaluated once at window open): `float`, `tile`, `fullscreen`, `maximize`, `move`, `size`, `center`, `workspace`, `monitor`, `pin`, `group`, `content`
-- **Dynamic effects** (re-evaluated on property change): `opacity`, `border_color`, `border_size`, `rounding`, `no_blur`, `no_dim`, `no_shadow`, `no_anim`, `opaque`, `tag`, `max_size`, `min_size`, `idle_inhibit`
-
-### Inspecting Windows
-Use `hyprctl clients` to see actual window properties (class, title, etc.) for writing accurate match rules. Use `hyprctl getoption <option>` with colon-separated paths (e.g., `decoration:blur:enabled`) to check current settings.
+Read `home/modules/programs/desktop/hyprland.nix` and verify the pinned Hyprland and Home Manager versions before changing syntax. Do not migrate between configuration languages or rule APIs based on model memory. Preserve the current key registry, Stylix exclusions, and UWSM session ownership. Inspect actual window properties with `hyprctl clients` when diagnosing match rules.
 
 ## Neovim
 
