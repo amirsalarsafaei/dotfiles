@@ -55,6 +55,12 @@ in
     '';
   };
 
+  options.custom.dynamicPowerProfiles = lib.mkOption {
+    type = lib.types.bool;
+    default = false;
+    description = "Use power-profiles-daemon instead of automatic TLP AC/battery profiles.";
+  };
+
   config = lib.mkMerge [
     {
       home-manager.sharedModules = [
@@ -75,9 +81,9 @@ in
       # to be gated to low-power only, which left "normal" laptops managed by
       # power-profiles-daemon's "balanced" EPP — clocks stuck low (~1.5GHz)
       # under load even on AC power.
-      services.power-profiles-daemon.enable = lib.mkForce false;
+      services.power-profiles-daemon.enable = config.custom.dynamicPowerProfiles;
       services.tlp = {
-        enable = true;
+        enable = !config.custom.dynamicPowerProfiles;
         settings = tlpSettings;
       };
     })

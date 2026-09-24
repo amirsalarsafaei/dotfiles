@@ -29,24 +29,52 @@ let
     }
     // cfg.sources;
 
+  catalog = agentLib.discoverCatalog resolvedSources;
+
+  # Sources restricted to named targets are expressed as explicit skills,
+  # because agent-skills-nix applies agents allowlists only to explicit
+  # selections. This lets a source use its native plugin in Claude while the
+  # same flake-pinned skills remain available to generic agents such as Codex.
+  targetRestrictedSkills = lib.mapAttrs' (
+    id: skill:
+    lib.nameValuePair id {
+      from = skill.source;
+      path = skill.relPath;
+      agents = cfg.sourceTargets.${skill.source};
+    }
+  ) (lib.filterAttrs (_: skill: builtins.hasAttr skill.source cfg.sourceTargets) catalog);
+
+  unrestrictedEnableAll =
+    if builtins.isBool cfg.enableAll then
+      if cfg.enableAll then
+        lib.filter (source: !(builtins.hasAttr source cfg.sourceTargets)) (
+          builtins.attrNames resolvedSources
+        )
+      else
+        false
+    else
+      lib.filter (source: !(builtins.hasAttr source cfg.sourceTargets)) cfg.enableAll;
+
+  unrestrictedSkills = lib.filter (id: !(builtins.hasAttr id targetRestrictedSkills)) cfg.skills;
+
   # Every skill id agent-skills will actually install, computed exactly the
   # way the upstream module does: discover catalog -> allowlist -> select.
   # Skill ids equal Claude Code skill names here since no source sets idPrefix.
   installedSkillIds =
     let
-      catalog = agentLib.discoverCatalog resolvedSources;
       allowlist = agentLib.allowlistFor {
         inherit catalog;
         sources = resolvedSources;
-        enableAll = cfg.enableAll;
-        enable = cfg.skills;
+        enableAll = unrestrictedEnableAll;
+        enable = unrestrictedSkills;
       };
       selection = agentLib.selectSkills {
         inherit catalog allowlist;
+        skills = targetRestrictedSkills;
         sources = resolvedSources;
       };
     in
-    builtins.attrNames selection;
+    builtins.attrNames (lib.filterAttrs (_: skill: (skill.agents or null) == null) selection);
 in
 {
   options.custom.agentSkills = {
@@ -123,6 +151,19 @@ in
       '';
     };
 
+    sourceTargets = lib.mkOption {
+      type = with lib.types; attrsOf (listOf nonEmptyStr);
+      default = { };
+      example = {
+        samber-go = [ "agents" ];
+      };
+      description = ''
+        Restrict every skill from a source to the named agent-skills targets.
+        The source is selected wholesale and converted to explicit skills so
+        the upstream per-skill agents allowlist can filter target bundles.
+      '';
+    };
+
     targets = lib.mkOption {
       type = lib.types.attrs;
       default = {
@@ -150,18 +191,20 @@ in
     programs.agent-skills = {
       enable = true;
 
-      sources = lib.optionalAttrs (cfg.localPath != null) {
-        local = {
-          path = cfg.localPath;
-          subdir = ".";
-          filter.maxDepth = 2;
-        };
-      }
-      // cfg.sources;
+      sources =
+        lib.optionalAttrs (cfg.localPath != null) {
+          local = {
+            path = cfg.localPath;
+            subdir = ".";
+            filter.maxDepth = 2;
+          };
+        }
+        // cfg.sources;
 
       skills = {
-        enable = cfg.skills;
-        enableAll = cfg.enableAll;
+        enable = unrestrictedSkills;
+        enableAll = unrestrictedEnableAll;
+        explicit = targetRestrictedSkills;
       };
 
       targets = cfg.targets;

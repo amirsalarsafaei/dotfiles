@@ -65,10 +65,10 @@
           structure = "symlink-tree";
         };
       };
-      # All 46 golang-* skills from samber/cc-skills-golang. defaultSkillMode
-      # ("user-invocable-only") keeps every one hidden from the model — invokable
-      # via /golang-* only — so enabling the whole pack doesn't flood context.
-      enableAll = [ "samber-go" ];
+      # Codex consumes the flake-pinned Agent Skills copy. Claude gets the same
+      # pack through its upstream-recommended native plugin, configured in
+      # claude-code.nix, so descriptions remain visible for auto-triggering.
+      sourceTargets.samber-go = [ "agents" ];
     };
   };
 }

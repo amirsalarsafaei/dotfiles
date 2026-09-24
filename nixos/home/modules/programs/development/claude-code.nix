@@ -1230,6 +1230,7 @@ let
   localModelFast = "qwen3.6-apex-nothink";
 
   defaultPlugins = {
+    "cc-skills-golang@samber" = true;
     "gopls-lsp@claude-plugins-official" = true;
     "pyright-lsp@claude-plugins-official" = true;
     "typescript-lsp@claude-plugins-official" = true;
@@ -1307,7 +1308,7 @@ let
       plugins = cfg.plugins.default // cfg.plugins.${variant};
       cavemanMode = cfg.cavemanMode.${name};
       caveman = cfg.enableCaveman && cavemanMode != null;
-      marketplaces = lib.optionalAttrs caveman cavemanMarketplace;
+      marketplaces = samberMarketplace // lib.optionalAttrs caveman cavemanMarketplace;
       env =
         # Keeps Claude's renderer in the terminal's normal scrollback instead
         # of the alternate screen. Inside zellij (mouse_mode = true, see
@@ -1433,6 +1434,13 @@ let
       source = "github";
       inherit repo;
     };
+  };
+
+  # samber/cc is the upstream marketplace for cc-skills-golang. Keeping this
+  # as a native Claude plugin preserves automatic description-based triggering
+  # and follows the installation documented by samber/cc-skills-golang.
+  samberMarketplace = {
+    samber = mkGithubMarketplace "samber/cc";
   };
 
   # Gated on enableCaveman + cavemanMode.<variant> in mkSettings, and on the

@@ -20,6 +20,7 @@
 
   isLaptop = true;
   isWork = true;
+  custom.dynamicPowerProfiles = true;
 
   # Fixes pixelated XWayland apps (e.g. burpsuite, a Java/Swing app that only
   # ever runs under XWayland — see home/modules/packages/security-tools.nix).
@@ -41,12 +42,36 @@
       }
     ];
     levels = [
-      [ 0 0 42 ]
-      [ 1 40 50 ]
-      [ 3 48 56 ]
-      [ 5 54 62 ]
-      [ 7 60 72 ]
-      [ "level full-speed" 70 32767 ]
+      [
+        0
+        0
+        42
+      ]
+      [
+        1
+        40
+        50
+      ]
+      [
+        3
+        48
+        56
+      ]
+      [
+        5
+        54
+        62
+      ]
+      [
+        7
+        60
+        72
+      ]
+      [
+        "level full-speed"
+        70
+        32767
+      ]
     ];
   };
 

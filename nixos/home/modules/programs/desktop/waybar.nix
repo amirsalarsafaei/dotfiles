@@ -24,6 +24,7 @@ let
     }
     .${currentHostname} or "";
   hasBattery = systemBattery != "";
+  hasPowerProfiles = osConfig.services.power-profiles-daemon.enable or false;
 
   cpuTemperature =
     {
@@ -93,6 +94,7 @@ let
     window#waybar.waybar-compact #wireplumber,
     window#waybar.waybar-compact #tray,
     window#waybar.waybar-compact #hyprland-language,
+    window#waybar.waybar-compact #power-profiles-daemon,
     window#waybar.waybar-compact #battery,
     window#waybar.waybar-compact #hyprland-window {
       padding: ${tight.pad};
@@ -195,6 +197,7 @@ in
       #wireplumber,
       #tray,
       #hyprland-language,
+      #power-profiles-daemon,
       #custom-power,
       #battery,
       #hyprland-window {
@@ -258,6 +261,7 @@ in
       #network:hover,
       #wireplumber:hover,
       #hyprland-language:hover,
+      #power-profiles-daemon:hover,
       #custom-power:hover,
       #battery:hover {
         background-color: ${themeLib.rgba t.base02 0.34};
@@ -285,6 +289,10 @@ in
       #wireplumber.muted    { color: ${t.base04}; }
 
       #hyprland-language { color: ${t.base0A}; }
+
+      #power-profiles-daemon.performance { color: ${t.base08}; }
+      #power-profiles-daemon.balanced { color: ${t.base0D}; }
+      #power-profiles-daemon.power-saver { color: ${t.base0B}; }
 
       /* CPU/memory/temperature read as one inset group. */
       #hardware {
@@ -369,12 +377,15 @@ in
             "clock"
             "custom/gregorian"
           ];
-          modules-right = lib.optional hasBattery "battery" ++ [
-            "wireplumber"
-            "group/hardware"
-            "hyprland/language"
-            "custom/power"
-          ];
+          modules-right =
+            lib.optional hasBattery "battery"
+            ++ lib.optional hasPowerProfiles "power-profiles-daemon"
+            ++ [
+              "wireplumber"
+              "group/hardware"
+              "hyprland/language"
+              "custom/power"
+            ];
 
           network = {
             interval = 2;
@@ -498,6 +509,17 @@ in
               "󰁿"
               "󰂁"
             ];
+          };
+
+          "power-profiles-daemon" = {
+            format = "{icon}";
+            tooltip-format = "Power profile: {profile}\nDriver: {driver}\nClick to switch";
+            format-icons = {
+              default = "";
+              performance = "󰽍";
+              balanced = "󰍞";
+              "power-saver" = "󰑱";
+            };
           };
 
           "hyprland/language" = {
