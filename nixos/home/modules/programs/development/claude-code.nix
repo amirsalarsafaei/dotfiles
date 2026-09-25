@@ -361,14 +361,35 @@ let
   };
 
   chromeDevtoolsMcp = pkgs.callPackage ../../../../pkgs/chrome-devtools-mcp.nix { };
+  mcpChromeBridge = pkgs.callPackage ../../../../pkgs/mcp-chrome-bridge { };
 
   browserMcpDirRel = ".config/claude-browser-mcp";
-  chromeMcpConfigRel = "${browserMcpDirRel}/chrome-devtools.json";
+  secChromeMcpConfigRel = "${browserMcpDirRel}/chrome-devtools.json";
+  secChromeMcpConfigPath = "${config.home.homeDirectory}/${secChromeMcpConfigRel}";
+  chromeMcpConfigRel = "${browserMcpDirRel}/chrome.json";
   chromeMcpConfigPath = "${config.home.homeDirectory}/${chromeMcpConfigRel}";
+  chromeNativeHostRel = ".config/google-chrome/NativeMessagingHosts/com.chromemcp.nativehost.json";
   playwrightMcpConfigRel = "${browserMcpDirRel}/playwright.json";
   playwrightMcpConfigPath = "${config.home.homeDirectory}/${playwrightMcpConfigRel}";
 
   chromeMcpServers = {
+    mcpServers = {
+      chrome = {
+        type = "http";
+        url = "http://127.0.0.1:12306/mcp";
+      };
+    };
+  };
+
+  chromeNativeHost = {
+    name = "com.chromemcp.nativehost";
+    description = "Node.js Host for Browser Bridge Extension";
+    path = "${mcpChromeBridge}/lib/node_modules/mcp-chrome-bridge/dist/run_host.sh";
+    type = "stdio";
+    allowed_origins = [ "chrome-extension://hbdgbgagpkpjffpklnamcljpakneikee/" ];
+  };
+
+  secChromeMcpServers = {
     mcpServers = {
       chrome-devtools = {
         command = "${chromeDevtoolsMcp}/bin/chrome-devtools-mcp";
@@ -600,18 +621,26 @@ let
       resultVar = "_claude_chrome";
     }
     + mkBoolFlagParser {
+      flag = "--sec-chrome";
+      resultVar = "_claude_sec_chrome";
+    }
+    + mkBoolFlagParser {
       flag = "--playwright";
       resultVar = "_claude_playwright";
     };
 
   browserMcpArgText = ''
+    _claude_extra_args+=(--no-chrome)
     if [ "$_claude_chrome" -eq 1 ]; then
       _claude_extra_args+=(--mcp-config "${chromeMcpConfigPath}")
+    fi
+    if [ "$_claude_sec_chrome" -eq 1 ]; then
+      _claude_extra_args+=(--mcp-config "${secChromeMcpConfigPath}")
     fi
     if [ "$_claude_playwright" -eq 1 ]; then
       _claude_extra_args+=(--mcp-config "${playwrightMcpConfigPath}")
     fi
-    unset _claude_chrome _claude_playwright
+    unset _claude_chrome _claude_sec_chrome _claude_playwright
   '';
 
   localMcpConfigRel = ".config/local-claude/mcp-servers.json";
@@ -1286,19 +1315,26 @@ let
   # development/ntfy.nix) when any variant's session ends. The hook script
   # itself swallows failures, so a missing token or dead network never blocks
   # Claude from finishing.
-  ntfyStopHooks = lib.optionalAttrs config.custom.ntfy.enableClaudeHook {
-    Stop = [
-      {
-        hooks = [
-          {
-            type = "command";
-            command = "${config.custom.ntfy.claudeHookPackage}/bin/ntfy-claude-hook";
-            timeout = 10;
-          }
-        ];
-      }
-    ];
-  };
+  ntfyHooks = lib.optionalAttrs config.custom.ntfy.enableClaudeHook (
+    lib.genAttrs
+      [
+        "Stop"
+        "StopFailure"
+        "Notification"
+      ]
+      (_: [
+        {
+          hooks = [
+            {
+              type = "command";
+              command = lib.getExe config.custom.ntfy.claudeHookPackage;
+              timeout = 10;
+              async = true;
+            }
+          ];
+        }
+      ])
+  );
 
   # `variant` keys cfg.plugins, where work/glm/deepseek share "work"; `name` is
   # the variant's own identity, for settings that must not be shared.
@@ -1345,7 +1381,7 @@ let
     // {
       hooks = lib.zipAttrsWith (_: lib.concatLists) [
         zellaudeHooks
-        ntfyStopHooks
+        ntfyHooks
         (base.hooks or { })
       ];
       permissions = (base.permissions or { }) // {
@@ -2281,6 +2317,8 @@ in
       {
         home.file = {
           ${chromeMcpConfigRel}.text = builtins.toJSON chromeMcpServers;
+          ${secChromeMcpConfigRel}.text = builtins.toJSON secChromeMcpServers;
+          ${chromeNativeHostRel}.text = builtins.toJSON chromeNativeHost;
           ${playwrightMcpConfigRel}.text = builtins.toJSON playwrightMcpServers;
         };
       }

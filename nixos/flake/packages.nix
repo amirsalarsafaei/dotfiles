@@ -16,6 +16,7 @@ in
 {
   devar = pkgs.callPackage ../pkgs/devar.nix { devarSrc = inputs.devar; };
   chrome-devtools-mcp = pkgs.callPackage ../pkgs/chrome-devtools-mcp.nix { };
+  mcp-chrome-bridge = pkgs.callPackage ../pkgs/mcp-chrome-bridge { };
   zellij-harpoon = zellijExtraPlugins.harpoon;
   zellij-tabula = zellijExtraPlugins.tabula;
   zellaude = (pkgs.callPackage ../pkgs/zellaude.nix { }).unwrapped;

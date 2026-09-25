@@ -5,6 +5,8 @@
 {
   programs.git = {
     enable = true;
+    # Unity projects keep models, textures and audio in Git LFS.
+    lfs.enable = true;
     settings = {
       user.name = "Amirsalar Safaei";
       user.email = "amirs.s.g.o@gmail.com";

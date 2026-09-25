@@ -20,6 +20,7 @@ let
     ./platform.nix
     ./host.nix
     ./games.nix
+    ./gamedev.nix
   ];
 in
 {
