@@ -90,12 +90,47 @@ let
     cp ${builtins.toFile "obsidian-git-data.json" (builtins.toJSON obsidianGitSettings)} $out/data.json
   '';
 
+  obsidianHomepageAssets = pkgs.callPackage ../../../../pkgs/obsidian-homepage-assets.nix { };
+  obsidianHomepageSettings = {
+    version = 5;
+    homepages."Main Homepage" = {
+      value = "Home.md";
+      kind = "File";
+      openOnStartup = true;
+      openMode = "Keep open notes";
+      manualOpenMode = "Keep open notes";
+      view = "Editing view (Live Preview)";
+      revertView = true;
+      openWhenEmpty = true;
+      openOnNewTab = false;
+      refreshDataview = false;
+      autoCreate = false;
+      autoScroll = false;
+      pin = false;
+      commands = [ ];
+      alwaysApply = false;
+      hideReleaseNotes = true;
+    };
+    separateMobile = false;
+  };
+
+  obsidianHomepagePlugin =
+    pkgs.runCommand "obsidian-homepage-plugin-${obsidianHomepageAssets.version}" { }
+      ''
+        mkdir -p $out
+        cp ${obsidianHomepageAssets.mainJs} $out/main.js
+        cp ${obsidianHomepageAssets.manifestJson} $out/manifest.json
+        cp ${obsidianHomepageAssets.stylesCss} $out/styles.css
+        cp ${builtins.toFile "obsidian-homepage-data.json" (builtins.toJSON obsidianHomepageSettings)} $out/data.json
+      '';
+
   extraFiles = {
     "community-plugins.json".text = builtins.toJSON [
       "obsidian-tasks-plugin"
       "obsidian-git"
       "obsidian-reminder-plugin"
       "quickadd"
+      "homepage"
     ];
     "daily-notes.json".text = builtins.toJSON {
       folder = "daily notes";
@@ -105,6 +140,7 @@ let
       folder = "Templates";
     };
     "plugins/obsidian-git".source = obsidianGitPlugin;
+    "plugins/homepage".source = obsidianHomepagePlugin;
   };
 
   managedFiles = [
@@ -122,7 +158,12 @@ in
     vaults.${vaultRel} = {
       target = vaultRel;
       settings = {
-        app = { };
+        app = {
+          alwaysUpdateLinks = true;
+          attachmentFolderPath = "Attachments";
+          newFileFolderPath = "Inbox";
+          newFileLocation = "folder";
+        };
         appearance = { };
 
         corePlugins = [
@@ -180,6 +221,15 @@ in
                 "Shift"
               ];
               key = "N";
+            }
+          ];
+          "homepage:open-homepage" = [
+            {
+              modifiers = [
+                "Mod"
+                "Shift"
+              ];
+              key = "H";
             }
           ];
         };

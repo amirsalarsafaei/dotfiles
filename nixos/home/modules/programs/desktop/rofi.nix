@@ -7,10 +7,10 @@ in
   programs.rofi = {
     enable = true;
     package = pkgs.rofi;
-    font = "${theme.fonts.mono} 11";
-    terminal = "${pkgs.ghostty}/bin/ghostty";
     theme = theme.rofiThemeName;
-    extraConfig = {
+    settings = {
+      font = "${theme.fonts.mono} 11";
+      terminal = "${pkgs.ghostty}/bin/ghostty";
       modi = "run,drun,ssh,window,filebrowser";
       icon-theme = "Papirus-Dark";
       show-icons = true;

@@ -21,7 +21,7 @@ buildNpmPackage (finalAttrs: {
       --replace-fail "if (exports.mcpServer) {" "if (false) {"
   '';
 
-  npmDepsHash = "sha256-/NmGU39LX9EGkrdtNKMuTpI8HUnUOTwywQ0jwbzPB8s=";
+  npmDepsHash = "sha256-9FzvTrujzWsk2hM5WUZ6TkcXzZm75V2MVBCQuhtFGKI=";
 
   nativeBuildInputs = [ python3 ];
 

@@ -101,11 +101,6 @@
       flake = false;
     };
 
-    commas-claude = {
-      url = "git+https://github.com/3commas-io/commas-claude.git?ref=refs/tags/v1.0.4";
-      flake = false;
-    };
-
     # Personal website (Next.js frontend + Rust backend). Exposes the
     # NixOS module and package set consumed by franksalar.
     #

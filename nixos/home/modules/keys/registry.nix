@@ -229,6 +229,12 @@ rec {
         group = "Session";
       })
       (keysLib.hypr.exec {
+        on = on.super K.a;
+        cmd = cmd.agendaShow;
+        desc = "Show today's agenda";
+        group = "Session";
+      })
+      (keysLib.hypr.exec {
         on = on.super K.B;
         cmd = "select-ghostty-shader";
         desc = "Pick a terminal shader";

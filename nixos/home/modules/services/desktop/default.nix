@@ -10,5 +10,6 @@
     ./playerctld.nix
     ./udiskie.nix
     ./batsignal.nix
+    ./agenda.nix
   ];
 }

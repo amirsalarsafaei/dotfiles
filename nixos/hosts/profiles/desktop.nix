@@ -230,7 +230,6 @@ in
           powersave = true;
         };
         plugins = with pkgs; [
-          networkmanager-fortisslvpn
           networkmanager-openconnect
           networkmanager-openvpn
         ];

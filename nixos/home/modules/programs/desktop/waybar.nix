@@ -90,6 +90,7 @@ let
     window#waybar.waybar-compact #clock,
     window#waybar.waybar-compact #custom-jalali,
     window#waybar.waybar-compact #custom-gregorian,
+    window#waybar.waybar-compact #custom-agenda,
     window#waybar.waybar-compact #network,
     window#waybar.waybar-compact #wireplumber,
     window#waybar.waybar-compact #tray,
@@ -193,6 +194,7 @@ in
       #clock,
       #custom-jalali,
       #custom-gregorian,
+      #custom-agenda,
       #network,
       #wireplumber,
       #tray,
@@ -258,6 +260,7 @@ in
          reads as "clickable" without needing a border on every pill. */
       #idle_inhibitor:hover,
       #clock:hover,
+      #custom-agenda:hover,
       #network:hover,
       #wireplumber:hover,
       #hyprland-language:hover,
@@ -279,6 +282,13 @@ in
         padding: ${comfy.clockPad};
         letter-spacing: 0.02em;
       }
+
+      #custom-agenda { color: ${t.base0B}; }
+      #custom-agenda.busy,
+      #custom-agenda.tasks { color: ${t.base0A}; }
+      #custom-agenda.soon { color: ${t.base08}; }
+      #custom-agenda.setup,
+      #custom-agenda.stale { color: ${t.base04}; }
 
       /* Each module gets its own accent color so the right-hand cluster reads
          as distinct icons at a glance instead of one grey block of text. */
@@ -367,6 +377,7 @@ in
           modules-left = [
             "hyprland/workspaces"
             "hyprland/window"
+            "custom/agenda"
             "tray"
             "network"
             "idle_inhibitor"
@@ -458,6 +469,15 @@ in
             exec = "${pkgs.coreutils}/bin/date +%Y/%^b/%d";
             interval = 60;
             tooltip = false;
+          };
+
+          "custom/agenda" = {
+            exec = "agenda-os waybar";
+            return-type = "json";
+            interval = 30;
+            on-click = "agenda-os show";
+            on-click-right = "ghostty -e agenda-os auth";
+            tooltip = true;
           };
 
           wireplumber = {

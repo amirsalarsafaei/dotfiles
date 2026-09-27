@@ -10,6 +10,7 @@ let
   neovimPlugins = pkgs.callPackage ../pkgs/neovim-plugins.nix { };
   tmuxExtraPlugins = pkgs.callPackage ../pkgs/tmux-plugins.nix { };
   obsidianGitAssets = pkgs.callPackage ../pkgs/obsidian-git-assets.nix { };
+  obsidianHomepageAssets = pkgs.callPackage ../pkgs/obsidian-homepage-assets.nix { };
   ghosttyShaders = pkgs.callPackage ../pkgs/ghostty-shaders.nix { };
   geoData = pkgs.callPackage ../pkgs/geo-data.nix { };
 in
@@ -26,6 +27,9 @@ in
   obsidian-git-mainjs = obsidianGitAssets.mainJs;
   obsidian-git-manifest = obsidianGitAssets.manifestJson;
   obsidian-git-styles = obsidianGitAssets.stylesCss;
+  obsidian-homepage-mainjs = obsidianHomepageAssets.mainJs;
+  obsidian-homepage-manifest = obsidianHomepageAssets.manifestJson;
+  obsidian-homepage-styles = obsidianHomepageAssets.stylesCss;
   ghostty-shader-inside-the-matrix = ghosttyShaders.inside-the-matrix;
   ghostty-shader-galaxy = ghosttyShaders.galaxy;
   ghostty-shader-just-snow = ghosttyShaders.just-snow;

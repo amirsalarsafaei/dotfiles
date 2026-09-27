@@ -17,14 +17,6 @@
   programs.agent-skills = {
     enable = true;
 
-    # Skill sources – add entries here as you pin new repos in flake.nix
-    sources = {
-      commas-claude = {
-        input = "commas-claude";
-        subdir = "skills";
-      };
-    };
-
     # Sync targets – enable the agents you use. Skill selection
     # (`skills.enable` / `skills.enableAll`) is driven by the
     # `custom.agentSkills` wrapper in dev profile to avoid conflicting

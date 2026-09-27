@@ -1,6 +1,4 @@
 {
-  hardware.logitech.wireless = {
-    enable = true;
-    enableGraphical = true; # solaar: battery, DPI, button config for HID++ mice
-  };
+  hardware.logitech.wireless.enable = true;
+  programs.solaar.enable = true; # battery, DPI, button config for HID++ mice
 }
