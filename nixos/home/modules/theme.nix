@@ -5,15 +5,16 @@
 }:
 let
   cfg = config.custom.theme;
+  themeLib = import ./theme/lib.nix { };
 
   base16Scheme = {
     name = "Slate";
     scheme = "Slate";
     slug = "slate";
     author = "Amirsalar";
-    base00 = "0d1117"; # background - deep charcoal
-    base01 = "1c2128"; # lighter background (panels, sidebars)
-    base02 = "30363d"; # selection / hover background
+    base00 = "08090c"; # background - deep charcoal
+    base01 = "17191e"; # lighter background (panels, sidebars)
+    base02 = "2b2f36"; # selection / hover background
     base03 = "586069"; # comments, invisibles, muted text
     base04 = "8b949e"; # dark foreground (inactive / placeholder)
     base05 = "c9d1d9"; # default foreground
@@ -33,6 +34,20 @@ let
     lib.filterAttrs (name: _: lib.hasPrefix "base" name) base16Scheme
   );
 
+  surfaces = {
+    ink = themeLib.mix colors.base00 "#000000" 45;
+    raised = themeLib.mix colors.base00 colors.base01 55;
+    line = themeLib.mix colors.base01 colors.base02 40;
+  };
+
+  accents = rec {
+    primary = themeLib.mix colors.base0D colors.base02 40;
+    secondary = themeLib.mix colors.base0C colors.base02 40;
+    heat = themeLib.mix colors.base09 colors.base02 25;
+    warm = themeLib.mix colors.base0A colors.base02 30;
+    border = themeLib.mix primary surfaces.line 40;
+  };
+
   resolved = {
     name = cfg.name;
     polarity = cfg.polarity;
@@ -42,6 +57,13 @@ let
     fonts = cfg.fonts;
     scheme = base16Scheme;
     colors = colors;
+    inherit surfaces accents;
+  };
+
+  iconTheme = {
+    package = pkgs.papirus-icon-theme;
+    dark = "Papirus-Dark";
+    light = "Papirus-Light";
   };
 
   cssVariables = builtins.concatStringsSep "\n" (
@@ -50,6 +72,7 @@ let
 in
 {
   imports = [
+    ./theme/qt.nix
   ];
 
   options.custom.theme = {
@@ -102,7 +125,7 @@ in
   };
 
   config = {
-    _module.args.themeLib = import ./theme/lib.nix { };
+    _module.args.themeLib = themeLib;
 
     # Adopt the new home-manager default (gtk4 themes no longer inherit gtk.theme)
     # and silence the 26.05 deprecation warning. mkForce because Stylix's GTK target
@@ -162,6 +185,10 @@ in
         size = 24;
       };
 
+      icons = iconTheme // {
+        enable = true;
+      };
+
       opacity = {
         applications = 1.0;
         desktop = 1.0;
@@ -177,6 +204,7 @@ in
         dunst.enable = false;
         swaync.enable = false;
         neovim.enable = false;
+        nixvim.enable = false;
         starship.enable = false;
         kde.enable = true;
       };

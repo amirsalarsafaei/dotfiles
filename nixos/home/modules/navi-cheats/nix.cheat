@@ -36,5 +36,4 @@ nix eval .#<attr>
 # Format nix files in the tree
 nixfmt .
 
-$ host: echo "g14 mac orangepi franksalar" | tr ' ' '\n'
-$ package: nix search nixpkgs --json 2>/dev/null | jq -r 'keys[]' | sed 's/^legacyPackages\.[^.]*\.//'
+$ host: echo -e "g14\nt14\nfranksalar"

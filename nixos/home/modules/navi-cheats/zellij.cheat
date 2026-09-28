@@ -1,11 +1,5 @@
 % zellij, multiplexer, terminal
 
-# Show the zellij keybinding cheatsheet (prefix is Ctrl-Space)
-zellij-keys
-
-# Look up a single zellij shortcut by what you want to do
-zellij-keys | grep -i -- <thing>
-
 # List running sessions (including exited ones that can be resurrected)
 zellij list-sessions
 
@@ -13,7 +7,7 @@ zellij list-sessions
 zellij attach --create <session>
 
 # Kill a session
-zellij kill-session <running_session>
+zellij kill-session <session>
 
 # Delete an exited session's saved state so it stops showing up
 zellij delete-session <session>
@@ -62,7 +56,5 @@ $EDITOR ~/personal/dotfiles/nixos/home/modules/programs/terminal/zelij.nix
 
 $ direction: echo -e "right\ndown\nleft\nup"
 $ mode: echo -e "normal\nlocked\npane\ntab\nresize\nmove\nscroll\nsession\ntmux"
-$ running_session: zellij list-sessions --short --no-formatting
 $ session: zellij list-sessions --short --no-formatting
 $ layout_file: ls ~/.config/zellij/layouts/*.kdl 2>/dev/null
-$ thing: echo -e "split\nfloat\nstack\ntab\npane\nresize\nfocus\nrename\nscroll\ncopy\nyank\nclipboard\nsession\nsync\nbreak\nlayout\ndetach"

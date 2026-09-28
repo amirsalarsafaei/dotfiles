@@ -333,9 +333,29 @@ let
         -r | --rofi)
           # rofi comes from the ambient PATH rather than runtimeInputs: only
           # the graphical hosts have it, and only they bind Super+/.
+          palette="''${XDG_CONFIG_HOME:-$HOME/.config}/theme/current.json"
+          pick() { jq -r "$1 // empty" "$palette" 2>/dev/null || true; }
           select_rows "''${2:-}" \
-            | gawk -F'\t' '{ printf "[%s] %-28s %s\n", $1, $3, $4 }' \
-            | rofi -dmenu -i -no-custom -p "  keybindings" \
+            | gawk -F'\t' \
+                -v mono="$(pick .fonts.mono)" \
+                -v tag="$(pick .accents.primary)" \
+                -v key="$(pick .colors.base07)" \
+                -v note="$(pick .colors.base03)" '
+                function esc(s) {
+                  gsub(/&/, "\\&amp;", s); gsub(/</, "\\&lt;", s); gsub(/>/, "\\&gt;", s)
+                  return s
+                }
+                function paint(c) { return c == "" ? "" : " foreground=\"" c "\"" }
+                BEGIN { face = mono == "" ? "monospace" : mono }
+                {
+                  printf "<span font_family=\"%s\"><span%s>%s</span><span%s weight=\"medium\">%s</span></span>  %s<span%s size=\"small\">   %s</span>\n",
+                    face, paint(tag), esc(sprintf("%-10s", $1)), paint(key), esc(sprintf("%-26s", $3)),
+                    esc($4), paint(note), esc(tolower($2))
+                }' \
+            | rofi -dmenu -i -no-custom -markup-rows -p "  keybindings" \
+                -theme-str 'window { width: calc( 92% min 1180px ); }
+                  listview { lines: 14; spacing: 0px; }
+                  element { children: [ element-text ]; padding: 7px 16px; }' \
                 -mesg "Generated from the Nix keybinding registry — type to filter, Esc to close" \
             >/dev/null || true
           ;;
@@ -371,7 +391,7 @@ in
     };
 
     commands = lib.mkOption {
-      type = lib.types.attrsOf lib.types.str;
+      type = lib.types.lazyAttrsOf lib.types.str;
       default = { };
       example = lib.literalExpression "{ zjClaudeJump = lib.getExe zjClaudeJump; }";
       description = ''

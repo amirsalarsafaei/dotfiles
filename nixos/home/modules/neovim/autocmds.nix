@@ -96,7 +96,54 @@ in
           pattern = { "markdown", "text", "gitcommit" },
           callback = function()
             vim.opt_local.wrap = true
+            vim.opt_local.linebreak = true
             vim.opt_local.spell = true
+          end,
+        })
+
+        local function is_scratch_edit(path)
+          if path == "" then
+            return false
+          end
+          path = vim.fs.normalize(vim.fn.fnamemodify(path, ":p"))
+          for _, dir in ipairs({ vim.env.TMPDIR, "/tmp", vim.env.XDG_RUNTIME_DIR }) do
+            if dir and dir ~= "" then
+              dir = vim.fs.normalize(dir)
+              if path:sub(1, #dir + 1) == dir .. "/" then
+                return true
+              end
+            end
+          end
+          return path:match("/%.git/[%u_]+_EDITMSG$") ~= nil
+            or path:match("/%.git/rebase%-merge/git%-rebase%-todo$") ~= nil
+        end
+
+        autocmd("VimEnter", {
+          group = general,
+          desc = "Do not overwrite the project session from a scratch edit",
+          callback = function()
+            local args = vim.fn.argv()
+            if #args == 0 then
+              return
+            end
+            for _, arg in ipairs(args) do
+              if not is_scratch_edit(arg) then
+                return
+              end
+            end
+            require("persistence").stop()
+          end,
+        })
+
+        autocmd({ "BufReadPost", "BufNewFile" }, {
+          group = general,
+          desc = "Scratch edits: soft wrap, no autoformat",
+          callback = function(ev)
+            if is_scratch_edit(ev.match) then
+              vim.b[ev.buf].disable_autoformat = true
+              vim.opt_local.wrap = true
+              vim.opt_local.linebreak = true
+            end
           end,
         })
 

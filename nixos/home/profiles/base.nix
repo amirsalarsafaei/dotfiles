@@ -19,6 +19,8 @@
 
   home.stateVersion = "24.11";
 
+  manual.manpages.enable = lib.mkDefault false;
+
   home.sessionVariables = {
     GOPATH = "${config.home.homeDirectory}/go";
     GOPRIVATE = "git.divar.cloud";

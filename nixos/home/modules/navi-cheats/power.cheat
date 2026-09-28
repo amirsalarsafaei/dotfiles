@@ -1,0 +1,12 @@
+% power, laptop, battery
+
+# Switch power profile until next boot
+powerprofilesctl set <profile>
+
+# Show active and available power profiles
+powerprofilesctl list
+
+# Run one command under a temporary power profile
+powerprofilesctl launch -p <profile> -- <command>
+
+$ profile: echo -e "performance\nbalanced\npower-saver"

@@ -2,12 +2,12 @@
 let
   cfg = config.custom.neovim;
 
-  boolToLua = value: if value then "true" else "false";
-  quoteLua = value: ''"${value}"'';
-
   themeColors =
     if config ? custom && config.custom ? theme && config.custom.theme ? resolved then
       config.custom.theme.resolved.colors
+      // lib.optionalAttrs (config.custom.theme.resolved ? surfaces) {
+        base00 = config.custom.theme.resolved.surfaces.ink;
+      }
     else
       null;
 
@@ -32,14 +32,6 @@ let
 
   palette = if cfg.palette != null then cfg.palette else themeColors;
 
-  paletteLua =
-    if palette == null then
-      "nil"
-    else
-      "{\n"
-      + lib.concatMapStringsSep "\n" (key: "      ${key} = ${quoteLua palette.${key}},") paletteKeys
-      + "\n    }";
-
   mkKeymap = mode: key: action: options: {
     inherit mode key action;
     options = {
@@ -52,10 +44,8 @@ let
 in
 {
   inherit
-    boolToLua
-    quoteLua
     palette
-    paletteLua
+    paletteKeys
     mkKeymap
     normalKeymap
     ;

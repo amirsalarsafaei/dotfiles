@@ -80,6 +80,16 @@ in
           };
         };
 
+        render-markdown = {
+          enable = true;
+          settings = {
+            file_types = [ "markdown" ];
+            anti_conceal.enabled = true;
+            code.sign = false;
+            heading.sign = false;
+          };
+        };
+
         bufferline = {
           enable = true;
           settings.options = {
@@ -98,7 +108,6 @@ in
               override = {
                 "vim.lsp.util.convert_input_to_markdown_lines" = true;
                 "vim.lsp.util.stylize_markdown" = true;
-                "cmp.entry.get_documentation" = true;
               };
             };
             presets = {

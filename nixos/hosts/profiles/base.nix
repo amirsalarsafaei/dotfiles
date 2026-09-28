@@ -38,6 +38,8 @@ in
 
   zramSwap.enable = lib.mkDefault true;
 
+  documentation.nixos.enable = lib.mkDefault false;
+
   nix.settings = {
     experimental-features = lib.mkDefault [
       "nix-command"

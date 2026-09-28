@@ -1,6 +1,8 @@
 { config, pkgs, ... }:
 let
   t = config.custom.theme.resolved.colors;
+  s = config.custom.theme.resolved.surfaces;
+  a = config.custom.theme.resolved.accents;
 in
 {
   programs.wlogout = {
@@ -52,13 +54,13 @@ in
       }
 
       window {
-        background-color: ${t.base00}d9;
+        background-color: ${s.ink}d9;
       }
 
       button {
         color: ${t.base05};
-        background-color: ${t.base01};
-        border: 2px solid ${t.base02};
+        background-color: ${s.raised}cc;
+        border: 2px solid ${s.line};
         border-radius: 16px;
         margin: 14px;
         background-repeat: no-repeat;
@@ -67,8 +69,8 @@ in
       }
 
       button:focus, button:active, button:hover {
-        background-color: ${t.base02};
-        border-color: ${t.base0D};
+        background-color: ${a.primary}1f;
+        border-color: ${a.primary};
         color: ${t.base07};
         outline-style: none;
       }

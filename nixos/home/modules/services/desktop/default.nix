@@ -1,6 +1,6 @@
 {
   imports = [
-    ./hyprpaper.nix
+    ./wallpaper.nix
     ./hypridle.nix
     ./hyprsunset.nix
     ./hyprpolkitagent.nix
@@ -10,6 +10,7 @@
     ./playerctld.nix
     ./udiskie.nix
     ./batsignal.nix
-    ./agenda.nix
+    ./agenda
+    ./lyrics
   ];
 }

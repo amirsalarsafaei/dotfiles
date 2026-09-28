@@ -11,10 +11,9 @@ in
 {
   config = lib.mkIf cfg.enable {
     programs.nixvim = {
-      extraPlugins = with pkgs.vimPlugins; [
-        telescope-ui-select-nvim
-        vim-helm
-      ];
+      extraPlugins = [ pkgs.vimPlugins.vim-helm ];
+
+      opts.foldlevelstart = 99;
 
       keymaps = [
         (normalKeymap "<leader>ee" "<cmd>NvimTreeToggle<CR>" { desc = "Toggle file explorer"; })
@@ -29,6 +28,7 @@ in
         (normalKeymap "<leader>xq" "<cmd>Trouble qflist toggle<CR>" { desc = "Quickfix list"; })
         (normalKeymap "<leader>xt" "<cmd>Trouble todo toggle<CR>" { desc = "TODOs (Trouble)"; })
         (normalKeymap "<leader>ft" "<cmd>TodoTelescope<CR>" { desc = "Find TODOs"; })
+        (normalKeymap "<leader>fp" "<cmd>Telescope zoxide list<CR>" { desc = "Switch project (zoxide)"; })
 
         (normalKeymap "<leader>qs" { __raw = ''function() require("persistence").load() end''; } {
           desc = "Restore Session";
@@ -204,12 +204,10 @@ in
             end
           '';
         } { desc = "Toggle conceal level"; })
+        (normalKeymap "<leader>um" "<cmd>RenderMarkdown toggle<CR>" { desc = "Toggle markdown rendering"; })
         (normalKeymap "<leader>uT" {
           __raw = ''function() require("snacks").toggle.treesitter():toggle() end'';
         } { desc = "Toggle treesitter"; })
-        (normalKeymap "<leader>ui" {
-          __raw = ''function() require("snacks").toggle.inlay_hints():toggle() end'';
-        } { desc = "Toggle inlay hints"; })
 
         (mkKeymap [ "x" "o" ] "af" {
           __raw = ''
@@ -331,7 +329,6 @@ in
         mini = {
           enable = true;
           modules = {
-            base16 = { };
             bufremove = { };
             icons = { };
           };
@@ -340,7 +337,22 @@ in
         snacks = {
           enable = true;
           settings = {
-            bigfile.enabled = true;
+            bigfile = {
+              enabled = true;
+              size = 10 * 1024 * 1024;
+              line_length.__raw = "math.huge";
+              setup.__raw = ''
+                function()
+                  if vim.fn.exists(":NoMatchParen") ~= 0 then
+                    vim.cmd("NoMatchParen")
+                  end
+                  Snacks.util.wo(0, { foldmethod = "manual", statuscolumn = "", conceallevel = 0 })
+                  vim.b.completion = false
+                  vim.b.minianimate_disable = true
+                  vim.b.minihipatterns_disable = true
+                end
+              '';
+            };
             indent.enabled = true;
             input.enabled = true;
             notifier = {
@@ -391,6 +403,35 @@ in
           extensions = {
             fzf-native.enable = true;
             ui-select.enable = true;
+            zoxide = {
+              enable = true;
+              settings = {
+                prompt_title = "Projects";
+                mappings.default = {
+                  action.__raw = ''
+                    function(selection)
+                      local persistence = require("persistence")
+                      if persistence.active() then
+                        persistence.save()
+                      end
+                      vim.cmd.cd(selection.path)
+                    end
+                  '';
+                  after_action.__raw = ''
+                    function()
+                      local persistence = require("persistence")
+                      if vim.fn.filereadable(persistence.current()) == 1
+                        or vim.fn.filereadable(persistence.current({ branch = false })) == 1
+                      then
+                        persistence.load()
+                      else
+                        require("telescope.builtin").find_files()
+                      end
+                    end
+                  '';
+                };
+              };
+            };
           };
           settings = {
             defaults = {
@@ -577,7 +618,18 @@ in
             };
           };
         };
-        guess-indent.enable = true;
+        guess-indent = {
+          enable = true;
+          settings.filetype_exclude = [
+            "c"
+            "cpp"
+            "objc"
+            "objcpp"
+            "cuda"
+            "netrw"
+            "tutor"
+          ];
+        };
         refactoring.enable = true;
         harpoon.enable = true;
         spectre.enable = true;
@@ -603,9 +655,23 @@ in
         treesitter = {
           enable = true;
           nixvimInjections = false;
+          highlight.enable = true;
+          indent = {
+            enable = true;
+            disable.__raw = ''
+              function(_, buf)
+                return vim.api.nvim_buf_line_count(buf) > 10000
+              end
+            '';
+          };
+          folding.enable = true;
+        };
+        treesitter-context = {
+          enable = true;
           settings = {
-            highlight.enable = true;
-            indent.enable = true;
+            max_lines = 3;
+            multiline_threshold = 1;
+            trim_scope = "inner";
           };
         };
         treesitter-textobjects.enable = true;
@@ -627,21 +693,9 @@ in
           },
         })
 
-        require("guess-indent").setup({
-          filetype_exclude = {
-            "c", "cpp", "objc", "objcpp", "cuda",
-            "netrw", "tutor",
-          },
-        })
-
-        vim.api.nvim_create_autocmd("User", {
-          pattern = "VeryLazy",
-          callback = function()
-            _G.dd = function(...) Snacks.debug.inspect(...) end
-            _G.bt = function() Snacks.debug.backtrace() end
-            vim.print = _G.dd
-          end,
-        })
+        _G.dd = function(...) require("snacks").debug.inspect(...) end
+        _G.bt = function() require("snacks").debug.backtrace() end
+        vim.print = _G.dd
 
         -- treesitter-textobjects
         require("nvim-treesitter-textobjects").setup({

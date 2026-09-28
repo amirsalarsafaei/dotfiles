@@ -90,6 +90,7 @@ in
     enableZshIntegration = true;
     settings = {
       term = "xterm-256color";
+      background = config.custom.theme.resolved.surfaces.ink;
 
       shell-integration-features = "no-cursor,no-sudo,no-title";
       clipboard-read = "allow";

@@ -14,9 +14,14 @@ CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME", HOME / ".cache")) / "agenda-os
 DATA_DIR = Path(os.environ.get("XDG_DATA_HOME", HOME / ".local/share"))
 CACHE_FILE = CACHE_DIR / "today.json"
 REMINDER_FILE = CACHE_DIR / "reminders.json"
+DONE_FILE = CACHE_DIR / "done.json"
 DAY_FILE = CACHE_DIR / "day-notified"
 GCALCLI = os.environ.get("AGENDA_GCALCLI", "gcalcli")
 NOTIFY_SEND = os.environ.get("AGENDA_NOTIFY_SEND", "notify-send")
+OAUTH_CLIENT = os.environ.get("AGENDA_OAUTH_CLIENT")
+PKILL = os.environ.get("AGENDA_PKILL", "pkill")
+TERMINAL = os.environ.get("AGENDA_TERMINAL", "ghostty")
+WAYBAR_SIGNAL = 9
 VAULT = HOME / "Documents/amirsalar-vault"
 TASK_PATTERN = re.compile(r"^\s*-\s+\[ \]\s+(.+)$")
 DATE_PATTERN = re.compile(r"(?:📅|🛫)\s*(\d{4}-\d{2}-\d{2})")
@@ -52,14 +57,34 @@ def oauth_exists():
     return (DATA_DIR / "gcalcli/oauth").is_file()
 
 
+def own_calendars():
+    result = subprocess.run([GCALCLI, "--nocolor", "list"], capture_output=True, text=True, timeout=45)
+    if result.returncode != 0:
+        message = (result.stderr or result.stdout).strip().splitlines()
+        raise OSError(message[-1] if message else "Calendar list failed")
+    calendars = []
+    for line in result.stdout.splitlines():
+        access, _, title = line.strip().partition(" ")
+        if access in ("owner", "writer") and title.strip():
+            calendars.append(title.strip())
+    return calendars
+
+
 def fetch_events(today, previous):
     if not oauth_exists():
         return [], "setup", "Run agenda-os auth once"
+    try:
+        calendars = own_calendars()
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return previous, "stale", str(error)
+    if not calendars:
+        return [], "ready", None
     tomorrow = today + dt.timedelta(days=1)
     command = [
         GCALCLI,
         "--nocolor",
         "agenda",
+        *[f"--calendar={re.escape(name)}" for name in calendars],
         "--details=calendar",
         "--tsv",
         "--nodeclined",
@@ -131,6 +156,22 @@ def fetch_tasks(today):
     return tasks
 
 
+def event_key(event):
+    return "|".join([event["start"], event["title"], event["calendar"]])
+
+
+def done_keys(day):
+    return read_json(DONE_FILE, {}).get(day.isoformat(), [])
+
+
+def save_done(day, keys):
+    write_json(DONE_FILE, {day.isoformat(): keys})
+
+
+def data_done(data):
+    return set(done_keys(dt.date.fromisoformat(data["date"])))
+
+
 def event_start(today, event):
     if not event["start"]:
         return None
@@ -158,6 +199,7 @@ def notify_upcoming(data, today):
     now = dt.datetime.now()
     state = read_json(REMINDER_FILE, {})
     seen = set(state.get(today.isoformat(), []))
+    done = data_done(data)
     changed = False
     for event in data["events"]:
         start = event_start(today, event)
@@ -166,8 +208,8 @@ def notify_upcoming(data, today):
         minutes = int((start - now).total_seconds() // 60)
         if minutes < 0 or minutes > 15:
             continue
-        key = "|".join([event["start"], event["title"], event["calendar"]])
-        if key in seen:
+        key = event_key(event)
+        if key in seen or key in done:
             continue
         when = "now" if minutes == 0 else f"in {minutes + 1} minutes"
         detail = event["calendar"] or "Google Calendar"
@@ -196,8 +238,22 @@ def update():
         "tasks": fetch_tasks(today),
     }
     write_json(CACHE_FILE, data)
-    notify_upcoming(data, today)
+    refresh_waybar()
     return data
+
+
+def remind():
+    today = dt.date.today()
+    data = read_json(CACHE_FILE, None)
+    if data and data.get("date") == today.isoformat():
+        notify_upcoming(data, today)
+
+
+def refresh_waybar():
+    try:
+        subprocess.run([PKILL, f"-RTMIN+{WAYBAR_SIGNAL}", "waybar"], check=False, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
 
 
 def load_today():
@@ -206,6 +262,8 @@ def load_today():
     if data.get("date") != today.isoformat():
         data = empty_data(today)
         data["tasks"] = fetch_tasks(today)
+    if data["calendar_status"] == "setup" and oauth_exists():
+        data["calendar_status"] = "loading"
     return data
 
 
@@ -218,8 +276,10 @@ def event_label(event):
 
 def agenda_lines(data, limit=12):
     lines = []
+    done = data_done(data)
     for event in data["events"]:
-        lines.append(event_label(event))
+        label = event_label(event)
+        lines.append(f"✓ {label}" if event_key(event) in done else label)
     for task in data["tasks"]:
         marker = "Overdue" if task["overdue"] else "Task"
         lines.append(f"{marker}  {task['title']}")
@@ -232,7 +292,9 @@ def agenda_lines(data, limit=12):
 def next_event(data):
     today = dt.date.today()
     now = dt.datetime.now()
-    for event in data["events"]:
+    done = data_done(data)
+    pending = [event for event in data["events"] if event_key(event) not in done]
+    for event in pending:
         start = event_start(today, event)
         if start is None:
             continue
@@ -241,7 +303,7 @@ def next_event(data):
             end = dt.datetime.combine(today, dt.time.fromisoformat(event["end"]))
         if end >= now:
             return event
-    return next((event for event in data["events"] if not event["start"]), None)
+    return next((event for event in pending if not event["start"]), None)
 
 
 def waybar():
@@ -259,19 +321,30 @@ def waybar():
     elif status == "stale":
         text = "󰃭 Offline"
         css_class = "stale"
+    elif status == "loading":
+        text = "󰃭 Syncing"
+        css_class = "stale"
     elif event:
         prefix = event["start"] or "All day"
         title = event["title"]
         if len(title) > 24:
             title = title[:23] + "…"
         text = f"󰃭 {prefix} {title}"
-        css_class = "busy"
+        css_class = "later"
         start = event_start(dt.date.today(), event)
-        if start and 0 <= (start - dt.datetime.now()).total_seconds() <= 900:
-            css_class = "soon"
+        if start:
+            seconds = (start - dt.datetime.now()).total_seconds()
+            if seconds < 0:
+                css_class = "now"
+            elif seconds <= 900:
+                css_class = "soon"
+                text += f" · {int(seconds // 60) + 1}m"
+            elif seconds <= 3600:
+                css_class = "upcoming"
+                text += f" · {int(seconds // 60) + 1}m"
     elif task_count:
         text = f"󰃭 {task_count} task{'s' if task_count != 1 else ''}"
-        css_class = "tasks"
+        css_class = "overdue" if any(task["overdue"] for task in data["tasks"]) else "tasks"
     else:
         text = "󰃭 Clear"
     if event and task_count:
@@ -283,6 +356,10 @@ def waybar():
         lines.append("Calendar data may be stale")
     elif status == "setup":
         lines.append("Right-click to connect Google Calendar")
+    elif event:
+        lines.append("Middle-click to mark done · Right-click to refresh")
+    else:
+        lines.append("Right-click to refresh")
     tooltip = "<b>Today</b>\n" + "\n".join(html.escape(line) for line in lines)
     print(json.dumps({"text": text, "tooltip": tooltip, "class": css_class}, ensure_ascii=False))
 
@@ -312,33 +389,90 @@ def notify_day():
         DAY_FILE.write_text(today + "\n")
 
 
+def mark_done():
+    today = dt.date.today()
+    data = load_today()
+    event = next_event(data)
+    if event is None:
+        send_notification("Agenda", "No event left to mark done", replace="agenda-done")
+        return
+    keys = done_keys(today)
+    keys.append(event_key(event))
+    save_done(today, keys)
+    refresh_waybar()
+    following = next_event(data)
+    body = f"Next: {event_label(following)}" if following else "Nothing else scheduled today"
+    send_notification(
+        html.escape(f"Done · {event['title']}"),
+        html.escape(body + "\nRun agenda-os undo to restore"),
+        replace="agenda-done",
+    )
+
+
+def undo_done():
+    today = dt.date.today()
+    keys = done_keys(today)
+    if not keys:
+        send_notification("Agenda", "Nothing to restore", replace="agenda-done")
+        return
+    title = keys.pop().partition("|")[2].rpartition("|")[0]
+    save_done(today, keys)
+    refresh_waybar()
+    send_notification(html.escape(f"Restored · {title}"), "Back on today's agenda", replace="agenda-done")
+
+
 def print_agenda():
     data = load_today()
     lines = agenda_lines(data, limit=1000)
     print("\n".join(lines) if lines else "Nothing scheduled or due today")
 
 
-def auth(client_id):
-    if not client_id:
-        client_id = input("Google Desktop OAuth client ID: ").strip()
-    if not client_id:
-        raise SystemExit("usage: agenda-os auth GOOGLE_CLIENT_ID")
-    os.execv(GCALCLI, [GCALCLI, f"--client-id={client_id}", "init"])
+def auth():
+    if not OAUTH_CLIENT:
+        raise SystemExit("AGENDA_OAUTH_CLIENT is not set")
+    try:
+        client = json.loads(Path(OAUTH_CLIENT).read_text())["installed"]
+    except (OSError, json.JSONDecodeError, KeyError) as error:
+        raise SystemExit(f"Cannot read Google OAuth client from {OAUTH_CLIENT}: {error}")
+    result = subprocess.run(
+        [
+            GCALCLI,
+            f"--client-id={client['client_id']}",
+            f"--client-secret={client['client_secret']}",
+            "init",
+        ],
+        check=False,
+    )
+    if result.returncode != 0:
+        raise SystemExit(result.returncode)
+    update()
+
+
+def connect():
+    if oauth_exists():
+        update()
+        return
+    os.execvp(TERMINAL, [TERMINAL, "-e", os.environ.get("AGENDA_SELF", "agenda-os"), "auth"])
 
 
 def main():
     parser = argparse.ArgumentParser(prog="agenda-os")
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("update")
+    subparsers.add_parser("remind")
     subparsers.add_parser("waybar")
     subparsers.add_parser("show")
     subparsers.add_parser("day")
     subparsers.add_parser("print")
-    auth_parser = subparsers.add_parser("auth")
-    auth_parser.add_argument("client_id", nargs="?")
+    subparsers.add_parser("done")
+    subparsers.add_parser("undo")
+    subparsers.add_parser("auth")
+    subparsers.add_parser("connect")
     arguments = parser.parse_args()
     if arguments.command == "update":
         update()
+    elif arguments.command == "remind":
+        remind()
     elif arguments.command == "waybar":
         waybar()
     elif arguments.command == "show":
@@ -347,8 +481,14 @@ def main():
         notify_day()
     elif arguments.command == "print":
         print_agenda()
+    elif arguments.command == "done":
+        mark_done()
+    elif arguments.command == "undo":
+        undo_done()
     elif arguments.command == "auth":
-        auth(arguments.client_id)
+        auth()
+    elif arguments.command == "connect":
+        connect()
 
 
 if __name__ == "__main__":

@@ -21,6 +21,22 @@ let
 
   rgba = color: alpha: "rgba(${hexToRgb color}, ${toString alpha})";
   withAlpha = color: alphaHex: "#${stripHash color}${alphaHex}";
+
+  hexDigit = value: builtins.substring value 1 "0123456789abcdef";
+  byteToHex = value: hexDigit (value / 16) + hexDigit (value - value / 16 * 16);
+
+  mix =
+    from: to: percent:
+    let
+      channel =
+        offset:
+        let
+          a = hexByteToInt (builtins.substring offset 2 (stripHash from));
+          b = hexByteToInt (builtins.substring offset 2 (stripHash to));
+        in
+        byteToHex ((a * (100 - percent) + b * percent + 50) / 100);
+    in
+    "#${channel 0}${channel 2}${channel 4}";
 in
 {
   inherit
@@ -28,5 +44,6 @@ in
     hexToRgb
     rgba
     withAlpha
+    mix
     ;
 }

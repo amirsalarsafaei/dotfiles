@@ -9,8 +9,9 @@
 let
   monitorConfig = osConfig.hyprland.monitorConfig or ",preferred,auto,auto";
   t = config.custom.theme.resolved.colors;
-  isNormal = config.custom.powerProfile == "normal";
-  opaqueWindows = osConfig.hyprland.opaqueWindows or false;
+  s = config.custom.theme.resolved.surfaces;
+  a = config.custom.theme.resolved.accents;
+  isLowPower = config.custom.powerProfile == "low-power";
   xwaylandDpi = osConfig.hyprland.xwaylandDpi or null;
   compactOutput = osConfig.hyprland.compactOutput or null;
 
@@ -182,12 +183,12 @@ let
   };
 
   decorationBlock =
-    if isNormal then
+    if !isLowPower then
       ''
         decoration {
             rounding = 10
-            active_opacity = ${if opaqueWindows then "1.0" else "0.94"}
-            inactive_opacity = ${if opaqueWindows then "1.0" else "0.86"}
+            active_opacity = 1.0
+            inactive_opacity = 1.0
             fullscreen_opacity = 1.0
             dim_inactive = true
             dim_strength = 0.10
@@ -210,7 +211,7 @@ let
                 enabled = true
                 range = 22
                 render_power = 3
-                color = rgba(${themeLib.stripHash t.base00}80)
+                color = rgba(${themeLib.stripHash s.ink}b3)
             }
         }
       ''
@@ -219,7 +220,7 @@ let
         decoration {
             rounding = 8
             active_opacity = 1.0
-            inactive_opacity = ${if opaqueWindows then "1.0" else "0.95"}
+            inactive_opacity = 1.0
             fullscreen_opacity = 1.0
             dim_inactive = false
 
@@ -237,7 +238,7 @@ let
       '';
 
   animationBlock =
-    if isNormal then
+    if !isLowPower then
       ''
         animations {
             enabled = true
@@ -247,6 +248,7 @@ let
             bezier = smoothOut,  0.36, 0, 0.66, -0.56
             bezier = smoothIn,   0.25, 1, 0.5, 1
             bezier = slide,      0.32, 0.85, 0.18, 1.0
+            bezier = drawer,     0.16, 1, 0.3, 1
 
             animation = windows,     1, 5, overshot, popin 88%
             animation = windowsIn,   1, 5, overshot, popin 88%
@@ -258,6 +260,10 @@ let
             # Horizontal slide to match the left/right workspace swipe gesture
             animation = workspaces,  1, 6, slide, slidefade 20%
             animation = specialWorkspace, 1, 5, wind, slidevert
+            animation = layersIn,    1, 4, drawer, fade
+            animation = layersOut,   1, 3, smoothIn, fade
+            animation = fadeLayersIn,  1, 3, smoothIn
+            animation = fadeLayersOut, 1, 2, smoothIn
         }
       ''
     else
@@ -282,12 +288,79 @@ let
   #
   # Not gated on the power profile: blur is already enabled in both decoration
   # blocks above, and these rules only extend it to panels.
+  pluginBlock = ''
+    plugin {
+        hyprfocus {
+            enable = ${lib.boolToString (!isLowPower)}
+            keyboard_focus_animation = shrink
+            mouse_focus_animation = none
+            shrink_percentage = 0.975
+            animate_floating = true
+        }
+
+        dynamic-cursors {
+            enabled = true
+            mode = tilt
+            threshold = 2
+
+            tilt {
+                limit = 4000
+                activation = negative_quadratic
+                window = 100
+                full = 35
+            }
+
+            shake {
+                enabled = true
+                threshold = 6.0
+                base = 3.0
+                speed = 3.0
+                timeout = 1500
+            }
+        }
+
+        hyprtasking {
+            layout = grid
+            gap_size = 14
+            bg_color = 0xff${themeLib.stripHash s.ink}
+            border_size = 2
+            exit_on_hovered = false
+            warp_on_move_window = 1
+            close_overview_on_reload = true
+
+            gestures {
+                enabled = true
+                move_fingers = 5
+                open_fingers = 4
+                open_distance = 300
+                open_positive = true
+            }
+
+            grid {
+                rows = 3
+                cols = 3
+                loop = false
+                layers = 1
+                gaps_use_aspect_ratio = true
+            }
+        }
+    }
+  '';
+
   layerRuleBlock = ''
     layerrule = blur on, ignore_alpha 0.20, match:namespace waybar.*
     layerrule = blur on, ignore_alpha 0.10, match:namespace rofi
     layerrule = blur on, ignore_alpha 0.10, match:namespace wlogout
     layerrule = blur on, ignore_alpha 0.10, match:namespace swaync-control-center
     layerrule = blur on, ignore_alpha 0.20, match:namespace swaync-notification-window
+    layerrule = animation slide top, match:namespace waybar.*
+    layerrule = animation popin 92%, dim_around on, match:namespace rofi
+    layerrule = animation fade, match:namespace wlogout
+    layerrule = animation slide right, match:namespace swaync-control-center
+    layerrule = animation slide right, match:namespace swaync-notification-window
+    layerrule = no_anim on, match:namespace selection|hyprpicker
+    layerrule = blur on, ignore_alpha 0.30, no_anim on, match:namespace sidebar
+    layerrule = blur on, ignore_alpha 0.25, no_anim on, match:namespace widgets
   '';
 
 in
@@ -308,13 +381,16 @@ in
     enable = true;
     systemd.enable = false;
     configType = "hyprlang";
+    plugins = with pkgs.hyprlandPlugins; [
+      hyprfocus
+      hypr-dynamic-cursors
+      hyprtasking
+    ];
     extraConfig = ''
       $terminal = uwsm app -- ghostty
-      $fileManager = uwsm app -- dolphin
+      $fileManager = uwsm app -- thunar
       $menu = rofi -show drun -run-command 'uwsm app -- {cmd}'
       $clipboard = clipboard-menu
-
-      env = XDG_MENU_PREFIX,plasma-
 
       # Force ssh to use the askpass program for the FIDO/-sk touch notifier
       # even when stderr is a tty, so the "Touch your YubiKey" notification
@@ -354,8 +430,8 @@ in
           gaps_in = 4
           gaps_out = 12
           border_size = 2
-          col.active_border = rgba(${themeLib.stripHash t.base0D}ff) rgba(${themeLib.stripHash t.base0E}ff) 35deg
-          col.inactive_border = rgba(${themeLib.stripHash t.base02}80)
+          col.active_border = rgba(${themeLib.stripHash a.border}ff)
+          col.inactive_border = rgba(${themeLib.stripHash s.line}cc)
           resize_on_border = false
           allow_tearing = false
           layout = dwindle
@@ -371,6 +447,8 @@ in
 
       ${layerRuleBlock}
 
+      ${pluginBlock}
+
       ${animationBlock}
 
       dwindle {
@@ -385,6 +463,7 @@ in
           force_default_wallpaper = -1
           disable_hyprland_logo = true
           disable_splash_rendering = true
+          allow_session_lock_restore = true
       }
 
       debug {

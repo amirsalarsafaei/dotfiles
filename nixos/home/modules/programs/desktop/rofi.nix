@@ -2,6 +2,8 @@
 let
   theme = config.custom.theme.resolved;
   t = theme.colors;
+  s = theme.surfaces;
+  a = theme.accents;
 in
 {
   programs.rofi = {
@@ -9,16 +11,17 @@ in
     package = pkgs.rofi;
     theme = theme.rofiThemeName;
     settings = {
-      font = "${theme.fonts.mono} 11";
+      font = "${theme.fonts.sans} 12";
       terminal = "${pkgs.ghostty}/bin/ghostty";
       modi = "run,drun,ssh,window,filebrowser";
       icon-theme = "Papirus-Dark";
       show-icons = true;
-      drun-display-format = "{icon} {name}";
+      drun-display-format = "{name} [<span weight='light' size='small' alpha='55%'>{generic}</span>]";
       disable-history = false;
       hide-scrollbar = true;
       window-format = "{w} · {c} · {t}";
 
+      display-run = "󰆍 Run";
       display-drun = "󰣆 Apps";
       display-ssh = "󰣀 SSH";
       display-window = "󱂬 Windows";
@@ -52,128 +55,136 @@ in
     * {
       /* Kept translucent rather than opaque: hyprland.nix blurs the `rofi`
          layer, so the launcher picks up the wallpaper behind it. */
-      bg-col: ${t.base00}e6;
-      bg-col-light: ${t.base02}52;
-      bg-col-lighter: ${t.base02}75;
-      border-col: ${t.base03}80;
-      selected-col: ${t.base0D}2f;
-      selected-border: ${t.base0D}b8;
-      blue: ${t.base0D};
-      blue-alt: ${t.base0E};
-      fg-col: ${t.base05};
-      fg-col2: ${t.base07};
-      grey: ${t.base04};
+      bg: ${s.ink}eb;
+      surface: ${s.raised}e6;
+      line: ${s.line};
+      fg: ${t.base05};
+      fg-bright: ${t.base07};
+      fg-dim: ${t.base04};
+      faint: ${t.base03};
+      accent: ${a.primary};
+      edge: ${a.border};
       urgent: ${t.base08};
-    }
 
-    element-text, element-icon, mode-switcher {
-      background-color: inherit;
-      text-color: inherit;
+      background-color: transparent;
+      text-color: @fg;
+      font: "${theme.fonts.sans} 12";
     }
 
     window {
       transparency: "real";
       location: center;
       anchor: center;
-      width: 42%;
+      width: 640px;
       border: 1px;
-      border-color: @border-col;
-      background-color: @bg-col;
-      border-radius: 14px;
+      border-color: @line;
+      border-radius: 18px;
+      background-color: @bg;
     }
 
     mainbox {
-      spacing: 12px;
-      padding: 14px;
-      background-color: transparent;
+      children: [ inputbar, message, listview, mode-switcher ];
+      spacing: 0px;
+      padding: 0px;
     }
 
     inputbar {
-      children: [prompt, entry];
-      border: 1px;
-      border-color: @border-col;
-      background-color: @bg-col-light;
-      border-radius: 10px;
-      padding: 9px 12px;
+      children: [ prompt, entry, num-filtered-rows ];
+      spacing: 14px;
+      padding: 18px 22px;
+      border: 0px 0px 1px 0px;
+      border-color: @line;
     }
 
     prompt {
-      background-color: transparent;
-      text-color: @blue;
-      font: "${theme.fonts.mono} Bold 11";
-      margin: 0px 10px 0px 0px;
-      padding: 0px;
-    }
-
-    textbox-prompt-colon {
-      expand: false;
-      str: " ::";
+      text-color: @accent;
+      font: "${theme.fonts.mono} 12";
+      vertical-align: 0.5;
     }
 
     entry {
-      placeholder: "Search apps, files, windows...";
-      text-color: @fg-col;
-      background-color: transparent;
-      padding: 0px;
+      placeholder: "Search";
+      placeholder-color: @faint;
+      text-color: @fg-bright;
+      font: "${theme.fonts.sans} 15";
+      cursor: text;
+      vertical-align: 0.5;
+    }
+
+    num-filtered-rows {
+      text-color: @faint;
+      font: "${theme.fonts.mono} 10";
+      vertical-align: 0.5;
+    }
+
+    message {
+      padding: 10px 22px;
+      border: 0px 0px 1px 0px;
+      border-color: @line;
+    }
+
+    textbox {
+      text-color: @fg-dim;
     }
 
     listview {
-      border: 0px;
-      spacing: 6px;
-      scrollbar: false;
-      lines: 8;
+      lines: 7;
       columns: 1;
+      fixed-height: true;
       dynamic: true;
-      background-color: transparent;
+      scrollbar: false;
+      spacing: 2px;
+      padding: 10px;
     }
 
     element {
-      padding: 9px 11px;
-      border-radius: 9px;
-      background-color: transparent;
-      text-color: @fg-col;
+      padding: 9px 12px;
+      spacing: 14px;
+      border: 0px 0px 0px 3px;
+      border-color: transparent;
+      border-radius: 12px;
     }
 
-    element-icon { size: 22px; }
+    element normal.urgent,
+    element alternate.urgent {
+      text-color: @urgent;
+    }
 
-    element selected {
-      background-color: @selected-col;
-      border: 1px;
-      border-color: @selected-border;
-      text-color: @fg-col2;
+    element selected.normal,
+    element selected.active,
+    element selected.urgent {
+      background-color: @surface;
+      border-color: @edge;
+      text-color: @fg-bright;
+    }
+
+    element-icon {
+      size: 28px;
+      vertical-align: 0.5;
+    }
+
+    element-text {
+      vertical-align: 0.5;
+      highlight: bold ${a.secondary};
     }
 
     mode-switcher {
       spacing: 6px;
-      background-color: transparent;
+      padding: 8px 12px 12px 12px;
+      border: 1px 0px 0px 0px;
+      border-color: @line;
     }
 
     button {
-      padding: 7px 10px;
+      padding: 6px 12px;
       border-radius: 9px;
-      border: 1px;
-      border-color: transparent;
-      background-color: @bg-col-lighter;
-      text-color: @grey;
-      vertical-align: 0.5;
-      horizontal-align: 0.5;
+      text-color: @faint;
+      font: "${theme.fonts.mono} 10";
     }
 
     button selected {
-      background-color: @selected-col;
-      border-color: @selected-border;
-      text-color: @fg-col2;
-    }
-
-    message {
-      background-color: @bg-col-light;
-      border-radius: 9px;
-      padding: 9px;
-    }
-
-    textbox {
-      text-color: @blue-alt;
-      background-color: @bg-col-light;
+      background-color: @surface;
+      text-color: @fg-bright;
     }
   '';
 }

@@ -271,7 +271,6 @@ in
     # Enable the X11 windowing system.
     services.xserver.enable = true;
     # Login manager lives in ./greeter.nix (greetd + tuigreet).
-    services.desktopManager.plasma6.enable = true;
     services.resolved = {
       enable = true;
       settings.Resolve.FallbackDNS = [
@@ -387,23 +386,34 @@ in
 
     programs.nix-ld.enable = true;
     programs.dconf.enable = true;
+    programs.thunar.enable = true;
+    services.gvfs.enable = true;
+    services.tumbler.enable = true;
+    services.upower.enable = true;
+    services.fwupd.enable = true;
 
-    nix.settings = {
-      extra-substituters = [
-        "https://devenv.cachix.org"
-        "https://nixos-apple-silicon.cachix.org"
-      ];
-      extra-trusted-public-keys = [
-        "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw="
-        "nixpkgs-python.cachix.org-1:hxjI7pFxTyuTHn2NkvWCrAUcNZLNS3ZAvfYNuYifcEU="
-        "nixos-apple-silicon.cachix.org-1:8psDu5SA5dAD7qA0zMy5UT292TxeEPzIz8VVEr2Js20="
-      ];
-      keep-outputs = true;
-      keep-derivations = true;
-      fallback = true;
-      tarball-ttl = 2419200;
-      min-free = 1073741824;
-      max-free = 5368709120;
+    nix = {
+      settings = {
+        extra-substituters = [
+          "https://devenv.cachix.org"
+          "https://nixos-apple-silicon.cachix.org"
+        ];
+        extra-trusted-public-keys = [
+          "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw="
+          "nixpkgs-python.cachix.org-1:hxjI7pFxTyuTHn2NkvWCrAUcNZLNS3ZAvfYNuYifcEU="
+          "nixos-apple-silicon.cachix.org-1:8psDu5SA5dAD7qA0zMy5UT292TxeEPzIz8VVEr2Js20="
+        ];
+        keep-outputs = true;
+        keep-derivations = true;
+        fallback = false;
+        max-jobs = lib.mkDefault 3;
+        cores = lib.mkDefault 4;
+        tarball-ttl = 2419200;
+        min-free = 1073741824;
+        max-free = 5368709120;
+      };
+      daemonCPUSchedPolicy = lib.mkDefault "batch";
+      daemonIOSchedClass = lib.mkDefault "idle";
     };
 
     services.blueman.enable = true;

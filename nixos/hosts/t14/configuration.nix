@@ -21,6 +21,7 @@
   isLaptop = true;
   isWork = true;
   custom.dynamicPowerProfiles = true;
+  custom.powerProfile = "performance";
 
   # Fixes pixelated XWayland apps (e.g. burpsuite, a Java/Swing app that only
   # ever runs under XWayland — see home/modules/packages/security-tools.nix).
@@ -114,16 +115,6 @@
     netbird
     netbird-ui
   ];
-
-  specialisation.low-power.configuration = {
-    system.nixos.tags = [ "low-power" ];
-    custom.powerProfile = "low-power";
-  };
-
-  specialisation.performance.configuration = {
-    system.nixos.tags = [ "performance" ];
-    custom.powerProfile = "performance";
-  };
 
   system.stateVersion = "25.11";
 }

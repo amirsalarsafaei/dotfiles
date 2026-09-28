@@ -2,14 +2,37 @@
   config,
   lib,
   pkgs,
-  themeLib,
   ...
 }:
 
 let
-  zellaude = pkgs.callPackage ../../../../pkgs/zellaude.nix {
-    inherit themeLib;
-    colors = config.custom.theme.resolved.colors;
+  t = config.custom.theme.resolved.colors;
+
+  zjBattery = pkgs.writeShellApplication {
+    name = "zj-battery";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = ''
+      bat=/sys/class/power_supply/BAT0
+      [ -d "$bat" ] || exit 0
+
+      cap=$(cat "$bat/capacity" 2>/dev/null || echo 0)
+      state=$(cat "$bat/status" 2>/dev/null || echo Unknown)
+
+      case "$state" in
+        Charging|Full) icon="󰂄" ;;
+        *)
+          if   [ "$cap" -ge 90 ]; then icon="󰁹"
+          elif [ "$cap" -ge 70 ]; then icon="󰂁"
+          elif [ "$cap" -ge 50 ]; then icon="󰁿"
+          elif [ "$cap" -ge 30 ]; then icon="󰁽"
+          elif [ "$cap" -ge 15 ]; then icon="󰁻"
+          else                          icon="󰁺"
+          fi
+          ;;
+      esac
+
+      printf '%s %s%%' "$icon" "$cap"
+    '';
   };
 
   zellijExtraPlugins = pkgs.callPackage ../../../../pkgs/zellij-plugins.nix { };
@@ -88,12 +111,10 @@ in
   home.activation.zellijPluginPermissions =
     let
       pluginPermissions = {
-        "zellaude.wasm" = [
-          "ReadApplicationState" # tabs, mode, session name
-          "ChangeApplicationState" # clicking a tab switches to it
-          "RunCommands" # reads and writes its own settings file
-          "ReadCliPipes" # `zellij pipe` is how the Claude hook talks to it
-          "MessageAndLaunchOtherPlugins" # one instance per tab, kept in sync
+        "zjstatus.wasm" = [
+          "ReadApplicationState"
+          "ChangeApplicationState"
+          "RunCommands"
         ];
         "vim-zellij-navigator.wasm" = [
           "ReadApplicationState"
@@ -134,12 +155,6 @@ in
     # Built from the store and symlinked into ~/.config/zellij/plugins, so there
     # is no download-at-startup and no re-granting permissions when a path
     # changes.
-    #   zellaude              - status bar: tabs, mode, session name, and a live
-    #                           per-tab symbol for what each Claude Code pane is
-    #                           doing (thinking, running a tool, waiting on a
-    #                           permission prompt). Replaced zjstatus, which drew
-    #                           the same bar minus the Claude half; the host,
-    #                           battery and clock widgets went with it.
     #   vim-zellij-navigator  - replaces tmuxPlugins.vim-tmux-navigator
     #   autolock              - drops to Locked mode while nvim/fzf/etc has focus,
     #                           so their keys are never swallowed by zellij
@@ -148,7 +163,7 @@ in
     #   tabula                - renames each tab after its panes' cwd (or git
     #                           worktree), replacing the default "Tab #1"
     plugins = [
-      zellaude.plugin
+      pkgs.zellijPlugins.zjstatus
       pkgs.zellijPlugins.vim-zellij-navigator
       pkgs.zellijPlugins.autolock
       zellijExtraPlugins.harpoon
@@ -159,7 +174,7 @@ in
     # scheme named "default", which zellij picks up on its own; naming a theme
     # here would shadow it.
     settings = {
-      default_layout = "zellaude";
+      default_layout = "zjstatus";
       pane_frames = false;
 
       # ── parity with the tmux options ──────────────────────────────────
@@ -198,7 +213,7 @@ in
       #
       # The measured cause of the "panes zoom and unzoom forever after a split"
       # flicker was zjstatus driving pane frames on and off against
-      # `pane_frames false`; zjstatus is gone, and this stays off as a suspected
+      # `pane_frames false`; this stays off as a suspected
       # second contributor rather than a proven one.
       auto_layout = false;
       advanced_mouse_actions = true;
@@ -212,8 +227,7 @@ in
 
     # The module adds every entry of `plugins` to load_plugins. autolock and
     # tabula want to run in the background from the start (locking/renaming
-    # only work if they are already watching); zellaude is instantiated by the
-    # layout instead, and vim-zellij-navigator/harpoon are messaged or
+    # only work if they are already watching); vim-zellij-navigator/harpoon are messaged or
     # launched on demand from a keybind.
     settings.load_plugins = lib.mkForce {
       _children = [
@@ -250,19 +264,67 @@ in
   };
 
   # The status bar is a one-row pane at the top of every tab, matching what
-  # tmux's status-position did. zellaude takes no configuration here: its three
-  # settings (notifications, flash, elapsed time) are toggled by clicking the
-  # bar and are stored in ~/.config/zellij/plugins/zellaude.json.
+  # tmux's status-position did.
   #
   # `zellij` with no arguments opens this layout rather than zellij's built-in
   # welcome screen, which is itself just a layout (`zellij:session-manager` with
   # welcome_screen true) selected when default_layout is left alone. The session
   # manager is still one keystroke away — see the prefix + f bind.
-  xdg.configFile."zellij/layouts/zellaude.kdl".text = ''
+  xdg.configFile."zellij/layouts/zjstatus.kdl".text = ''
     layout {
         default_tab_template {
             pane size=1 borderless=true {
-                plugin location="zellaude"
+                plugin location="zjstatus" {
+                    format_left   "{mode}#[fg=${t.base00},bg=${t.base0D},bold]  {session} #[fg=${t.base0D},bg=${t.base02}]#[fg=${t.base05},bg=${t.base02}] {command_host} #[fg=${t.base02},bg=${t.base00}] {tabs}"
+                    format_center ""
+                    format_right  "#[fg=${t.base02},bg=${t.base00}]#[fg=${t.base04},bg=${t.base02}] {command_battery} #[fg=${t.base0E},bg=${t.base02}]#[fg=${t.base00},bg=${t.base0E},bold] {datetime} "
+                    format_space  "#[bg=${t.base00}]"
+                    format_hide_on_overlength "true"
+                    format_precedence "lrc"
+
+                    border_enabled "false"
+
+                    mode_normal        "#[fg=${t.base00},bg=${t.base0B},bold] NORMAL #[fg=${t.base0B},bg=${t.base0D}]"
+                    mode_tmux          "#[fg=${t.base00},bg=${t.base0A},bold] 󰌌 PREFIX #[fg=${t.base0A},bg=${t.base0D}]"
+                    mode_locked        "#[fg=${t.base00},bg=${t.base08},bold] 󰓦 LOCKED #[fg=${t.base08},bg=${t.base0D}]"
+                    mode_pane          "#[fg=${t.base00},bg=${t.base0C},bold] PANE #[fg=${t.base0C},bg=${t.base0D}]"
+                    mode_tab           "#[fg=${t.base00},bg=${t.base0C},bold] TAB #[fg=${t.base0C},bg=${t.base0D}]"
+                    mode_scroll        "#[fg=${t.base00},bg=${t.base09},bold] SCROLL #[fg=${t.base09},bg=${t.base0D}]"
+                    mode_search        "#[fg=${t.base00},bg=${t.base09},bold] SEARCH #[fg=${t.base09},bg=${t.base0D}]"
+                    mode_enter_search  "#[fg=${t.base00},bg=${t.base09},bold] SEARCH #[fg=${t.base09},bg=${t.base0D}]"
+                    mode_resize        "#[fg=${t.base00},bg=${t.base0C},bold] RESIZE #[fg=${t.base0C},bg=${t.base0D}]"
+                    mode_move          "#[fg=${t.base00},bg=${t.base0C},bold] MOVE #[fg=${t.base0C},bg=${t.base0D}]"
+                    mode_session       "#[fg=${t.base00},bg=${t.base0E},bold] SESSION #[fg=${t.base0E},bg=${t.base0D}]"
+                    mode_rename_tab    "#[fg=${t.base00},bg=${t.base0A},bold] RENAME #[fg=${t.base0A},bg=${t.base0D}]"
+                    mode_rename_pane   "#[fg=${t.base00},bg=${t.base0A},bold] RENAME #[fg=${t.base0A},bg=${t.base0D}]"
+                    mode_default_to_mode "normal"
+
+                    tab_normal   "#[fg=${t.base02},bg=${t.base00}]#[fg=${t.base05},bg=${t.base02}] {index}  {name} {bell_indicator}{sync_indicator}{fullscreen_indicator}{floating_indicator}#[fg=${t.base02},bg=${t.base00}]"
+                    tab_active   "#[fg=${t.base0D},bg=${t.base00}]#[fg=${t.base00},bg=${t.base0D},bold] {index}  {name} {sync_indicator}{fullscreen_indicator}{floating_indicator}#[fg=${t.base0D},bg=${t.base00}]"
+                    tab_normal_bell "#[fg=${t.base0A},bg=${t.base00}]#[fg=${t.base00},bg=${t.base0A},bold] {index}  {name} {bell_indicator}{sync_indicator}{fullscreen_indicator}{floating_indicator}#[fg=${t.base0A},bg=${t.base00}]"
+                    tab_separator "#[bg=${t.base00}] "
+
+                    tab_display_count         "5"
+                    tab_truncate_start_format "#[fg=${t.base04},bg=${t.base00}] 󰁍 +{count} "
+                    tab_truncate_end_format   "#[fg=${t.base04},bg=${t.base00}] +{count} 󰁔 "
+
+                    tab_sync_indicator       "󰓦 "
+                    tab_fullscreen_indicator "󰍉 "
+                    tab_floating_indicator   "󰉈 "
+                    tab_bell_indicator       "󰂞 "
+
+                    command_host_command  "${pkgs.nettools}/bin/hostname -s"
+                    command_host_format   "{stdout}"
+                    command_host_interval "3600"
+
+                    command_battery_command  "${lib.getExe zjBattery}"
+                    command_battery_format   "{stdout}"
+                    command_battery_interval "30"
+
+                    datetime          "{format}"
+                    datetime_format   "%H:%M · %a %d %b"
+                    datetime_timezone "Asia/Tehran"
+                }
             }
             children
         }

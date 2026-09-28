@@ -106,15 +106,18 @@ in
 
         lint = {
           enable = true;
+          autoCmd.event = [
+            "BufReadPost"
+            "BufWritePost"
+            "InsertLeave"
+          ];
           lintersByFt = {
             yaml = [ "yamllint" ];
             dockerfile = [ "hadolint" ];
             nix = [ "statix" ];
             sh = [ "shellcheck" ];
             bash = [ "shellcheck" ];
-            zsh = [ "shellcheck" ];
             python = [ "mypy" ];
-            rust = [ "clippy" ];
           };
         };
 
@@ -184,169 +187,27 @@ in
       };
 
       keymaps = [
-        {
-          mode = "n";
-          key = "<leader>W";
-          action = "<cmd>SudaWrite<CR>";
-          options = {
-            desc = "Write file with sudo";
-            silent = true;
-          };
-        }
-        {
-          mode = "n";
-          key = ",v";
-          action = "<cmd>VenvSelect<CR>";
-          options = {
-            desc = "Select Python venv";
-            silent = true;
-          };
-        }
-        {
-          mode = "n";
-          key = "<leader>tt";
-          action = "<cmd>ToggleTerm direction=horizontal<CR>";
-          options = {
-            desc = "Terminal horizontal";
-            silent = true;
-          };
-        }
-        {
-          mode = "n";
-          key = "<leader>tv";
-          action = "<cmd>ToggleTerm direction=vertical size=80<CR>";
-          options = {
-            desc = "Terminal vertical";
-            silent = true;
-          };
-        }
-        {
-          mode = "n";
-          key = "<leader>tf";
-          action = "<cmd>ToggleTerm direction=float<CR>";
-          options = {
-            desc = "Terminal float";
-            silent = true;
-          };
-        }
-        {
-          mode = [
-            "n"
-            "t"
-          ];
-          key = "<C-\\>";
-          action = "<cmd>ToggleTerm<CR>";
-          options = {
-            desc = "Toggle terminal";
-            silent = true;
-          };
-        }
+        (normalKeymap "<leader>W" "<cmd>SudaWrite<CR>" { desc = "Write file with sudo"; })
+        (normalKeymap ",v" "<cmd>VenvSelect<CR>" { desc = "Select Python venv"; })
+        (normalKeymap "<leader>tt" "<cmd>ToggleTerm direction=horizontal<CR>" { desc = "Terminal horizontal"; })
+        (normalKeymap "<leader>tv" "<cmd>ToggleTerm direction=vertical size=80<CR>" { desc = "Terminal vertical"; })
+        (normalKeymap "<leader>tf" "<cmd>ToggleTerm direction=float<CR>" { desc = "Terminal float"; })
+        (mkKeymap [ "n" "t" ] "<C-\\>" "<cmd>ToggleTerm<CR>" { desc = "Toggle terminal"; })
       ]
       ++ lib.optionals cfg.features.ai [
-        {
-          mode = "n";
-          key = "<leader>ac";
-          action = "<cmd>ClaudeCode<CR>";
-          options = {
-            desc = "Claude Code: toggle";
-            silent = true;
-          };
-        }
-        {
-          mode = "n";
-          key = "<leader>af";
-          action = "<cmd>ClaudeCodeFocus<CR>";
-          options = {
-            desc = "Claude Code: focus";
-            silent = true;
-          };
-        }
-        {
-          mode = [
-            "n"
-            "v"
-          ];
-          key = "<leader>as";
-          action = "<cmd>ClaudeCodeSend<CR>";
-          options = {
-            desc = "Claude Code: send selection";
-            silent = true;
-          };
-        }
-        {
-          mode = "n";
-          key = "<leader>aa";
-          action = "<cmd>ClaudeCodeDiffAccept<CR>";
-          options = {
-            desc = "Claude Code: accept diff";
-            silent = true;
-          };
-        }
-        {
-          mode = "n";
-          key = "<leader>ad";
-          action = "<cmd>ClaudeCodeDiffDeny<CR>";
-          options = {
-            desc = "Claude Code: reject diff";
-            silent = true;
-          };
-        }
+        (normalKeymap "<leader>ac" "<cmd>ClaudeCode<CR>" { desc = "Claude Code: toggle"; })
+        (normalKeymap "<leader>af" "<cmd>ClaudeCodeFocus<CR>" { desc = "Claude Code: focus"; })
+        (mkKeymap [ "n" "v" ] "<leader>as" "<cmd>ClaudeCodeSend<CR>" { desc = "Claude Code: send selection"; })
+        (normalKeymap "<leader>aa" "<cmd>ClaudeCodeDiffAccept<CR>" { desc = "Claude Code: accept diff"; })
+        (normalKeymap "<leader>ad" "<cmd>ClaudeCodeDiffDeny<CR>" { desc = "Claude Code: reject diff"; })
       ]
       ++ lib.optionals cfg.features.embedded [
-        {
-          mode = "n";
-          key = "<leader>pb";
-          action = "<cmd>Piorun<CR>";
-          options = {
-            desc = "PlatformIO: Build";
-            silent = true;
-          };
-        }
-        {
-          mode = "n";
-          key = "<leader>pu";
-          action = "<cmd>Pioupload<CR>";
-          options = {
-            desc = "PlatformIO: Upload";
-            silent = true;
-          };
-        }
-        {
-          mode = "n";
-          key = "<leader>pm";
-          action = "<cmd>Piomonitor<CR>";
-          options = {
-            desc = "PlatformIO: Serial Monitor";
-            silent = true;
-          };
-        }
-        {
-          mode = "n";
-          key = "<leader>pl";
-          action = "<cmd>Piolog<CR>";
-          options = {
-            desc = "PlatformIO: Log";
-            silent = true;
-          };
-        }
-        {
-          mode = "n";
-          key = "<leader>pd";
-          action = "<cmd>Piodebug<CR>";
-          options = {
-            desc = "PlatformIO: Debug (OpenOCD)";
-            silent = true;
-          };
-        }
-        {
-          mode = "n";
-          key = "<leader>hx";
-          action = "<cmd>HexToggle<CR>";
-          options = {
-            desc = "Toggle hex view";
-            silent = true;
-          };
-        }
+        (normalKeymap "<leader>pb" "<cmd>Piorun<CR>" { desc = "PlatformIO: Build"; })
+        (normalKeymap "<leader>pu" "<cmd>Pioupload<CR>" { desc = "PlatformIO: Upload"; })
+        (normalKeymap "<leader>pm" "<cmd>Piomonitor<CR>" { desc = "PlatformIO: Serial Monitor"; })
+        (normalKeymap "<leader>pl" "<cmd>Piolog<CR>" { desc = "PlatformIO: Log"; })
+        (normalKeymap "<leader>pd" "<cmd>Piodebug<CR>" { desc = "PlatformIO: Debug (OpenOCD)"; })
+        (normalKeymap "<leader>hx" "<cmd>HexToggle<CR>" { desc = "Toggle hex view"; })
       ]
       ++ [
         (mkKeymap [ "n" "v" ] "<leader>cf" {
@@ -437,10 +298,11 @@ in
           callback = function()
             local buf_opts = { buffer = 0 }
             vim.keymap.set("t", "<Esc><Esc>", [[<C-\><C-n>]], buf_opts)
-            vim.keymap.set("t", "<C-h>", [[<Cmd>wincmd h<CR>]], buf_opts)
-            vim.keymap.set("t", "<C-j>", [[<Cmd>wincmd j<CR>]], buf_opts)
-            vim.keymap.set("t", "<C-k>", [[<Cmd>wincmd k<CR>]], buf_opts)
-            vim.keymap.set("t", "<C-l>", [[<Cmd>wincmd l<CR>]], buf_opts)
+            local splits = require("smart-splits")
+            vim.keymap.set("t", "<C-h>", splits.move_cursor_left, buf_opts)
+            vim.keymap.set("t", "<C-j>", splits.move_cursor_down, buf_opts)
+            vim.keymap.set("t", "<C-k>", splits.move_cursor_up, buf_opts)
+            vim.keymap.set("t", "<C-l>", splits.move_cursor_right, buf_opts)
           end,
         })
       ''
@@ -470,10 +332,6 @@ in
           dap_go.setup({
             delve = {
               initialize_timeout_sec = 30,
-              path = "dlv",
-            },
-            dap_configurations = {
-              type = "go",
             },
           })
 
@@ -531,6 +389,12 @@ in
           end
           dap.listeners.before.launch.dapui_config = function()
             dapui.open()
+          end
+          dap.listeners.before.event_terminated.dapui_config = function()
+            dapui.close()
+          end
+          dap.listeners.before.event_exited.dapui_config = function()
+            dapui.close()
           end
         end
       '';

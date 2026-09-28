@@ -115,7 +115,7 @@ Use two-space indentation in `.nix` files and keep attribute sets readable by gr
 
 ## Adding a New Package
 Any package or asset fetched with a pinned content hash (`fetchurl`, `fetchFromGitHub`, `fetchgit`, `cargoHash`/`vendorHash`, etc.) must be structured so `nix-update` can refresh that hash standalone, without a full host build:
-- Define it in its own file under `pkgs/`, taking only the specific `pkgs` attributes it needs as function arguments (see `pkgs/zellij-plugins.nix`, `pkgs/devar.nix`, `pkgs/zellaude.nix`).
+- Define it in its own file under `pkgs/`, taking only the specific `pkgs` attributes it needs as function arguments (see `pkgs/zellij-plugins.nix`, `pkgs/devar.nix`).
 - Keep derivations independent of Home Manager configuration. Accept explicit package dependencies through `callPackage`; pass external sources at the output boundary (as with `devarSrc`). Optional UI context should default to `null` and only affect the wrapper that needs it.
 - Expose it in `flake/packages.nix` under the existing x86_64 package outputs so `nix-update --flake <name>` (or `--version skip` for content that has no real version, like a rolling upstream file) can target it.
 - One hash per exposed derivation — `nix-update` finds the fetcher attached to that specific package, so don't bundle multiple unrelated fetches with independent hashes into one derivation.
@@ -125,7 +125,7 @@ Any package or asset fetched with a pinned content hash (`fetchurl`, `fetchFromG
 The desktop theme is defined once in `home/modules/theme.nix` and is backed by Stylix plus a small `custom.theme.resolved` layer for semantic aliases, fonts, wallpaper, and exported assets. Stylix runs in `autoEnable = true` mode so it automatically themes GTK, Qt, cursors, terminals (Ghostty, Kitty, Alacritty), Starship, and other supported targets. Only hand-themed surfaces are explicitly disabled: Hyprland, Hyprlock, Waybar, Rofi, Dunst, and Neovim. When adding a new program, let Stylix auto-theme it unless you need a fully custom look — in that case, disable the target and use `config.custom.theme.resolved.colors`. Reuse `home/modules/theme/lib.nix` for color helpers like `rgba`, keep app-specific theme names derived from the shared theme data, and prefer exporting generated assets such as `~/.config/theme/current.json` or `~/.config/theme/current.css` for tools like Quickshell that are easier to style from external files. Fonts (Inter, JetBrainsMono Nerd Font, Noto Serif, Noto Color Emoji), cursor (Bibata-Modern-Ice), and opacity are all declared in the Stylix block — do not duplicate these in individual terminal or app configs.
 
 ### Base16 Contrast Rules
-The Slate scheme must keep adequate contrast for KDE/Qt apps (Dolphin, etc.) which map base00–base04 to widget backgrounds, toolbars, sidebars, and inactive text. When editing the base16 palette, maintain at minimum ~15 hex-digit spread between consecutive background tiers (base00 → base01 → base02) and ensure base03/base04 are bright enough to read on any background variant. Current hierarchy: base00 `#0d1117` (deepest bg) → base01 `#1c2128` (panels) → base02 `#30363d` (selection/hover) → base03 `#586069` (muted text) → base04 `#8b949e` (inactive fg). Do not compress these back down — Stylix's KDE color scheme generator relies on the spread.
+The Slate scheme must keep adequate contrast for KDE/Qt apps (Dolphin, etc.) which map base00–base04 to widget backgrounds, toolbars, sidebars, and inactive text. When editing the base16 palette, maintain at minimum ~15 hex-digit spread between consecutive background tiers (base00 → base01 → base02) and ensure base03/base04 are bright enough to read on any background variant. Current hierarchy: base00 `#08090c` (deepest bg) → base01 `#17191e` (panels) → base02 `#2b2f36` (selection/hover) → base03 `#586069` (muted text) → base04 `#8b949e` (inactive fg). Do not compress these back down — Stylix's KDE color scheme generator relies on the spread.
 
 ## Testing Guidelines
 There is no separate unit-test suite here, and full `nix build`/`nix eval` verification is expensive (minutes of CPU/store churn per host) — do not run a full host build or eval to verify a change. For edits under `home/modules/packages/` or any touched Nix file, parse it with `nix-instantiate --parse` to catch syntax errors, and use `nixpkgs-fmt`/`nixfmt` and `statix check` for style/lint issues. Do not run `nix build .#nixosConfigurations.<host>.config.system.build.toplevel` or `nix eval` against a full host config unless the human explicitly asks for it. Agents should not run `nixos-rebuild switch`/`switch-to-configuration` or `home-manager switch` themselves — leave the actual rebuild/switch to the human.
@@ -184,6 +184,14 @@ reintroduce a second config, it collides with NixVim over `~/.config/nvim`.
   `{ action = "..."; mode = [ "n" "v" ]; }` when it needs more than normal mode.
 - Use the `mkKeymap` / `normalKeymap` helpers from `home/modules/neovim/lib.nix`; they
   default `silent = true`.
+
+### Keybindings are frozen
+The user relies on muscle memory for every existing Neovim key. Never remove, rebind, or
+repurpose an existing key (global, LSP, plugin-internal such as blink.cmp or telescope
+mappings, or buffer-local), even when swapping the plugin behind it. Refactors must keep
+the same key doing the same job. New keys may be added only on unused combinations, and
+must be checked against existing maps and which-key groups first. Changing an existing
+binding requires the user's explicit request.
 
 ### Pane navigation
 `<C-h/j/k/l>` is owned by **smart-splits** alone (`home/modules/neovim/editor.nix`).

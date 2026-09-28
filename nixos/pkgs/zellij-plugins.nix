@@ -1,6 +1,6 @@
 # Zellij plugins not in nixpkgs (unlike vim-zellij-navigator/autolock, see
 # zelij.nix) but that ship a prebuilt release .wasm, so no rust/wasm32-wasip1
-# cross-build is needed the way zellaude.nix has to do it — just fetch the
+# cross-build is needed — just fetch the
 # asset and wrap it the same way pkgs.zellijPlugins.wrapper does (pname +
 # version on the derivation, single-file $out), which is what home-manager's
 # programs.zellij.plugins module requires of every list entry.

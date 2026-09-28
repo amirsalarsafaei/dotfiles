@@ -9,9 +9,51 @@
 let
   cfg = config.custom.claudeCode;
 
-  # The zellij status-bar plugin and its Claude Code hook bridge are one
-  # package; the plugin half is used by home/modules/programs/terminal/zelij.nix.
-  zellaude = pkgs.callPackage ../../../../pkgs/zellaude.nix { };
+  claudeZellijAttention = pkgs.writeShellApplication {
+    name = "claude-zellij-attention";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.jq
+      pkgs.libnotify
+      pkgs.procps
+      pkgs.zellij
+    ];
+    text = ''
+      cat >/dev/null
+      if [ -z "''${ZELLIJ:-}" ] || [ -z "''${ZELLIJ_PANE_ID:-}" ]; then
+        exit 0
+      fi
+
+      pid=$$
+      while [ "$pid" -gt 1 ]; do
+        read -r pane_tty ppid < <(ps -o tty=,ppid= -p "$pid") || break
+        if [ "$pane_tty" != "?" ] && [ -w "/dev/$pane_tty" ]; then
+          printf '\a' >"/dev/$pane_tty" || true
+          break
+        fi
+        pid=$ppid
+      done
+
+      tab_id=$(timeout 2 zellij action list-panes -j \
+        | jq -r --argjson id "$ZELLIJ_PANE_ID" '.[] | select(.id == $id and (.is_plugin | not)) | .tab_id') || tab_id=""
+      tab_active=false
+      if [ -n "$tab_id" ]; then
+        tab_active=$(timeout 2 zellij action list-tabs -j \
+          | jq -r --argjson id "$tab_id" 'any(.[]; .tab_id == $id and .active)') || tab_active=false
+      fi
+
+      window_class=""
+      if command -v hyprctl >/dev/null; then
+        window_class=$(timeout 2 hyprctl activewindow -j | jq -r '.class // empty') || window_class=""
+      fi
+
+      if [ "$tab_active" = true ] && [ "$window_class" = com.mitchellh.ghostty ]; then
+        exit 0
+      fi
+
+      timeout 5 notify-send --app-name "Claude Code" "Claude Code" "requires your input" || true
+    '';
+  };
 
   devar = pkgs.callPackage ../../../../pkgs/devar.nix { devarSrc = inputs.devar; };
 
@@ -72,11 +114,6 @@ let
       cache_create_offpeak = m.cacheCreateOffpeak;
     };
 
-  # Paths the bwrap sandbox must never let a Bash-tool subprocess read or
-  # write, regardless of variant: SSH/GPG keyrings and every provider API key
-  # file on disk. Nix derivations never get ambient access to secrets either
-  # (git-crypt'd secrets.json, no impure env) — this is the same discipline
-  # applied to the sandboxed Bash tool.
   sandboxSecretDenyPaths = [
     "${config.home.homeDirectory}/.ssh"
     "${config.home.homeDirectory}/.gnupg/private-keys-v1.d"
@@ -94,6 +131,8 @@ let
     "${config.home.homeDirectory}/.config/sops"
     "${config.home.homeDirectory}/.config/age"
     "${config.home.homeDirectory}/.local/share/keyrings"
+    "${config.home.homeDirectory}/.local/share/gcalcli"
+    "${config.home.homeDirectory}/.cache/agenda-os"
     "${config.home.homeDirectory}/.mozilla"
     "${config.home.homeDirectory}/.pki"
     "${config.home.homeDirectory}/.config/chromium"
@@ -102,6 +141,7 @@ let
     "${config.home.homeDirectory}/.config/rclone"
     "${config.home.homeDirectory}/.cargo/credentials.toml"
     "${config.home.homeDirectory}/.pypirc"
+    "${config.home.homeDirectory}/zshsecret"
     "${config.home.homeDirectory}/glm-key"
     "${config.home.homeDirectory}/deepseek-key"
     "${config.home.homeDirectory}/personal-deepseek"
@@ -114,11 +154,14 @@ let
     runtimeInputs = [
       pkgs.bubblewrap
       pkgs.coreutils
+      pkgs.gnused
     ];
     text = ''
       export CLAUDE_SANDBOX_TARGET="${pkgs.claude-code}/bin/claude"
       export CLAUDE_SANDBOX_DENY=${lib.escapeShellArg (lib.concatStringsSep "\n" cfg.sandbox.denyPaths)}
       export CLAUDE_SANDBOX_ALLOW=${lib.escapeShellArg (lib.concatStringsSep "\n" cfg.sandbox.allowPaths)}
+      export CLAUDE_SANDBOX_ENV_FILES=${lib.escapeShellArg (lib.concatStringsSep "\n" cfg.sandbox.envFiles)}
+      export CLAUDE_SANDBOX_ENV_KEEP=${lib.escapeShellArg (lib.concatStringsSep "\n" cfg.sandbox.envPassthrough)}
       context_sandbox=${pkgs.writeText "claude-context-sandbox.md" cfg.context.sandbox}
       context_sandbox_net=${pkgs.writeText "claude-context-sandbox-net.md" cfg.context.sandboxNet}
       context_sandbox_fs=${pkgs.writeText "claude-context-sandbox-fs.md" cfg.context.sandboxFs}
@@ -271,16 +314,6 @@ let
     unset _claude_effort
   '';
 
-  # Conversation sharing across sibling variants: each work variant (work /
-  # glm / deepseek) and each personal variant (personal / personal-deepseek)
-  # owns its CLAUDE_CONFIG_DIR outright — own .claude.json, plugins, cache,
-  # daemon, live-session state — so siblings never fight over shared state.
-  # Only the conversation stores are shared: `projects/` (the --resume
-  # transcripts) and `history.jsonl` (prompt history) live once in a
-  # <group>-shared dir and each sibling symlinks them in (home.file entries
-  # built by mkConversationShareFiles below). Session discovery reads the
-  # .jsonl files off disk, so a symlinked projects/ is enough for `--resume`
-  # in any sibling to list and continue sessions started under another.
   workClaudeConfigDir = "${config.home.homeDirectory}/.config/work-claude";
   glmClaudeConfigDir = "${config.home.homeDirectory}/.config/glm-claude";
   deepseekClaudeConfigDir = "${config.home.homeDirectory}/.config/deepseek-claude";
@@ -297,9 +330,6 @@ let
     "history.jsonl"
   ];
 
-  # home.file entries symlinking a variant dir's conversation stores at the
-  # group's shared dir. mkOutOfStoreSymlink keeps these plain absolute
-  # symlinks, so Claude Code writes land in the shared dir directly.
   mkConversationShareFiles =
     sharedDir: variantDir:
     lib.listToAttrs (
@@ -309,13 +339,6 @@ let
       }) conversationShareNames
     );
 
-  # One-time migration, run before checkLinkTargets so the symlinks above can
-  # replace what a variant still owns as real files/dirs: pre-sharing layouts
-  # (each variant with its own projects/) and dirs stranded by wrappers from
-  # before this grouping. Merges each variant's real conversation stores into
-  # the shared dir (transcript files are UUID-named, so cp --no-clobber
-  # collisions are impossible), then removes the originals. Idempotent: a
-  # symlinked or absent store is left alone.
   mkConversationShareMigration = sharedDir: variantDirs: ''
     _cc_shared="${sharedDir}"
     mkdir -p "$_cc_shared/projects"
@@ -324,8 +347,6 @@ let
       [ -d "$_cc_v" ] || continue
       if [ -d "$_cc_v/projects" ] && [ ! -L "$_cc_v/projects" ]; then
         if [ -z "$(ls -A "$_cc_shared/projects" 2>/dev/null)" ]; then
-          # shared store still empty: -T renames onto the (empty) target —
-          # atomic and lossless, no copy of hundreds of MB
           if mv -T -- "$_cc_v/projects" "$_cc_shared/projects"; then
             :
           else
@@ -449,15 +470,6 @@ let
     resultVar = "_claude_gitlab_mcp";
   };
 
-  # Single source of truth for CLI flags that flip a plugin on or off for one
-  # launch, via a `--settings` JSON overlay merged over the variant's
-  # settings.json (the same trick --no-devar always used). Add an entry here
-  # to get: the CLI flag on every variant (pluginFlagsParserText below), the
-  # marketplace injected into that same overlay when — and only when — the flag
-  # is passed (so an unflagged launch never sees it in /plugin, yet the plugin
-  # stays resolvable once enabled), and zsh completion for the flag
-  # (flagPluginsZshArgs, consumed by home/modules/shell/zsh/functions.nix) —
-  # nothing else to touch.
   flagPlugins = [
     {
       flag = "--no-devar";
@@ -480,8 +492,6 @@ let
       };
     }
   ]
-  # `env` is exported via the overlay whenever the flag is passed; `levelEnv`
-  # adds a `<flag>=<level>` form that also sets that variable to the level.
   ++ lib.optional cfg.enableCaveman {
     flag = "--caveman";
     plugin = "caveman@caveman";
@@ -494,15 +504,16 @@ let
     levelEnv = "CAVEMAN_DEFAULT_MODE";
     levels = cavemanLevels;
   }
-  ++ lib.optional cfg.enableObsidian {
-    flag = "--obsidian";
+  ++ lib.optional cfg.planner.enable {
+    flag = "--planner";
     plugin = "claude-obsidian@agricidaniel-claude-obsidian";
     enable = true;
-    desc = "enable the claude-obsidian vault plugin for this launch";
+    desc = "enable the Obsidian vault plugin and own-calendar MCP for this launch";
     marketplace = obsidianMarketplace;
     env = {
       CLAUDE_OBSIDIAN_VAULT = obsidianVaultPath;
     };
+    inherit (cfg.planner) mcpConfigs;
   };
 
   flagPluginsZshArgs = lib.concatMapStringsSep " " (p: "'${p.flag}[${p.desc}]'") flagPlugins;
@@ -517,6 +528,9 @@ let
         ${lib.concatMapStringsSep "\n" (
           k: "_claude_plugin_env+=(${lib.escapeShellArg "${k}=${p.env.${k}}"})"
         ) (lib.attrNames (p.env or { }))}
+        ${lib.concatMapStringsSep "\n" (c: "_claude_plugin_mcp+=(${lib.escapeShellArg c})") (
+          p.mcpConfigs or [ ]
+        )}
       '';
       levelArm = p: ''
         ${p.flag}=*)
@@ -548,6 +562,7 @@ let
       _claude_plugin_flags=()
       _claude_plugin_marketplaces=()
       _claude_plugin_env=()
+      _claude_plugin_mcp=()
       _claude_flag_rest=()
       while [ "$#" -gt 0 ]; do
         case "$1" in
@@ -572,10 +587,6 @@ let
           '.enabledPlugins[$id] = $val' <<<"$_claude_settings_overlay")
       done
       if [ "''${#_claude_plugin_marketplaces[@]}" -gt 0 ]; then
-        # Seed the overlay with the marketplaces the variant's own settings.json
-        # already registers, then add the flag's own — a --settings overlay
-        # replaces this key wholesale, so re-stating them keeps devar/caveman/
-        # ast-grep resolvable on a flagged launch.
         _claude_settings_file="''${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
         _claude_known="{}"
         if [ -s "$_claude_settings_file" ]; then
@@ -591,9 +602,6 @@ let
         unset _claude_settings_file _claude_known _claude_pm
       fi
       if [ "''${#_claude_plugin_env[@]}" -gt 0 ]; then
-        # Same wholesale-replace caveat as above: carry the variant's own env
-        # (CLAUDE_OBSIDIAN_VAULT, a Nix-set CAVEMAN_DEFAULT_MODE) into the overlay
-        # so the flag's values override it instead of wiping it.
         _claude_settings_file="''${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
         _claude_env="{}"
         if [ -s "$_claude_settings_file" ]; then
@@ -612,7 +620,10 @@ let
       _claude_extra_args+=(--settings "$_claude_settings_overlay")
       unset _claude_settings_overlay _claude_pf
     fi
-    unset _claude_plugin_flags _claude_plugin_marketplaces _claude_plugin_env
+    for _claude_pc in "''${_claude_plugin_mcp[@]}"; do
+      _claude_extra_args+=(--mcp-config "$_claude_pc")
+    done
+    unset _claude_plugin_flags _claude_plugin_marketplaces _claude_plugin_env _claude_plugin_mcp _claude_pc
   '';
 
   browserMcpParserText =
@@ -658,10 +669,6 @@ let
     };
   };
 
-  # Plugin registries store absolute paths, so a renamed CLAUDE_CONFIG_DIR
-  # (normal-claude -> personal-claude) left every older marketplace pointing
-  # at a dead dir and failing as "cache-miss". Paths are re-rooted onto the
-  # current dir only when the data is already there; nothing is dropped.
   healClaudeState = pkgs.writeShellApplication {
     name = "heal-claude-json";
     runtimeInputs = [
@@ -672,7 +679,6 @@ let
       dir="''${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
       plugins="$dir/plugins"
 
-      # $tmp holds the jq rewrite of $file; swap it in only if jq produced output.
       commit_json() {
         local file="$1" tmp="$2" fixes="$3"
         if [ -s "$tmp" ]; then
@@ -765,13 +771,6 @@ let
       export ${authVar}
     '';
 
-  # Common tail of the work-group wrappers (work/glm/deepseek). Each variant
-  # owns its CLAUDE_CONFIG_DIR, so its settings.json is read natively and the
-  # --settings overlay is only needed for plugin-toggle flags.
-  # agentic-development-mcps is not attached here at all: devar's MCP server
-  # embeds it unconditionally (the upstream list is code in devar, its OAuth
-  # devar's own — `devar mcp login platform` once). Personal-claude keeps the
-  # direct attachment as an opt-in flag (personal runs no devar).
   workWrapperTail = ''
     ${commonParserText}
     ${pluginFlagsParserText}
@@ -875,11 +874,6 @@ let
     '';
   };
 
-  # Same DeepSeek native-Anthropic endpoint as deepseek-claude above, but for
-  # personal (non-work) use: its own key file, no work MCP config / devar
-  # plugin. Own CLAUDE_CONFIG_DIR, with only the conversation stores shared
-  # with personal-claude (see personalClaudeSharedDir) so `--resume` sees
-  # sessions from either.
   personalDeepseekClaude = pkgs.writeShellApplication {
     name = "personal-deepseek-claude";
     runtimeInputs = [ pkgs.coreutils ];
@@ -936,9 +930,6 @@ let
         printf '%s' "$input" | jq -r "$1" 2>/dev/null || printf '%s' "$2"
       }
 
-      # Abbreviate every path segment but the leading ~ (if any) and the
-      # final one down to its first character, e.g.
-      # ~/personal/dotfiles/nixos -> ~/p/d/nixos
       abbrev_path() {
         local input_path="$1" prefix="" body seg segs out i n joined
         case "$input_path" in
@@ -964,7 +955,6 @@ let
         printf '%s%s' "$prefix" "$joined"
       }
 
-      # Render a used-percentage as a compact 5-block gauge, e.g. "███░░42%"
       pct_bar() {
         local pct_raw="$1" pct_int filled bar i
         pct_int="''${pct_raw%%.*}"
@@ -1043,8 +1033,6 @@ let
       cfg_dir="''${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
       caveman_level=""
       caveman_suffix=""
-      # The flag files outlive a --caveman launch, so trust them only when this
-      # session actually loaded the plugin (mkSettings / the flag set the marker).
       if [ "''${CLAUDE_CAVEMAN:-}" = 1 ]; then
         [ -f "$cfg_dir/.caveman-active" ] && caveman_level=$(cat "$cfg_dir/.caveman-active" 2>/dev/null || true)
         [ -f "$cfg_dir/.caveman-statusline-suffix" ] && caveman_suffix=$(cat "$cfg_dir/.caveman-statusline-suffix" 2>/dev/null || true)
@@ -1269,52 +1257,26 @@ let
 
   pluginType = with lib.types; attrsOf bool;
 
-  # zellij's status bar (zellaude, see home/modules/programs/terminal/zelij.nix)
-  # shows what each Claude pane is doing — thinking, running a tool, waiting on
-  # a permission prompt — and it learns that from these hooks: each one pipes
-  # the event into the plugin with `zellij pipe`. The script no-ops instantly
-  # outside zellij, so it is safe on every variant.
-  #
-  # These replaced a hook that prefixed the zellij tab name with a bell glyph on
-  # Notification/Stop. Two things renaming tabs at once (that hook and a zsh
-  # precmd hook that named the tab after the cwd) made the bar flicker, and the
-  # plugin says strictly more than the glyph did.
-  #
-  # zellaude normally installs itself into ~/.claude/settings.json on first run;
-  # that file is generated from this module, so the plugin's copy is patched out
-  # (pkgs/zellaude.nix) and the registration lives here instead.
-  zellaudeHooks =
+  zellijAttentionHooks =
     let
-      entry = [
+      hook = {
+        type = "command";
+        command = lib.getExe claudeZellijAttention;
+        timeout = 10;
+        async = true;
+      };
+    in
+    {
+      Stop = [ { hooks = [ hook ]; } ];
+      StopFailure = [ { hooks = [ hook ]; } ];
+      Notification = [
         {
-          hooks = [
-            {
-              type = "command";
-              command = "${zellaude.hook}/bin/zellaude-hook";
-              timeout = 5;
-              async = true;
-            }
-          ];
+          matcher = "permission_prompt|elicitation_dialog";
+          hooks = [ hook ];
         }
       ];
-    in
-    lib.genAttrs [
-      "PreToolUse"
-      "PostToolUse"
-      "PostToolUseFailure"
-      "UserPromptSubmit"
-      "PermissionRequest"
-      "Notification"
-      "Stop"
-      "SubagentStop"
-      "SessionStart"
-      "SessionEnd"
-    ] (_: entry);
+    };
 
-  # Best-effort ntfy ping on the "claude" topic (home/modules/programs/
-  # development/ntfy.nix) when any variant's session ends. The hook script
-  # itself swallows failures, so a missing token or dead network never blocks
-  # Claude from finishing.
   ntfyHooks = lib.optionalAttrs config.custom.ntfy.enableClaudeHook (
     lib.genAttrs
       [
@@ -1336,8 +1298,6 @@ let
       ])
   );
 
-  # `variant` keys cfg.plugins, where work/glm/deepseek share "work"; `name` is
-  # the variant's own identity, for settings that must not be shared.
   mkSettings =
     variant: name: base:
     let
@@ -1345,21 +1305,13 @@ let
       cavemanMode = cfg.cavemanMode.${name};
       caveman = cfg.enableCaveman && cavemanMode != null;
       marketplaces = samberMarketplace // lib.optionalAttrs caveman cavemanMarketplace;
-      env =
-        # Keeps Claude's renderer in the terminal's normal scrollback instead
-        # of the alternate screen. Inside zellij (mouse_mode = true, see
-        # zelij.nix), an alt-screen pane has no native scrollback, so mouse
-        # wheel scroll gets translated into rapid Up/Down keypresses forwarded
-        # to the app — Claude's input layer reads that burst as a paste. This
-        # keeps zellij's own pane scrollback in play for the wheel instead, so
-        # click-drag select-to-copy (also mouse_mode) is unaffected.
-        {
-          CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN = "1";
-        }
-        // lib.optionalAttrs caveman {
-          CLAUDE_CAVEMAN = "1";
-          CAVEMAN_DEFAULT_MODE = cavemanMode;
-        };
+      env = {
+        CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN = "1";
+      }
+      // lib.optionalAttrs caveman {
+        CLAUDE_CAVEMAN = "1";
+        CAVEMAN_DEFAULT_MODE = cavemanMode;
+      };
     in
     {
       statusLine = {
@@ -1369,7 +1321,6 @@ let
     }
     // base
     // lib.optionalAttrs (plugins != { } || base ? enabledPlugins || caveman) {
-      # cfg.plugins last, so a per-variant `false` can still switch these off.
       enabledPlugins = (base.enabledPlugins or { }) // lib.optionalAttrs caveman cavemanPlugin // plugins;
     }
     // lib.optionalAttrs (marketplaces != { }) {
@@ -1380,17 +1331,13 @@ let
     }
     // {
       hooks = lib.zipAttrsWith (_: lib.concatLists) [
-        zellaudeHooks
+        zellijAttentionHooks
         ntfyHooks
         (base.hooks or { })
       ];
       permissions = (base.permissions or { }) // {
         deny = (base.permissions.deny or [ ]) ++ [ "Bash(git push:*)" ];
       };
-      # denyRead/denyWrite here are bwrap sandbox paths (OS-level, for the
-      # Bash tool), unrelated to the Read/Edit tool permission deny rules
-      # above — keeping every variant's Bash tool blind to key material even
-      # if a permission rule is misconfigured.
       sandbox = {
         denyRead = sandboxSecretDenyPaths;
         denyWrite = sandboxSecretDenyPaths;
@@ -1462,9 +1409,6 @@ let
     ];
   };
 
-  # github-sourced marketplace registration, same shape devarMarketplace above
-  # uses for its directory source: non-interactive `extraKnownMarketplaces`
-  # entry + a matching `enabledPlugins` toggle.
   mkGithubMarketplace = repo: {
     source = {
       source = "github";
@@ -1472,15 +1416,34 @@ let
     };
   };
 
-  # samber/cc is the upstream marketplace for cc-skills-golang. Keeping this
-  # as a native Claude plugin preserves automatic description-based triggering
-  # and follows the installation documented by samber/cc-skills-golang.
   samberMarketplace = {
-    samber = mkGithubMarketplace "samber/cc";
+    samber = {
+      source = {
+        source = "directory";
+        path = "${samberMarketplaceDir}";
+      };
+    };
   };
 
-  # Gated on enableCaveman + cavemanMode.<variant> in mkSettings, and on the
-  # --caveman flag (flagPlugins) for variants that leave it unloaded.
+  samberMarketplaceDir = pkgs.runCommand "samber-claude-marketplace" { } ''
+    mkdir -p $out/.claude-plugin
+    cp -r ${inputs.samber-go-skills} $out/cc-skills-golang
+    cp ${
+      pkgs.writeText "samber-marketplace.json" (
+        builtins.toJSON {
+          name = "samber";
+          owner.name = "Samuel Berthe";
+          plugins = [
+            {
+              name = "cc-skills-golang";
+              source = "./cc-skills-golang";
+            }
+          ];
+        }
+      )
+    } $out/.claude-plugin/marketplace.json
+  '';
+
   cavemanLevels = [
     "off"
     "lite"
@@ -1500,10 +1463,6 @@ let
     "caveman@caveman" = true;
   };
 
-  # ast-grep's official Claude Code skill (github.com/ast-grep/agent-skill):
-  # teaches structural/AST-based code search with the `ast-grep` CLI (see
-  # home/modules/packages/dev.nix for the package). Always on, every variant —
-  # unlike devar/caveman there is no host- or preference-gate for it.
   astGrepMarketplace = {
     "ast-grep-marketplace" = mkGithubMarketplace "ast-grep/agent-skill";
   };
@@ -1512,19 +1471,10 @@ let
     "ast-grep@ast-grep-marketplace" = true;
   };
 
-  # claude-obsidian: github-sourced marketplace + plugin, same shape caveman/
-  # ast-grep use. The plugin's own hooks and skills shell out to `python3
-  # <plugin-root>/scripts/claude-obsidian.py`, which is stdlib-only (Python
-  # 3.11+, already on PATH via the dev profile), so no compiled binary or flake
-  # input is needed — Claude Code clones the repo at first launch.
-  #
-  # Neither the marketplace nor the plugin reaches a variant's settings.json:
-  # both are injected only by the --obsidian overlay in flagPlugins.
   obsidianMarketplace = {
     "agricidaniel-claude-obsidian" = mkGithubMarketplace "AgriciDaniel/claude-obsidian";
   };
 
-  # Must stay in sync with `vaultRel` in home/modules/programs/desktop/obsidian.nix.
   obsidianVaultPath = "${config.home.homeDirectory}/Documents/amirsalar-vault";
 
   workSettings = {
@@ -1804,17 +1754,27 @@ in
         gap = mkMode "gap-claude" null;
         local = mkMode "local-claude" null;
       };
-    enableObsidian = lib.mkEnableOption ''
-      the claude-obsidian plugin (github.com/AgriciDaniel/claude-obsidian): a
-      local-first "second brain" for an Obsidian vault — source-cited wiki
-      pages, research/retrieval/lint skills, and recoverable transactions.
-      Registered as a github plugin marketplace, same mechanism as enableCaveman.
-      Loaded on no variant by default: its 15 skills and 3 agents are worth
-      roughly 1.5k always-on tokens, so it costs nothing until a launch passes
-      --obsidian, which enables the plugin and points CLAUDE_OBSIDIAN_VAULT at
-      ~/Documents/amirsalar-vault for that launch. Adopt that vault once with
-      /claude-obsidian:wiki from an --obsidian launch
-    '';
+    planner = {
+      enable = lib.mkEnableOption ''
+        the --planner launch flag for self and time management, accepted by
+        every variant including the work ones. It loads the claude-obsidian
+        plugin (github.com/AgriciDaniel/claude-obsidian) with
+        CLAUDE_OBSIDIAN_VAULT pointed at ~/Documents/amirsalar-vault, and
+        attaches every `planner.mcpConfigs` entry, such as the agenda module's
+        own-calendar Google Calendar MCP server. Nothing loads without the
+        flag, so an unflagged launch pays no context for either. Adopt the
+        vault once with /claude-obsidian:wiki from a --planner launch
+      '';
+
+      mcpConfigs = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        description = ''
+          MCP config files a --planner launch passes as `--mcp-config`.
+          Feature modules that serve a planner MCP server append theirs.
+        '';
+      };
+    };
 
     context = {
       base = lib.mkOption {
@@ -1833,6 +1793,17 @@ in
           /usr/local, /bin holds only sh, and binaries live in /nix/store and reach PATH through
           profiles. Do not hardcode FHS paths or install packages globally; load the
           nix-environment skill when a tool or library is missing.
+
+          For ad-hoc Python (scripts, data inspection, trying models) outside any project, use the
+          reusable dev shells instead of system Python or a project-local venv:
+          `nix develop dev#python -c python script.py`, or `dev#python-data` for Jupyter and
+          scikit-learn. Each activates a persistent writable venv under
+          ''${XDG_STATE_HOME:-~/.local/state}/nix-dev/ that already has numpy, pandas, scipy,
+          matplotlib, requests, PDF and Office libraries; add more (torch, transformers, ...) with
+          `nix develop dev#python -c bash -c 'uv pip install --python "$VIRTUAL_ENV/bin/python" pkg'`.
+          `nix develop dev#rust` is the Rust equivalent. Never use pip --user,
+          --break-system-packages, or `uv sync` against that shared venv. Inside a project,
+          use that project's own shell and lockfile instead.
 
           ~/divar holds work projects and their configuration; ~/personal holds personal projects,
           including this dotfiles flake. Keep the two apart: do not carry work code, credentials or
@@ -1934,6 +1905,26 @@ in
           Extra paths bound into the sandbox under `--sandbox-fs`, on top of
           $PWD and CLAUDE_CONFIG_DIR. Ignored without that flag, where the
           whole filesystem minus `denyPaths` is already bound.
+        '';
+      };
+
+      envFiles = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ "${config.home.homeDirectory}/zshsecret" ];
+        description = ''
+          Shell files scanned at launch for `export NAME` lines. Every name
+          found is unset inside the sandbox unless listed in
+          `sandbox.envPassthrough`.
+        '';
+      };
+
+      envPassthrough = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = secrets.claudeSandbox.envPassthrough or [ ];
+        description = ''
+          Variable names exported by `sandbox.envFiles` that stay visible
+          inside the sandbox. Sourced from the git-crypted secrets so the
+          names stay out of the public repository.
         '';
       };
     };
@@ -2155,11 +2146,6 @@ in
 
   config = lib.mkMerge [
     {
-      # The crit@crit plugin's hooks shell out to a bare `crit` on PATH (its
-      # own binary, built from the crit flake input via the overlay in
-      # flake.nix). The plugin marketplace registration only ships the
-      # skill/slash-command; without this the `--crit` flag enables a plugin
-      # whose commands fail with "crit: command not found".
       home.packages = [ pkgs.crit ];
     }
     (lib.mkIf cfg.enable {
@@ -2230,7 +2216,6 @@ in
         || cfg.enableWorkDivarDeepseek
       )
       {
-        # Conversation sharing across the work group — see mkConversationShareFiles.
         home.file =
           (lib.optionalAttrs cfg.enableWork (
             mkConversationShareFiles workClaudeSharedDir ".config/work-claude"
@@ -2259,7 +2244,6 @@ in
       }
     )
     (lib.mkIf (cfg.enablePersonal || cfg.enablePersonalDeepseek) {
-      # Same conversation sharing for the personal pair.
       home.file =
         (lib.optionalAttrs cfg.enablePersonal (
           mkConversationShareFiles personalClaudeSharedDir ".config/personal-claude"

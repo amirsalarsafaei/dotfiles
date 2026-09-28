@@ -23,7 +23,7 @@
     claudeCode.enablePersonal = true;
     claudeCode.enablePersonalDeepseek = true;
     claudeCode.enableCaveman = true;
-    claudeCode.enableObsidian = true;
+    claudeCode.planner.enable = true;
     claudeCode.plugins.personal."clangd-lsp@claude-plugins-official" = true;
     claudeCode.skillOverrides.nix-environment = "on";
 

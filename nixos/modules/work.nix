@@ -97,7 +97,7 @@ lib.mkIf config.isWork {
         # The directory-sourced devar marketplace + plugin only here — this is the
         # host with the ~/divar/devar checkout. See claudeCode.enableDevar.
         claudeCode.enableDevar = true;
-        claudeCode.enableObsidian = true;
+        claudeCode.planner.enable = true;
         claudeCode.sandbox.enable = true;
 
         agentSkills = {

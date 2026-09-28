@@ -9,33 +9,25 @@ field() {
 event=$(field hook_event_name)
 case "$event" in
   Stop)
-    state="finished"
     tags="white_check_mark"
     priority="default"
-    detail=$(field last_assistant_message)
     ;;
   StopFailure)
-    state="failed"
     tags="x"
     priority="high"
-    detail=$(field error_details)
-    [[ -n $detail ]] || detail=$(field error)
     ;;
   Notification)
     case "$(field notification_type)" in
       permission_prompt)
-        state="needs permission"
         tags="warning"
         priority="high"
         ;;
       elicitation_dialog)
-        state="has a question"
         tags="question"
         priority="high"
         ;;
       *) exit 0 ;;
     esac
-    detail=$(field message)
     ;;
   *) exit 0 ;;
 esac
@@ -94,20 +86,9 @@ case "$variant" in
   *) emoji="🤖" ;;
 esac
 
-cwd=$(field cwd)
-where="${cwd##*/}"
-[[ -n $where ]] || where="$variant"
-tab=$(jq -r '.tab_name // empty' <<<"$pane")
-pane_title=$(jq -r '.title // empty' <<<"$pane")
-[[ -n $tab ]] && where+=" · tab: $tab"
-[[ -n $pane_title ]] && where+=" · pane: $pane_title"
-
-body="$where"
-[[ -n $detail ]] && body+=$'\n\n'"$detail"
-
 ntfy --quiet \
   --topic "$topic" \
-  --title "$emoji $variant $state" \
+  --title "$emoji $variant" \
   --tags "$tags" \
   --priority "$priority" \
-  "$body" || true
+  "requires your input" || true

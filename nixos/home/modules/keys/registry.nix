@@ -187,6 +187,30 @@ rec {
         group = "Session";
       })
       (keysLib.hypr.exec {
+        on = on.super K.tab;
+        cmd = "hyprctl dispatch hyprtasking:toggle cursor";
+        desc = "Workspace overview";
+        group = "Session";
+      })
+      (keysLib.hypr.exec {
+        on = on.super K.d;
+        cmd = cmd.sidebarToggle;
+        desc = "Toggle the sidebar dashboard";
+        group = "Session";
+      })
+      (keysLib.hypr.exec {
+        on = on.super K.g;
+        cmd = cmd.widgetsToggle;
+        desc = "Toggle the desktop widget board";
+        group = "Session";
+      })
+      (keysLib.hypr.exec {
+        on = on.superShift K.w;
+        cmd = cmd.wallpaperBlurToggle;
+        desc = "Toggle wallpaper blur behind windows";
+        group = "Session";
+      })
+      (keysLib.hypr.exec {
         on = on.super K.slash;
         cmd = cmd.keysRofi;
         desc = "Show every keybinding";
@@ -232,6 +256,12 @@ rec {
         on = on.super K.a;
         cmd = cmd.agendaShow;
         desc = "Show today's agenda";
+        group = "Session";
+      })
+      (keysLib.hypr.exec {
+        on = on.superShift K.a;
+        cmd = cmd.agendaDone;
+        desc = "Mark the current agenda event done";
         group = "Session";
       })
       (keysLib.hypr.exec {

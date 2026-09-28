@@ -6,8 +6,6 @@
 }:
 let
   cfg = config.custom.neovim;
-  helpers = import ./lib.nix { inherit lib config; };
-  inherit (helpers) boolToLua paletteLua;
 in
 {
   imports = [
@@ -24,12 +22,6 @@ in
 
   options.custom.neovim = {
     enable = lib.mkEnableOption "Custom NixVim configuration";
-
-    source = lib.mkOption {
-      type = lib.types.nullOr lib.types.str;
-      default = null;
-      description = "Deprecated lazy.nvim config source path. Kept as a compatibility no-op while NixVim owns the generated config.";
-    };
 
     palette = lib.mkOption {
       type = lib.types.nullOr (lib.types.attrsOf lib.types.str);
@@ -53,22 +45,16 @@ in
         default = false;
         description = "Enable embedded development plugins (PlatformIO, hex editor).";
       };
-      mason = lib.mkOption {
-        type = lib.types.bool;
-        default = false;
-        description = "Deprecated. Tooling is managed by Nix instead of Mason.";
-      };
     };
   };
 
   config = lib.mkIf cfg.enable {
-    home.sessionVariables.EDITOR = "nvim";
-
     programs.nixvim = {
       enable = true;
       defaultEditor = true;
       viAlias = true;
       vimAlias = true;
+      enableMan = false;
       nixpkgs.useGlobalPackages = true;
 
       globals = {
@@ -91,18 +77,13 @@ in
         ignorecase = true;
         smartcase = true;
         cursorline = true;
-        termguicolors = true;
         background = "dark";
         signcolumn = "yes";
-        backspace = "indent,eol,start";
         swapfile = false;
-        backup = false;
         undofile = true;
         undodir.__raw = ''vim.fn.stdpath("state") .. "/undo"'';
         splitright = true;
         splitbelow = true;
-        hidden = true;
-        history = 500;
         synmaxcol = 240;
         updatetime = 250;
         timeoutlen = 300;
@@ -110,7 +91,6 @@ in
         splitkeep = "screen";
         smoothscroll = true;
         virtualedit = "block";
-        completeopt = "menu,menuone,noselect";
         scrolloff = 8;
         sidescrolloff = 8;
         mouse = "a";
@@ -188,12 +168,6 @@ in
             vim.notify("Buffer autoformat " .. (vim.b.disable_autoformat and "disabled" or "enabled"))
           end
         end, { bang = true })
-
-        _G.nvim_host = {
-          ai = ${boolToLua cfg.features.ai},
-          mason = false,
-          palette = ${paletteLua},
-        }
       '';
 
       extraPackages = with pkgs; [

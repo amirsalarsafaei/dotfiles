@@ -1,11 +1,13 @@
 { config, lib, ... }:
 let
-  isNormal = config.custom.powerProfile == "normal";
+  isLowPower = config.custom.powerProfile == "low-power";
   t = config.custom.theme.resolved.colors;
+  s = config.custom.theme.resolved.surfaces;
+  a = config.custom.theme.resolved.accents;
 in
 {
   services.swaync = {
-    enable = isNormal;
+    enable = !isLowPower;
 
     style = ''
       * {
@@ -18,10 +20,10 @@ in
         border-radius: 6px;
       }
       trough {
-        background: ${t.base01};
-        border: 1px solid ${t.base02};
+        background: ${s.raised};
+        border: 1px solid ${s.line};
       }
-      progress { background: ${t.base0D}; }
+      progress { background: ${a.primary}; }
 
       /* notification card — one element owns the border + radius, so there is
          no second misaligned frame and the urgency accent recolors that single
@@ -40,9 +42,9 @@ in
         background: transparent;
       }
       .notification-content {
-        background: ${t.base00}e6;
-        border: 1px solid ${t.base02};
-        border-radius: 8px;
+        background: ${s.ink}eb;
+        border: 1px solid ${s.line};
+        border-radius: 12px;
         padding: 12px;
         color: ${t.base05};
       }
@@ -50,7 +52,7 @@ in
       /* urgency accent — recolors the single border, no extra frame */
       .notification.low .notification-content { border-color: ${t.base03}; }
       .notification.low progress { background: ${t.base03}; }
-      .notification.normal .notification-content { border-color: ${t.base0D}; }
+      .notification.normal .notification-content { border-color: ${a.primary}; }
       .notification.normal progress { background: ${t.base0F}; }
       .notification.critical .notification-content { border-color: ${t.base08}; }
       .notification.critical progress { background: ${t.base08}; }
@@ -61,8 +63,8 @@ in
 
       .notification-action {
         color: ${t.base05};
-        background: ${t.base01};
-        border: 1px solid ${t.base02};
+        background: ${s.raised};
+        border: 1px solid ${s.line};
         border-radius: 6px;
       }
       .notification-action:hover { background: ${t.base02}; }
@@ -80,14 +82,14 @@ in
       /* control center — translucent for the same reason as the card above
          (blurred `swaync-control-center` layer) */
       .control-center {
-        background: ${t.base00}e6;
-        border: 1px solid ${t.base02};
-        border-radius: 12px;
+        background: ${s.ink}eb;
+        border: 1px solid ${s.line};
+        border-radius: 14px;
         color: ${t.base05};
       }
       .control-center .notification-row .notification-background,
       .control-center .notification-row .notification-background:hover {
-        background: ${t.base01}cc;
+        background: ${s.raised}cc;
         border-radius: 8px;
       }
       .control-center .notification-row .notification-content {
@@ -97,8 +99,8 @@ in
 
       .widget-title { color: ${t.base05}; margin: 0.5rem; }
       .widget-title > button {
-        background: ${t.base01};
-        border: 1px solid ${t.base02};
+        background: ${s.raised};
+        border: 1px solid ${s.line};
         border-radius: 6px;
         color: ${t.base05};
       }
@@ -106,17 +108,17 @@ in
 
       .widget-dnd { color: ${t.base05}; margin: 0.5rem; }
       .widget-dnd > switch {
-        background: ${t.base01};
-        border: 1px solid ${t.base02};
+        background: ${s.raised};
+        border: 1px solid ${s.line};
         border-radius: 12px;
       }
-      .widget-dnd > switch:checked { background: ${t.base0D}; }
+      .widget-dnd > switch:checked { background: ${a.primary}; }
       .widget-dnd > switch slider { background: ${t.base06}; border-radius: 12px; }
 
       .widget-mpris { color: ${t.base05}; }
       .widget-mpris .widget-mpris-player {
-        background: ${t.base01};
-        border: 1px solid ${t.base02};
+        background: ${s.raised};
+        border: 1px solid ${s.line};
         border-radius: 8px;
       }
       .widget-mpris .widget-mpris-player button:hover { background: ${t.base02}; }

@@ -1,3 +1,4 @@
+{ config, ... }:
 {
   services.hypridle = {
     enable = true;
@@ -6,7 +7,7 @@
         before_sleep_cmd = "loginctl lock-session";
         after_sleep_cmd = "hyprctl dispatch dpms on";
         ignore_dbus_inhibit = false;
-        lock_cmd = "pidof hyprlock || hyprlock";
+        lock_cmd = config.custom.keys.commands.lockScreen or "pidof hyprlock || hyprlock";
       };
       listener = [
         {

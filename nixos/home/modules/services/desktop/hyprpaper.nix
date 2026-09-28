@@ -1,4 +1,0 @@
-{ ... }:
-{
-  services.hyprpaper.enable = true;
-}

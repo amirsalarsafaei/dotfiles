@@ -20,7 +20,6 @@ in
   mcp-chrome-bridge = pkgs.callPackage ../pkgs/mcp-chrome-bridge { };
   zellij-harpoon = zellijExtraPlugins.harpoon;
   zellij-tabula = zellijExtraPlugins.tabula;
-  zellaude = (pkgs.callPackage ../pkgs/zellaude.nix { }).unwrapped;
   nvim-base64 = neovimPlugins.base64Plugin;
   nvim-platformio-lua = neovimPlugins.platformioPlugin;
   tmux-battery = tmuxExtraPlugins.battery;

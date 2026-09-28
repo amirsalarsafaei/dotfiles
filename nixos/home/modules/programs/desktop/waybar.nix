@@ -9,6 +9,10 @@
 }:
 let
   t = config.custom.theme.resolved.colors;
+  s = config.custom.theme.resolved.surfaces;
+  a = config.custom.theme.resolved.accents;
+  value = text: "<span color='${t.base05}'>${text}</span>";
+  lyrics = config.custom.lyrics;
 
   # waybar's battery module otherwise enumerates *every* /sys/class/power_supply
   # entry, including transient peripheral batteries — Logitech HID++ mice/keyboards
@@ -40,11 +44,11 @@ let
   comfy = {
     fontSize = 12;
     height = 34;
-    spacing = 6;
-    marginTop = 4;
-    marginSide = 10;
-    barRadius = 16;
-    edge = 12;
+    spacing = 4;
+    marginTop = 6;
+    marginSide = 12;
+    barRadius = 14;
+    edge = 5;
     pad = "3px 8px";
     buttonPad = "2px 9px";
     powerFont = 16;
@@ -54,17 +58,18 @@ let
     groupPad = "2px 5px";
     itemPad = "2px 9px";
     submapPad = "4px 16px";
-    windowLength = 48;
+    windowLength = 36;
+    lyricsLength = 48;
   };
 
   tight = {
     fontSize = 11;
     height = 28;
-    spacing = 3;
-    marginTop = 3;
+    spacing = 2;
+    marginTop = 4;
     marginSide = 6;
-    barRadius = 14;
-    edge = 8;
+    barRadius = 11;
+    edge = 3;
     pad = "2px 7px";
     buttonPad = "1px 7px";
     powerFont = 14;
@@ -74,7 +79,8 @@ let
     groupPad = "1px 4px";
     itemPad = "1px 7px";
     submapPad = "2px 12px";
-    windowLength = 36;
+    windowLength = 28;
+    lyricsLength = 32;
   };
 
   tightCss = ''
@@ -82,9 +88,12 @@ let
     window#waybar.waybar-compact * {
       font-size: ${toString tight.fontSize}px;
     }
-    window#waybar.waybar-compact { border-radius: ${toString tight.barRadius}px; }
-    window#waybar.waybar-compact .modules-left { margin-left: ${toString tight.edge}px; }
-    window#waybar.waybar-compact .modules-right { margin-right: ${toString tight.edge}px; }
+    window#waybar.waybar-compact .modules-left,
+    window#waybar.waybar-compact .modules-center,
+    window#waybar.waybar-compact .modules-right {
+      border-radius: ${toString tight.barRadius}px;
+      padding: 0 ${toString tight.edge}px;
+    }
     window#waybar.waybar-compact #workspaces,
     window#waybar.waybar-compact #idle_inhibitor,
     window#waybar.waybar-compact #clock,
@@ -97,10 +106,18 @@ let
     window#waybar.waybar-compact #hyprland-language,
     window#waybar.waybar-compact #power-profiles-daemon,
     window#waybar.waybar-compact #battery,
-    window#waybar.waybar-compact #hyprland-window {
+    window#waybar.waybar-compact #hyprland-window,
+    window#waybar.waybar-compact #custom-lyrics,
+    window#waybar.waybar-compact #cava,
+    window#waybar.waybar-compact #custom-sidebar,
+    window#waybar.waybar-compact #custom-logout,
+    window#waybar.waybar-compact #custom-reboot,
+    window#waybar.waybar-compact #custom-shutdown {
       padding: ${tight.pad};
     }
+    window#waybar.waybar-compact #workspaces { padding: 0 1px; }
     window#waybar.waybar-compact #workspaces button { padding: ${tight.buttonPad}; }
+    window#waybar.waybar-compact #workspaces button.active { min-width: 22px; }
     window#waybar.waybar-compact #clock { padding: ${tight.clockPad}; }
     window#waybar.waybar-compact #hardware { padding: ${tight.groupPad}; }
     window#waybar.waybar-compact #cpu,
@@ -155,37 +172,58 @@ in
       * {
         font-family: 'JetBrainsMono Nerd Font', 'Font Awesome 6 Free', monospace;
         font-size: ${toString comfy.fontSize}px;
-        font-weight: 700;
+        font-weight: 500;
         min-height: 0;
         border: none;
         border-radius: 0;
       }
 
-      /* One continuous bar, floating clear of the screen edges (see mainBar
-         margin below) so it reads as a rounded pill over the wallpaper
-         instead of a flat rectangle glued to the top edge. The surface
-         carries the background, and that translucency is what the
-         compositor's layer rule blurs (see the `waybar` layerrule in
-         hyprland.nix), so the bar reads as glass, not a flat strip. */
+      /* The bar window is transparent and floats clear of the screen edges
+         (see mainBar margin below). The left, center and right module
+         boxes each carry their own translucent background, so the bar
+         reads as three rounded islands over the wallpaper. The compositor's
+         layer rule blurs only that translucency (see the `waybar` layerrule
+         in hyprland.nix), so the islands read as glass and the gaps between
+         them stay clear. */
       window#waybar {
-        background: ${themeLib.rgba t.base00 0.86};
-        border-radius: ${toString comfy.barRadius}px;
-        border: 1px solid ${themeLib.rgba t.base0D 0.4};
+        background: transparent;
         color: ${t.base05};
       }
 
+      /* Each module box is its own island; the padding keeps the outermost
+         pills clear of the rounded border. */
+      .modules-left,
+      .modules-center,
+      .modules-right {
+        background: ${themeLib.rgba s.ink 0.9};
+        border: 1px solid ${themeLib.rgba s.line 0.95};
+        border-radius: ${toString comfy.barRadius}px;
+        box-shadow: inset 0 1px ${themeLib.rgba t.base07 0.05};
+        padding: 0 ${toString comfy.edge}px;
+      }
+
       tooltip {
-        background: ${themeLib.rgba t.base00 0.95};
-        border: 1px solid ${themeLib.rgba t.base03 0.4};
+        background: ${themeLib.rgba s.ink 0.97};
+        border: 1px solid ${s.line};
         border-radius: 10px;
       }
       tooltip label {
         color: ${t.base07};
       }
 
-      /* Modules share one bar now, so only the outer edges need a gutter. */
-      .modules-left { margin-left: ${toString comfy.edge}px; }
-      .modules-right { margin-right: ${toString comfy.edge}px; }
+      menu {
+        background: ${s.ink};
+        border: 1px solid ${s.line};
+        padding: 4px;
+      }
+      menu menuitem {
+        color: ${t.base05};
+        padding: 4px 10px;
+      }
+      menu menuitem:hover {
+        background: ${themeLib.rgba a.primary 0.22};
+        color: ${t.base07};
+      }
 
       /* Shared pill geometry for every standalone module: identical padding
          keeps the hover highlights and the clock/group accents aligned. */
@@ -201,60 +239,77 @@ in
       #hyprland-language,
       #power-profiles-daemon,
       #custom-power,
+      #custom-logout,
+      #custom-reboot,
+      #custom-shutdown,
       #battery,
       #hyprland-window {
         background-color: transparent;
         color: ${t.base05};
         padding: ${comfy.pad};
-        margin: 0 2px;
-        border-radius: 10px;
+        margin: 3px 1px;
+        border-radius: 9px;
         transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
       }
 
-      #workspaces {
+      #custom-sidebar {
+        color: ${a.primary};
         padding: ${comfy.pad};
-        margin-right: 4px;
+        margin: 3px 2px 3px 0;
+        border-radius: 9px;
+      }
+
+      #custom-sidebar:hover {
+        background-color: ${themeLib.rgba t.base02 0.45};
+        color: ${t.base07};
+      }
+
+      #workspaces {
+        padding: 0 2px;
+        margin: 3px 4px 3px 0;
       }
 
       #workspaces button {
         padding: ${comfy.buttonPad};
-        margin: 0 2px;
+        margin: 0 1px;
         background-color: transparent;
         color: ${t.base04};
         border-radius: 8px;
-        transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+        transition: all 0.3s cubic-bezier(0.32, 0.85, 0.18, 1);
       }
 
       #workspaces button:hover {
-        background: ${themeLib.rgba t.base02 0.5};
+        background: ${themeLib.rgba t.base02 0.55};
         color: ${t.base07};
-      }
-
-      #workspaces button.active {
-        background-color: ${themeLib.rgba t.base0D 0.26};
-        border: 1px solid ${themeLib.rgba t.base0D 0.75};
-        box-shadow: 0 0 8px ${themeLib.rgba t.base0D 0.45};
-        color: ${t.base07};
-        font-weight: 700;
-        min-width: 22px;
-      }
-
-      #workspaces button.visible {
-        background-color: ${themeLib.rgba t.base0E 0.16};
-        color: ${t.base07};
-      }
-
-      #workspaces button.urgent {
-        background-color: ${t.base08};
-        color: ${t.base00};
       }
 
       #workspaces button.empty {
         color: ${t.base03};
       }
 
-      #idle_inhibitor           { color: ${t.base04}; }
-      #idle_inhibitor.activated { color: ${t.base0D}; }
+      #workspaces button.visible {
+        background-color: ${themeLib.rgba a.primary 0.1};
+        box-shadow: inset 0 0 0 1px ${themeLib.rgba a.primary 0.35};
+        color: ${t.base07};
+      }
+
+      #workspaces button.active {
+        background: ${themeLib.rgba a.primary 0.35};
+        color: ${t.base07};
+        font-weight: 600;
+        min-width: 26px;
+      }
+
+      #workspaces button.urgent {
+        background: ${themeLib.rgba t.base08 0.75};
+        color: ${s.ink};
+      }
+
+      #idle_inhibitor { color: ${t.base03}; }
+      #idle_inhibitor.activated {
+        color: ${a.warm};
+        background-color: ${themeLib.rgba a.warm 0.14};
+      }
 
       /* Hover feedback is shared so no module reads as inert. A slight lift
          reads as "clickable" without needing a border on every pill. */
@@ -267,64 +322,90 @@ in
       #power-profiles-daemon:hover,
       #custom-power:hover,
       #battery:hover {
-        background-color: ${themeLib.rgba t.base02 0.34};
+        background-color: ${themeLib.rgba t.base02 0.45};
       }
 
       #clock {
-        font-weight: 800;
-        color: ${t.base07};
-        background: linear-gradient(
-          135deg,
-          ${themeLib.rgba t.base0D 0.28},
-          ${themeLib.rgba t.base02 0.3}
-        );
-        border: 1px solid ${themeLib.rgba t.base0D 0.3};
+        font-weight: 600;
+        color: ${a.primary};
         padding: ${comfy.clockPad};
-        letter-spacing: 0.02em;
+        letter-spacing: 0.04em;
       }
 
-      #custom-agenda { color: ${t.base0B}; }
-      #custom-agenda.busy,
-      #custom-agenda.tasks { color: ${t.base0A}; }
-      #custom-agenda.soon { color: ${t.base08}; }
+      #cava {
+        color: ${a.secondary};
+        padding: ${comfy.pad};
+        margin: 3px 2px;
+        letter-spacing: 1px;
+      }
+
+      #custom-jalali,
+      #custom-gregorian {
+        color: ${t.base04};
+        font-weight: 400;
+      }
+
+      #custom-agenda { color: ${t.base04}; }
+      #custom-agenda.later { color: ${a.secondary}; }
+      #custom-agenda.upcoming { color: ${a.warm}; }
+      #custom-agenda.soon {
+        color: ${a.heat};
+        background-color: ${themeLib.rgba a.heat 0.14};
+      }
+      #custom-agenda.now {
+        color: ${t.base07};
+        background-color: ${themeLib.rgba a.primary 0.3};
+      }
+      #custom-agenda.tasks { color: ${t.base05}; }
+      #custom-agenda.overdue { color: ${a.warm}; }
       #custom-agenda.setup,
       #custom-agenda.stale { color: ${t.base04}; }
 
+      #tray > .needs-attention {
+        background-color: ${themeLib.rgba t.base08 0.25};
+        border-radius: 8px;
+      }
+
       /* Each module gets its own accent color so the right-hand cluster reads
          as distinct icons at a glance instead of one grey block of text. */
-      #network              { color: ${t.base0C}; }
+      #network              { color: ${a.secondary}; }
       #network.disconnected { color: ${t.base08}; }
 
-      #wireplumber          { color: ${t.base0B}; }
-      #wireplumber.muted    { color: ${t.base04}; }
+      #wireplumber          { color: ${a.primary}; }
+      #wireplumber.muted    { color: ${t.base03}; }
 
-      #hyprland-language { color: ${t.base0A}; }
+      #hyprland-language { color: ${a.warm}; }
 
-      #power-profiles-daemon.performance { color: ${t.base08}; }
-      #power-profiles-daemon.balanced { color: ${t.base0D}; }
+      #power-profiles-daemon.performance { color: ${a.heat}; }
+      #power-profiles-daemon.balanced { color: ${a.primary}; }
       #power-profiles-daemon.power-saver { color: ${t.base0B}; }
 
       /* CPU/memory/temperature read as one inset group. */
       #hardware {
-        background-color: ${themeLib.rgba t.base02 0.14};
-        border: 1px solid ${themeLib.rgba t.base03 0.22};
-        border-radius: 12px;
+        background-color: ${s.raised};
+        border: 1px solid ${s.line};
+        border-radius: 9px;
         padding: ${comfy.groupPad};
-        margin: 0 6px;
+        margin: 3px 4px;
       }
 
       #cpu, #memory, #temperature {
         padding: ${comfy.itemPad};
-        border-radius: 8px;
+        border-radius: 7px;
       }
 
-      #cpu         { color: ${t.base0C}; }
-      #memory      { color: ${t.base0B}; }
-      #temperature { color: ${t.base0D}; }
+      #cpu         { color: ${a.secondary}; }
+      #memory      { color: ${a.primary}; }
+      #temperature { color: ${a.heat}; }
 
       #temperature.critical,
       #battery.warning:not(.charging) {
         color: ${t.base0A};
+      }
+
+      #temperature.critical {
+        background-color: ${themeLib.rgba t.base08 0.18};
+        color: ${t.base08};
       }
 
       #battery.charging, #battery.plugged { color: ${t.base0B}; }
@@ -341,24 +422,61 @@ in
       }
 
       #custom-power {
-        color: ${t.base0D};
+        color: ${t.base04};
         font-size: ${toString comfy.powerFont}px;
         padding: ${comfy.powerPad};
       }
 
+      #custom-power:hover {
+        background-color: ${themeLib.rgba t.base08 0.16};
+        color: ${t.base08};
+      }
+
+      .power-child {
+        color: ${t.base04};
+        font-size: ${toString comfy.powerFont}px;
+      }
+      #custom-logout:hover {
+        background-color: ${themeLib.rgba a.warm 0.16};
+        color: ${a.warm};
+      }
+      #custom-reboot:hover {
+        background-color: ${themeLib.rgba a.secondary 0.16};
+        color: ${a.secondary};
+      }
+      #custom-shutdown:hover {
+        background-color: ${themeLib.rgba t.base08 0.16};
+        color: ${t.base08};
+      }
+
       #hyprland-window {
         color: ${t.base04};
-        font-weight: 600;
+        font-weight: 400;
+        margin-left: 4px;
+      }
+
+      #custom-lyrics {
+        color: ${t.base05};
+        font-style: italic;
+        font-weight: 400;
+        padding: ${comfy.pad};
+        margin: 3px 1px;
+        border-radius: 9px;
+        transition: background-color 0.2s ease;
+      }
+
+      #custom-lyrics:hover {
+        background-color: ${themeLib.rgba t.base02 0.45};
       }
 
       /* Submap (mode) indicator — bright pill so the active mode is obvious */
       #submap {
-        color: ${t.base00};
-        background-color: ${t.base0A};
+        color: ${s.ink};
+        background: ${a.warm};
         padding: ${comfy.submapPad};
-        margin: 0 4px;
-        border-radius: 10px;
-        font-weight: 800;
+        margin: 3px 4px;
+        border-radius: 9px;
+        font-weight: 600;
       }
     ''
     + lib.optionalString (compactOutput != null) tightCss;
@@ -375,14 +493,17 @@ in
           margin-right = d.marginSide;
 
           modules-left = [
+            "custom/sidebar"
             "hyprland/workspaces"
             "hyprland/window"
             "custom/agenda"
             "tray"
             "network"
             "idle_inhibitor"
+            "custom/lyrics"
           ];
           modules-center = [
+            "cava"
             "hyprland/submap"
             "custom/jalali"
             "clock"
@@ -395,13 +516,13 @@ in
               "wireplumber"
               "group/hardware"
               "hyprland/language"
-              "custom/power"
+              "group/power"
             ];
 
           network = {
             interval = 2;
-            format-wifi = "  {essid}";
-            format-ethernet = "󰈀  LAN";
+            format-wifi = "  ${value "{essid}"}";
+            format-ethernet = "󰈀  ${value "LAN"}";
             format-disconnected = "󰖪  Offline";
             tooltip-format = "IP: {ipaddr}\nDOWN: {bandwidthDownBytes} | UP: {bandwidthUpBytes}";
           };
@@ -421,7 +542,7 @@ in
               urgent = "";
               active = "";
               visible = "󰮯";
-              default = "";
+              default = "";
               empty = "";
             };
             on-scroll-up = "hyprctl dispatch workspace m-1";
@@ -443,7 +564,8 @@ in
           };
 
           clock = {
-            format = "󰅐 {:%H:%M}";
+            on-click = config.custom.keys.commands.widgetsToggle;
+            format = "󰅐 <span color='${t.base07}'>{:%H:%M}</span>";
             tooltip-format = "<tt><small>{calendar}</small></tt>";
             calendar = {
               mode = "year";
@@ -451,10 +573,37 @@ in
               format = {
                 months = "<span color='${t.base07}'><b>{}</b></span>";
                 days = "<span color='${t.base05}'><b>{}</b></span>";
-                weekdays = "<span color='${t.base0D}'><b>{}</b></span>";
+                weekdays = "<span color='${a.primary}'><b>{}</b></span>";
                 today = "<span color='${t.base08}'><b><u>{}</u></b></span>";
               };
             };
+          };
+
+          cava = {
+            framerate = 30;
+            bars = 12;
+            autosens = 1;
+            lower_cutoff_freq = 50;
+            higher_cutoff_freq = 10000;
+            method = "pulse";
+            source = "auto";
+            stereo = false;
+            bar_delimiter = 0;
+            monstercat = true;
+            noise_reduction = 0.8;
+            input_delay = 2;
+            sleep_timer = 3;
+            hide_on_silence = true;
+            format-icons = [
+              "▁"
+              "▂"
+              "▃"
+              "▄"
+              "▅"
+              "▆"
+              "▇"
+              "█"
+            ];
           };
 
           "custom/jalali" = {
@@ -471,17 +620,30 @@ in
             tooltip = false;
           };
 
+          "custom/lyrics" = {
+            exec = "${lib.getExe' pkgs.coreutils "cat"} \"$XDG_RUNTIME_DIR\"/${lib.escapeShellArg lyrics.stateDir}/line.json";
+            return-type = "json";
+            signal = lyrics.waybarSignal;
+            format = "󰎈 {}";
+            hide-empty-text = true;
+            escape = true;
+            max-length = d.lyricsLength;
+            on-click = config.custom.keys.commands.sidebarToggle;
+          };
+
           "custom/agenda" = {
             exec = "agenda-os waybar";
             return-type = "json";
             interval = 30;
+            signal = 9;
             on-click = "agenda-os show";
-            on-click-right = "ghostty -e agenda-os auth";
+            on-click-middle = "agenda-os done";
+            on-click-right = "agenda-os connect";
             tooltip = true;
           };
 
           wireplumber = {
-            format = "{icon}  {volume}%";
+            format = "{icon}  ${value "{volume}%"}";
             format-muted = "󰝟  Muted";
             on-click = "pavucontrol";
             format-icons = [
@@ -493,17 +655,18 @@ in
 
           cpu = {
             interval = 5;
-            format = "  {usage}%";
+            format = "  ${value "{usage}%"}";
           };
 
           memory = {
             interval = 5;
-            format = "  {percentage}%";
+            format = "  ${value "{percentage}%"}";
           };
 
           temperature = cpuTemperature // {
             critical-threshold = 80;
-            format = "{icon} {temperatureC}°C";
+            format = "{icon} ${value "{temperatureC}°C"}";
+            format-critical = "{icon} {temperatureC}°C";
             format-icons = [
               ""
               ""
@@ -536,9 +699,9 @@ in
             tooltip-format = "Power profile: {profile}\nDriver: {driver}\nClick to switch";
             format-icons = {
               default = "";
-              performance = "󰽍";
-              balanced = "󰍞";
-              "power-saver" = "󰑱";
+              performance = "󱓞";
+              balanced = "󰗑";
+              "power-saver" = "󰌪";
             };
           };
 
@@ -551,8 +714,8 @@ in
           idle_inhibitor = {
             format = "{icon}";
             format-icons = {
-              activated = "󰛊";
-              deactivated = "󰾪";
+              activated = "󰅶";
+              deactivated = "󰛊";
             };
             tooltip-format-activated = "Idle inhibitor: ON";
             tooltip-format-deactivated = "Idle inhibitor: OFF";
@@ -561,6 +724,45 @@ in
           tray = {
             icon-size = d.trayIcon;
             spacing = 4;
+          };
+
+          "group/power" = {
+            orientation = "inherit";
+            drawer = {
+              transition-duration = 420;
+              children-class = "power-child";
+              transition-left-to-right = false;
+            };
+            modules = [
+              "custom/power"
+              "custom/logout"
+              "custom/reboot"
+              "custom/shutdown"
+            ];
+          };
+
+          "custom/sidebar" = {
+            format = "";
+            tooltip-format = "Dashboard (Super+D)";
+            on-click = config.custom.keys.commands.sidebarToggle;
+          };
+
+          "custom/logout" = {
+            format = "󰍃";
+            tooltip-format = "Double-click to log out";
+            on-double-click = "uwsm stop";
+          };
+
+          "custom/reboot" = {
+            format = "󰜉";
+            tooltip-format = "Double-click to reboot";
+            on-double-click = "systemctl reboot";
+          };
+
+          "custom/shutdown" = {
+            format = "󰐥";
+            tooltip-format = "Double-click to shut down";
+            on-double-click = "systemctl poweroff";
           };
 
           "custom/power" = {

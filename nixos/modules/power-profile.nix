@@ -51,7 +51,9 @@ in
       with battery-favouring tunings, and tells home-manager to fall back
       to dunst instead of swaync for notifications. "performance" pins
       laptops to the AC-power TLP tunings (performance governor/EPP,
-      boost on, performance platform profile) even on battery.
+      boost on, performance platform profile) even on battery, or, with
+      dynamicPowerProfiles, selects the power-profiles-daemon
+      "performance" profile at boot.
     '';
   };
 
@@ -85,6 +87,19 @@ in
       services.tlp = {
         enable = !config.custom.dynamicPowerProfiles;
         settings = tlpSettings;
+      };
+    })
+
+    (lib.mkIf (config.isLaptop && config.custom.dynamicPowerProfiles && isPerformance) {
+      systemd.services.power-profile-default = {
+        description = "Select the power-profiles-daemon performance profile";
+        after = [ "power-profiles-daemon.service" ];
+        requires = [ "power-profiles-daemon.service" ];
+        wantedBy = [ "multi-user.target" ];
+        serviceConfig = {
+          Type = "oneshot";
+          ExecStart = "${lib.getExe' config.services.power-profiles-daemon.package "powerprofilesctl"} set performance";
+        };
       };
     })
   ];

@@ -16,12 +16,7 @@ in
 
       keymaps = [
         (normalKeymap "<leader>uh" {
-          __raw = ''
-            function()
-              local bufnr = vim.api.nvim_get_current_buf()
-              vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({ bufnr = bufnr }), { bufnr = bufnr })
-            end
-          '';
+          __raw = ''function() require("snacks").toggle.inlay_hints():toggle() end'';
         } { desc = "Toggle inlay hints"; })
       ];
 
@@ -36,6 +31,34 @@ in
           ];
         };
         fidget.enable = true;
+        rustaceanvim = {
+          enable = true;
+          settings.server.default_settings.rust-analyzer = {
+            check.command = "clippy";
+            procMacro.enable = true;
+          };
+        };
+        crates = {
+          enable = true;
+          settings.lsp = {
+            enabled = true;
+            actions = true;
+            completion = true;
+            hover = true;
+          };
+        };
+        schemastore = {
+          enable = true;
+          json.enable = true;
+          yaml.enable = false;
+        };
+        nvim-lightbulb = {
+          enable = true;
+          settings = {
+            sign.enabled = true;
+            autocmd.enabled = true;
+          };
+        };
         lsp = {
           enable = true;
           inlayHints = true;
@@ -93,7 +116,7 @@ in
             nixd = {
               enable = true;
               settings = {
-                nixpkgs.expr = "import <nixpkgs> { }";
+                nixpkgs.expr = "import ${pkgs.path} { }";
                 formatting.command = [ "nixfmt" ];
               };
             };
@@ -108,12 +131,11 @@ in
                 ];
               };
             };
+            jsonls.enable = true;
+            helm_ls.enable = true;
+            taplo.enable = true;
             ts_ls.enable = true;
-            rust_analyzer = {
-              enable = true;
-              installCargo = false;
-              installRustc = false;
-            };
+            marksman.enable = true;
             cssls.enable = true;
             html.enable = true;
             dockerls.enable = true;
@@ -135,25 +157,41 @@ in
                 "--background-index"
                 "--clang-tidy"
                 "--fallback-style={BasedOnStyle: LLVM, IndentWidth: 4, UseTab: Never}"
-                "--compile-commands-dir=."
                 "--header-insertion=iwyu"
-                "--suggest-missing-includes"
+                "--pch-storage=memory"
               ];
               extraOptions.init_options = {
                 clangdFileStatus = true;
                 usePlaceholders = true;
                 completeUnimported = true;
-                semanticHighlighting = true;
               };
             };
           };
           keymaps = {
             diagnostic = {
-              "[d" = "goto_prev";
-              "]d" = "goto_next";
               "<leader>cd" = "open_float";
               "<leader>cq" = "setloclist";
             };
+            extra = [
+              {
+                mode = "n";
+                key = "[d";
+                action.__raw = ''function() vim.diagnostic.jump({ count = -1, float = true }) end'';
+                options.desc = "Previous diagnostic";
+              }
+              {
+                mode = "n";
+                key = "]d";
+                action.__raw = ''function() vim.diagnostic.jump({ count = 1, float = true }) end'';
+                options.desc = "Next diagnostic";
+              }
+              {
+                mode = "n";
+                key = "<leader>cl";
+                action.__raw = "vim.lsp.codelens.run";
+                options.desc = "Run code lens";
+              }
+            ];
             lspBuf = {
               gd = "definition";
               gD = "declaration";
@@ -204,33 +242,7 @@ in
 
         require("lsp-file-operations").setup()
 
-        vim.api.nvim_create_autocmd("LspAttach", {
-          group = vim.api.nvim_create_augroup("UserLspDocumentHighlight", { clear = true }),
-          callback = function(ev)
-            local client = vim.lsp.get_client_by_id(ev.data.client_id)
-            local bufnr = ev.buf
-
-            if vim.api.nvim_buf_get_name(bufnr):match("^fugitive://") then
-              return
-            end
-
-            if client and client:supports_method("textDocument/documentHighlight") then
-              local hl_group = vim.api.nvim_create_augroup("LspHighlight_" .. bufnr, { clear = true })
-
-              vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
-                buffer = bufnr,
-                group = hl_group,
-                callback = vim.lsp.buf.document_highlight,
-              })
-
-              vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
-                buffer = bufnr,
-                group = hl_group,
-                callback = vim.lsp.buf.clear_references,
-              })
-            end
-          end,
-        })
+        vim.lsp.codelens.enable(true)
       '';
     };
   };

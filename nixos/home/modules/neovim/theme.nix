@@ -4,146 +4,131 @@
 }:
 let
   cfg = config.custom.neovim;
+  helpers = import ./lib.nix { inherit lib config; };
+  p = helpers.palette;
 in
 {
-  config = lib.mkIf cfg.enable {
+  config = lib.mkIf (cfg.enable && p != null) {
     programs.nixvim = {
       plugins.mini = {
         enable = true;
-        modules.base16 = { };
+        modules.base16.palette = lib.genAttrs helpers.paletteKeys (key: p.${key});
       };
 
-      extraConfigLua = lib.mkOrder 100 ''
-        local palette = _G.nvim_host.palette
-        if palette ~= nil then
-          require("mini.base16").setup({ palette = palette })
-
-          local hl = function(group, opts)
-            vim.api.nvim_set_hl(0, group, opts)
-          end
-
-          local function apply_slate_highlights()
-            hl("Normal", { fg = palette.base05, bg = palette.base00 })
-            hl("NormalFloat", { fg = palette.base06, bg = palette.base01 })
-            hl("FloatBorder", { fg = palette.base0D, bg = palette.base01 })
-            hl("CursorLine", { bg = palette.base01 })
-            hl("CursorLineNr", { fg = palette.base0A, bold = true })
-            hl("LineNr", { fg = palette.base03 })
-            hl("Visual", { bg = palette.base02 })
-            hl("Search", { fg = palette.base00, bg = palette.base0A, bold = true })
-            hl("IncSearch", { fg = palette.base00, bg = palette.base09, bold = true })
-            hl("CurSearch", { fg = palette.base00, bg = palette.base09, bold = true })
-            hl("MatchParen", { fg = palette.base0A, bg = palette.base02, bold = true })
-            hl("Pmenu", { fg = palette.base06, bg = palette.base01 })
-            hl("PmenuSel", { fg = palette.base00, bg = palette.base0D, bold = true })
-            hl("PmenuThumb", { bg = palette.base0D })
-            hl("WinSeparator", { fg = palette.base02 })
-            hl("ColorColumn", { bg = palette.base01 })
-            hl("SignColumn", { bg = palette.base00 })
-            hl("DiagnosticError", { fg = palette.base08 })
-            hl("DiagnosticWarn", { fg = palette.base0A })
-            hl("DiagnosticInfo", { fg = palette.base0C })
-            hl("DiagnosticHint", { fg = palette.base0B })
-            hl("DiagnosticVirtualTextError", { fg = palette.base08, bg = palette.base01 })
-            hl("DiagnosticVirtualTextWarn", { fg = palette.base0A, bg = palette.base01 })
-            hl("DiagnosticVirtualTextInfo", { fg = palette.base0C, bg = palette.base01 })
-            hl("DiagnosticVirtualTextHint", { fg = palette.base0B, bg = palette.base01 })
-            hl("Comment", { fg = palette.base04, italic = true })
-            hl("String", { fg = palette.base0B })
-            hl("Character", { fg = palette.base0B })
-            hl("Number", { fg = palette.base09 })
-            hl("Boolean", { fg = palette.base09, bold = true })
-            hl("Float", { fg = palette.base09 })
-            hl("Function", { fg = palette.base0D, bold = true })
-            hl("Identifier", { fg = palette.base06 })
-            hl("Statement", { fg = palette.base09, bold = true })
-            hl("Conditional", { fg = palette.base09, bold = true })
-            hl("Repeat", { fg = palette.base09, bold = true })
-            hl("Label", { fg = palette.base0A })
-            hl("Operator", { fg = palette.base0C })
-            hl("Keyword", { fg = palette.base09, bold = true })
-            hl("Exception", { fg = palette.base08, bold = true })
-            hl("PreProc", { fg = palette.base0A })
-            hl("Include", { fg = palette.base0D })
-            hl("Define", { fg = palette.base0A })
-            hl("Macro", { fg = palette.base0A })
-            hl("Type", { fg = palette.base0C, bold = true })
-            hl("StorageClass", { fg = palette.base0A })
-            hl("Structure", { fg = palette.base0C })
-            hl("Typedef", { fg = palette.base0C })
-            hl("Special", { fg = palette.base0D })
-            hl("SpecialChar", { fg = palette.base0A })
-            hl("Tag", { fg = palette.base0D })
-            hl("Delimiter", { fg = palette.base04 })
-            hl("@variable", { fg = palette.base06 })
-            hl("@variable.builtin", { fg = palette.base09, bold = true })
-            hl("@constant", { fg = palette.base09 })
-            hl("@constant.builtin", { fg = palette.base09, bold = true })
-            hl("@module", { fg = palette.base0A })
-            hl("@string", { fg = palette.base0B })
-            hl("@string.escape", { fg = palette.base0A })
-            hl("@number", { fg = palette.base09 })
-            hl("@boolean", { fg = palette.base09, bold = true })
-            hl("@function", { fg = palette.base0D, bold = true })
-            hl("@function.builtin", { fg = palette.base0C, bold = true })
-            hl("@function.method", { fg = palette.base0D })
-            hl("@constructor", { fg = palette.base0C, bold = true })
-            hl("@keyword", { fg = palette.base09, bold = true })
-            hl("@keyword.function", { fg = palette.base09, bold = true })
-            hl("@keyword.return", { fg = palette.base08, bold = true })
-            hl("@keyword.import", { fg = palette.base0D })
-            hl("@operator", { fg = palette.base0C })
-            hl("@type", { fg = palette.base0C, bold = true })
-            hl("@type.builtin", { fg = palette.base0C, bold = true })
-            hl("@property", { fg = palette.base0A })
-            hl("@field", { fg = palette.base0A })
-            hl("@punctuation.delimiter", { fg = palette.base04 })
-            hl("@punctuation.bracket", { fg = palette.base04 })
-            hl("@tag", { fg = palette.base0D })
-            hl("@tag.attribute", { fg = palette.base0A })
-            hl("@tag.delimiter", { fg = palette.base04 })
-            hl("TelescopeNormal", { fg = palette.base06, bg = palette.base01 })
-            hl("TelescopeBorder", { fg = palette.base0D, bg = palette.base01 })
-            hl("TelescopeTitle", { fg = palette.base0A, bold = true })
-            hl("TelescopePromptNormal", { fg = palette.base07, bg = palette.base02 })
-            hl("TelescopePromptBorder", { fg = palette.base0D, bg = palette.base02 })
-            hl("TelescopePromptTitle", { fg = palette.base00, bg = palette.base0D, bold = true })
-            hl("TelescopePromptPrefix", { fg = palette.base0A, bg = palette.base02 })
-            hl("TelescopeSelection", { fg = palette.base07, bg = palette.base02, bold = true })
-            hl("TelescopeMatching", { fg = palette.base0A, bold = true })
-            hl("NvimTreeNormal", { fg = palette.base06, bg = palette.base01 })
-            hl("NvimTreeWinSeparator", { fg = palette.base01, bg = palette.base01 })
-            hl("NvimTreeFolderName", { fg = palette.base0D })
-            hl("NvimTreeOpenedFolderName", { fg = palette.base0D, bold = true })
-            hl("NvimTreeRootFolder", { fg = palette.base0A, bold = true })
-            hl("NvimTreeIndentMarker", { fg = palette.base03 })
-            hl("NvimTreeGitDirty", { fg = palette.base0A })
-            hl("NvimTreeGitNew", { fg = palette.base0B })
-            hl("NvimTreeGitDeleted", { fg = palette.base08 })
-            hl("NvimTreeSpecialFile", { fg = palette.base0C, bold = true })
-            hl("WhichKey", { fg = palette.base0A, bold = true })
-            hl("WhichKeyGroup", { fg = palette.base0C })
-            hl("WhichKeyDesc", { fg = palette.base06 })
-            hl("WhichKeyBorder", { fg = palette.base0D, bg = palette.base01 })
-            hl("WhichKeyNormal", { bg = palette.base01 })
-            hl("AlphaHeader", { fg = palette.base0D })
-            hl("AlphaButtons", { fg = palette.base06 })
-            hl("AlphaShortcut", { fg = palette.base0D, bold = true })
-            hl("AlphaFooter", { fg = palette.base03 })
-            hl("FlashLabel", { fg = palette.base00, bg = palette.base0A, bold = true })
-            hl("FlashMatch", { fg = palette.base07, bg = palette.base02 })
-            hl("FlashCurrent", { fg = palette.base00, bg = palette.base0D, bold = true })
-            hl("TroubleNormal", { fg = palette.base06, bg = palette.base01 })
-            hl("NotifyBackground", { bg = palette.base01 })
-          end
-
-          apply_slate_highlights()
-          vim.api.nvim_create_autocmd({ "ColorScheme", "VimEnter" }, {
-            group = vim.api.nvim_create_augroup("SlateNixvimHighlights", { clear = true }),
-            callback = apply_slate_highlights,
-          })
-        end
-      '';
+      highlightOverride = {
+        Normal = { fg = p.base05; bg = p.base00; };
+        NormalFloat = { fg = p.base06; bg = p.base01; };
+        FloatBorder = { fg = p.base0D; bg = p.base01; };
+        CursorLine = { bg = p.base01; };
+        CursorLineNr = { fg = p.base0A; bold = true; };
+        LineNr = { fg = p.base03; };
+        Visual = { bg = p.base02; };
+        Search = { fg = p.base00; bg = p.base0A; bold = true; };
+        IncSearch = { fg = p.base00; bg = p.base09; bold = true; };
+        CurSearch = { fg = p.base00; bg = p.base09; bold = true; };
+        MatchParen = { fg = p.base0A; bg = p.base02; bold = true; };
+        Pmenu = { fg = p.base06; bg = p.base01; };
+        PmenuSel = { fg = p.base00; bg = p.base0D; bold = true; };
+        PmenuThumb = { bg = p.base0D; };
+        WinSeparator = { fg = p.base02; };
+        ColorColumn = { bg = p.base01; };
+        SignColumn = { bg = p.base00; };
+        DiagnosticError = { fg = p.base08; };
+        DiagnosticWarn = { fg = p.base0A; };
+        DiagnosticInfo = { fg = p.base0C; };
+        DiagnosticHint = { fg = p.base0B; };
+        DiagnosticVirtualTextError = { fg = p.base08; bg = p.base01; };
+        DiagnosticVirtualTextWarn = { fg = p.base0A; bg = p.base01; };
+        DiagnosticVirtualTextInfo = { fg = p.base0C; bg = p.base01; };
+        DiagnosticVirtualTextHint = { fg = p.base0B; bg = p.base01; };
+        Comment = { fg = p.base04; italic = true; };
+        String = { fg = p.base0B; };
+        Character = { fg = p.base0B; };
+        Number = { fg = p.base09; };
+        Boolean = { fg = p.base09; bold = true; };
+        Float = { fg = p.base09; };
+        Function = { fg = p.base0D; bold = true; };
+        Identifier = { fg = p.base06; };
+        Statement = { fg = p.base09; bold = true; };
+        Conditional = { fg = p.base09; bold = true; };
+        Repeat = { fg = p.base09; bold = true; };
+        Label = { fg = p.base0A; };
+        Operator = { fg = p.base0C; };
+        Keyword = { fg = p.base09; bold = true; };
+        Exception = { fg = p.base08; bold = true; };
+        PreProc = { fg = p.base0A; };
+        Include = { fg = p.base0D; };
+        Define = { fg = p.base0A; };
+        Macro = { fg = p.base0A; };
+        Type = { fg = p.base0C; bold = true; };
+        StorageClass = { fg = p.base0A; };
+        Structure = { fg = p.base0C; };
+        Typedef = { fg = p.base0C; };
+        Special = { fg = p.base0D; };
+        SpecialChar = { fg = p.base0A; };
+        Tag = { fg = p.base0D; };
+        Delimiter = { fg = p.base04; };
+        "@variable" = { fg = p.base06; };
+        "@variable.builtin" = { fg = p.base09; bold = true; };
+        "@constant" = { fg = p.base09; };
+        "@constant.builtin" = { fg = p.base09; bold = true; };
+        "@module" = { fg = p.base0A; };
+        "@string" = { fg = p.base0B; };
+        "@string.escape" = { fg = p.base0A; };
+        "@number" = { fg = p.base09; };
+        "@boolean" = { fg = p.base09; bold = true; };
+        "@function" = { fg = p.base0D; bold = true; };
+        "@function.builtin" = { fg = p.base0C; bold = true; };
+        "@function.method" = { fg = p.base0D; };
+        "@constructor" = { fg = p.base0C; bold = true; };
+        "@keyword" = { fg = p.base09; bold = true; };
+        "@keyword.function" = { fg = p.base09; bold = true; };
+        "@keyword.return" = { fg = p.base08; bold = true; };
+        "@keyword.import" = { fg = p.base0D; };
+        "@operator" = { fg = p.base0C; };
+        "@type" = { fg = p.base0C; bold = true; };
+        "@type.builtin" = { fg = p.base0C; bold = true; };
+        "@property" = { fg = p.base0A; };
+        "@field" = { fg = p.base0A; };
+        "@punctuation.delimiter" = { fg = p.base04; };
+        "@punctuation.bracket" = { fg = p.base04; };
+        "@tag" = { fg = p.base0D; };
+        "@tag.attribute" = { fg = p.base0A; };
+        "@tag.delimiter" = { fg = p.base04; };
+        TelescopeNormal = { fg = p.base06; bg = p.base01; };
+        TelescopeBorder = { fg = p.base0D; bg = p.base01; };
+        TelescopeTitle = { fg = p.base0A; bold = true; };
+        TelescopePromptNormal = { fg = p.base07; bg = p.base02; };
+        TelescopePromptBorder = { fg = p.base0D; bg = p.base02; };
+        TelescopePromptTitle = { fg = p.base00; bg = p.base0D; bold = true; };
+        TelescopePromptPrefix = { fg = p.base0A; bg = p.base02; };
+        TelescopeSelection = { fg = p.base07; bg = p.base02; bold = true; };
+        TelescopeMatching = { fg = p.base0A; bold = true; };
+        NvimTreeNormal = { fg = p.base06; bg = p.base01; };
+        NvimTreeWinSeparator = { fg = p.base01; bg = p.base01; };
+        NvimTreeFolderName = { fg = p.base0D; };
+        NvimTreeOpenedFolderName = { fg = p.base0D; bold = true; };
+        NvimTreeRootFolder = { fg = p.base0A; bold = true; };
+        NvimTreeIndentMarker = { fg = p.base03; };
+        NvimTreeGitDirty = { fg = p.base0A; };
+        NvimTreeGitNew = { fg = p.base0B; };
+        NvimTreeGitDeleted = { fg = p.base08; };
+        NvimTreeSpecialFile = { fg = p.base0C; bold = true; };
+        WhichKey = { fg = p.base0A; bold = true; };
+        WhichKeyGroup = { fg = p.base0C; };
+        WhichKeyDesc = { fg = p.base06; };
+        WhichKeyBorder = { fg = p.base0D; bg = p.base01; };
+        WhichKeyNormal = { bg = p.base01; };
+        AlphaHeader = { fg = p.base0D; };
+        AlphaButtons = { fg = p.base06; };
+        AlphaShortcut = { fg = p.base0D; bold = true; };
+        AlphaFooter = { fg = p.base03; };
+        FlashLabel = { fg = p.base00; bg = p.base0A; bold = true; };
+        FlashMatch = { fg = p.base07; bg = p.base02; };
+        FlashCurrent = { fg = p.base00; bg = p.base0D; bold = true; };
+        TroubleNormal = { fg = p.base06; bg = p.base01; };
+        NotifyBackground = { bg = p.base01; };
+      };
     };
   };
 }

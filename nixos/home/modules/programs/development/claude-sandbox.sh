@@ -47,6 +47,26 @@ if [ "${CLAUDE_SANDBOX_NET:-0}" = 1 ]; then
   args+=(--unshare-net)
 fi
 
+keep=()
+while IFS= read -r line; do
+  [ -n "$line" ] && keep+=("$line")
+done <<<"${CLAUDE_SANDBOX_ENV_KEEP:-}"
+
+is_kept() {
+  local n="$1" k
+  for k in "${keep[@]}"; do
+    [ "$n" = "$k" ] && return 0
+  done
+  return 1
+}
+
+while IFS= read -r env_file; do
+  [ -r "$env_file" ] || continue
+  while IFS= read -r name; do
+    is_kept "$name" || args+=(--unsetenv "$name")
+  done < <(sed -n 's/^[[:space:]]*export[[:space:]]\{1,\}\([A-Za-z_][A-Za-z0-9_]*\).*/\1/p' "$env_file")
+done <<<"${CLAUDE_SANDBOX_ENV_FILES:-}"
+
 is_denied() {
   local p="$1" d
   for d in "${deny[@]}"; do

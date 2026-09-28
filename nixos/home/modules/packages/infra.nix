@@ -1,4 +1,4 @@
-{ pkgs, inputs, ... }:
+{ pkgs, ... }:
 [
   pkgs.kubectl
   pkgs.kubectl-neat
@@ -6,7 +6,7 @@
   pkgs.k9s
   pkgs.kapp
   pkgs.kubeseal
-  inputs.argonaut.packages.${pkgs.stdenv.hostPlatform.system}.default
+  pkgs.argonaut
   pkgs.stern
   pkgs.awscli2
   pkgs.argo-rollouts
