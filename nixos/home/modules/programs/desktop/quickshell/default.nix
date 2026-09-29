@@ -91,8 +91,6 @@ let
       config.services.swaync.package
     ];
     text = ''
-      blur_off="''${XDG_STATE_HOME:-$HOME/.local/state}/wallpaper-react/off"
-
       user_active() {
         systemctl --user is-active --quiet "$1"
       }
@@ -109,9 +107,7 @@ let
           user_active hyprsunset.service && night=1
           caffeine=0
           user_active caffeine.service && caffeine=1
-          blur=1
-          [ -e "$blur_off" ] && blur=0
-          echo "$wifi $bluetooth $dnd $night $caffeine $blur"
+          echo "$wifi $bluetooth $dnd $night $caffeine"
           ;;
         info)
           jdate '+%d %B %Y' 2>/dev/null || echo
@@ -167,9 +163,6 @@ let
             notify-send -t 2000 "Caffeine" "Screen stays awake"
           fi
           ;;
-        blur)
-          ${cmd.wallpaperBlurToggle}
-          ;;
         lock)
           loginctl lock-session
           ;;
@@ -186,7 +179,7 @@ let
           systemctl poweroff
           ;;
         *)
-          echo "usage: sidebar-action <states|info|brightness N|caps|wifi|bluetooth|dnd|night|caffeine|blur|lock|suspend|logout|reboot|poweroff>" >&2
+          echo "usage: sidebar-action <states|info|brightness N|caps|wifi|bluetooth|dnd|night|caffeine|lock|suspend|logout|reboot|poweroff>" >&2
           exit 2
           ;;
       esac
@@ -211,25 +204,72 @@ let
     pragma Singleton
     import QtQuick
     import Quickshell
+    import Quickshell.Io
 
     Singleton {
+        id: theme
+
+        property var mood: ({
+                active: false
+            })
+
+        readonly property color basePrimary: "${a.primary}"
+        readonly property color baseSecondary: "${a.secondary}"
+
         readonly property color ink: "${s.ink}"
-        readonly property color inkGlass: "${argb "e6" s.ink}"
-        readonly property color raisedGlass: "${argb "99" s.raised}"
+        readonly property color inkGlass: "${argb "f5" s.ink}"
+        readonly property color raisedGlass: "${argb "ff" s.raised}"
         readonly property color hover: "${argb "59" t.base02}"
         readonly property color line: "${s.line}"
         readonly property color fg: "${t.base05}"
         readonly property color fgBright: "${t.base07}"
         readonly property color muted: "${t.base04}"
         readonly property color faint: "${t.base03}"
-        readonly property color primary: "${a.primary}"
-        readonly property color secondary: "${a.secondary}"
+        readonly property color blue: "${t.base0D}"
+        readonly property color cyan: "${t.base0C}"
+        property color primary: mood.active ? mood.primary : basePrimary
+        property color secondary: mood.active ? mood.secondary : baseSecondary
+
+        Behavior on primary {
+            ColorAnimation {
+                duration: 1200
+                easing.type: Easing.InOutQuad
+            }
+        }
+
+        Behavior on secondary {
+            ColorAnimation {
+                duration: 1200
+                easing.type: Easing.InOutQuad
+            }
+        }
+
+        FileView {
+            path: Quickshell.env("XDG_RUNTIME_DIR") + "/${config.custom.mood.stateDir}/palette.json"
+            watchChanges: true
+            printErrors: false
+            onFileChanged: reload()
+            onLoaded: {
+                try {
+                    theme.mood = JSON.parse(text());
+                } catch (error) {
+                    theme.mood = {
+                        active: false
+                    };
+                }
+            }
+            onLoadFailed: theme.mood = {
+                active: false
+            }
+        }
+
         readonly property color heat: "${a.heat}"
         readonly property color warm: "${a.warm}"
         readonly property color danger: "${t.base08}"
         readonly property color good: "${t.base0B}"
         readonly property string sans: "${theme.fonts.sans}"
         readonly property string mono: "${theme.fonts.mono}"
+        readonly property string serif: "${config.stylix.fonts.serif.name}"
         readonly property int radius: 14
         readonly property int topGap: 52
 
@@ -255,6 +295,8 @@ let
         readonly property string touch: "${lib.getExe' pkgs.coreutils "touch"}"
         readonly property string hyprctl: "${lib.getExe' pkgs.hyprland "hyprctl"}"
         readonly property string lyricsDir: "${config.custom.lyrics.stateDir}"
+        readonly property string user: "${config.home.username}"
+        readonly property string host: "${osConfig.networking.hostName or "nixos"}"
     }
   '';
 
@@ -273,13 +315,14 @@ let
   mkConfig =
     name: root:
     pkgs.runCommand "quickshell-${name}" { } ''
-      mkdir -p $out/shaders
+      mkdir -p $out/shaders $out/textures
       cp ${./qml}/*.qml $out/
       rm -f $out/shell.qml
       cp ${root} $out/shell.qml
       cp ${themeQml} $out/Theme.qml
       cp ${sysQml} $out/Sys.qml
       cp ${shaders}/*.qsb $out/shaders/
+      cp ${./assets}/*.jpg $out/textures/
     '';
 
   shellConfig = mkConfig "shell" ./qml/shell.qml;
@@ -293,6 +336,7 @@ let
       pkgs.coreutils
       pkgs.util-linux
       pkgs.procps
+      pkgs.systemd
     ];
     text = ''
       runtime="''${XDG_RUNTIME_DIR:?}"
@@ -301,6 +345,8 @@ let
       if pidof hyprlock >/dev/null; then
         exit 0
       fi
+
+      systemctl --user start --no-block quip.service || true
 
       ready="$runtime/lock-screen.ready"
       rm -f "$ready"
@@ -334,6 +380,14 @@ in
     configs.shell = shellConfig;
     activeConfig = "shell";
     systemd.enable = true;
+  };
+
+  systemd.user.services.quickshell = {
+    Unit = {
+      PartOf = [ config.programs.quickshell.systemd.target ];
+      ConditionEnvironment = "WAYLAND_DISPLAY";
+    };
+    Service.RestartSec = 2;
   };
 
   custom.keys.commands = {

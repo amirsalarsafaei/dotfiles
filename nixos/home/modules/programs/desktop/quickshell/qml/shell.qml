@@ -30,6 +30,15 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
 
+        Wallpaper {
+            required property var modelData
+            screen: modelData
+        }
+    }
+
+    Variants {
+        model: Quickshell.screens
+
         Sidebar {
             required property var modelData
             screen: modelData

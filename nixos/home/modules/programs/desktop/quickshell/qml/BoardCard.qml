@@ -28,7 +28,7 @@ Item {
 
     ClippingRectangle {
         anchors.fill: parent
-        radius: 22
+        radius: Theme.radius
         color: Theme.raisedGlass
         border.color: Theme.line
         border.width: 1

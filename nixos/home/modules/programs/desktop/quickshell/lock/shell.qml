@@ -154,12 +154,6 @@ ShellRoot {
                 fingerprintRetry.start();
             listening = false;
         }
-
-        onError: {
-            root.fingerprintReady = false;
-            root.fingerprintNote = "";
-            listening = false;
-        }
     }
 
     Timer {

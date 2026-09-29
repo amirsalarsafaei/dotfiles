@@ -41,11 +41,11 @@ let
   };
 
   accents = rec {
-    primary = themeLib.mix colors.base0D colors.base02 40;
-    secondary = themeLib.mix colors.base0C colors.base02 40;
+    primary = themeLib.mix colors.base05 colors.base02 35;
+    secondary = themeLib.mix (themeLib.mix colors.base0D colors.base0C 50) colors.base02 30;
     heat = themeLib.mix colors.base09 colors.base02 25;
-    warm = themeLib.mix colors.base0A colors.base02 30;
-    border = themeLib.mix primary surfaces.line 40;
+    warm = themeLib.mix colors.base0A colors.base09 45;
+    border = themeLib.mix colors.base04 surfaces.line 50;
   };
 
   resolved = {
@@ -93,7 +93,7 @@ in
 
     wallpaper = lib.mkOption {
       type = lib.types.path;
-      default = ./theme/japan.png;
+      default = ./theme/horizon.png;
       description = "Primary wallpaper shared by Stylix, Hyprlock, and wallpaper tools.";
     };
 

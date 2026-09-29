@@ -77,8 +77,15 @@ Item {
         }
     }
 
+    readonly property int untilNext: {
+        if (!synced || player === null || current + 1 >= lines.length)
+            return 1000;
+        const remaining = (lines[current + 1].time - player.position - track.lead) * 1000 / Math.max(player.rate || 1, 0.01);
+        return Math.max(40, Math.min(1000, Math.ceil(remaining) + 20));
+    }
+
     Timer {
-        interval: 200
+        interval: lyrics.untilNext
         repeat: true
         running: lyrics.running && lyrics.synced && lyrics.player !== null && lyrics.player.isPlaying
         onTriggered: lyrics.player.positionChanged()

@@ -1,6 +1,5 @@
 {
   imports = [
-    ./wallpaper.nix
     ./hypridle.nix
     ./hyprsunset.nix
     ./hyprpolkitagent.nix
@@ -12,5 +11,7 @@
     ./batsignal.nix
     ./agenda
     ./lyrics
+    ./mood
+    ./quip
   ];
 }

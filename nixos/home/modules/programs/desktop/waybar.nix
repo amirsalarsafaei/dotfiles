@@ -60,6 +60,8 @@ let
     submapPad = "4px 16px";
     windowLength = 36;
     lyricsLength = 48;
+    gap = "  ";
+    networkLabel = true;
   };
 
   tight = {
@@ -80,7 +82,9 @@ let
     itemPad = "1px 7px";
     submapPad = "2px 12px";
     windowLength = 28;
-    lyricsLength = 32;
+    lyricsLength = 28;
+    gap = " ";
+    networkLabel = false;
   };
 
   tightCss = ''
@@ -125,7 +129,8 @@ let
     window#waybar.waybar-compact #temperature {
       padding: ${tight.itemPad};
     }
-    window#waybar.waybar-compact #custom-power {
+    window#waybar.waybar-compact #custom-power,
+    window#waybar.waybar-compact #custom-sidebar {
       font-size: ${toString tight.powerFont}px;
       padding: ${tight.powerPad};
     }
@@ -165,6 +170,11 @@ in
 
   custom.keys.commands.waybarToggle = lib.getExe waybarToggle;
 
+  custom.lyrics.widths = [
+    comfy.lyricsLength
+  ]
+  ++ lib.optional (compactOutput != null) tight.lyricsLength;
+
   programs.waybar = {
     enable = true;
     systemd.enable = true;
@@ -195,10 +205,9 @@ in
       .modules-left,
       .modules-center,
       .modules-right {
-        background: ${themeLib.rgba s.ink 0.9};
-        border: 1px solid ${themeLib.rgba s.line 0.95};
+        background: ${s.ink};
+        border: 1px solid ${s.line};
         border-radius: ${toString comfy.barRadius}px;
-        box-shadow: inset 0 1px ${themeLib.rgba t.base07 0.05};
         padding: 0 ${toString comfy.edge}px;
       }
 
@@ -254,8 +263,9 @@ in
 
       #custom-sidebar {
         color: ${a.primary};
-        padding: ${comfy.pad};
-        margin: 3px 2px 3px 0;
+        font-size: ${toString comfy.powerFont}px;
+        padding: ${comfy.powerPad};
+        margin: 3px 1px;
         border-radius: 9px;
       }
 
@@ -266,7 +276,6 @@ in
 
       #workspaces {
         padding: 0 2px;
-        margin: 3px 4px 3px 0;
       }
 
       #workspaces button {
@@ -275,7 +284,8 @@ in
         background-color: transparent;
         color: ${t.base04};
         border-radius: 8px;
-        transition: all 0.3s cubic-bezier(0.32, 0.85, 0.18, 1);
+        min-width: 14px;
+        transition: all 0.35s cubic-bezier(0.32, 0.85, 0.18, 1);
       }
 
       #workspaces button:hover {
@@ -297,7 +307,7 @@ in
         background: ${themeLib.rgba a.primary 0.35};
         color: ${t.base07};
         font-weight: 600;
-        min-width: 26px;
+        min-width: 30px;
       }
 
       #workspaces button.urgent {
@@ -307,8 +317,8 @@ in
 
       #idle_inhibitor { color: ${t.base03}; }
       #idle_inhibitor.activated {
-        color: ${a.warm};
-        background-color: ${themeLib.rgba a.warm 0.14};
+        color: ${t.base0C};
+        background-color: ${themeLib.rgba t.base0C 0.14};
       }
 
       /* Hover feedback is shared so no module reads as inert. A slight lift
@@ -335,8 +345,7 @@ in
       #cava {
         color: ${a.secondary};
         padding: ${comfy.pad};
-        margin: 3px 2px;
-        letter-spacing: 1px;
+        margin: 3px 1px;
       }
 
       #custom-jalali,
@@ -368,25 +377,22 @@ in
 
       /* Each module gets its own accent color so the right-hand cluster reads
          as distinct icons at a glance instead of one grey block of text. */
-      #network              { color: ${a.secondary}; }
+      #network              { color: ${t.base04}; }
       #network.disconnected { color: ${t.base08}; }
 
-      #wireplumber          { color: ${a.primary}; }
+      #wireplumber          { color: ${t.base04}; }
       #wireplumber.muted    { color: ${t.base03}; }
 
-      #hyprland-language { color: ${a.warm}; }
+      #hyprland-language { color: ${t.base04}; }
 
       #power-profiles-daemon.performance { color: ${a.heat}; }
-      #power-profiles-daemon.balanced { color: ${a.primary}; }
-      #power-profiles-daemon.power-saver { color: ${t.base0B}; }
+      #power-profiles-daemon.balanced { color: ${t.base04}; }
+      #power-profiles-daemon.power-saver { color: ${t.base04}; }
 
       /* CPU/memory/temperature read as one inset group. */
       #hardware {
-        background-color: ${s.raised};
-        border: 1px solid ${s.line};
-        border-radius: 9px;
         padding: ${comfy.groupPad};
-        margin: 3px 4px;
+        margin: 3px 1px;
       }
 
       #cpu, #memory, #temperature {
@@ -394,9 +400,9 @@ in
         border-radius: 7px;
       }
 
-      #cpu         { color: ${a.secondary}; }
-      #memory      { color: ${a.primary}; }
-      #temperature { color: ${a.heat}; }
+      #cpu,
+      #memory,
+      #temperature { color: ${t.base04}; }
 
       #temperature.critical,
       #battery.warning:not(.charging) {
@@ -408,7 +414,7 @@ in
         color: ${t.base08};
       }
 
-      #battery.charging, #battery.plugged { color: ${t.base0B}; }
+      #battery.charging, #battery.plugged { color: ${a.primary}; }
 
       #battery.critical:not(.charging) {
         color: ${t.base08};
@@ -422,7 +428,7 @@ in
       }
 
       #custom-power {
-        color: ${t.base04};
+        color: ${a.primary};
         font-size: ${toString comfy.powerFont}px;
         padding: ${comfy.powerPad};
       }
@@ -452,11 +458,10 @@ in
       #hyprland-window {
         color: ${t.base04};
         font-weight: 400;
-        margin-left: 4px;
       }
 
       #custom-lyrics {
-        color: ${t.base05};
+        color: ${a.primary};
         font-style: italic;
         font-weight: 400;
         padding: ${comfy.pad};
@@ -474,7 +479,7 @@ in
         color: ${s.ink};
         background: ${a.warm};
         padding: ${comfy.submapPad};
-        margin: 3px 4px;
+        margin: 3px 1px;
         border-radius: 9px;
         font-weight: 600;
       }
@@ -495,34 +500,35 @@ in
           modules-left = [
             "custom/sidebar"
             "hyprland/workspaces"
-            "hyprland/window"
+            "hyprland/submap"
             "custom/agenda"
-            "tray"
-            "network"
-            "idle_inhibitor"
+            "cava"
             "custom/lyrics"
           ];
           modules-center = [
-            "cava"
-            "hyprland/submap"
             "custom/jalali"
             "clock"
             "custom/gregorian"
           ];
-          modules-right =
-            lib.optional hasBattery "battery"
-            ++ lib.optional hasPowerProfiles "power-profiles-daemon"
-            ++ [
-              "wireplumber"
-              "group/hardware"
-              "hyprland/language"
-              "group/power"
-            ];
+          modules-right = [
+            "tray"
+            "network"
+            "idle_inhibitor"
+          ]
+          ++ lib.optional hasBattery "battery"
+          ++ lib.optional hasPowerProfiles "power-profiles-daemon"
+          ++ [
+            "wireplumber"
+            "group/hardware"
+            "hyprland/language"
+            "group/power"
+          ];
 
           network = {
             interval = 2;
-            format-wifi = "  ${value "{essid}"}";
-            format-ethernet = "󰈀  ${value "LAN"}";
+            format-wifi = "" + lib.optionalString d.networkLabel "  ${value "{essid}"}";
+            format-ethernet = "󰈀" + lib.optionalString d.networkLabel "  ${value "LAN"}";
+            tooltip-format-wifi = "{essid} ({signalStrength}%)\nIP: {ipaddr}\nDOWN: {bandwidthDownBytes} | UP: {bandwidthUpBytes}";
             format-disconnected = "󰖪  Offline";
             tooltip-format = "IP: {ipaddr}\nDOWN: {bandwidthDownBytes} | UP: {bandwidthUpBytes}";
           };
@@ -581,13 +587,13 @@ in
 
           cava = {
             framerate = 30;
-            bars = 12;
+            bars = 14;
             autosens = 1;
             lower_cutoff_freq = 50;
             higher_cutoff_freq = 10000;
             method = "pulse";
             source = "auto";
-            stereo = false;
+            stereo = true;
             bar_delimiter = 0;
             monstercat = true;
             noise_reduction = 0.8;
@@ -621,13 +627,13 @@ in
           };
 
           "custom/lyrics" = {
-            exec = "${lib.getExe' pkgs.coreutils "cat"} \"$XDG_RUNTIME_DIR\"/${lib.escapeShellArg lyrics.stateDir}/line.json";
+            exec = "${lib.getExe' pkgs.coreutils "cat"} \"$XDG_RUNTIME_DIR\"/${lib.escapeShellArg lyrics.stateDir}/line-${toString d.lyricsLength}.json";
             return-type = "json";
             signal = lyrics.waybarSignal;
             format = "󰎈 {}";
             hide-empty-text = true;
             escape = true;
-            max-length = d.lyricsLength;
+            max-length = d.lyricsLength + 2;
             on-click = config.custom.keys.commands.sidebarToggle;
           };
 
@@ -655,12 +661,12 @@ in
 
           cpu = {
             interval = 5;
-            format = "  ${value "{usage}%"}";
+            format = "${d.gap}${value "{usage}%"}";
           };
 
           memory = {
             interval = 5;
-            format = "  ${value "{percentage}%"}";
+            format = "${d.gap}${value "{percentage}%"}";
           };
 
           temperature = cpuTemperature // {

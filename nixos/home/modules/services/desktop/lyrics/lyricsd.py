@@ -1,4 +1,5 @@
 import asyncio
+import bisect
 import hashlib
 import json
 import os
@@ -22,6 +23,10 @@ LINE_FILE = STATE_DIR / "line.json"
 WAYBAR_SIGNAL = int(os.environ.get("LYRICS_WAYBAR_SIGNAL", "10"))
 WAYBAR_NAMES = {"waybar", ".waybar-wrapped"}
 LEAD = float(os.environ.get("LYRICS_LEAD", "0.3"))
+WIDTHS = sorted({int(width) for width in os.environ.get("LYRICS_WIDTHS", "").split() if width.isdigit() and int(width) > 4})
+PAGE_HOLD = 4.0
+SECONDS_PER_CHAR = 0.12
+CONTINUED = " …"
 
 API = "https://lrclib.net/api/"
 CLIENT = "lyricsd/1.0"
@@ -40,6 +45,8 @@ PLAYER = "org.mpris.MediaPlayer2.Player"
 IGNORED = {"org.mpris.MediaPlayer2.playerctld"}
 DRIFT_CHECK = 5.0
 CALL_TIMEOUT = 2.0
+TRACKED = {"PlaybackStatus", "Metadata", "Rate", "Position"}
+WAYBAR_RESCAN = 30.0
 
 STAMP = re.compile(r"^\[(\d+):(\d+(?:\.\d+)?)\]")
 LOOSE = [
@@ -75,16 +82,35 @@ def write_json(path, value):
     temporary.replace(path)
 
 
+waybar_pids = set()
+waybar_scanned = float("-inf")
+
+
+def is_waybar(pid):
+    try:
+        return Path(f"/proc/{pid}/comm").read_text().strip() in WAYBAR_NAMES
+    except OSError:
+        return False
+
+
+def find_waybar():
+    global waybar_scanned
+    waybar_scanned = time.monotonic()
+    return {int(entry.name) for entry in Path("/proc").iterdir() if entry.name.isdigit() and is_waybar(entry.name)}
+
+
 def signal_waybar():
+    global waybar_pids
+    live = {pid for pid in waybar_pids if is_waybar(pid)}
+    if live != waybar_pids or time.monotonic() - waybar_scanned >= WAYBAR_RESCAN:
+        live = find_waybar()
+    waybar_pids = live
     number = signal.SIGRTMIN + WAYBAR_SIGNAL
-    for entry in Path("/proc").iterdir():
-        if not entry.name.isdigit():
-            continue
+    for pid in tuple(live):
         try:
-            if (entry / "comm").read_text().strip() in WAYBAR_NAMES:
-                os.kill(int(entry.name), number)
-        except (OSError, ValueError):
-            continue
+            os.kill(pid, number)
+        except OSError:
+            waybar_pids.discard(pid)
 
 
 def parse(text):
@@ -99,6 +125,48 @@ def parse(text):
         words = raw.strip() or "♪"
         lines.extend([stamp, words] for stamp in times)
     return sorted(lines, key=lambda line: line[0])
+
+
+def width_file(width):
+    return STATE_DIR / f"line-{width}.json"
+
+
+def wrap(text, width):
+    pages = []
+    current = ""
+    for word in text.split():
+        while len(word) > width:
+            if current:
+                pages.append(current)
+                current = ""
+            pages.append(word[:width])
+            word = word[width:]
+        if not word:
+            continue
+        if not current:
+            current = word
+        elif len(current) + 1 + len(word) <= width:
+            current += " " + word
+        else:
+            pages.append(current)
+            current = word
+    if current:
+        pages.append(current)
+    return pages or [text]
+
+
+def page_at(text, width, start, end, position):
+    if len(text) <= width:
+        return text, None
+    pages = wrap(text, width - len(CONTINUED))
+    total = sum(len(page) for page in pages)
+    shown = 0
+    for page in pages[:-1]:
+        shown += len(page)
+        boundary = start + (end - start) * shown / total
+        if position < boundary:
+            return page + CONTINUED, boundary
+    return pages[-1], None
 
 
 def request(endpoint, params):
@@ -236,6 +304,7 @@ class Daemon:
         self.fetch_wanted = asyncio.Event()
         self.track = None
         self.lyrics = None
+        self.stamps = []
         self.fetch_due = 0.0
         self.next_request = 0.0
         self.backoff = 0.0
@@ -331,6 +400,8 @@ class Daemon:
             self.wake.set()
         elif message.member == "PropertiesChanged" and message.body[0] == PLAYER:
             changed = plain(message.body[1])
+            if TRACKED.isdisjoint(changed):
+                return False
             current = player.position()
             if "PlaybackStatus" in changed:
                 player.status = changed["PlaybackStatus"]
@@ -380,17 +451,26 @@ class Daemon:
             },
         )
 
-    def publish_line(self, text, tooltip):
-        line = {"text": text, "tooltip": tooltip, "class": "playing" if text else "idle"}
-        if line == self.line:
+    def publish_line(self, text, tooltip, views=None):
+        views = views or {}
+        state = "playing" if text else "idle"
+        line = {"text": text, "tooltip": tooltip, "class": state}
+        paged = {width: {"text": views.get(width, text), "tooltip": tooltip, "class": state} for width in WIDTHS}
+        if (line, paged) == self.line:
             return
-        self.line = line
+        self.line = (line, paged)
         write_json(LINE_FILE, line)
+        for width, view in paged.items():
+            write_json(width_file(width), view)
         signal_waybar()
+
+    def set_lyrics(self, lyrics):
+        self.lyrics = lyrics
+        self.stamps = [stamp for stamp, _ in lyrics["synced"]] if lyrics else []
 
     def on_track(self, track):
         self.track = track
-        self.lyrics = cache_read(track["key"]) if track else None
+        self.set_lyrics(cache_read(track["key"]) if track else None)
         self.publish_track()
         if track and self.lyrics is None:
             self.fetch_due = time.monotonic() + DEBOUNCE
@@ -410,10 +490,23 @@ class Daemon:
                 if time.monotonic() - player.checked_at >= DRIFT_CHECK:
                     await self.refresh_position(player)
                 position = player.position() + LEAD
-                upcoming = [stamp for stamp, _ in synced if stamp > position]
-                text = next((words for stamp, words in reversed(synced) if stamp <= position), "♪")
-                self.publish_line(text, track["title"] + " — " + track["artist"])
-                until_line = (upcoming[0] - position) / max(player.rate, 0.01) + 0.02 if upcoming else DRIFT_CHECK
+                current = bisect.bisect_right(self.stamps, position) - 1
+                upcoming = synced[current + 1][0] if current + 1 < len(synced) else None
+                text = synced[current][1] if current >= 0 else "♪"
+                boundaries = [upcoming] if upcoming is not None else []
+                views = {}
+                if current >= 0:
+                    start = synced[current][0]
+                    reading = start + max(PAGE_HOLD, len(text) * SECONDS_PER_CHAR)
+                    end = min(upcoming, reading) if upcoming is not None else reading
+                    for width in WIDTHS:
+                        views[width], boundary = page_at(text, width, start, end, position)
+                        if boundary is not None:
+                            boundaries.append(boundary)
+                heading = track["title"] + " — " + track["artist"]
+                tooltip = text + "\n" + heading if any(len(text) > width for width in WIDTHS) else heading
+                self.publish_line(text, tooltip, views)
+                until_line = (min(boundaries) - position) / max(player.rate, 0.01) + 0.02 if boundaries else DRIFT_CHECK
                 until_check = DRIFT_CHECK - (time.monotonic() - player.checked_at)
                 timeout = max(0.02, min(until_line, until_check))
             else:
@@ -447,13 +540,13 @@ class Daemon:
             self.next_request = time.monotonic() + MIN_GAP
             cache_write(track["key"], result)
             if self.track and self.track["key"] == track["key"]:
-                self.lyrics = result
+                self.set_lyrics(result)
                 self.publish_track()
                 self.wake.set()
 
 
 def cleanup():
-    for path in (TRACK_FILE, LINE_FILE):
+    for path in (TRACK_FILE, LINE_FILE, *(width_file(width) for width in WIDTHS)):
         try:
             path.unlink()
         except OSError:

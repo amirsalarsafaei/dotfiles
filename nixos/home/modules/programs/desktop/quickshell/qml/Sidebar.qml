@@ -53,10 +53,11 @@ PanelWindow {
             bluetooth: false,
             dnd: false,
             night: false,
-            caffeine: false,
-            blur: false
+            caffeine: false
         })
     property real brightness: -1
+    readonly property bool compact: (win.screen?.height ?? 1080) < 900
+    readonly property real cardPadding: compact ? 10 : 14
     property string jalali: ""
     property string uptime: ""
 
@@ -127,8 +128,7 @@ PanelWindow {
                     bluetooth: f[1],
                     dnd: f[2],
                     night: f[3],
-                    caffeine: f[4],
-                    blur: f[5]
+                    caffeine: f[4]
                 };
             }
         }
@@ -195,9 +195,9 @@ PanelWindow {
 
             width: 404
             y: Theme.topGap
-            height: Math.min(column.implicitHeight + 32, parent.height - Theme.topGap - 12)
+            height: Math.min(column.implicitHeight + column.anchors.margins * 2, parent.height - Theme.topGap - 12)
             x: 12 - (width + 32) * (1 - win.progress)
-            radius: Theme.radius + 6
+            radius: Theme.radius
             color: Theme.inkGlass
             border.color: Theme.line
             border.width: 1
@@ -209,8 +209,8 @@ PanelWindow {
             ColumnLayout {
                 id: column
                 anchors.fill: parent
-                anchors.margins: 16
-                spacing: 12
+                anchors.margins: win.compact ? 12 : 16
+                spacing: win.compact ? 8 : 12
 
                 Item {
                     Layout.fillWidth: true
@@ -232,14 +232,14 @@ PanelWindow {
                             Label {
                                 text: Qt.formatDateTime(clock.date, "HH:mm")
                                 color: Theme.fgBright
-                                font.pixelSize: 58
+                                font.pixelSize: win.compact ? 44 : 58
                                 font.weight: Font.Light
                                 font.letterSpacing: -2
                             }
 
                             Label {
                                 Layout.alignment: Qt.AlignBottom
-                                Layout.bottomMargin: 12
+                                Layout.bottomMargin: win.compact ? 9 : 12
                                 text: Qt.formatDateTime(clock.date, "ss")
                                 color: Theme.primary
                                 font.family: Theme.mono
@@ -252,7 +252,7 @@ PanelWindow {
 
                             ColumnLayout {
                                 Layout.alignment: Qt.AlignTop
-                                Layout.topMargin: 10
+                                Layout.topMargin: win.compact ? 6 : 10
                                 spacing: 4
 
                                 Rectangle {
@@ -333,14 +333,15 @@ PanelWindow {
                 Card {
                     order: 1
                     progress: win.progress
+                    padding: win.cardPadding
 
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 12
 
                         ClippingRectangle {
-                            implicitWidth: 64
-                            implicitHeight: 64
+                            implicitWidth: win.compact ? 56 : 64
+                            implicitHeight: win.compact ? 56 : 64
                             radius: 12
                             color: Theme.inkGlass
                             border.color: Theme.line
@@ -388,20 +389,20 @@ PanelWindow {
 
                                 IconButton {
                                     icon: "󰒮"
-                                    size: 30
+                                    size: win.compact ? 26 : 30
                                     onClicked: win.player?.previous()
                                 }
 
                                 IconButton {
                                     icon: win.player?.isPlaying ? "󰏤" : "󰐊"
-                                    size: 30
+                                    size: win.compact ? 26 : 30
                                     highlighted: win.player?.isPlaying ?? false
                                     onClicked: win.player?.togglePlaying()
                                 }
 
                                 IconButton {
                                     icon: "󰒭"
-                                    size: 30
+                                    size: win.compact ? 26 : 30
                                     onClicked: win.player?.next()
                                 }
                             }
@@ -413,12 +414,14 @@ PanelWindow {
                         player: win.player
                         running: win.shown
                         visible: available
+                        rows: win.compact ? 2 : 3
                     }
 
                     Visualizer {
                         Layout.fillWidth: true
                         running: win.shown && win.player !== null && win.player.isPlaying
                         visible: running
+                        implicitHeight: win.compact ? 28 : 40
                     }
 
                     Rectangle {
@@ -446,6 +449,7 @@ PanelWindow {
                 Card {
                     order: 2
                     progress: win.progress
+                    padding: win.cardPadding
 
                     Meter {
                         icon: ""
@@ -485,6 +489,7 @@ PanelWindow {
                 Card {
                     order: 3
                     progress: win.progress
+                    padding: win.cardPadding
 
                     Slider {
                         icon: win.sink?.audio?.muted ? "󰝟" : "󰕾"
@@ -517,6 +522,7 @@ PanelWindow {
                 Card {
                     order: 4
                     progress: win.progress
+                    padding: win.cardPadding
 
                     GridLayout {
                         Layout.fillWidth: true
@@ -525,6 +531,7 @@ PanelWindow {
                         columnSpacing: 8
 
                         Toggle {
+                            implicitHeight: win.compact ? 48 : 62
                             icon: win.toggles.wifi ? "󰤨" : "󰤭"
                             label: "Wi-Fi"
                             active: win.toggles.wifi
@@ -532,6 +539,7 @@ PanelWindow {
                         }
 
                         Toggle {
+                            implicitHeight: win.compact ? 48 : 62
                             icon: win.toggles.bluetooth ? "󰂯" : "󰂲"
                             label: "Bluetooth"
                             active: win.toggles.bluetooth
@@ -539,6 +547,7 @@ PanelWindow {
                         }
 
                         Toggle {
+                            implicitHeight: win.compact ? 48 : 62
                             icon: win.toggles.dnd ? "󰂛" : "󰂚"
                             label: "Silence"
                             active: win.toggles.dnd
@@ -547,6 +556,7 @@ PanelWindow {
                         }
 
                         Toggle {
+                            implicitHeight: win.compact ? 48 : 62
                             icon: "󰖔"
                             label: "Night light"
                             active: win.toggles.night
@@ -555,26 +565,19 @@ PanelWindow {
                         }
 
                         Toggle {
+                            implicitHeight: win.compact ? 48 : 62
                             icon: "󰅶"
                             label: "Caffeine"
                             active: win.toggles.caffeine
                             accent: Theme.warm
                             onClicked: win.run(["caffeine"])
                         }
-
-                        Toggle {
-                            icon: "󰸉"
-                            label: "Wall blur"
-                            active: win.toggles.blur
-                            accent: Theme.secondary
-                            onClicked: win.run(["blur"])
-                        }
                     }
                 }
 
                 Item {
                     Layout.fillWidth: true
-                    Layout.topMargin: 4
+                    Layout.topMargin: win.compact ? 0 : 4
                     implicitHeight: powerRow.implicitHeight
                     opacity: win.progress
                     transform: Translate {
@@ -588,14 +591,14 @@ PanelWindow {
 
                         IconButton {
                             icon: "󰌾"
-                            size: 44
+                            size: win.compact ? 38 : 44
                             accent: Theme.primary
                             onClicked: win.runAndClose(["lock"])
                         }
 
                         IconButton {
                             icon: "󰤄"
-                            size: 44
+                            size: win.compact ? 38 : 44
                             accent: Theme.secondary
                             onClicked: win.runAndClose(["suspend"])
                         }
@@ -604,7 +607,7 @@ PanelWindow {
                             id: logoutButton
                             property bool armed: false
                             icon: armed ? "󰄬" : "󰍃"
-                            size: 44
+                            size: win.compact ? 38 : 44
                             accent: Theme.warm
                             highlighted: armed
                             onClicked: armed ? win.runAndClose(["logout"]) : armed = true
@@ -614,7 +617,7 @@ PanelWindow {
                             id: rebootButton
                             property bool armed: false
                             icon: armed ? "󰄬" : "󰜉"
-                            size: 44
+                            size: win.compact ? 38 : 44
                             accent: Theme.heat
                             highlighted: armed
                             onClicked: armed ? win.runAndClose(["reboot"]) : armed = true
@@ -624,7 +627,7 @@ PanelWindow {
                             id: poweroffButton
                             property bool armed: false
                             icon: armed ? "󰄬" : "󰐥"
-                            size: 44
+                            size: win.compact ? 38 : 44
                             accent: Theme.danger
                             highlighted: armed
                             onClicked: armed ? win.runAndClose(["poweroff"]) : armed = true

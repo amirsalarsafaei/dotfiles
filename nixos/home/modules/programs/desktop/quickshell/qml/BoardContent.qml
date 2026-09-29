@@ -42,6 +42,16 @@ Item {
         return players.find(p => p.isPlaying) ?? players[0] ?? null;
     }
 
+    property var quip: ({})
+
+    readonly property string quipText: {
+        const generated = Number(quip.generated ?? 0) * 1000;
+        const today = Qt.formatDateTime(clock.date, "yyyy-MM-dd");
+        if (!quip.text || quip.date !== today || clock.date.getTime() - generated > 4 * 3600 * 1000)
+            return "";
+        return quip.text;
+    }
+
     function greeting(): string {
         const hour = clock.date.getHours();
         if (hour < 5)
@@ -181,6 +191,20 @@ Item {
         }
     }
 
+    FileView {
+        path: content.cacheHome + "/quip/current.json"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                content.quip = JSON.parse(text());
+            } catch (error) {
+                content.quip = {};
+            }
+        }
+    }
+
     Timer {
         interval: 1000
         repeat: true
@@ -200,13 +224,8 @@ Item {
             BoardCard {
                 order: 0
                 progress: content.progress
-                Layout.preferredWidth: (content.width - content.gap) * 0.64
+                Layout.preferredWidth: (content.width - 2 * content.gap) * 2 / 3 + content.gap
                 Layout.preferredHeight: 330
-
-                background: Aurora {
-                    anchors.fill: parent
-                    running: content.shown
-                }
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -214,9 +233,14 @@ Item {
                     spacing: 0
 
                     Label {
-                        text: content.greeting() + (content.userName ? ", " + content.userName : "")
+                        Layout.fillWidth: true
+                        Layout.rightMargin: 12
+                        text: content.quipText || (content.greeting() + (content.userName ? ", " + content.userName : ""))
                         color: Theme.muted
                         font.pixelSize: 16
+                        font.italic: content.quipText.length > 0
+                        wrapMode: Text.WordWrap
+                        maximumLineCount: 2
                     }
 
                     RowLayout {
@@ -333,7 +357,7 @@ Item {
                                     text: parent.modelData.day
                                     font.family: Theme.mono
                                     font.pixelSize: 13
-                                    color: parent.modelData.today ? Theme.fgBright : (parent.modelData.weekend ? Theme.heat : Theme.fg)
+                                    color: parent.modelData.today ? Theme.fgBright : (parent.modelData.weekend ? Theme.secondary : Theme.fg)
                                     opacity: parent.modelData.inMonth ? 1 : 0.25
                                 }
                             }
@@ -572,14 +596,6 @@ Item {
                 title: "Now playing"
                 Layout.fillWidth: true
                 Layout.preferredHeight: 290
-
-                background: Aurora {
-                    anchors.fill: parent
-                    running: content.shown && content.player !== null && content.player.isPlaying
-                    intensity: 0.55
-                    accentA: Theme.heat
-                    accentB: Theme.primary
-                }
 
                 ColumnLayout {
                     anchors.fill: parent

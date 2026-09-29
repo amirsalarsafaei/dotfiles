@@ -15,6 +15,9 @@ let
       export LYRICS_STATE_DIR=${lib.escapeShellArg cfg.stateDir}
       export LYRICS_WAYBAR_SIGNAL=${toString cfg.waybarSignal}
       export LYRICS_LEAD=${toString cfg.lead}
+      export LYRICS_WIDTHS=${
+        lib.escapeShellArg (lib.concatMapStringsSep " " toString (lib.unique cfg.widths))
+      }
       exec ${lib.getExe python} ${./lyricsd.py} "$@"
     '';
   };
@@ -35,6 +38,11 @@ in
       type = lib.types.float;
       default = 0.3;
       description = "Seconds each lyric line is shown ahead of its timestamp.";
+    };
+    widths = lib.mkOption {
+      type = lib.types.listOf lib.types.ints.positive;
+      default = [ ];
+      description = "Character widths for which lyricsd publishes line-<width>.json, splitting longer lines into timed pages that fit.";
     };
   };
 

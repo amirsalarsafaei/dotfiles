@@ -205,12 +205,6 @@ rec {
         group = "Session";
       })
       (keysLib.hypr.exec {
-        on = on.superShift K.w;
-        cmd = cmd.wallpaperBlurToggle;
-        desc = "Toggle wallpaper blur behind windows";
-        group = "Session";
-      })
-      (keysLib.hypr.exec {
         on = on.super K.slash;
         cmd = cmd.keysRofi;
         desc = "Show every keybinding";

@@ -77,8 +77,8 @@ in
       anchor: center;
       width: 640px;
       border: 1px;
-      border-color: @line;
-      border-radius: 18px;
+      border-color: @edge;
+      border-radius: 20px;
       background-color: @bg;
     }
 
@@ -91,9 +91,12 @@ in
     inputbar {
       children: [ prompt, entry, num-filtered-rows ];
       spacing: 14px;
-      padding: 18px 22px;
-      border: 0px 0px 1px 0px;
+      margin: 12px 12px 2px 12px;
+      padding: 12px 16px;
+      border: 1px;
       border-color: @line;
+      border-radius: 14px;
+      background-color: @surface;
     }
 
     prompt {
@@ -170,9 +173,7 @@ in
 
     mode-switcher {
       spacing: 6px;
-      padding: 8px 12px 12px 12px;
-      border: 1px 0px 0px 0px;
-      border-color: @line;
+      padding: 4px 12px 12px 12px;
     }
 
     button {
@@ -184,7 +185,9 @@ in
 
     button selected {
       background-color: @surface;
-      text-color: @fg-bright;
+      border: 1px;
+      border-color: @edge;
+      text-color: @accent;
     }
   '';
 }

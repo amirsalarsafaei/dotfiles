@@ -186,7 +186,8 @@ let
     if !isLowPower then
       ''
         decoration {
-            rounding = 10
+            rounding = 14
+            rounding_power = 2.6
             active_opacity = 1.0
             inactive_opacity = 1.0
             fullscreen_opacity = 1.0
@@ -205,12 +206,14 @@ let
                 noise = 0.02
                 contrast = 1.05
                 brightness = 1.0
+                popups = true
             }
 
             shadow {
                 enabled = true
-                range = 22
+                range = 18
                 render_power = 3
+                offset = 0 4
                 color = rgba(${themeLib.stripHash s.ink}b3)
             }
         }
@@ -218,7 +221,7 @@ let
     else
       ''
         decoration {
-            rounding = 8
+            rounding = 14
             active_opacity = 1.0
             inactive_opacity = 1.0
             fullscreen_opacity = 1.0
@@ -251,14 +254,17 @@ let
             bezier = drawer,     0.16, 1, 0.3, 1
 
             animation = windows,     1, 5, overshot, popin 88%
-            animation = windowsIn,   1, 5, overshot, popin 88%
+            animation = windowsIn,   1, 4, smoothIn, popin 90%
             animation = windowsOut,  1, 4, smoothOut, popin 90%
             animation = windowsMove, 1, 4, wind
             animation = border,      1, 10, default
             animation = borderangle, 1, 30, default, loop
             animation = fade,        1, 6, smoothIn
+            animation = fadeIn,      0
+            animation = fadeSwitch,  0
+            animation = fadeDim,     0
             # Horizontal slide to match the left/right workspace swipe gesture
-            animation = workspaces,  1, 6, slide, slidefade 20%
+            animation = workspaces,  1, 6, slide
             animation = specialWorkspace, 1, 5, wind, slidevert
             animation = layersIn,    1, 4, drawer, fade
             animation = layersOut,   1, 3, smoothIn, fade
@@ -274,6 +280,7 @@ let
             animation = windowsOut, 1, 3, default, popin 92%
             animation = border, 1, 6, default
             animation = fade, 1, 3, default
+            animation = fadeIn, 0
             animation = workspaces, 1, 4, default
         }
       '';
@@ -290,14 +297,6 @@ let
   # blocks above, and these rules only extend it to panels.
   pluginBlock = ''
     plugin {
-        hyprfocus {
-            enable = ${lib.boolToString (!isLowPower)}
-            keyboard_focus_animation = shrink
-            mouse_focus_animation = none
-            shrink_percentage = 0.975
-            animate_floating = true
-        }
-
         dynamic-cursors {
             enabled = true
             mode = tilt
@@ -382,7 +381,6 @@ in
     systemd.enable = false;
     configType = "hyprlang";
     plugins = with pkgs.hyprlandPlugins; [
-      hyprfocus
       hypr-dynamic-cursors
       hyprtasking
     ];
@@ -431,7 +429,7 @@ in
           gaps_out = 12
           border_size = 2
           col.active_border = rgba(${themeLib.stripHash a.border}ff)
-          col.inactive_border = rgba(${themeLib.stripHash s.line}cc)
+          col.inactive_border = rgba(${themeLib.stripHash s.line}99)
           resize_on_border = false
           allow_tearing = false
           layout = dwindle

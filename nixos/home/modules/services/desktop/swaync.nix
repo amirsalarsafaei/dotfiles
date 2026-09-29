@@ -44,7 +44,7 @@ in
       .notification-content {
         background: ${s.ink}eb;
         border: 1px solid ${s.line};
-        border-radius: 12px;
+        border-radius: 14px;
         padding: 12px;
         color: ${t.base05};
       }
@@ -52,7 +52,7 @@ in
       /* urgency accent — recolors the single border, no extra frame */
       .notification.low .notification-content { border-color: ${t.base03}; }
       .notification.low progress { background: ${t.base03}; }
-      .notification.normal .notification-content { border-color: ${a.primary}; }
+      .notification.normal .notification-content { border-color: ${a.border}; }
       .notification.normal progress { background: ${t.base0F}; }
       .notification.critical .notification-content { border-color: ${t.base08}; }
       .notification.critical progress { background: ${t.base08}; }
@@ -65,7 +65,7 @@ in
         color: ${t.base05};
         background: ${s.raised};
         border: 1px solid ${s.line};
-        border-radius: 6px;
+        border-radius: 9px;
       }
       .notification-action:hover { background: ${t.base02}; }
       .notification-action:active { background: ${t.base0F}; }
@@ -73,7 +73,7 @@ in
       .close-button {
         color: ${t.base00};
         background: ${t.base08};
-        border-radius: 6px;
+        border-radius: 9px;
         margin: 6px;
         padding: 2px;
       }
@@ -84,13 +84,13 @@ in
       .control-center {
         background: ${s.ink}eb;
         border: 1px solid ${s.line};
-        border-radius: 14px;
+        border-radius: 20px;
         color: ${t.base05};
       }
       .control-center .notification-row .notification-background,
       .control-center .notification-row .notification-background:hover {
         background: ${s.raised}cc;
-        border-radius: 8px;
+        border-radius: 12px;
       }
       .control-center .notification-row .notification-content {
         border: none;
@@ -101,7 +101,7 @@ in
       .widget-title > button {
         background: ${s.raised};
         border: 1px solid ${s.line};
-        border-radius: 6px;
+        border-radius: 9px;
         color: ${t.base05};
       }
       .widget-title > button:hover { background: ${t.base02}; }
@@ -119,7 +119,7 @@ in
       .widget-mpris .widget-mpris-player {
         background: ${s.raised};
         border: 1px solid ${s.line};
-        border-radius: 8px;
+        border-radius: 14px;
       }
       .widget-mpris .widget-mpris-player button:hover { background: ${t.base02}; }
     '';
@@ -172,6 +172,8 @@ in
         mpris = {
           image-size = 80;
           image-radius = 8;
+          autohide = true;
+          blacklist = [ "playerctld" ];
         };
       };
     };
