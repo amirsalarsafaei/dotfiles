@@ -13,6 +13,8 @@ let
   cmd = config.custom.keys.commands;
   quickshell = lib.getExe config.programs.quickshell.package;
   fingerprint = osConfig.services.fprintd.enable or false;
+  compactOutput = osConfig.hyprland.compactOutput or null;
+  powerProfiles = osConfig.services.power-profiles-daemon.enable or false;
 
   hex = color: lib.removePrefix "#" color;
   argb = alpha: color: "#${alpha}${hex color}";
@@ -40,6 +42,67 @@ let
     monstercat = 1
     noise_reduction = 70
   '';
+
+  cavaBarConfig = pkgs.writeText "bar-cava.conf" ''
+    [general]
+    framerate = 30
+    bars = 12
+    autosens = 1
+
+    [input]
+    method = pulse
+    source = auto
+
+    [output]
+    method = raw
+    channels = mono
+    raw_target = /dev/stdout
+    data_format = ascii
+    ascii_max_range = 100
+    bar_delimiter = 59
+    frame_delimiter = 10
+
+    [smoothing]
+    monstercat = 1
+    noise_reduction = 70
+  '';
+
+  barProbe = pkgs.writeShellApplication {
+    name = "bar-probe";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.jq
+    ];
+    text = ''
+      thermal=""
+      for hw in /sys/class/hwmon/hwmon*; do
+        name=$(cat "$hw/name" 2>/dev/null || true)
+        case "$name" in
+          coretemp | k10temp | zenpower)
+            if [ -r "$hw/temp1_input" ]; then
+              thermal="$hw/temp1_input"
+              break
+            fi
+            ;;
+        esac
+      done
+      if [ -z "$thermal" ]; then
+        for zone in /sys/class/thermal/thermal_zone*; do
+          if [ "$(cat "$zone/type" 2>/dev/null || true)" = x86_pkg_temp ]; then
+            thermal="$zone/temp"
+            break
+          fi
+        done
+      fi
+      if [ -z "$thermal" ] && [ -r /sys/class/thermal/thermal_zone0/temp ]; then
+        thermal=/sys/class/thermal/thermal_zone0/temp
+      fi
+      echo "$thermal"
+      ${lib.getExe' pkgs.hyprland "hyprctl"} devices -j 2>/dev/null \
+        | jq -r '([.keyboards[] | select(.main)][0] // .keyboards[0] // {}).active_keymap // ""' \
+        || echo
+    '';
+  };
 
   stats = pkgs.writeShellApplication {
     name = "sidebar-stats";
@@ -186,6 +249,87 @@ let
     '';
   };
 
+  agentsPick = pkgs.writeShellApplication {
+    name = "agents-pick";
+    text = ''
+      exec ${quickshell} -c shell ipc call sidebar agents
+    '';
+  };
+
+  agents = pkgs.writeShellApplication {
+    name = "wall-agents";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.gawk
+      pkgs.gnugrep
+      pkgs.jq
+      pkgs.util-linux
+      config.programs.zellij.package
+    ];
+    text = ''
+      hyprctl=${lib.getExe' pkgs.hyprland "hyprctl"}
+
+      sessions() {
+        { zellij list-sessions -n 2>/dev/null || true; } | awk '/\[Created/ && !/EXITED/ { print $1 }'
+      }
+
+      clients() {
+        { timeout 2 zellij -s "$1" action list-clients 2>/dev/null || true; } | tail -n +2 | grep -c . || true
+      }
+
+      focus() {
+        local tab
+        tab=$(timeout 2 zellij -s "$1" action list-panes -j 2>/dev/null \
+          | jq -r --argjson id "$2" 'first(.[] | select((.is_plugin | not) and .id == $id) | .tab_id) // empty') || tab=""
+        [ -n "$tab" ] || return 0
+        timeout 2 zellij -s "$1" action go-to-tab-by-id "$tab" || true
+        timeout 2 zellij -s "$1" action focus-pane-id "terminal_$2" || true
+      }
+
+      case "''${1:-}" in
+        live)
+          sessions | while read -r session; do
+            { timeout 2 zellij -s "$session" action list-panes -j -a 2>/dev/null || true; } \
+              | jq -c --arg session "$session" '
+                  .[]?
+                  | select((.is_plugin | not) and (.exited | not) and ((.pane_command // "") | test("/bin/claude( |$)")))
+                  | {key: "\($session)/\(.id)", value: {session: $session, pane: (.id | tostring), tab: (.tab_name // ""), title: (.title // ""), cwd: (.pane_cwd // "")}}' \
+              || true
+          done | jq -cs 'from_entries'
+          ;;
+        open)
+          session=''${2:?session}
+          pane=''${3:?pane}
+          case "$pane" in
+            "" | *[!0-9]*) exit 2 ;;
+          esac
+          running=$(sessions)
+          grep -qxF -- "$session" <<<"$running" || exit 0
+          window=$("$hyprctl" clients -j \
+            | jq -r --arg session "$session" '
+                [.[] | select(.title == $session or (.title | startswith($session + " | ")))]
+                | sort_by(.focusHistoryID) | first | .address // empty') || window=""
+          if [ -n "$window" ]; then
+            "$hyprctl" dispatch focuswindow "address:$window" >/dev/null
+          else
+            before=$(clients "$session")
+            setsid -f ${lib.getExe (osConfig.programs.uwsm.package or pkgs.uwsm)} app -- \
+              ${lib.getExe config.programs.ghostty.package} -e ${lib.getExe config.programs.zellij.package} attach "$session" >/dev/null 2>&1
+            for _ in $(seq 60); do
+              sleep 0.1
+              [ "$(clients "$session")" -gt "$before" ] && break
+            done
+          fi
+          focus "$session" "$pane"
+          ;;
+        *)
+          echo "usage: wall-agents <live|open SESSION PANE>" >&2
+          exit 2
+          ;;
+      esac
+    '';
+  };
+
   pamModules = "${pkgs.linux-pam}/lib/security";
 
   pamDir = pkgs.runCommand "quickshell-pam" { } ''
@@ -227,6 +371,7 @@ let
         readonly property color faint: "${t.base03}"
         readonly property color blue: "${t.base0D}"
         readonly property color cyan: "${t.base0C}"
+        readonly property color yellow: "${t.base0A}"
         property color primary: mood.active ? mood.primary : basePrimary
         property color secondary: mood.active ? mood.secondary : baseSecondary
 
@@ -268,13 +413,28 @@ let
         readonly property color danger: "${t.base08}"
         readonly property color good: "${t.base0B}"
         readonly property string sans: "${theme.fonts.sans}"
+        readonly property string display: "${theme.fonts.display}"
         readonly property string mono: "${theme.fonts.mono}"
         readonly property string serif: "${config.stylix.fonts.serif.name}"
+        readonly property string persian: "Vazirmatn"
         readonly property int radius: 14
         readonly property int topGap: 52
+        readonly property int quick: 120
+        readonly property int brisk: 200
+        readonly property int calm: 320
+        readonly property int ambient: 1400
+        readonly property var standard: [0.2, 0, 0, 1, 1, 1]
+        readonly property var drift: [0.37, 0, 0.63, 1, 1, 1]
+        readonly property var enter: [0.05, 0.7, 0.1, 1, 1, 1]
+        readonly property var exit: [0.3, 0, 0.8, 0.15, 1, 1]
+        readonly property real pressScale: 0.95
 
         function alpha(c: color, value: real): color {
             return Qt.rgba(c.r, c.g, c.b, value);
+        }
+
+        function fontFor(text: string, fallback: string): string {
+            return /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text) ? persian : fallback;
         }
     }
   '';
@@ -289,12 +449,20 @@ let
         readonly property string action: "${lib.getExe action}"
         readonly property string cava: "${lib.getExe pkgs.cava}"
         readonly property string cavaConfig: "${cavaConfig}"
+        readonly property string cavaBarConfig: "${cavaBarConfig}"
+        readonly property string barProbe: "${lib.getExe barProbe}"
+        readonly property string systemctl: "${lib.getExe' pkgs.systemd "systemctl"}"
+        readonly property string swaync: "${lib.getExe' config.services.swaync.package "swaync-client"}"
+        readonly property string compactOutput: "${if compactOutput == null then "" else compactOutput}"
+        readonly property bool powerProfiles: ${lib.boolToString powerProfiles}
         readonly property string pamDir: "${pamDir}"
         readonly property bool fingerprint: ${lib.boolToString fingerprint}
         readonly property string wallpaper: "${theme.wallpaper}"
         readonly property string touch: "${lib.getExe' pkgs.coreutils "touch"}"
         readonly property string hyprctl: "${lib.getExe' pkgs.hyprland "hyprctl"}"
         readonly property string lyricsDir: "${config.custom.lyrics.stateDir}"
+        readonly property string agentsDir: "${config.custom.claudeCode.agentStatus.dir}"
+        readonly property string agents: "${lib.getExe agents}"
         readonly property string user: "${config.home.username}"
         readonly property string host: "${osConfig.networking.hostName or "nixos"}"
     }
@@ -314,16 +482,49 @@ let
 
   mkConfig =
     name: root:
-    pkgs.runCommand "quickshell-${name}" { } ''
-      mkdir -p $out/shaders $out/textures
-      cp ${./qml}/*.qml $out/
-      rm -f $out/shell.qml
-      cp ${root} $out/shell.qml
-      cp ${themeQml} $out/Theme.qml
-      cp ${sysQml} $out/Sys.qml
-      cp ${shaders}/*.qsb $out/shaders/
-      cp ${./assets}/*.jpg $out/textures/
-    '';
+    pkgs.runCommand "quickshell-${name}"
+      {
+        nativeBuildInputs = [ pkgs.qt6.qtdeclarative ];
+      }
+      ''
+        mkdir -p $out/shaders $out/textures
+        cp ${./qml}/*.qml $out/
+        rm -f $out/shell.qml
+        cp ${root} $out/shell.qml
+        cp ${themeQml} $out/Theme.qml
+        cp ${sysQml} $out/Sys.qml
+        cp ${shaders}/*.qsb $out/shaders/
+        cp ${./assets}/*.jpg $out/textures/
+
+        export HOME=$TMPDIR
+        lint=$TMPDIR/lint
+        cp -r $out $lint
+        chmod -R u+w $lint
+        cd $lint
+        {
+          echo "module Shell"
+          for file in *.qml; do
+            if grep -q "^pragma Singleton" "$file"; then
+              echo "singleton ''${file%.qml} 1.0 $file"
+            else
+              echo "''${file%.qml} 1.0 $file"
+            fi
+          done
+        } > qmldir
+        levels=()
+        for category in $(qmllint --help | grep -oE '^ +--[a-z-]+ <level>' | awk '{ print $1 }'); do
+          if [ "$category" = --import ]; then
+            levels+=("$category" warning)
+          else
+            levels+=("$category" disable)
+          fi
+        done
+        qmllint -W 0 \
+          -I ${config.programs.quickshell.package}/lib/qt-6/qml \
+          -I ${pkgs.qt6.qtdeclarative}/lib/qt-6/qml \
+          -I . \
+          "''${levels[@]}" *.qml
+      '';
 
   shellConfig = mkConfig "shell" ./qml/shell.qml;
   lockConfig = mkConfig "lock" ./lock/shell.qml;
@@ -386,13 +587,23 @@ in
     Unit = {
       PartOf = [ config.programs.quickshell.systemd.target ];
       ConditionEnvironment = "WAYLAND_DISPLAY";
+      X-Restart-Triggers = [ "${shellConfig}" ];
     };
     Service.RestartSec = 2;
   };
 
+  custom.claudeCode.agentStatus.enable = true;
+
   custom.keys.commands = {
+    barToggle = "${quickshell} -c shell ipc call bar toggle";
+    barShow = "${quickshell} -c shell ipc call bar show";
+    barHide = "${quickshell} -c shell ipc call bar hide";
+    perfCycle = "${quickshell} -c shell ipc call perf cycle";
+    skyToggle = "${quickshell} -c shell ipc call sky toggle";
+    lyricsToggle = "${quickshell} -c shell ipc call lyrics toggle";
     sidebarToggle = "${quickshell} -c shell ipc call sidebar toggle";
     widgetsToggle = "${quickshell} -c shell ipc call widgets toggle";
+    agentsPick = lib.getExe agentsPick;
     lockScreen = lib.getExe lockScreen;
   };
 }

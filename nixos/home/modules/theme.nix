@@ -112,7 +112,7 @@ in
 
       display = lib.mkOption {
         type = lib.types.str;
-        default = "Inter";
+        default = "Inter Display";
         description = "Display font for lockscreen and large UI elements.";
       };
     };

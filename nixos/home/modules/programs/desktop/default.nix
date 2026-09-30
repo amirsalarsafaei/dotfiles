@@ -9,7 +9,6 @@
     ./rofi.nix
     ./quickshell
     ./spicetify.nix
-    ./waybar.nix
     ./wlogout.nix
   ];
 }

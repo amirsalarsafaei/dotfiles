@@ -2,38 +2,48 @@
 // Adapted from the popular Ghostty "cursor smear" community shaders.
 // Ghostty/Shadertoy fragment-shader format.
 
+const float DURATION = 0.18;
+const float TAIL_TAPER = 0.6;
+const float BODY_ALPHA = 0.35;
+
 float sdBox(in vec2 p, in vec2 b) {
     vec2 d = abs(p) - b;
     return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
 }
 
+float easeOutCubic(float t) {
+    float u = 1.0 - t;
+    return 1.0 - u * u * u;
+}
+
+vec2 cursorCenter(vec4 cursor) {
+    return cursor.xy + vec2(cursor.z, -cursor.w) * 0.5;
+}
+
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
-    vec2 uv = fragCoord / iResolution.xy;
-    fragColor = texture(iChannel0, uv);
+    fragColor = texture(iChannel0, fragCoord / iResolution.xy);
 
-    // iCurrentCursor / iPreviousCursor: vec4(x, y, w, h) in pixels,
-    // origin top-left. Provided by Ghostty.
-    vec2 res = iResolution.xy;
+    float t = clamp((iTime - iTimeCursorChange) / DURATION, 0.0, 1.0);
+    if (t >= 1.0 || iFocus == 0 || iCursorVisible == 0 || iPreviousCursor.z <= 0.0) {
+        return;
+    }
 
-    vec2 curPos = (iCurrentCursor.xy + iCurrentCursor.zw * 0.5);
-    vec2 prevPos = (iPreviousCursor.xy + iPreviousCursor.zw * 0.5);
+    vec2 head = cursorCenter(iCurrentCursor);
+    vec2 headSize = iCurrentCursor.zw * 0.5;
+    vec2 tailSize = iPreviousCursor.zw * 0.5 * TAIL_TAPER;
+    vec2 tail = mix(cursorCenter(iPreviousCursor), head, easeOutCubic(t));
 
-    // Animate from previous -> current cursor position.
-    float t = clamp((iTime - iTimeCursorChange) / 0.18, 0.0, 1.0);
-    float ease = 1.0 - pow(1.0 - t, 3.0);
-    vec2 pos = mix(prevPos, curPos, ease);
+    vec2 path = head - tail;
+    float pathLength2 = dot(path, path);
+    if (pathLength2 < 1.0) {
+        return;
+    }
 
-    // Build a capsule between the two positions for the trailing smear.
-    vec2 frag = fragCoord;
-    vec2 a = prevPos;
-    vec2 b = pos;
-    vec2 pa = frag - a;
-    vec2 ba = b - a;
-    float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1.0), 0.0, 1.0);
-    float d = length(pa - ba * h) - iCurrentCursor.w * 0.6;
+    float along = clamp(dot(fragCoord - tail, path) / pathLength2, 0.0, 1.0);
+    float d = sdBox(fragCoord - (tail + path * along), mix(tailSize, headSize, along));
+    float fade = (1.0 - t) * (1.0 - t);
 
-    float glow = smoothstep(8.0, 0.0, d) * (1.0 - t * 0.6);
-    vec3 trailColor = vec3(0.55, 0.78, 1.0);
-
-    fragColor.rgb += trailColor * glow * 0.7;
+    float body = 1.0 - smoothstep(-0.5, 0.5, d);
+    body *= smoothstep(-0.5, 0.5, sdBox(fragCoord - head, headSize));
+    fragColor.rgb = mix(fragColor.rgb, iCurrentCursorColor.rgb, body * BODY_ALPHA * fade);
 }

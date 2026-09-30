@@ -91,15 +91,18 @@ let
   # the group is the only thing that differs between the two blocks.
   goToTab =
     group:
-    map (n: zbind {
-      on = on.none K.${n};
-      run = [
-        "GoToTab ${n};"
-        ''SwitchToMode "Normal";''
-      ];
-      desc = "Go to tab ${n}";
-      inherit group;
-    }) tabDigits;
+    map (
+      n:
+      zbind {
+        on = on.none K.${n};
+        run = [
+          "GoToTab ${n};"
+          ''SwitchToMode "Normal";''
+        ];
+        desc = "Go to tab ${n}";
+        inherit group;
+      }
+    ) tabDigits;
 
   # Same story: scroll mode and search mode both offer it, under their own
   # group heading.
@@ -205,6 +208,12 @@ rec {
         group = "Session";
       })
       (keysLib.hypr.exec {
+        on = on.super K.c;
+        cmd = cmd.agentsPick;
+        desc = "Pick a Claude Code agent in the sidebar";
+        group = "Session";
+      })
+      (keysLib.hypr.exec {
         on = on.super K.slash;
         cmd = cmd.keysRofi;
         desc = "Show every keybinding";
@@ -230,8 +239,20 @@ rec {
       })
       (keysLib.hypr.exec {
         on = on.superShift K.b;
-        cmd = cmd.waybarToggle;
+        cmd = cmd.barToggle;
         desc = "Show or hide the bar";
+        group = "Session";
+      })
+      (keysLib.hypr.exec {
+        on = on.super K.u;
+        cmd = cmd.skyToggle;
+        desc = "Wallpaper: flip the sky (dusk by day, midday by night), or back to the real sky";
+        group = "Session";
+      })
+      (keysLib.hypr.exec {
+        on = on.super K.y;
+        cmd = cmd.lyricsToggle;
+        desc = "Wallpaper: float the synced lyrics over the sky";
         group = "Session";
       })
       (keysLib.hypr.exec {
@@ -386,18 +407,16 @@ rec {
     ++
       lib.concatMap
         (n: [
-          (keysLib.hypr.bind {
+          (keysLib.hypr.exec {
             on = on.super K.${n};
-            dispatcher = "workspace";
-            arg = n;
-            desc = "Go to workspace ${n}";
+            cmd = "${cmd.workspaceSplit} focus ${n}";
+            desc = "Go to workspace ${n} on this monitor";
             group = "Workspaces";
           })
-          (keysLib.hypr.bind {
+          (keysLib.hypr.exec {
             on = on.superShift K.${n};
-            dispatcher = "movetoworkspace";
-            arg = n;
-            desc = "Move window to workspace ${n}";
+            cmd = "${cmd.workspaceSplit} move ${n}";
+            desc = "Move window to workspace ${n} on this monitor";
             group = "Workspaces";
           })
         ])
@@ -412,29 +431,29 @@ rec {
       (keysLib.hypr.bind {
         on = on.superCtrl K.n;
         dispatcher = "workspace";
-        arg = "e+1";
-        desc = "Next workspace";
+        arg = "m+1";
+        desc = "Next workspace on this monitor";
         group = "Workspaces";
       })
       (keysLib.hypr.bind {
         on = on.superCtrl K.p;
         dispatcher = "workspace";
-        arg = "e-1";
-        desc = "Previous workspace";
+        arg = "m-1";
+        desc = "Previous workspace on this monitor";
         group = "Workspaces";
       })
       (keysLib.hypr.bind {
         on = on.super K.wheelDown;
         dispatcher = "workspace";
-        arg = "e+1";
-        desc = "Next workspace";
+        arg = "m+1";
+        desc = "Next workspace on this monitor";
         group = "Workspaces";
       })
       (keysLib.hypr.bind {
         on = on.super K.wheelUp;
         dispatcher = "workspace";
-        arg = "e-1";
-        desc = "Previous workspace";
+        arg = "m-1";
+        desc = "Previous workspace on this monitor";
         group = "Workspaces";
       })
       (keysLib.hypr.bind {
@@ -449,6 +468,12 @@ rec {
         dispatcher = "movetoworkspace";
         arg = "special:magic";
         desc = "Move window to the scratchpad";
+        group = "Workspaces";
+      })
+      (keysLib.hypr.exec {
+        on = on.super K.o;
+        cmd = cmd.spotifySpace;
+        desc = "Toggle the Spotify space (launches Spotify if needed)";
         group = "Workspaces";
       })
       (keysLib.hypr.bind {
@@ -1239,14 +1264,14 @@ rec {
         on = on.none K.C;
         run = [
           ''
-            Run "${cmd.zjClaudeJump}" {
+            Run "${cmd.agentsPick}" {
                 floating true
                 close_on_exit true
-                name "claude-jump"
+                name "agents"
             };''
           ''SwitchToMode "Normal";''
         ];
-        desc = "Jump to a running Claude Code pane";
+        desc = "Pick a Claude Code agent in the sidebar";
         group = "Session & tools";
       })
       (zbind {

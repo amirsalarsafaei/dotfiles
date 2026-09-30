@@ -393,7 +393,7 @@ in
     commands = lib.mkOption {
       type = lib.types.lazyAttrsOf lib.types.str;
       default = { };
-      example = lib.literalExpression "{ zjClaudeJump = lib.getExe zjClaudeJump; }";
+      example = lib.literalExpression "{ agentsPick = lib.getExe agentsPick; }";
       description = ''
         Commands that bindings in registry.nix run, keyed by the name the
         registry uses. Set by whichever module builds the command, so the

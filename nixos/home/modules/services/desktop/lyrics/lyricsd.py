@@ -20,6 +20,7 @@ STATE_DIR = Path(os.environ["XDG_RUNTIME_DIR"]) / os.environ.get("LYRICS_STATE_D
 CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME", HOME / ".cache")) / "lyrics"
 TRACK_FILE = STATE_DIR / "track.json"
 LINE_FILE = STATE_DIR / "line.json"
+CLOCK_FILE = STATE_DIR / "clock.json"
 WAYBAR_SIGNAL = int(os.environ.get("LYRICS_WAYBAR_SIGNAL", "10"))
 WAYBAR_NAMES = {"waybar", ".waybar-wrapped"}
 LEAD = float(os.environ.get("LYRICS_LEAD", "0.3"))
@@ -32,8 +33,8 @@ API = "https://lrclib.net/api/"
 CLIENT = "lyricsd/1.0"
 REQUEST_TIMEOUT = 10
 MIN_GAP = 2.0
-BACKOFF_START = 30.0
-BACKOFF_MAX = 600.0
+BACKOFF_START = 5.0
+BACKOFF_MAX = 60.0
 DEBOUNCE = 1.5
 MISSING_TTL = 7 * 86400
 
@@ -43,7 +44,7 @@ MPRIS_PATH = "/org/mpris/MediaPlayer2"
 MPRIS_PREFIX = "org.mpris.MediaPlayer2."
 PLAYER = "org.mpris.MediaPlayer2.Player"
 IGNORED = {"org.mpris.MediaPlayer2.playerctld"}
-DRIFT_CHECK = 5.0
+DRIFT_CHECK = 2.0
 CALL_TIMEOUT = 2.0
 TRACKED = {"PlaybackStatus", "Metadata", "Rate", "Position"}
 WAYBAR_RESCAN = 30.0
@@ -208,18 +209,28 @@ def loose_title(title):
 
 def lookup(track):
     length = round(track["length"])
-    entry = request(
-        "get",
-        {
-            "track_name": track["title"],
-            "artist_name": track["artist"],
-            "album_name": track["album"],
-            "duration": str(length) if length > 0 else "",
-        },
-    )
+    failure = None
+    try:
+        entry = request(
+            "get",
+            {
+                "track_name": track["title"],
+                "artist_name": track["artist"],
+                "album_name": track["album"],
+                "duration": str(length) if length > 0 else "",
+            },
+        )
+    except Offline as error:
+        entry = None
+        failure = error
     if not (entry and entry.get("syncedLyrics")):
         time.sleep(MIN_GAP)
-        found = pick(request("search", {"track_name": loose_title(track["title"]), "artist_name": track["artist"]}), length)
+        try:
+            found = pick(request("search", {"track_name": loose_title(track["title"]), "artist_name": track["artist"]}), length)
+        except Offline:
+            if failure is not None or entry is None:
+                raise
+            found = None
         entry = found or entry
     synced = parse(entry.get("syncedLyrics") or "") if entry else []
     plain_text = (entry.get("plainLyrics") or "") if entry else ""
@@ -308,6 +319,7 @@ class Daemon:
         self.fetch_due = 0.0
         self.next_request = 0.0
         self.backoff = 0.0
+        self.limited = False
         self.line = None
 
     def spawn(self, coroutine):
@@ -375,7 +387,10 @@ class Daemon:
     async def refresh_position(self, player):
         reply = await self.call(player.name, MPRIS_PATH, PROPERTIES, "Get", "ss", [PLAYER, "Position"])
         if reply:
+            expected = player.position()
             player.anchor_to(int(plain(reply[0]) or 0))
+            if abs(player.anchor - expected) > 1.0:
+                write_json(CLOCK_FILE, {"position": player.anchor, "at": time.time() * 1000})
         else:
             player.checked_at = time.monotonic()
         self.wake.set()
@@ -474,6 +489,9 @@ class Daemon:
         self.publish_track()
         if track and self.lyrics is None:
             self.fetch_due = time.monotonic() + DEBOUNCE
+            if not self.limited:
+                self.backoff = 0.0
+                self.next_request = min(self.next_request, self.fetch_due)
             self.fetch_wanted.set()
 
     async def sync_loop(self):
@@ -531,12 +549,14 @@ class Daemon:
             try:
                 result = await asyncio.to_thread(lookup, track)
             except (Offline, RateLimited) as error:
+                self.limited = isinstance(error, RateLimited)
                 self.backoff = min(max(BACKOFF_START, self.backoff * 2), BACKOFF_MAX)
                 wait = max(self.backoff, getattr(error, "retry_after", 0.0))
                 self.next_request = time.monotonic() + wait
                 print(f"lyrics lookup failed ({error!r}), retrying in {wait:.0f}s", flush=True)
                 continue
             self.backoff = 0.0
+            self.limited = False
             self.next_request = time.monotonic() + MIN_GAP
             cache_write(track["key"], result)
             if self.track and self.track["key"] == track["key"]:

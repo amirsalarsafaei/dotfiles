@@ -88,6 +88,8 @@
   services.netbird.enable = true;
   users.users.amirsalar.extraGroups = [ "netbird-wt0" ];
 
+  virtualisation.docker.enableOnBoot = false;
+
   # Use the systemd-boot EFI boot loader.
   boot = {
     loader.systemd-boot.enable = true;

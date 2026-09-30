@@ -17,6 +17,22 @@ Rectangle {
     border.color: active ? Theme.alpha(accent, 0.55) : Theme.line
     border.width: 1
 
+    scale: mouse.pressed ? Theme.pressScale : 1
+
+    Behavior on scale {
+        NumberAnimation {
+            duration: Theme.quick
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Theme.standard
+        }
+    }
+
+    Behavior on border.color {
+        ColorAnimation {
+            duration: Theme.brisk
+        }
+    }
+
     Behavior on color {
         ColorAnimation {
             duration: 180

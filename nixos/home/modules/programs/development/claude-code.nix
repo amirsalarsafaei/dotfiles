@@ -55,6 +55,76 @@ let
     '';
   };
 
+  claudeAgentStatus = pkgs.writeShellApplication {
+    name = "claude-agent-status";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.jq
+      pkgs.util-linux
+    ];
+    text = ''
+      dir="''${XDG_RUNTIME_DIR:-/nonexistent}/${cfg.agentStatus.dir}"
+      if [ ! -d "$dir" ] || [ ! -w "$dir" ]; then
+        cat >/dev/null
+        exit 0
+      fi
+
+      state="$dir/state.json"
+      variant=$(basename "''${CLAUDE_CONFIG_DIR:-claude}")
+      variant=''${variant%-claude}
+      next=$(mktemp "$dir/.state.XXXXXX")
+      trap 'rm -f "$next"' EXIT
+
+      exec 9>"$dir/.lock"
+      flock -w 3 9 || exit 0
+
+      current=/dev/null
+      if jq -e 'type == "object"' "$state" >/dev/null 2>&1; then
+        current=$state
+      fi
+
+      jq -c \
+        --argjson now "$(date +%s%3N)" \
+        --arg variant "$variant" \
+        --arg realm "''${CLAUDE_VARIANT_REALM:-}" \
+        --arg zsession "''${ZELLIJ_SESSION_NAME:-}" \
+        --arg zpane "''${ZELLIJ_PANE_ID:-}" \
+        --slurpfile cur "$current" \
+        -f ${./claude-agent-status.jq} >"$next"
+      mv -f "$next" "$state"
+    '';
+  };
+
+  agentStatusHooks = lib.optionalAttrs cfg.agentStatus.enable (
+    lib.genAttrs
+      [
+        "SessionStart"
+        "SessionEnd"
+        "UserPromptSubmit"
+        "PreToolUse"
+        "PostToolUse"
+        "PostToolUseFailure"
+        "Notification"
+        "SubagentStart"
+        "SubagentStop"
+        "PreCompact"
+        "Stop"
+        "StopFailure"
+      ]
+      (_: [
+        {
+          hooks = [
+            {
+              type = "command";
+              command = lib.getExe claudeAgentStatus;
+              timeout = 5;
+              async = true;
+            }
+          ];
+        }
+      ])
+  );
+
   devar = pkgs.callPackage ../../../../pkgs/devar.nix { devarSrc = inputs.devar; };
 
   workEffortLevel = "xhigh";
@@ -784,6 +854,7 @@ let
 
   glmClaude = pkgs.writeShellApplication {
     name = "glm-claude";
+    runtimeEnv.CLAUDE_VARIANT_REALM = "work";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
       ${mkKeyAuth {
@@ -808,6 +879,7 @@ let
 
   workDivarGlmClaude = pkgs.writeShellApplication {
     name = "work-divar-glm-claude";
+    runtimeEnv.CLAUDE_VARIANT_REALM = "work";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
       ${mkKeyAuth {
@@ -830,6 +902,7 @@ let
 
   workDivarDeepseekClaude = pkgs.writeShellApplication {
     name = "work-divar-deepseek-claude";
+    runtimeEnv.CLAUDE_VARIANT_REALM = "work";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
       ${mkKeyAuth {
@@ -852,6 +925,7 @@ let
 
   deepseekClaude = pkgs.writeShellApplication {
     name = "deepseek-claude";
+    runtimeEnv.CLAUDE_VARIANT_REALM = "work";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
       ${mkKeyAuth {
@@ -876,6 +950,7 @@ let
 
   personalDeepseekClaude = pkgs.writeShellApplication {
     name = "personal-deepseek-claude";
+    runtimeEnv.CLAUDE_VARIANT_REALM = "personal";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
       ${mkKeyAuth {
@@ -1143,6 +1218,7 @@ let
 
   personalClaude = pkgs.writeShellApplication {
     name = "personal-claude";
+    runtimeEnv.CLAUDE_VARIANT_REALM = "personal";
     runtimeInputs = [
       pkgs.coreutils
       pkgs.curl
@@ -1200,6 +1276,7 @@ let
 
   claudeWork = pkgs.writeShellApplication {
     name = "work-claude";
+    runtimeEnv.CLAUDE_VARIANT_REALM = "work";
     runtimeInputs = [
       pkgs.coreutils
       pkgs.curl
@@ -1333,6 +1410,7 @@ let
       hooks = lib.zipAttrsWith (_: lib.concatLists) [
         zellijAttentionHooks
         ntfyHooks
+        agentStatusHooks
         (base.hooks or { })
       ];
       permissions = (base.permissions or { }) // {
@@ -1754,6 +1832,26 @@ in
         gap = mkMode "gap-claude" null;
         local = mkMode "local-claude" null;
       };
+    agentStatus = {
+      enable = lib.mkEnableOption ''
+        live session status for the desktop: async hooks in every variant
+        record each session's title, project, realm (the wrapper's
+        CLAUDE_VARIANT_REALM: work or personal), zellij session and pane,
+        permission mode, state (working, waiting, idle, error) and current
+        tool into
+        $XDG_RUNTIME_DIR/<agentStatus.dir>/state.json, which the Quickshell
+        wallpaper renders. The directory is created by a user tmpfiles rule
+        before any sandbox starts, because the bubblewrap sandbox binds the
+        runtime directory child by child and would hide a new top-level file
+      '';
+
+      dir = lib.mkOption {
+        type = lib.types.str;
+        default = "claude-agents";
+        description = "Directory name under $XDG_RUNTIME_DIR that holds state.json.";
+      };
+    };
+
     planner = {
       enable = lib.mkEnableOption ''
         the --planner launch flag for self and time management, accepted by
@@ -2148,6 +2246,12 @@ in
     {
       home.packages = [ pkgs.crit ];
     }
+    (lib.mkIf cfg.agentStatus.enable {
+      systemd.user.tmpfiles.rules = [
+        "d %t/${cfg.agentStatus.dir} 0700 - - -"
+        "f %t/${cfg.agentStatus.dir}/state.json 0600 - - - {}"
+      ];
+    })
     (lib.mkIf cfg.enable {
       home.packages = [
         claudePicker

@@ -2,7 +2,6 @@ import json
 import os
 import random
 import re
-import subprocess
 import sys
 import time
 import urllib.error
@@ -24,7 +23,8 @@ NOTES_DIR = Path(os.environ.get("QUIP_NOTES_DIR", HOME / "Documents/amirsalar-va
 NAME = os.environ.get("QUIP_NAME") or os.environ.get("USER", "").capitalize()
 PROVIDERS = os.environ.get("QUIP_PROVIDERS", "anthropic deepseek").split()
 ANTHROPIC_MODEL = os.environ.get("QUIP_ANTHROPIC_MODEL", "claude-opus-5")
-DEEPSEEK_MODEL = os.environ.get("QUIP_DEEPSEEK_MODEL", "deepseek-chat")
+DEEPSEEK_MODEL = os.environ.get("QUIP_DEEPSEEK_MODEL", "deepseek-v4-pro")
+DEEPSEEK_EFFORT = os.environ.get("QUIP_DEEPSEEK_EFFORT", "high")
 KEY_FILES = {
     "anthropic": os.environ.get("QUIP_ANTHROPIC_KEY_FILE"),
     "deepseek": os.environ.get("QUIP_DEEPSEEK_KEY_FILE"),
@@ -33,13 +33,13 @@ SHARE_TITLES = os.environ.get("QUIP_SHARE_TITLES") == "1"
 SHARE_SONGS = os.environ.get("QUIP_SHARE_SONGS", "1") == "1"
 TIMEZONE = os.environ.get("QUIP_TIMEZONE")
 PERSONA = [line.strip() for line in os.environ.get("QUIP_PERSONA", "").splitlines() if line.strip()]
-PLAYERCTL = os.environ.get("QUIP_PLAYERCTL", "playerctl")
 MIN_AGE = int(os.environ.get("QUIP_MIN_AGE", "3600"))
 MAX_LENGTH = 110
 HISTORY_SIZE = 60
 PROMPT_HISTORY = 25
 RECENT_SONGS = 15
-REQUEST_TIMEOUT = 40
+PERSONA_SAMPLE = 5
+REQUEST_TIMEOUT = 180
 
 OPEN_TASK = re.compile(r"^\s*-\s+\[ \]\s+(\S.*)$")
 DONE_TASK = re.compile(r"^\s*-\s+\[[xX]\]\s+\S")
@@ -48,34 +48,34 @@ SONG_NOISE = [
     re.compile(r"\s*[(\[][^)\]]*[)\]]"),
 ]
 
-ANGLES = [
-    "a fake Nix evaluation error or warning",
-    "a git commit message, subject line only",
-    "a Knuth, Dijkstra or Brooks style aphorism",
-    "a Persian proverb or a Hafez fal omen, remixed and rendered in English",
-    "a one-line changelog entry or bug report about {name}'s life",
-    "a --help or man page line for a command that does not exist yet",
-    "a fortune(6) style one-liner",
-    "an auth error or a ledger that refuses to balance",
-    "a race condition, deadlock or scheduler log line",
-    "a plain deadpan sentence with no tech jargon",
-    "a mock compiler or linter diagnostic",
-]
-SONG_ANCHOR = "the songs in the recent queue and the mood swings between them."
+SYSTEM = f"""You write the one line that greets {NAME} on the lock screen and dashboard, in place of a generic "Good afternoon, {NAME}". It stays on screen for one to four hours.
 
-SYSTEM = f"""You write the single line of text that greets {NAME} on the desktop lock screen and dashboard, in place of a generic "Good afternoon, {NAME}".
+The goal is a line {NAME} laughs at out loud or screenshots for a friend. Most attempts fail in the same few ways, so work like a comedy writer: draft at least eight candidates in different formats, cut every one that matches a failure below, and output the single funniest survivor.
 
-Write one short line, at most {MAX_LENGTH - 20} characters: a genuinely funny joke, a dry observation, or a playful jab. Make it personal: the line must hinge on something specific to {NAME} from the facts or songs you are given, and a line that could greet any engineer has failed. Speak to {NAME} as "you" or by name, never as {NAME} in the first person. Invent nothing about {NAME}'s life, job, people or belongings beyond what the prompt states. The line must make literal sense on a first read; if the joke needs decoding, pick a simpler one. Be clever rather than cheesy, warm rather than mean, and never motivational-poster sincere.
+What lands:
+- One concrete, recognisable observation about {NAME}'s habits, taken from the facts or context given, with the twist in the last few words.
+- Exaggerating a stated habit is fine; inventing people, events, numbers from the day, or belongings is not.
+- Address {NAME} as "you" or by name.
+- Plain words that read instantly. If the joke needs decoding, it has failed.
+- Deadpan and understatement over cleverness. Short beats long.
+- Formats to mix: a plain deadpan sentence, a git commit subject, a Nix or compiler warning, a man page line, a changelog entry, a fortune(6) one-liner, a remixed Persian proverb or Hafez line in English. A technical format works only when the content inside it is itself funny and true to {NAME}.
 
-The context lists only signals that actually exist right now (time, calendar, daily note, music); anything not listed is simply unknown, so never joke about something being empty, missing or unwritten. Use a context line only when it makes the joke better.
+What fails, and must be cut:
+- Metaphor mash-ups that glue two unrelated facts together, especially "X is just Y", "X is a Y you can Z" or "X is not Y, it is Z". A border gradient is not a race condition.
+- Fortune-cookie lines that sound deep and mean nothing, and any background fact restated as wisdom.
+- Lines built on "Somewhere...", "Your X has more/fewer Y than Z", or "even your X needs a Y".
+- First person, questions, motivational sincerity, meanness, puns that only work in the model's head, explaining the joke.
+- Anything that could greet any engineer.
+- Transient state: the clock time, a song playing right now, a meeting in progress, minutes until an event. Never joke that something is empty, missing or unwritten; signals not listed are simply unknown.
+- The joke, target or sentence shape of any recently shown line. Never start with the weekday.
 
-Output only the line itself: no quotes, no preamble, no hashtags, at most one emoji."""
+The quality bar, for calibration only; never reuse these lines or their jokes:
+- Your setup is 94% finished. It has been 94% finished since March.
+- If your agents ever all agree, one of them is lying.
+- Legend says you once closed a tab on purpose.
+- chore: rice the bar again (no functional changes, as usual)
 
-SYSTEM += f"""
-
-Aim for the line {NAME} screenshots and sends to a friend. Vary the format, topic and rhythm from one line to the next, and never lean on the same signal (meetings, the time of day, the same fact) as the recent lines did. Wordplay, callbacks to the songs, and well-placed deadpan beat explaining the joke. Never start with the weekday or the clock time.
-
-The line is cached and stays on screen for at least an hour, often up to four, so it must still be true and funny long after it is written. Never mention transient state that is likely to change within the hour: the exact clock time, the song playing right now, a meeting in progress, minutes until the next event. Treat those signals only as hints about the day's overall shape, such as a busy afternoon or a music mood, and write about the durable pattern instead."""
+Output only the final line, at most {MAX_LENGTH - 20} characters: no quotes, no preamble, no label, at most one emoji."""
 
 
 def read_json(path, fallback):
@@ -121,13 +121,6 @@ def agenda_context(now):
     if not timed and not tasks:
         return []
     lines = [f"Calendar: {len(timed)} timed events today, {len(remaining)} still ahead."] if timed else []
-    ongoing = [event for event in remaining if minutes(event["start"]) <= current]
-    upcoming = [event for event in remaining if minutes(event["start"]) > current]
-    if ongoing:
-        lines.append("A meeting is supposed to be happening right now.")
-    if upcoming:
-        wait = minutes(upcoming[0]["start"]) - current
-        lines.append(f"Next event starts in {wait} minutes.")
     if SHARE_TITLES:
         titles = [str(event.get("title", ""))[:60] for event in remaining[:4]]
         if titles:
@@ -152,24 +145,6 @@ def note_context(now):
     if SHARE_TITLES and open_tasks:
         lines.append("Open items: " + "; ".join(task[:60] for task in open_tasks[:4]))
     return lines
-
-
-def music_context():
-    try:
-        result = subprocess.run(
-            [PLAYERCTL, "--player=playerctld", "metadata", "--format", "{{status}}\t{{title}}\t{{artist}}"],
-            capture_output=True,
-            text=True,
-            timeout=3,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return []
-    status, _, rest = result.stdout.strip().partition("\t")
-    title, _, artist = rest.partition("\t")
-    if status != "Playing" or not title:
-        return []
-    return [f"Now playing: {title}" + (f" by {artist}" if artist else "")]
 
 
 def plain_song(title):
@@ -199,22 +174,20 @@ def songs_context():
 
 def build_prompt(now, history):
     context = [
-        f"It is {now.strftime('%A')} {part_of_day(now.hour)}, {now.strftime('%H:%M')}.",
+        f"It is {now.strftime('%A')} {part_of_day(now.hour)}.",
         *agenda_context(now),
         *note_context(now),
-        *music_context(),
+        *songs_context(),
     ]
-    songs = songs_context()
-    context.extend(songs)
     prompt = "Context:\n" + "\n".join(f"- {line}" for line in context)
     if PERSONA:
-        prompt += f"\n\nWho {NAME} is, as background (never recite it):\n" + "\n".join(f"- {line}" for line in PERSONA)
-    anchors = PERSONA + ([SONG_ANCHOR] if songs else [])
-    if anchors:
-        prompt += f"\n\nBuild this line around: {random.choice(anchors)}"
-    prompt += f"\nSuggested format, which you may ignore for a better idea: {random.choice(ANGLES).format(name=NAME)}."
+        facts = random.sample(PERSONA, min(PERSONA_SAMPLE, len(PERSONA)))
+        prompt += (
+            f"\n\nFacts about {NAME}. Build the joke on one of them or on the context, never on two unrelated facts glued together, and never recite a fact:\n"
+            + "\n".join(f"- {line}" for line in facts)
+        )
     if history:
-        prompt += "\n\nLines already used recently, do not repeat their joke or structure:\n" + "\n".join(
+        prompt += "\n\nLines shown recently; do not reuse their joke, target or sentence shape:\n" + "\n".join(
             f"- {line}" for line in history
         )
     return prompt
@@ -253,8 +226,9 @@ def ask_deepseek(key, prompt):
                 {"role": "system", "content": SYSTEM},
                 {"role": "user", "content": prompt},
             ],
-            "max_tokens": 120,
-            "temperature": 1.0,
+            "thinking": {"type": "enabled"},
+            "reasoning_effort": DEEPSEEK_EFFORT,
+            "max_tokens": 16000,
         }
     ).encode()
     request = urllib.request.Request(
@@ -285,14 +259,17 @@ def generate(prompt):
         key = read_key(provider)
         ask = ASK.get(provider)
         if not key or not ask:
+            print(f"quip: {provider} skipped: no readable key at {KEY_FILES.get(provider)}", file=sys.stderr)
             continue
         try:
-            line = clean(ask(key, prompt))
+            text = ask(key, prompt)
         except (anthropic.APIError, urllib.error.URLError, OSError, KeyError, IndexError, ValueError) as error:
             print(f"quip: {provider} failed: {error}", file=sys.stderr)
             continue
+        line = clean(text)
         if line:
             return provider, line
+        print(f"quip: {provider} reply rejected: {text!r}", file=sys.stderr)
     return None, None
 
 

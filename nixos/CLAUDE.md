@@ -156,6 +156,10 @@ copied for other deployments:
   multi-arch images to GHCR) over building from a flake input. Do not add new
   app repos as build-from-source flake inputs.
 
+## Desktop Environment Doc
+
+`home/modules/programs/desktop/README.md` is the reference for the desktop's look (gray and minimal, small blue/cyan accents), its components (Quickshell wallpaper, bar, OSD, sidebar, lock; Hyprland), the performance rules, and the reliability rules. Read it before changing desktop visuals or behaviour. Update it in the same change whenever those change. When the user asks to update the desktop doc, re-derive it from the current code instead of editing it from memory.
+
 ## Hyprland Configuration
 
 Read `home/modules/programs/desktop/hyprland.nix` and verify the pinned Hyprland and Home Manager versions before changing syntax. Do not migrate between configuration languages or rule APIs based on model memory. Preserve the current key registry, Stylix exclusions, and UWSM session ownership. Inspect actual window properties with `hyprctl clients` when diagnosing match rules.

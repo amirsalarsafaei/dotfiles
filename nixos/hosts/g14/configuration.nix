@@ -173,10 +173,10 @@ in
         Unit = {
           Description = "ROG Control Center";
           PartOf = [ "graphical-session.target" ];
-          Wants = [ "waybar.service" ];
+          Wants = [ "quickshell.service" ];
           After = [
             "graphical-session.target"
-            "waybar.service"
+            "quickshell.service"
           ];
         };
         Service = {

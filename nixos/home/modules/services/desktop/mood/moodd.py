@@ -24,6 +24,7 @@ HUE_WINDOW = 1
 ACCENT_LIGHTNESS = 0.76
 MIN_ACCENT_CHROMA = 0.08
 MAX_ACCENT_CHROMA = 0.17
+BANNED_HUES = ((90, 135, 75, 150), (290, 335, 262, 355))
 SEPARATOR = "\x1f"
 MEMO_SIZE = 64
 
@@ -95,7 +96,15 @@ def hue_distance(a, b):
     return min(delta, 360 - delta)
 
 
+def allowed_hue(hue):
+    for low, high, below, above in BANNED_HUES:
+        if low <= hue <= high:
+            return below if hue < (low + high) / 2 else above
+    return hue
+
+
 def tune(hue, chroma, lightness=ACCENT_LIGHTNESS):
+    hue = allowed_hue(hue)
     chroma = min(max(chroma, MIN_ACCENT_CHROMA), MAX_ACCENT_CHROMA)
     while True:
         rgb = oklch_to_rgb(lightness, chroma, hue)

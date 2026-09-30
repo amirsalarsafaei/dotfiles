@@ -14,4 +14,5 @@
   pkgs.postman
   pkgs.mattermost-desktop
   pkgs.xournalpp
+  pkgs.masterpdfeditor
 ]

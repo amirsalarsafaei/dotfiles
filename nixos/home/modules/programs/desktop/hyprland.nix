@@ -14,6 +14,8 @@ let
   isLowPower = config.custom.powerProfile == "low-power";
   xwaylandDpi = osConfig.hyprland.xwaylandDpi or null;
   compactOutput = osConfig.hyprland.compactOutput or null;
+  spotifyGreen = "1ed760";
+  spotifyDeep = "1db954";
 
   displayLid = pkgs.writeShellApplication {
     name = "display-lid";
@@ -72,18 +74,80 @@ let
     '';
   };
 
+  workspaceSplit = pkgs.writeShellApplication {
+    name = "workspace-split";
+    runtimeInputs = [ pkgs.jq ];
+    text = ''
+      order='sort_by([(.name | startswith("eDP") | not), .name]) | map(.name)'
+
+      base() {
+        hyprctl monitors all -j \
+          | jq -r "($order) as \$o | (.[] | select(.focused) | .name) as \$f | (\$o | index(\$f)) * 10"
+      }
+
+      home() {
+        local monitors workspaces batch
+        monitors=$(hyprctl monitors all -j)
+        batch=$(jq -r "
+          ($order) as \$o
+          | [.[] | select((.disabled | not) and .mirrorOf == \"none\")] as \$live
+          | (\$live[] | .name as \$n | (\$o | index(\$n)) * 10 as \$b
+              | (range(1; 11) | \"keyword workspace \(\$b + .), monitor:\(\$n)\(if . == 1 then \", default:true\" else \"\" end)\"),
+                (select(.activeWorkspace.id <= \$b or .activeWorkspace.id > \$b + 10)
+                  | \"dispatch focusmonitor \(\$n)\", \"dispatch workspace \(\$b + 1)\")),
+            (.[] | select(.focused) | \"dispatch focusmonitor \(.name)\")
+        " <<< "$monitors" | paste -sd ';')
+        [ -n "$batch" ] && hyprctl --batch "$batch" >/dev/null
+
+        workspaces=$(hyprctl workspaces -j)
+        batch=$(jq -r --argjson m "$monitors" "
+          (\$m | $order) as \$o
+          | [\$m[] | select((.disabled | not) and .mirrorOf == \"none\") | .name] as \$live
+          | .[] | select(.id > 0)
+          | \$o[((.id - 1) / 10 | floor)] as \$owner
+          | select(\$owner != null and (\$live | index(\$owner)) != null and .monitor != \$owner)
+          | \"dispatch moveworkspacetomonitor \(.id) \(\$owner)\"
+        " <<< "$workspaces" | paste -sd ';')
+        [ -n "$batch" ] && hyprctl --batch "$batch" >/dev/null
+        true
+      }
+
+      case "''${1:-}" in
+        focus)
+          hyprctl dispatch focusworkspaceoncurrentmonitor "$(($(base) + $2))" >/dev/null
+          ;;
+        move)
+          target=$(($(base) + $2))
+          hyprctl --batch "dispatch movetoworkspacesilent $target; dispatch focusworkspaceoncurrentmonitor $target" >/dev/null
+          ;;
+        home)
+          home
+          ;;
+        *)
+          echo "usage: workspace-split focus|move N | home" >&2
+          exit 2
+          ;;
+      esac
+    '';
+  };
+
   displayWatch = pkgs.writeShellApplication {
     name = "display-watch";
     runtimeInputs = [
       pkgs.socat
       displayLid
+      workspaceSplit
     ];
     text = ''
       display-lid sync
+      workspace-split home
       socat -u UNIX-CONNECT:"$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock" - \
         | while IFS= read -r event; do
             case "$event" in
-              monitoradded\>\>*|monitorremoved\>\>*|configreloaded\>\>*) display-lid sync ;;
+              monitoradded\>\>*|monitorremoved\>\>*|configreloaded\>\>*)
+                display-lid sync
+                workspace-split home
+                ;;
             esac
           done
     '';
@@ -160,6 +224,79 @@ let
     '';
   };
 
+  spotifySpace = pkgs.writeShellApplication {
+    name = "spotify-space";
+    runtimeInputs = [
+      pkgs.jq
+      pkgs.coreutils
+      pkgs.util-linux
+      pkgs.socat
+    ];
+    text = ''
+      find_spotify() {
+        hyprctl clients -j \
+          | jq -r 'first(.[] | select((.class + " " + .initialClass) | test("spotify"; "i")) | "\(.address) \(.workspace.name)") // empty'
+      }
+
+      shown() {
+        hyprctl monitors -j \
+          | jq -e 'any(.[]; .focused and .specialWorkspace.name == "special:spotify")' >/dev/null
+      }
+
+      toggle() {
+        local found fresh=0 address workspace
+        found=$(find_spotify)
+        if [ -z "$found" ]; then
+          setsid -f uwsm app -- spotify >/dev/null 2>&1
+          for _ in $(seq 80); do
+            sleep 0.25
+            found=$(find_spotify)
+            [ -n "$found" ] && break
+          done
+          [ -z "$found" ] && exit 0
+          fresh=1
+        fi
+
+        address=''${found%% *}
+        workspace=''${found#* }
+        if [ "$workspace" != "special:spotify" ]; then
+          hyprctl dispatch movetoworkspacesilent "special:spotify,address:$address" >/dev/null
+          fresh=1
+        fi
+        if [ "$fresh" -eq 1 ] && shown; then
+          exit 0
+        fi
+        hyprctl dispatch togglespecialworkspace spotify >/dev/null
+      }
+
+      watch() {
+        socat -u UNIX-CONNECT:"$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock" - \
+          | while IFS= read -r event; do
+              case "$event" in
+                workspacev2\>\>*)
+                  if shown; then
+                    hyprctl dispatch togglespecialworkspace spotify >/dev/null
+                  fi
+                  ;;
+              esac
+            done
+      }
+
+      case "''${1:-toggle}" in
+        toggle)
+          toggle
+          ;;
+        watch)
+          watch
+          ;;
+        *)
+          echo "usage: spotify-space [toggle|watch]" >&2
+          exit 2
+          ;;
+      esac
+    '';
+  };
+
   focusMode = pkgs.writeShellApplication {
     name = "focus-mode";
     runtimeInputs = [ pkgs.coreutils ];
@@ -169,7 +306,7 @@ let
         rm -f "$state"
         hyprctl reload >/dev/null
         ${lib.getExe displayLid} sync
-        waybar-toggle show
+        ${config.custom.keys.commands.barShow}
       else
         touch "$state"
         hyprctl --batch "keyword general:gaps_in 0; keyword general:gaps_out 0; keyword decoration:rounding 0${
@@ -177,7 +314,7 @@ let
             compactOutput != null
           ) "; keyword workspace m[${compactOutput}], gapsin:0, gapsout:0"
         }" >/dev/null
-        waybar-toggle hide
+        ${config.custom.keys.commands.barHide}
       fi
     '';
   };
@@ -258,7 +395,7 @@ let
             animation = windowsOut,  1, 4, smoothOut, popin 90%
             animation = windowsMove, 1, 4, wind
             animation = border,      1, 10, default
-            animation = borderangle, 1, 30, default, loop
+            animation = borderangle, 1, 10, drawer, once
             animation = fade,        1, 6, smoothIn
             animation = fadeIn,      0
             animation = fadeSwitch,  0
@@ -326,6 +463,16 @@ let
             exit_on_hovered = false
             warp_on_move_window = 1
             close_overview_on_reload = true
+            drag_button = 0x110
+            select_button = 0x111
+
+            jump {
+                enabled = true
+                label_color = 0xff${themeLib.stripHash t.base06}
+                label_background = 0xcc${themeLib.stripHash s.ink}
+                label_size = 26
+                show_workspace_names = false
+            }
 
             gestures {
                 enabled = true
@@ -347,12 +494,12 @@ let
   '';
 
   layerRuleBlock = ''
-    layerrule = blur on, ignore_alpha 0.20, match:namespace waybar.*
+    layerrule = blur on, ignore_alpha 0.20, match:namespace ^(panel)$
     layerrule = blur on, ignore_alpha 0.10, match:namespace rofi
     layerrule = blur on, ignore_alpha 0.10, match:namespace wlogout
     layerrule = blur on, ignore_alpha 0.10, match:namespace swaync-control-center
     layerrule = blur on, ignore_alpha 0.20, match:namespace swaync-notification-window
-    layerrule = animation slide top, match:namespace waybar.*
+    layerrule = animation slide top, match:namespace ^(panel)$
     layerrule = animation popin 92%, dim_around on, match:namespace rofi
     layerrule = animation fade, match:namespace wlogout
     layerrule = animation slide right, match:namespace swaync-control-center
@@ -360,6 +507,7 @@ let
     layerrule = no_anim on, match:namespace selection|hyprpicker
     layerrule = blur on, ignore_alpha 0.30, no_anim on, match:namespace sidebar
     layerrule = blur on, ignore_alpha 0.25, no_anim on, match:namespace widgets
+    layerrule = blur on, ignore_alpha 0.30, no_anim on, match:namespace ^(osd)$
   '';
 
 in
@@ -368,12 +516,16 @@ in
     focusMode
     displayMenu
     displayLid
+    spotifySpace
+    workspaceSplit
   ];
 
   custom.keys.commands = {
     focusMode = lib.getExe focusMode;
+    spotifySpace = lib.getExe spotifySpace;
     displayMenu = lib.getExe displayMenu;
     displayLid = lib.getExe displayLid;
+    workspaceSplit = lib.getExe workspaceSplit;
   };
 
   wayland.windowManager.hyprland = {
@@ -401,6 +553,7 @@ in
       monitor = ,preferred,auto,auto
       monitor = ${monitorConfig}
       exec-once = ${lib.getExe displayWatch}
+      exec-once = ${lib.getExe spotifySpace} watch
 
       # Fix pixelated XWayland apps on fractional monitor scale: by default
       # Hyprland lets XWayland itself scale its output to match the
@@ -428,7 +581,7 @@ in
           gaps_in = 4
           gaps_out = 12
           border_size = 2
-          col.active_border = rgba(${themeLib.stripHash a.border}ff)
+          col.active_border = rgba(${themeLib.stripHash a.border}ff) rgba(${themeLib.stripHash a.border}ff) rgba(${themeLib.stripHash a.secondary}66) 45deg
           col.inactive_border = rgba(${themeLib.stripHash s.line}99)
           resize_on_border = false
           allow_tearing = false
@@ -489,6 +642,10 @@ in
       # rendered to hyprlang from there, so the Super+/ cheatsheet and this
       # config can never disagree. Edit the registry, not this block.
       ${config.custom.keys.rendered.hyprland}
+
+      workspace = special:spotify, gapsin:6, gapsout:36 64, bordersize:3
+      windowrule = workspace special:spotify, match:class ^(spotify)$
+      windowrule = border_color rgba(${spotifyGreen}ff) rgba(${spotifyGreen}ff) rgba(${spotifyDeep}55) 45deg rgba(${spotifyDeep}88), match:class ^(spotify)$
 
       hl.window_rule({ match = { class = "Godot", title = "^(Godot)(.*)$" }, tile = true })
       hl.window_rule({ match = { class = "Godot", title = "^(?!Godot)(.*)$" }, float = true })

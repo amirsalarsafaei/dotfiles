@@ -16,6 +16,16 @@ Rectangle {
     border.color: highlighted ? Theme.alpha(accent, 0.6) : "transparent"
     border.width: 1
 
+    scale: mouse.pressed ? Theme.pressScale : 1
+
+    Behavior on scale {
+        NumberAnimation {
+            duration: Theme.quick
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Theme.standard
+        }
+    }
+
     Behavior on color {
         ColorAnimation {
             duration: 150

@@ -9,7 +9,6 @@ let
   localShaders = {
     crt = ./shaders/crt.glsl;
     bloom = ./shaders/bloom.glsl;
-    cursor_smear = ./shaders/cursor_smear.glsl;
     animated_gradient = ./shaders/animated_gradient.glsl;
     cineShader-Lava = ./shaders/cineShader-Lava.glsl;
     lava = ./shaders/lava.glsl;
@@ -116,6 +115,9 @@ in
 
       cursor-style = "block";
       cursor-style-blink = false;
+      cursor-color = config.custom.theme.resolved.colors.base04;
+      cursor-text = config.custom.theme.resolved.surfaces.ink;
+      custom-shader = "${./shaders/cursor_smear.glsl}";
 
       # Default shader config — the toggle script will modify this at runtime.
       custom-shader-animation = "true";

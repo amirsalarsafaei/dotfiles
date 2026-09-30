@@ -112,21 +112,34 @@ Item {
         return "";
     }
 
+    readonly property int dayStamp: clock.date.getFullYear() * 10000 + clock.date.getMonth() * 100 + clock.date.getDate()
+    readonly property var today: new Date(Math.floor(content.dayStamp / 10000), Math.floor(content.dayStamp / 100) % 100, content.dayStamp % 100)
+
     readonly property var monthCells: {
-        const today = clock.date;
+        const today = content.today;
         const first = new Date(today.getFullYear(), today.getMonth(), 1);
         const offset = (first.getDay() + 6) % 7;
         const cells = [];
         for (let i = 0; i < 42; i++) {
             const day = new Date(today.getFullYear(), today.getMonth(), 1 - offset + i);
+            const j = Jalali.of(day);
             cells.push({
                 day: day.getDate(),
+                jalali: j.day === 1 ? Jalali.months[j.month - 1].slice(0, 3) : String(j.day),
+                jalaliStart: j.day === 1,
                 inMonth: day.getMonth() === today.getMonth(),
                 today: day.toDateString() === today.toDateString(),
                 weekend: day.getDay() === 5
             });
         }
         return cells;
+    }
+
+    readonly property string jalaliMonths: {
+        const a = Jalali.of(new Date(content.today.getFullYear(), content.today.getMonth(), 1));
+        const b = Jalali.of(new Date(content.today.getFullYear(), content.today.getMonth() + 1, 0));
+        const start = Jalali.months[a.month - 1] + (a.year !== b.year ? " " + a.year : "");
+        return start + " – " + Jalali.months[b.month - 1] + " " + b.year;
     }
 
     function refresh(): void {
@@ -312,7 +325,8 @@ Item {
             BoardCard {
                 order: 1
                 progress: content.progress
-                title: Qt.formatDateTime(clock.date, "MMMM yyyy")
+                title: Qt.formatDateTime(content.today, "MMMM yyyy")
+                note: content.jalaliMonths
                 Layout.fillWidth: true
                 Layout.preferredHeight: 330
 
@@ -346,19 +360,29 @@ Item {
                             Rectangle {
                                 required property var modelData
                                 Layout.fillWidth: true
-                                implicitHeight: 34
+                                implicitHeight: 36
                                 radius: 10
                                 color: modelData.today ? Theme.alpha(Theme.primary, 0.3) : "transparent"
                                 border.color: modelData.today ? Theme.alpha(Theme.primary, 0.7) : "transparent"
                                 border.width: 1
+                                opacity: modelData.inMonth ? 1 : 0.25
 
                                 Label {
                                     anchors.centerIn: parent
+                                    anchors.verticalCenterOffset: -6
                                     text: parent.modelData.day
                                     font.family: Theme.mono
                                     font.pixelSize: 13
                                     color: parent.modelData.today ? Theme.fgBright : (parent.modelData.weekend ? Theme.secondary : Theme.fg)
-                                    opacity: parent.modelData.inMonth ? 1 : 0.25
+                                }
+
+                                Label {
+                                    anchors.centerIn: parent
+                                    anchors.verticalCenterOffset: 9
+                                    text: parent.modelData.jalali
+                                    font.family: Theme.mono
+                                    font.pixelSize: 9
+                                    color: parent.modelData.today ? Theme.fg : (parent.modelData.jalaliStart ? Theme.secondary : Theme.faint)
                                 }
                             }
                         }

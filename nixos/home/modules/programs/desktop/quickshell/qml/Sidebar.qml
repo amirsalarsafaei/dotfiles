@@ -11,8 +11,11 @@ PanelWindow {
     id: win
 
     property bool active: false
+    property string page: "home"
+    property real pageIn: 1
     signal closeRequested
     signal boardRequested
+    signal pageRequested(string name)
 
     property real progress: active ? 1 : 0
 
@@ -25,6 +28,24 @@ PanelWindow {
     }
 
     readonly property bool shown: progress > 0.001
+    readonly property real reveal: Math.min(progress, pageIn)
+
+    onPageChanged: {
+        if (!shown)
+            return;
+        pageIn = 0;
+        paging.restart();
+    }
+
+    NumberAnimation {
+        id: paging
+        target: win
+        property: "pageIn"
+        to: 1
+        duration: 420
+        easing.type: Easing.BezierSpline
+        easing.bezierCurve: Theme.enter
+    }
 
     visible: shown
     color: "transparent"
@@ -121,7 +142,7 @@ PanelWindow {
         stdout: StdioCollector {
             onStreamFinished: {
                 const f = this.text.trim().split(" ").map(v => v === "1");
-                if (f.length < 6)
+                if (f.length < 5)
                     return;
                 win.toggles = {
                     wifi: f[0],
@@ -189,13 +210,17 @@ PanelWindow {
         anchors.fill: parent
         focus: true
         Keys.onEscapePressed: win.closeRequested()
+        Keys.onPressed: event => {
+            if (win.page === "agents" && agentsPage.key(event.key))
+                event.accepted = true;
+        }
 
         Rectangle {
             id: panel
 
             width: 404
             y: Theme.topGap
-            height: Math.min(column.implicitHeight + column.anchors.margins * 2, parent.height - Theme.topGap - 12)
+            height: Math.min((win.page === "agents" ? agentsPage.implicitHeight : column.implicitHeight) + column.anchors.margins * 2, parent.height - Theme.topGap - 12)
             x: 12 - (width + 32) * (1 - win.progress)
             radius: Theme.radius
             color: Theme.inkGlass
@@ -206,18 +231,32 @@ PanelWindow {
                 anchors.fill: parent
             }
 
+            AgentsPage {
+                id: agentsPage
+                anchors.fill: parent
+                anchors.margins: column.anchors.margins
+                visible: win.page === "agents"
+                shown: win.active && win.page === "agents"
+                compact: win.compact
+                progress: win.page === "agents" ? win.reveal : 0
+                maxHeight: win.height - Theme.topGap - 12 - 2 * column.anchors.margins
+                onBackRequested: win.pageRequested("home")
+                onOpened: win.closeRequested()
+            }
+
             ColumnLayout {
                 id: column
                 anchors.fill: parent
                 anchors.margins: win.compact ? 12 : 16
                 spacing: win.compact ? 8 : 12
+                visible: win.page !== "agents"
 
                 Item {
                     Layout.fillWidth: true
                     implicitHeight: header.implicitHeight
-                    opacity: win.progress
+                    opacity: win.reveal
                     transform: Translate {
-                        x: -24 * (1 - win.progress)
+                        x: -24 * (1 - win.reveal)
                     }
 
                     ColumnLayout {
@@ -295,6 +334,14 @@ PanelWindow {
                                     }
 
                                     IconButton {
+                                        icon: "󰚩"
+                                        size: 26
+                                        accent: Theme.secondary
+                                        highlighted: Agents.list.some(agent => agent.status === "asking")
+                                        onClicked: win.pageRequested("agents")
+                                    }
+
+                                    IconButton {
                                         icon: "󰕮"
                                         size: 26
                                         accent: Theme.secondary
@@ -332,7 +379,7 @@ PanelWindow {
 
                 Card {
                     order: 1
-                    progress: win.progress
+                    progress: win.reveal
                     padding: win.cardPadding
 
                     RowLayout {
@@ -448,7 +495,7 @@ PanelWindow {
 
                 Card {
                     order: 2
-                    progress: win.progress
+                    progress: win.reveal
                     padding: win.cardPadding
 
                     Meter {
@@ -488,7 +535,7 @@ PanelWindow {
 
                 Card {
                     order: 3
-                    progress: win.progress
+                    progress: win.reveal
                     padding: win.cardPadding
 
                     Slider {
@@ -521,7 +568,7 @@ PanelWindow {
 
                 Card {
                     order: 4
-                    progress: win.progress
+                    progress: win.reveal
                     padding: win.cardPadding
 
                     GridLayout {
@@ -572,6 +619,22 @@ PanelWindow {
                             accent: Theme.warm
                             onClicked: win.run(["caffeine"])
                         }
+
+                        Toggle {
+                            implicitHeight: win.compact ? 48 : 62
+                            icon: "󰀥"
+                            label: "Cover sky"
+                            active: Prefs.albumArt
+                            onClicked: Prefs.albumArt = !Prefs.albumArt
+                        }
+
+                        Toggle {
+                            implicitHeight: win.compact ? 48 : 62
+                            icon: "󰎈"
+                            label: "Sky lyrics"
+                            active: Prefs.floatingLyrics
+                            onClicked: Prefs.floatingLyrics = !Prefs.floatingLyrics
+                        }
                     }
                 }
 
@@ -579,9 +642,9 @@ PanelWindow {
                     Layout.fillWidth: true
                     Layout.topMargin: win.compact ? 0 : 4
                     implicitHeight: powerRow.implicitHeight
-                    opacity: win.progress
+                    opacity: win.reveal
                     transform: Translate {
-                        x: -64 * (1 - win.progress)
+                        x: -64 * (1 - win.reveal)
                     }
 
                     RowLayout {

@@ -10,6 +10,19 @@ Item {
     property int rows: 3
     property real rowHeight: 24
     property int pixelSize: 13
+    property int lift: 2
+    property string family: Theme.sans
+    property int weight: Font.Normal
+    property int strongWeight: Font.DemiBold
+    property color strong: Theme.fgBright
+    property color soft: Theme.muted
+    property real fade: 0.3
+    property int settle: 360
+    property var settleCurve: [0.33, 1, 0.68, 1, 1, 1]
+
+    property real clockOffset: 0
+    property real clockBase: 0
+    property real clockAt: 0
 
     property var track: ({
             title: "",
@@ -26,7 +39,7 @@ Item {
     readonly property int current: {
         if (!synced || lines.length === 0)
             return -1;
-        const time = player.position + track.lead;
+        const time = player.position + clockOffset + track.lead;
         let lo = 0;
         let hi = lines.length - 1;
         let found = -1;
@@ -44,6 +57,7 @@ Item {
 
     implicitHeight: rows * rowHeight
     clip: true
+    onPlayerChanged: clockOffset = 0
 
     function reset(): void {
         track = {
@@ -77,10 +91,56 @@ Item {
         }
     }
 
+    function rawExpected(): real {
+        const elapsed = lyrics.player.isPlaying ? (Date.now() - lyrics.clockAt) / 1000 * (lyrics.player.rate || 1) : 0;
+        return lyrics.clockBase + elapsed;
+    }
+
+    FileView {
+        path: Quickshell.env("XDG_RUNTIME_DIR") + "/" + Sys.lyricsDir + "/clock.json"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            if (lyrics.player === null)
+                return;
+            try {
+                const data = JSON.parse(text());
+                const now = Date.now();
+                if (now - Number(data.at) > 3000)
+                    return;
+                const actual = Number(data.position) + (lyrics.player.isPlaying ? (now - Number(data.at)) / 1000 * (lyrics.player.rate || 1) : 0);
+                const offset = actual - lyrics.player.position;
+                lyrics.clockBase = lyrics.player.position;
+                lyrics.clockAt = now;
+                lyrics.clockOffset = Math.abs(offset) > 0.5 ? offset : 0;
+            } catch (error) {
+                lyrics.clockOffset = 0;
+            }
+        }
+    }
+
+    Connections {
+        target: lyrics.player
+
+        function onPostTrackChanged(): void {
+            lyrics.clockOffset = 0;
+        }
+
+        function onIsPlayingChanged(): void {
+            lyrics.clockOffset = 0;
+        }
+
+        function onPositionChanged(): void {
+            if (lyrics.clockOffset !== 0 && Math.abs(lyrics.player.position - lyrics.rawExpected()) > 1.0)
+                lyrics.clockOffset = 0;
+        }
+    }
+
     readonly property int untilNext: {
         if (!synced || player === null || current + 1 >= lines.length)
             return 1000;
-        const remaining = (lines[current + 1].time - player.position - track.lead) * 1000 / Math.max(player.rate || 1, 0.01);
+        const remaining = (lines[current + 1].time - player.position - clockOffset - track.lead) * 1000 / Math.max(player.rate || 1, 0.01);
         return Math.max(40, Math.min(1000, Math.ceil(remaining) + 20));
     }
 
@@ -102,7 +162,7 @@ Item {
         highlightRangeMode: lyrics.synced ? ListView.ApplyRange : ListView.NoHighlightRange
         preferredHighlightBegin: (height - lyrics.rowHeight) / 2
         preferredHighlightEnd: (height + lyrics.rowHeight) / 2
-        highlightMoveDuration: 320
+        highlightMoveDuration: 520
         highlightMoveVelocity: -1
 
         delegate: Label {
@@ -117,14 +177,33 @@ Item {
             text: modelData.text
             wrapMode: Text.WordWrap
             horizontalAlignment: Text.AlignHCenter
-            color: now ? Theme.fgBright : (lyrics.synced ? Theme.muted : Theme.fg)
-            font.pixelSize: now ? lyrics.pixelSize + 2 : lyrics.pixelSize
-            font.weight: now ? Font.DemiBold : Font.Normal
-            opacity: lyrics.synced ? Math.max(0.3, 1 - distance * 0.3) : 0.85
+            color: now ? lyrics.strong : (lyrics.synced ? lyrics.soft : Theme.fg)
+            font.family: Theme.fontFor(text, lyrics.family)
+            font.pixelSize: lyrics.pixelSize + lyrics.lift
+            font.weight: now ? lyrics.strongWeight : lyrics.weight
+            scale: now ? 1 : lyrics.pixelSize / (lyrics.pixelSize + lyrics.lift)
+            opacity: lyrics.synced ? Math.max(lyrics.fade, 1 - distance * lyrics.fade) : 0.85
 
             Behavior on opacity {
                 NumberAnimation {
-                    duration: 240
+                    duration: lyrics.settle
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: lyrics.settleCurve
+                }
+            }
+
+            Behavior on scale {
+                NumberAnimation {
+                    duration: 420
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+            Behavior on color {
+                ColorAnimation {
+                    duration: lyrics.settle
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: lyrics.settleCurve
                 }
             }
         }

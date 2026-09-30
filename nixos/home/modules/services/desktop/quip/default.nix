@@ -16,13 +16,13 @@ let
       export QUIP_PROVIDERS=${lib.escapeShellArg (lib.concatStringsSep " " cfg.providers)}
       export QUIP_ANTHROPIC_MODEL=${lib.escapeShellArg cfg.anthropicModel}
       export QUIP_DEEPSEEK_MODEL=${lib.escapeShellArg cfg.deepseekModel}
+      export QUIP_DEEPSEEK_EFFORT=${lib.escapeShellArg cfg.deepseekEffort}
       export QUIP_SHARE_TITLES=${if cfg.shareTitles then "1" else "0"}
       export QUIP_SHARE_SONGS=${if cfg.shareSongs then "1" else "0"}
       export QUIP_NOTES_DIR=${lib.escapeShellArg cfg.notesDir}
       export QUIP_PERSONA=${lib.escapeShellArg (lib.concatStringsSep "\n" cfg.persona)}
       export QUIP_TIMEZONE=${lib.escapeShellArg cfg.timeZone}
       export PYTHONTZPATH=${pkgs.tzdata}/share/zoneinfo
-      export QUIP_PLAYERCTL=${lib.getExe pkgs.playerctl}
       ${lib.concatMapStrings (provider: ''
         export QUIP_${lib.toUpper provider}_KEY_FILE=${lib.escapeShellArg cfg.keyFiles.${provider}}
       '') cfg.providers}
@@ -61,8 +61,17 @@ in
     };
     deepseekModel = lib.mkOption {
       type = lib.types.str;
-      default = "deepseek-chat";
+      default = "deepseek-v4-pro";
       description = "DeepSeek model used for the greeting.";
+    };
+    deepseekEffort = lib.mkOption {
+      type = lib.types.enum [
+        "low"
+        "high"
+        "max"
+      ];
+      default = "high";
+      description = "DeepSeek thinking effort; the model drafts and discards candidate lines while thinking.";
     };
     shareTitles = lib.mkOption {
       type = lib.types.bool;

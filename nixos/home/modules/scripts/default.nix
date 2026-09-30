@@ -63,6 +63,9 @@ in
       }
 
       send_notification() {
+        if quickshell -c shell ipc call osd volume >/dev/null 2>&1; then
+          return
+        fi
         if is_mute; then
           notify-send "Muted"
         else
@@ -81,7 +84,9 @@ in
           ;;
         mute)
           wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
-          if is_mute; then
+          if quickshell -c shell ipc call osd volume >/dev/null 2>&1; then
+            :
+          elif is_mute; then
             dunstify -i audio-volume-muted-panel -t 8000 -r 2593 -u normal "Mute"
           else
             send_notification
@@ -119,7 +124,8 @@ in
 
       if [ "''${#devices[@]}" -gt 0 ]; then
         current=$(brightnessctl -d "''${devices[0]}" -m | cut -d',' -f4 | tr -d '%')
-        notify-send -h string:x-canonical-private-synchronous:brightness -h int:value:"$current" "Brightness: $current%"
+        quickshell -c shell ipc call osd brightness "$current" >/dev/null 2>&1 ||
+          notify-send -h string:x-canonical-private-synchronous:brightness -h int:value:"$current" "Brightness: $current%"
       fi
     '')
 

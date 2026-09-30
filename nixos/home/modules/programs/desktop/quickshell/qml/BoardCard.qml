@@ -7,6 +7,7 @@ Item {
     property int order: 0
     property real progress: 1
     property string title: ""
+    property string note: ""
     property alias background: backgroundSlot.data
     default property alias content: body.data
 
@@ -48,6 +49,20 @@ Item {
             font.pixelSize: 11
             font.letterSpacing: 3
             font.weight: Font.Medium
+        }
+
+        Label {
+            visible: card.note.length > 0 && heading.visible
+            anchors.right: parent.right
+            anchors.rightMargin: 20
+            anchors.left: heading.right
+            anchors.leftMargin: 12
+            anchors.baseline: heading.baseline
+            horizontalAlignment: Text.AlignRight
+            text: card.note
+            color: Theme.secondary
+            font.pixelSize: 11
+            font.letterSpacing: 1
         }
 
         Item {
