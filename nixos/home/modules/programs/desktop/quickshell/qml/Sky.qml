@@ -14,6 +14,8 @@ Item {
     property real skyHour: now.getHours() + now.getMinutes() / 60
     property real flare: 0
     property real alarm: 0
+    property real lyrics: 0
+    property real lyricsWidth: 0
 
     readonly property real sun: Math.max(0, Math.sin(Math.PI * (skyHour - 6) / 13))
     readonly property real moonPhase: {
@@ -159,7 +161,16 @@ Item {
         property real level: 0
         property real swell: 0
         property real daylight: world.sun
-        property real sunPath: Math.min(1, Math.max(0, (world.skyHour - 6) / 13))
+        property real sunPath: {
+            const theta = 0.85 * Math.min(1, Math.max(0, (world.skyHour - 6) / 13)) - 0.5;
+            const reach = 1.45 + 0.22 * world.sun;
+            const shift = 0.45 * scene.pan;
+            const half = Math.max(0.28, world.lyricsWidth / 2 / Math.max(1, world.height)) + 0.08;
+            const lo = Math.asin(Math.max(-1, Math.min(1, (-half - shift) / reach)));
+            const hi = Math.asin(Math.max(-1, Math.min(1, (half - shift) / reach)));
+            const aside = theta <= lo || theta >= hi ? theta : theta < (lo + hi) / 2 ? lo : hi;
+            return (theta + (aside - theta) * Math.max(world.artMix, world.lyrics) + 0.5) / 0.85;
+        }
         property real moonPhase: world.moonPhase
 
         property real pan: -0.035 * ((world.workspace - 1) % 10)
@@ -185,6 +196,12 @@ Item {
             NumberAnimation {
                 duration: 700
                 easing.type: Easing.OutCubic
+            }
+        }
+
+        Behavior on sunPath {
+            SmoothedAnimation {
+                velocity: 0.35
             }
         }
 

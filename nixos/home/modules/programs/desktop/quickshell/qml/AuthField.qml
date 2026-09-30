@@ -72,45 +72,55 @@ Item {
             Item {
                 id: well
 
+                readonly property int dot: Math.round(8 * field.unit)
+                readonly property int step: dot + Math.round(8 * field.unit)
+                readonly property int shown: Math.min(field.length, 24)
+
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
 
                 Label {
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: field.length === 0
+                    opacity: field.length === 0 ? 1 : 0
+                    visible: opacity > 0
                     text: field.fingerprintReady ? "password or fingerprint" : "password"
                     color: Theme.alpha(Theme.muted, 0.7)
                     font.pixelSize: Math.round(14 * field.unit)
                     font.letterSpacing: 1.5
+
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: Theme.quick
+                        }
+                    }
                 }
 
-                Row {
-                    id: dots
+                Repeater {
+                    model: 24
 
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: Math.round(8 * field.unit)
+                    Rectangle {
+                        required property int index
 
-                    Repeater {
-                        model: Math.min(field.length, 24)
+                        anchors.verticalCenter: parent.verticalCenter
+                        x: index * well.step
+                        width: well.dot
+                        height: width
+                        radius: width / 2
+                        color: field.checking ? Theme.secondary : Theme.fgBright
+                        opacity: index < well.shown ? 1 : 0
+                        visible: opacity > 0
 
-                        Rectangle {
-                            width: Math.round(8 * field.unit)
-                            height: width
-                            radius: width / 2
-                            color: field.checking ? Theme.secondary : Theme.fgBright
-
-                            NumberAnimation on scale {
-                                from: 0.2
-                                to: 1
-                                duration: Theme.brisk
-                                easing.type: Easing.OutBack
+                        Behavior on opacity {
+                            NumberAnimation {
+                                duration: Theme.quick
+                                easing.type: Easing.OutCubic
                             }
+                        }
 
-                            Behavior on color {
-                                ColorAnimation {
-                                    duration: Theme.brisk
-                                }
+                        Behavior on color {
+                            ColorAnimation {
+                                duration: Theme.brisk
                             }
                         }
                     }
@@ -118,12 +128,26 @@ Item {
 
                 Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
-                    x: field.length > 0 ? dots.width + Math.round(8 * field.unit) : 0
+                    x: well.shown * well.step
                     width: 2
                     height: Math.round(22 * field.unit)
                     radius: 1
-                    visible: !field.checking && field.length > 0
+                    opacity: !field.checking && field.length > 0 ? 1 : 0
+                    visible: opacity > 0
                     color: Theme.alpha(Theme.primary, 0.85)
+
+                    Behavior on x {
+                        NumberAnimation {
+                            duration: Theme.quick
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: Theme.quick
+                        }
+                    }
                 }
 
                 Rectangle {
@@ -158,7 +182,7 @@ Item {
                         running: field.checking
                         loops: 6
                         from: -glint.width
-                        to: Math.max(dots.width, well.width * 0.4)
+                        to: Math.max(well.shown * well.step, well.width * 0.4)
                         duration: 520
                         easing.type: Easing.InOutSine
                     }

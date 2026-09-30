@@ -1,4 +1,8 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  isWork ? false,
+  ...
+}:
 [
   pkgs.dhcpcd
   pkgs.rustscan
@@ -27,7 +31,7 @@
   pkgs.iptables
   pkgs.grpcurl
   pkgs.wireguard-tools
-  pkgs.tailscale
   pkgs.proxychains
   pkgs.openvpn
 ]
+++ pkgs.lib.optional (!isWork) pkgs.tailscale

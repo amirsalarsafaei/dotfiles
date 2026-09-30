@@ -37,7 +37,7 @@ PopupWindow {
     anchor.rect.height: target ? target.height + 8 : 0
     anchor.edges: Edges.Bottom
     anchor.gravity: Edges.Bottom
-    implicitWidth: body.implicitWidth + 24
+    implicitWidth: body.width + 24
     implicitHeight: body.implicitHeight + 16
     color: "transparent"
     visible: false
@@ -63,8 +63,10 @@ PopupWindow {
             id: body
 
             anchors.centerIn: parent
-            text: tip.text
+            width: Math.min(implicitWidth, 520)
+            text: tip.text.replace(/\n/g, "<br>")
             textFormat: Text.StyledText
+            wrapMode: Text.Wrap
             color: Theme.fg
             font.family: Theme.sans
             font.pixelSize: 12

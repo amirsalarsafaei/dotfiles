@@ -279,12 +279,6 @@ rec {
         desc = "Mark the current agenda event done";
         group = "Session";
       })
-      (keysLib.hypr.exec {
-        on = on.super K.B;
-        cmd = "select-ghostty-shader";
-        desc = "Pick a terminal shader";
-        group = "Session";
-      })
       # cliphist through rofi. Enter copies the entry and auto-pastes it
       # (Ctrl+V) into the focused window; in terminals and nvim that chord
       # means something else, so paste manually there.

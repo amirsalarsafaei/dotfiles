@@ -397,6 +397,7 @@ PanelWindow {
                             Image {
                                 anchors.fill: parent
                                 source: win.player?.trackArtUrl ?? ""
+                                sourceSize: Qt.size(128, 128)
                                 fillMode: Image.PreserveAspectCrop
                                 asynchronous: true
                                 visible: status === Image.Ready
@@ -419,6 +420,7 @@ PanelWindow {
                                 Layout.fillWidth: true
                                 text: win.player?.trackTitle || "Nothing playing"
                                 color: win.player ? Theme.fgBright : Theme.muted
+                                font.family: Theme.fontFor(text, Theme.sans)
                                 font.pixelSize: 14
                                 font.weight: Font.Medium
                             }
@@ -427,6 +429,7 @@ PanelWindow {
                                 Layout.fillWidth: true
                                 text: win.player ? (win.player.trackArtist || win.player.identity) : "Start some music to wake the visualizer"
                                 color: Theme.muted
+                                font.family: Theme.fontFor(text, Theme.sans)
                                 font.pixelSize: 12
                             }
 

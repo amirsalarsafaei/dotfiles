@@ -147,6 +147,7 @@ Item {
     Timer {
         interval: lyrics.untilNext
         repeat: true
+        triggeredOnStart: true
         running: lyrics.running && lyrics.synced && lyrics.player !== null && lyrics.player.isPlaying
         onTriggered: lyrics.player.positionChanged()
     }

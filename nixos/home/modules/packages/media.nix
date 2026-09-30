@@ -1,8 +1,14 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  isWork ? false,
+  ...
+}:
 [
   pkgs.yt-dlp
-  pkgs.hyperhdr
-  pkgs.ledfx
   pkgs.ffmpeg_7-full
   pkgs.obs-studio
+]
+++ pkgs.lib.optionals (!isWork) [
+  pkgs.hyperhdr
+  pkgs.ledfx
 ]

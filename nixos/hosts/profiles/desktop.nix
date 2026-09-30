@@ -8,8 +8,9 @@
   ...
 }:
 let
+  localMonitoring = config.custom.localMonitoring.enable;
   collectNvidiaMetrics =
-    hostname == "g14" && builtins.elem "nvidia" config.services.xserver.videoDrivers;
+    localMonitoring && hostname == "g14" && builtins.elem "nvidia" config.services.xserver.videoDrivers;
   # OpenSSH invokes SSH_ASKPASS for more than passphrases. For FIDO/-sk keys it
   # needs no passphrase at all — it needs a physical touch — and signals that by
   # forking the askpass with SSH_ASKPASS_PROMPT=none, ignoring its output, and
@@ -111,6 +112,12 @@ in
       default = false;
       description = "Enable work-specific configuration (work-claude variant, private skills, etc.)";
     };
+
+    custom.localMonitoring.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Run the local Prometheus, exporters and Grafana stack.";
+    };
   };
 
   imports = [
@@ -149,7 +156,7 @@ in
       "/share/applications"
     ];
 
-    services.tailscale = {
+    services.tailscale = lib.mkIf (!config.isWork) {
       enable = true;
       extraDaemonFlags = [ "--no-logs-no-support" ];
       extraUpFlags = [
@@ -161,7 +168,9 @@ in
       ];
     };
 
-    systemd.services.tailscaled-autoconnect.serviceConfig.TimeoutStartSec = "5s";
+    systemd.services.tailscaled-autoconnect = lib.mkIf (!config.isWork) {
+      serviceConfig.TimeoutStartSec = "5s";
+    };
 
     networking.hosts = {
       # "216.239.38.120"= [
@@ -346,6 +355,7 @@ in
 
       bluetooth.enable = true;
       bluetooth.powerOnBoot = true;
+      bluetooth.settings.General.DeviceID = "bluetooth:004C:0000:0000";
     };
 
     services.usbmuxd = {
@@ -570,7 +580,7 @@ in
     ];
 
     services.prometheus.exporters.node = {
-      enable = true;
+      enable = localMonitoring;
       disabledCollectors = [
         "arp"
         "btrfs"
@@ -603,14 +613,14 @@ in
     };
 
     services.prometheus.exporters.blackbox = {
-      enable = true;
+      enable = localMonitoring;
       listenAddress = "127.0.0.1";
       port = 9115;
       configFile = ./prometheus/blackbox.yml;
     };
 
     services.prometheus = {
-      enable = true;
+      enable = localMonitoring;
       port = 9090;
       globalConfig.scrape_interval = "15s";
       scrapeConfigs = [
@@ -659,12 +669,12 @@ in
       ];
     };
 
-    systemd.tmpfiles.rules = [
+    systemd.tmpfiles.rules = lib.optionals localMonitoring [
       "d /etc/nixos/prometheus-targets 0775 root users - -"
     ];
 
     services.grafana = {
-      enable = true;
+      enable = localMonitoring;
       settings.server.http_port = 3000;
       settings.server.http_addr = "127.0.0.1";
       settings.database.url = "sqlite3:////var/lib/grafana/data/grafana.db?_time_format=sqlite";
@@ -702,8 +712,8 @@ in
 
     services.udev.packages = [
       pkgs.yubikey-personalization
-      pkgs.platformio-core.udev
-    ];
+    ]
+    ++ lib.optional (!config.isWork) pkgs.platformio-core.udev;
 
   };
 }

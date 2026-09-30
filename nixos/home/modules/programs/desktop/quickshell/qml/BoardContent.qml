@@ -588,7 +588,7 @@ Item {
                         }
 
                         Label {
-                            text: Quickshell.env("HOSTNAME") || ""
+                            text: Sys.host
                             color: Theme.faint
                             font.family: Theme.mono
                             font.pixelSize: 11
@@ -640,6 +640,7 @@ Item {
                             Image {
                                 anchors.fill: parent
                                 source: content.player?.trackArtUrl ?? ""
+                                sourceSize: Qt.size(168, 168)
                                 fillMode: Image.PreserveAspectCrop
                                 asynchronous: true
                                 visible: status === Image.Ready
@@ -662,6 +663,7 @@ Item {
                                 Layout.fillWidth: true
                                 text: content.player?.trackTitle || "Silence"
                                 color: Theme.fgBright
+                                font.family: Theme.fontFor(text, Theme.sans)
                                 font.pixelSize: 16
                                 font.weight: Font.Medium
                             }
@@ -670,6 +672,7 @@ Item {
                                 Layout.fillWidth: true
                                 text: content.player ? (content.player.trackArtist || content.player.identity) : "No player running"
                                 color: Theme.muted
+                                font.family: Theme.fontFor(text, Theme.sans)
                                 font.pixelSize: 13
                             }
 

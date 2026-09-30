@@ -27,12 +27,18 @@ Singleton {
         return workspace.toplevels.values.some(toplevel => !(toplevel.lastIpcObject?.floating ?? false));
     }
 
+    function veiled(monitor: var): bool {
+        return (monitor?.lastIpcObject?.specialWorkspace?.name ?? "").length > 0;
+    }
+
     Connections {
         target: Hyprland
 
         function onRawEvent(event: var): void {
             if (perf.windowEvents.includes(event.name))
                 refresh.restart();
+            else if (event.name === "activespecial")
+                Hyprland.refreshMonitors();
         }
     }
 
@@ -42,5 +48,8 @@ Singleton {
         onTriggered: Hyprland.refreshToplevels()
     }
 
-    Component.onCompleted: Hyprland.refreshToplevels()
+    Component.onCompleted: {
+        Hyprland.refreshToplevels();
+        Hyprland.refreshMonitors();
+    }
 }

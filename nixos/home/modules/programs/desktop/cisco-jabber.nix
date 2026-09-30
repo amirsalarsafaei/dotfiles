@@ -8,6 +8,7 @@
 let
   wine = pkgs.wineWow64Packages.staging;
   prefixDir = "${config.home.homeDirectory}/.local/share/wineprefixes/cisco-jabber";
+  logDir = "${prefixDir}/drive_c/users/${config.home.username}/AppData/Local/Cisco/Unified Communications/Jabber/CSF/Logs";
 
   jabberWinetricksVerbs = [
     "corefonts"
@@ -21,7 +22,23 @@ let
   wineEnvLines = ''
     export WINEARCH=win64
     export WINEPREFIX="${prefixDir}"
+    export WINEDLLOVERRIDES="winemenubuilder.exe=d''${WINEDLLOVERRIDES:+;$WINEDLLOVERRIDES}"
   '';
+
+  ciscoJabberWine = pkgs.writeShellApplication {
+    name = "cisco-jabber-wine";
+    runtimeInputs = [ wine ];
+    text = ''
+      ${wineEnvLines}
+      probe=$(wine cmd /c exit 2>&1 || true)
+      if [[ $probe == *"version mismatch"* ]]; then
+        echo "cisco-jabber-wine: a wineserver from another Wine build owns ${prefixDir}; stopping it" >&2
+        wineserver -k || true
+        wineserver -w || true
+      fi
+      exec wine "$@"
+    '';
+  };
 
   ciscoJabberBootstrap = pkgs.writeShellApplication {
     name = "cisco-jabber-bootstrap";
@@ -40,7 +57,7 @@ let
   ciscoJabberInstall = pkgs.writeShellApplication {
     name = "cisco-jabber-install";
     runtimeInputs = [
-      wine
+      ciscoJabberWine
       ciscoJabberBootstrap
     ];
     text = ''
@@ -50,16 +67,18 @@ let
       fi
       msi=$(readlink -f "$1")
       cisco-jabber-bootstrap
-      ${wineEnvLines}
-      wine msiexec /i "$msi"
+      cisco-jabber-wine msiexec /i "$msi"
     '';
   };
 
   ciscoJabberLaunch = pkgs.writeShellApplication {
     name = "cisco-jabber";
-    runtimeInputs = [ wine ];
+    runtimeInputs = [
+      ciscoJabberWine
+      pkgs.coreutils
+      pkgs.findutils
+    ];
     text = ''
-      ${wineEnvLines}
       exe=$(find "${prefixDir}/drive_c" -iname 'CiscoJabber.exe' 2>/dev/null | head -n1)
       if [[ -z "$exe" ]]; then
         echo "Cisco Jabber isn't installed under ${prefixDir} yet." >&2
@@ -67,12 +86,18 @@ let
         echo "  cisco-jabber-install /path/to/CiscoJabberSetup.msi" >&2
         exit 1
       fi
-      exec wine "$exe" "$@"
+      log="${logDir}/jabber.log"
+      if [[ -f $log ]] && (($(stat -c %s "$log") > 5 * 1024 * 1024)); then
+        mv "$log" "${logDir}/jabber-$(date +%Y%m%d-%H%M%S).log"
+        find "${logDir}" -maxdepth 1 -name 'jabber-*.log' | sort -r | tail -n +11 | xargs -r -d '\n' rm -f --
+      fi
+      exec cisco-jabber-wine "$exe" "$@"
     '';
   };
 in
 lib.mkIf (currentHostname == "t14") {
   home.packages = [
+    ciscoJabberWine
     ciscoJabberBootstrap
     ciscoJabberInstall
     ciscoJabberLaunch

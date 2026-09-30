@@ -361,7 +361,7 @@ def waybar():
     else:
         lines.append("Right-click to refresh")
     tooltip = "<b>Today</b>\n" + "\n".join(html.escape(line) for line in lines)
-    print(json.dumps({"text": text, "tooltip": tooltip, "class": css_class}, ensure_ascii=False))
+    print(json.dumps({"text": text, "tooltip": tooltip, "class": css_class, "status": status}, ensure_ascii=False))
 
 
 def show():

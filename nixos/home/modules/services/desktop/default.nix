@@ -9,6 +9,7 @@
     ./playerctld.nix
     ./udiskie.nix
     ./batsignal.nix
+    ./airpods-tui.nix
     ./agenda
     ./lyrics
     ./mood

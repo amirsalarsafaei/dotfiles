@@ -1,5 +1,11 @@
-{ homeDir, pkgs, ... }:
 {
+  homeDir,
+  lib,
+  osConfig,
+  pkgs,
+  ...
+}:
+lib.mkIf (!(osConfig.isWork or false)) {
   ######################################################################
   # Systemd Service: "vps-dbbackup.service"                             #
   # This service will SSH into "vps" (as configured in your ~/.ssh/config),

@@ -2,6 +2,7 @@
 # Extends default.nix with the games category.
 {
   inputs,
+  osConfig,
   pkgs,
   currentHostname,
   currentSystem,
@@ -18,6 +19,7 @@ let
       currentSystem
       pkgs
       ;
+    isWork = osConfig.isWork or false;
   };
 in
 {

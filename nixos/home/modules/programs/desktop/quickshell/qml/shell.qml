@@ -63,6 +63,13 @@ ShellRoot {
                 root.sidebarOpen = false;
                 root.boardOpen = !root.boardOpen;
             }
+            onAgentsRequested: {
+                const open = root.sidebarOpen && root.sidebarPage === "agents" && root.screenName === modelData.name;
+                root.screenName = modelData.name;
+                root.boardOpen = false;
+                root.sidebarPage = "agents";
+                root.sidebarOpen = !open;
+            }
         }
     }
 

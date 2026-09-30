@@ -1,6 +1,7 @@
 {
   config,
   inputs,
+  lib,
   ...
 }:
 {
@@ -20,8 +21,8 @@
   custom = {
     neovim.enable = true;
     claudeCode.enable = true;
-    claudeCode.enablePersonal = true;
-    claudeCode.enablePersonalDeepseek = true;
+    claudeCode.enablePersonal = lib.mkDefault true;
+    claudeCode.enablePersonalDeepseek = lib.mkDefault true;
     claudeCode.enableCaveman = true;
     claudeCode.planner.enable = true;
     claudeCode.plugins.personal."clangd-lsp@claude-plugins-official" = true;
@@ -45,17 +46,17 @@
           structure = "symlink-tree";
         };
         local-claude = {
-          enable = true;
+          enable = lib.mkDefault true;
           dest = "${config.home.homeDirectory}/.config/local-claude/skills";
           structure = "symlink-tree";
         };
         personal-claude = {
-          enable = true;
+          enable = lib.mkDefault true;
           dest = "${config.home.homeDirectory}/.config/personal-claude/skills";
           structure = "symlink-tree";
         };
         personal-deepseek-claude = {
-          enable = true;
+          enable = lib.mkDefault true;
           dest = "${config.home.homeDirectory}/.config/personal-deepseek-claude/skills";
           structure = "symlink-tree";
         };

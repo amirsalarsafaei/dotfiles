@@ -332,18 +332,7 @@ let
             dim_strength = 0.10
 
             blur {
-                enabled = true
-                size = 10
-                passes = 3
-                new_optimizations = true
-                xray = true
-                special = true
-                vibrancy = 0.1
-                vibrancy_darkness = 0.05
-                noise = 0.02
-                contrast = 1.05
-                brightness = 1.0
-                popups = true
+                enabled = false
             }
 
             shadow {
@@ -365,10 +354,7 @@ let
             dim_inactive = false
 
             blur {
-                enabled = true
-                size = 4
-                passes = 1
-                new_optimizations = true
+                enabled = false
             }
 
             shadow {
@@ -422,16 +408,6 @@ let
         }
       '';
 
-  # Blur the compositor's own layer-shell surfaces so the bar, the launchers and
-  # the notification popups read as glass over the wallpaper instead of flat
-  # rectangles sitting on top of it. Values are the namespaces the apps set on
-  # their layer surfaces (`hyprctl layers` lists the live ones) and they are
-  # matched as regexes. `ignore_alpha` is the per-pixel threshold below which
-  # nothing is blurred, so the transparent margin around a rounded panel stays
-  # clear instead of smearing a square of blur around it.
-  #
-  # Not gated on the power profile: blur is already enabled in both decoration
-  # blocks above, and these rules only extend it to panels.
   pluginBlock = ''
     plugin {
         dynamic-cursors {
@@ -494,20 +470,15 @@ let
   '';
 
   layerRuleBlock = ''
-    layerrule = blur on, ignore_alpha 0.20, match:namespace ^(panel)$
-    layerrule = blur on, ignore_alpha 0.10, match:namespace rofi
-    layerrule = blur on, ignore_alpha 0.10, match:namespace wlogout
-    layerrule = blur on, ignore_alpha 0.10, match:namespace swaync-control-center
-    layerrule = blur on, ignore_alpha 0.20, match:namespace swaync-notification-window
     layerrule = animation slide top, match:namespace ^(panel)$
     layerrule = animation popin 92%, dim_around on, match:namespace rofi
     layerrule = animation fade, match:namespace wlogout
     layerrule = animation slide right, match:namespace swaync-control-center
     layerrule = animation slide right, match:namespace swaync-notification-window
     layerrule = no_anim on, match:namespace selection|hyprpicker
-    layerrule = blur on, ignore_alpha 0.30, no_anim on, match:namespace sidebar
-    layerrule = blur on, ignore_alpha 0.25, no_anim on, match:namespace widgets
-    layerrule = blur on, ignore_alpha 0.30, no_anim on, match:namespace ^(osd)$
+    layerrule = no_anim on, match:namespace sidebar
+    layerrule = no_anim on, match:namespace widgets
+    layerrule = no_anim on, match:namespace ^(osd)$
   '';
 
 in

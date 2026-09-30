@@ -1,0 +1,25 @@
+% tls, certificate, ssl
+
+# Show the chain the server sends in the handshake
+step certificate inspect https://<host> --bundle --short --insecure
+
+# Save the chain the server sends as PEM
+step certificate inspect https://<host> --bundle --format pem --insecure > <host>.pem
+
+# Verify the site like a client does (fails on incomplete chain)
+step certificate verify https://<host>
+
+# Count certificates the server sends (1 means missing intermediate)
+openssl s_client -connect <host>:443 -servername <host> -showcerts </dev/null 2>/dev/null | grep -c 'BEGIN CERTIFICATE'
+
+# Show the handshake verify result
+openssl s_client -connect <host>:443 -servername <host> </dev/null 2>&1 | grep 'Verify return code'
+
+# Show expiry date of the served certificate
+openssl s_client -connect <host>:443 -servername <host> </dev/null 2>/dev/null | openssl x509 -noout -enddate
+
+# Rebuild fullchain.pem by fetching the missing intermediate via AIA
+openssl s_client -connect <host>:443 -servername <host> </dev/null 2>/dev/null | openssl x509 > leaf.pem && curl -so inter.cer "$(openssl x509 -in leaf.pem -noout -ext authorityInfoAccess | sed -n 's/.*CA Issuers - URI://p')" && { openssl x509 -inform DER -in inter.cer 2>/dev/null || openssl x509 -in inter.cer; } > inter.pem && cat leaf.pem inter.pem > fullchain.pem
+
+# Verify a local full chain for a host
+step certificate verify fullchain.pem --host <host>

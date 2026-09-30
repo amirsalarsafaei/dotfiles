@@ -1,14 +1,24 @@
 import QtQuick
 import QtQuick.Effects
+import QtQuick.Shapes
 
 Item {
     id: critter
 
     property var agent: null
     property real angle: 0
+    property real bubbleWidth: 220
+    property real bubbleShift: 0
+    property real bubbleRaise: 0
+    property real fullWidth: 220
+    property real lift: 12 * p + 6 * unit
+    property bool hushed: false
     property real unit: 1
     property real time: 0
     property date now: new Date()
+    property real sunPath: 0.5
+    property real twilight: 0
+    property real daylight: 0
     property real rise: 0
     property real hop: 0
     property real lash: 0
@@ -19,6 +29,78 @@ Item {
 
     component Pixel: Rectangle {
         antialiasing: true
+    }
+
+    component Shadow: Shape {
+        id: blob
+
+        property real rx: 16
+        property real ry: 16
+
+        width: 32
+        height: 32
+
+        transform: Scale {
+            origin.x: 16
+            origin.y: 16
+            xScale: blob.rx / 16
+            yScale: blob.ry / 16
+        }
+
+        ShapePath {
+            strokeWidth: -1
+            strokeColor: "transparent"
+            startX: 0
+            startY: 0
+
+            fillGradient: RadialGradient {
+                centerX: 16
+                centerY: 16
+                centerRadius: 16
+                focalX: 16
+                focalY: 16
+
+                GradientStop {
+                    position: 0
+                    color: Theme.alpha(Theme.ink, 0.95)
+                }
+
+                GradientStop {
+                    position: 0.3
+                    color: Theme.alpha(Theme.ink, 0.78)
+                }
+
+                GradientStop {
+                    position: 0.65
+                    color: Theme.alpha(Theme.ink, 0.3)
+                }
+
+                GradientStop {
+                    position: 1
+                    color: Theme.alpha(Theme.ink, 0)
+                }
+            }
+
+            PathLine {
+                x: 32
+                y: 0
+            }
+
+            PathLine {
+                x: 32
+                y: 32
+            }
+
+            PathLine {
+                x: 0
+                y: 32
+            }
+
+            PathLine {
+                x: 0
+                y: 0
+            }
+        }
     }
 
     readonly property string status: agent?.status ?? "ready"
@@ -39,11 +121,17 @@ Item {
     readonly property color body: Qt.tint(Theme.fgBright, Theme.alpha(tint, 0.2))
     readonly property real nx: Math.sin(angle)
     readonly property real ny: -Math.cos(angle)
-    readonly property real lift: 12 * p + 6 * unit
     readonly property bool blink: status !== "done" && status !== "error" && (t / 4.3 - Math.floor(t / 4.3)) < 0.04
     readonly property string realm: agent?.realm ?? ""
     readonly property bool openable: (agent?.session ?? "") !== "" && (agent?.pane ?? "") !== ""
     readonly property bool armUp: status === "asking" || ouch > 0
+    readonly property bool alert: status === "asking" || status === "error"
+    readonly property bool idle: status === "done" || status === "ready"
+    readonly property color label: status === "ready" ? Theme.muted : tint
+    readonly property int helpers: Math.min(3, agent?.agents ?? 0)
+    readonly property real sunlight: Math.min(1, Math.max(twilight, daylight * 1.5))
+    readonly property real lean: Math.max(-1, Math.min(1, (0.85 * sunPath - 0.5 - angle) / 0.6)) * sunlight
+    readonly property real stretch: 1.9 * Math.abs(lean) * (1 + 0.5 * twilight)
     readonly property var whip: {
         const keys = [
             {
@@ -120,6 +208,20 @@ Item {
     Behavior on angle {
         NumberAnimation {
             id: walk
+            duration: 1800
+            easing.type: Easing.InOutSine
+        }
+    }
+
+    Behavior on bubbleShift {
+        NumberAnimation {
+            duration: 1800
+            easing.type: Easing.InOutSine
+        }
+    }
+
+    Behavior on bubbleRaise {
+        NumberAnimation {
             duration: 1800
             easing.type: Easing.InOutSine
         }
@@ -275,14 +377,113 @@ Item {
         transformOrigin: Item.Bottom
         opacity: critter.rise
 
-        Rectangle {
-            x: 13.5 * critter.p
-            y: 19.4 * critter.p
-            width: 9 * critter.p
-            height: 1.2 * critter.p
-            radius: height / 2
-            color: Theme.alpha(Theme.ink, 0.55)
-            antialiasing: true
+        Shadow {
+            readonly property real air: Math.max(0, Math.min(1, (critter.hop * 2 * critter.p - pose.bob) / (3 * critter.p)))
+
+            x: (18 + critter.shake - Math.sign(critter.lean) * critter.stretch) * critter.p - 16
+            y: 20.1 * critter.p - 16
+            rx: (5.4 + critter.stretch) * critter.p * (1 - 0.3 * air)
+            ry: 1.3 * critter.p * (1 - 0.3 * air)
+            opacity: (0.72 + 0.16 * critter.sunlight) * (1 - 0.55 * air)
+        }
+
+        Repeater {
+            model: 3
+
+            Item {
+                id: helper
+
+                required property int index
+
+                readonly property real q: critter.p / 2
+                readonly property real slot: [8, 28.5, 2.5][index]
+                property real enter: index < critter.helpers ? 1 : 0
+                readonly property real t: enter > 0 ? critter.t * 1.15 + index * 2.1 : 0
+                readonly property real cx: (18 + (slot - 18) * enter) * critter.p
+                readonly property real jump: Math.sin(enter * Math.PI) * 4 * critter.p + critter.hop * critter.p
+                readonly property real bob: enter < 1 ? 0 : Math.round(Math.abs(Math.sin(t * (critter.walking ? 9 : 3.6))) * 2) / 2 * q
+                readonly property real air: Math.min(1, (jump + bob) / (3 * critter.p))
+                readonly property bool typing: Math.sin(t * 11) > 0
+                readonly property bool blink: (t / 3.7 - Math.floor(t / 3.7)) < 0.05
+                readonly property color body: Qt.tint(Theme.fg, Theme.alpha(critter.tint, 0.3))
+
+                visible: enter > 0
+                opacity: Math.min(1, enter * 3)
+
+                Behavior on enter {
+                    NumberAnimation {
+                        duration: helper.index < critter.helpers ? 520 : 380
+                        easing.type: Easing.InOutQuad
+                    }
+                }
+
+                Shadow {
+                    x: helper.cx - 16
+                    y: 20.1 * critter.p - 16
+                    rx: 2.7 * critter.p * (1 - 0.35 * helper.air)
+                    ry: 0.85 * critter.p * (1 - 0.35 * helper.air)
+                    opacity: 0.7 * (1 - 0.6 * helper.air)
+                }
+
+                Item {
+                    x: helper.cx - 5 * helper.q
+                    y: 20 * critter.p - 7 * helper.q - helper.jump - helper.bob
+                    width: 10 * helper.q
+                    height: 7 * helper.q
+                    scale: 0.6 + 0.4 * helper.enter
+                    transformOrigin: Item.Bottom
+
+                    Repeater {
+                        model: [1, 3, 6, 8]
+
+                        Pixel {
+                            required property int modelData
+
+                            x: modelData * helper.q
+                            y: 5 * helper.q
+                            width: helper.q
+                            height: 2 * helper.q
+                            color: helper.body
+                        }
+                    }
+
+                    Pixel {
+                        y: (helper.typing ? 1 : 2) * helper.q
+                        width: helper.q
+                        height: 2 * helper.q
+                        color: helper.body
+                    }
+
+                    Pixel {
+                        x: 9 * helper.q
+                        y: (helper.typing ? 2 : 1) * helper.q
+                        width: helper.q
+                        height: 2 * helper.q
+                        color: helper.body
+                    }
+
+                    Pixel {
+                        x: helper.q
+                        width: 8 * helper.q
+                        height: 5 * helper.q
+                        color: helper.body
+                    }
+
+                    Repeater {
+                        model: [3, 6]
+
+                        Pixel {
+                            required property int modelData
+
+                            x: (modelData + (helper.slot < 18 ? 0.5 : -0.5)) * helper.q
+                            y: (helper.blink ? 2.75 : 1.5) * helper.q
+                            width: helper.q
+                            height: (helper.blink ? 0.5 : 2) * helper.q
+                            color: Theme.ink
+                        }
+                    }
+                }
+            }
         }
 
         Item {
@@ -594,23 +795,29 @@ Item {
     Item {
         id: bubble
 
-        readonly property real maxWidth: Math.round(220 * Math.max(0.85, critter.unit))
+        readonly property real maxWidth: critter.hovered ? critter.fullWidth : critter.bubbleWidth
+        readonly property real slack: Math.max(0, (critter.bubbleWidth - width) / 2)
+        readonly property real offset: Math.max(critter.bubbleShift - slack, Math.min(critter.bubbleShift + slack, 0))
+        readonly property real tail: Math.round(Math.max(12, Math.min(width - 12, width / 2 - offset)))
+        property real voice: critter.hushed && !critter.hovered ? 0 : 1
+        property real calm: critter.idle && !critter.hovered ? 0.8 : 1
 
-        x: Math.round(critter.nx * critter.lift - width / 2)
+        x: Math.round(critter.nx * critter.lift + offset - width / 2)
         y: Math.round(critter.ny * critter.lift - height)
         width: frame.width
-        height: frame.height + 5
-        opacity: critter.rise * 0.94
+        height: frame.height + 5 + critter.bubbleRaise
+        opacity: critter.rise * 0.96 * voice * calm
+        visible: opacity > 0
         scale: bubbleMouse.pressed ? Theme.pressScale : 1
         transformOrigin: Item.Bottom
         layer.enabled: true
         layer.effect: MultiEffect {
             shadowEnabled: true
-            shadowColor: Theme.alpha(Theme.ink, 0.8)
-            shadowBlur: 0.8
+            shadowColor: Theme.alpha(Theme.ink, 0.7)
+            shadowBlur: 1
             shadowHorizontalOffset: 0
-            shadowVerticalOffset: 2
-            blurMax: 20
+            shadowVerticalOffset: 3
+            blurMax: 12
         }
 
         Behavior on scale {
@@ -619,25 +826,51 @@ Item {
             }
         }
 
+        Behavior on voice {
+            NumberAnimation {
+                duration: critter.hovered ? Theme.quick : Theme.ambient
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: critter.hovered ? Theme.enter : Theme.drift
+            }
+        }
+
+        Behavior on calm {
+            NumberAnimation {
+                duration: critter.hovered ? Theme.quick : Theme.ambient
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: critter.hovered ? Theme.enter : Theme.drift
+            }
+        }
+
         Rectangle {
-            x: frame.width / 2 - 4
+            visible: critter.bubbleRaise > 0.5
+            x: bubble.tail - 0.5
+            y: frame.height + 3
+            width: 1
+            height: critter.bubbleRaise + 2
+            color: Theme.alpha(Qt.tint(Theme.muted, Theme.alpha(critter.tint, 0.4)), 0.5)
+        }
+
+        Rectangle {
+            x: bubble.tail - 4
             y: frame.height - 5
             width: 8
             height: 8
             rotation: 45
-            color: Theme.ink
+            color: frame.color
             border.color: frame.border.color
             border.width: 1
+            antialiasing: true
         }
 
         Rectangle {
             id: frame
 
-            width: Math.min(bubble.maxWidth, content.implicitWidth + 20)
-            height: content.implicitHeight + 12
-            radius: 9
-            color: Theme.ink
-            border.color: critter.hovered ? Theme.alpha(critter.accent, 0.6) : Theme.line
+            width: Math.min(bubble.maxWidth, content.implicitWidth + 22)
+            height: content.implicitHeight + 14
+            radius: 10
+            color: Qt.tint(Theme.ink, Theme.alpha(critter.tint, critter.idle ? 0.03 : 0.09))
+            border.color: critter.hovered ? Theme.alpha(critter.accent, 0.6) : critter.alert ? Theme.alpha(critter.accent, 0.42) : critter.idle ? Theme.line : Theme.alpha(critter.accent, 0.24)
             border.width: 1
 
             Behavior on border.color {
@@ -646,38 +879,109 @@ Item {
                 }
             }
 
+            Rectangle {
+                anchors.top: parent.top
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: Math.round(parent.width * 0.62)
+                height: 1
+
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+
+                    GradientStop {
+                        position: 0
+                        color: Theme.alpha(Theme.fgBright, 0)
+                    }
+
+                    GradientStop {
+                        position: 0.5
+                        color: Theme.alpha(Theme.fgBright, 0.14)
+                    }
+
+                    GradientStop {
+                        position: 1
+                        color: Theme.alpha(Theme.fgBright, 0)
+                    }
+                }
+            }
+
+            Item {
+                id: progress
+
+                readonly property var todo: critter.agent?.todo ?? null
+                readonly property real total: todo?.total ?? 0
+                readonly property real share: total > 0 ? Math.min(1, (todo.done ?? 0) / total) : 0
+                readonly property bool busy: critter.status === "working" || critter.status === "planning" || critter.status === "asking"
+
+                x: 11
+                y: parent.height - 4
+                width: parent.width - 22
+                height: 2
+                opacity: total > 0 && (share < 1 || busy) ? 1 : 0
+                visible: opacity > 0
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: Theme.ambient
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Theme.drift
+                    }
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 1
+                    color: Theme.alpha(Theme.fgBright, 0.08)
+                }
+
+                Rectangle {
+                    width: parent.width * progress.share
+                    height: parent.height
+                    radius: 1
+                    color: Theme.alpha(critter.tint, 0.8)
+
+                    Behavior on width {
+                        NumberAnimation {
+                            duration: Theme.ambient
+                            easing.type: Easing.BezierSpline
+                            easing.bezierCurve: Theme.drift
+                        }
+                    }
+                }
+            }
+
             Column {
                 id: content
 
-                x: 10
-                y: 6
-                spacing: 3
+                x: 11
+                y: 7
+                spacing: 4
 
                 Row {
                     spacing: 6
 
                     Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 5
-                        height: 5
-                        radius: 2.5
-                        color: critter.tint
+                        width: 6
+                        height: 6
+                        radius: 3
+                        color: critter.label
                     }
 
                     Text {
                         visible: critter.realm !== ""
                         anchors.verticalCenter: parent.verticalCenter
-                        text: critter.realm === "work" ? "\uf0b1" : "\uf015"
+                        text: critter.realm === "work" ? "" : ""
                         color: Theme.alpha(Theme.muted, 0.85)
                         font.family: Theme.mono
                         font.pixelSize: 10
                     }
 
                     Text {
-                        width: Math.min(implicitWidth, bubble.maxWidth - (critter.realm !== "" ? 48 : 31))
+                        width: Math.min(implicitWidth, bubble.maxWidth - (critter.realm !== "" ? 51 : 34))
                         text: critter.agent?.name ?? ""
                         elide: Text.ElideRight
-                        color: Theme.alpha(Theme.fgBright, 0.92)
+                        color: critter.idle ? Theme.alpha(Theme.fg, 0.88) : Theme.fgBright
                         font.family: Theme.fontFor(text, Theme.sans)
                         font.pixelSize: 12
                         font.weight: Font.Medium
@@ -690,40 +994,54 @@ Item {
                     Text {
                         id: word
 
-                        text: [critter.status, critter.status === "ready" ? "" : critter.ago(critter.agent?.since ?? 0)].filter(part => part !== "").join(" ").toUpperCase()
-                        color: Qt.tint(Theme.alpha(Theme.muted, 0.9), Theme.alpha(critter.tint, 0.5))
+                        text: critter.status.toUpperCase()
+                        color: critter.label
                         font.family: Theme.mono
                         font.pixelSize: 9
-                        font.letterSpacing: 1.4
+                        font.weight: Font.Bold
+                        font.letterSpacing: 1.2
+                    }
+
+                    Text {
+                        id: age
+
+                        visible: text !== ""
+                        anchors.baseline: word.baseline
+                        text: critter.status === "ready" ? "" : critter.ago(critter.agent?.since ?? 0).toUpperCase()
+                        color: Theme.alpha(Theme.muted, 0.8)
+                        font.family: Theme.mono
+                        font.pixelSize: 9
+                        font.letterSpacing: 1.2
                     }
 
                     Text {
                         visible: text !== ""
-                        width: Math.min(implicitWidth, bubble.maxWidth - 26 - word.implicitWidth)
+                        anchors.baseline: word.baseline
+                        width: Math.min(implicitWidth, bubble.maxWidth - 28 - word.implicitWidth - (age.visible ? age.implicitWidth + 6 : 0))
                         text: critter.agent?.activity ?? ""
                         elide: Text.ElideRight
-                        color: Theme.alpha(Theme.muted, 0.75)
+                        color: Theme.alpha(Theme.fg, 0.72)
                         font.family: Theme.fontFor(text, Theme.mono)
-                        font.pixelSize: 9
+                        font.pixelSize: 10
                     }
                 }
 
                 Text {
                     visible: critter.hovered && text !== ""
-                    width: Math.min(implicitWidth, bubble.maxWidth - 20)
+                    width: Math.min(implicitWidth, bubble.maxWidth - 22)
                     text: {
                         const todo = critter.agent?.todo;
                         return todo && todo.total > 0 ? todo.done + "/" + todo.total + (todo.current ? "  " + todo.current : "") : "";
                     }
                     elide: Text.ElideRight
-                    color: Theme.alpha(Theme.fg, 0.7)
+                    color: Theme.alpha(Theme.fg, 0.72)
                     font.family: Theme.fontFor(text, Theme.mono)
-                    font.pixelSize: 9
+                    font.pixelSize: 10
                 }
 
                 Text {
                     visible: critter.hovered
-                    width: Math.min(implicitWidth, bubble.maxWidth - 20)
+                    width: Math.min(implicitWidth, bubble.maxWidth - 22)
                     text: {
                         const agent = critter.agent;
                         if (!agent)
@@ -732,25 +1050,26 @@ Item {
                         return [agent.variant, place, agent.tools > 0 ? agent.tools + " tools" : "", agent.agents > 0 ? agent.agents + " agents" : ""].filter(part => part !== "").join("  ·  ");
                     }
                     elide: Text.ElideRight
-                    color: Theme.alpha(Theme.faint, 0.95)
+                    color: Theme.alpha(Theme.muted, 0.95)
                     font.family: Theme.fontFor(text, Theme.mono)
-                    font.pixelSize: 9
+                    font.pixelSize: 10
                 }
             }
         }
 
         Rectangle {
-            x: frame.width / 2 - 4.5
+            x: bubble.tail - 4.5
             y: frame.height - 1
             width: 9
             height: 1
-            color: Theme.ink
+            color: frame.color
         }
 
         MouseArea {
             id: bubbleMouse
 
-            anchors.fill: parent
+            width: parent.width
+            height: frame.height + 5
             hoverEnabled: true
             cursorShape: critter.openable ? Qt.PointingHandCursor : Qt.ArrowCursor
             onClicked: critter.strike()

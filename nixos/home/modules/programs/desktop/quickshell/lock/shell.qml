@@ -27,6 +27,7 @@ ShellRoot {
     property string layout: ""
     property real flare: 0
     property real alarm: 0
+    property bool idle: false
     property real warmth: buffer.length > 0 && !checking && !unlocking ? 0.28 : 0
 
     Behavior on warmth {
@@ -118,6 +119,11 @@ ShellRoot {
                 color: value
             });
         return items;
+    }
+
+    function wake(): void {
+        root.idle = false;
+        idleTimer.restart();
     }
 
     function type(text: string): void {
@@ -326,10 +332,11 @@ ShellRoot {
                 root.unlock();
                 return;
             }
-            root.fingerprintReady = false;
             root.fingerprintNote = "";
             if (listening && !root.unlocking)
                 fingerprintRetry.start();
+            else
+                root.fingerprintReady = false;
             listening = false;
         }
     }
@@ -338,8 +345,10 @@ ShellRoot {
         id: fingerprintRetry
         interval: 1500
         onTriggered: {
-            if (!root.unlocking && !fingerprint.active)
-                fingerprint.start();
+            if (root.unlocking || fingerprint.active)
+                return;
+            if (!fingerprint.start())
+                root.fingerprintReady = false;
         }
     }
 
@@ -362,6 +371,13 @@ ShellRoot {
         id: bailTimer
         interval: 1200
         onTriggered: Qt.exit(3)
+    }
+
+    Timer {
+        id: idleTimer
+        interval: 30000
+        running: lock.secure && !root.idle
+        onTriggered: root.idle = true
     }
 
     Process {
@@ -513,13 +529,15 @@ ShellRoot {
                 id: sky
 
                 anchors.fill: parent
-                running: lock.secure
+                running: lock.secure && (!root.idle || root.unlocking)
                 now: clock.date
                 sized: (surface.monitor?.height ?? 0) > 0 || !surface.waiting
                 hd: (surface.monitor?.height ?? 0) > 1600
                 workspace: surface.monitor?.activeWorkspace?.id ?? 1
                 flare: Math.max(root.flare, root.warmth)
                 alarm: root.alarm
+                lyrics: lyricsFloat.enter
+                lyricsWidth: lyricsFloat.width
             }
 
             Item {
@@ -548,6 +566,7 @@ ShellRoot {
 
                 Keys.onPressed: event => {
                     event.accepted = true;
+                    root.wake();
                     if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
                         root.submit();
                     else if (event.key === Qt.Key_Backspace)
@@ -560,7 +579,10 @@ ShellRoot {
 
                 MouseArea {
                     anchors.fill: parent
+                    hoverEnabled: true
+                    onPositionChanged: root.wake()
                     onPressed: mouse => {
+                        root.wake();
                         stage.forceActiveFocus();
                         mouse.accepted = false;
                     }

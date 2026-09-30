@@ -11,13 +11,13 @@ let
   tmuxExtraPlugins = pkgs.callPackage ../pkgs/tmux-plugins.nix { };
   obsidianGitAssets = pkgs.callPackage ../pkgs/obsidian-git-assets.nix { };
   obsidianHomepageAssets = pkgs.callPackage ../pkgs/obsidian-homepage-assets.nix { };
-  ghosttyShaders = pkgs.callPackage ../pkgs/ghostty-shaders.nix { };
   geoData = pkgs.callPackage ../pkgs/geo-data.nix { };
 in
 {
   devar = pkgs.callPackage ../pkgs/devar.nix { devarSrc = inputs.devar; };
   chrome-devtools-mcp = pkgs.callPackage ../pkgs/chrome-devtools-mcp.nix { };
-  mcp-chrome-bridge = pkgs.callPackage ../pkgs/mcp-chrome-bridge { };
+  agent360-browser-mcp = pkgs.callPackage ../pkgs/agent360-browser-mcp { };
+  airpods-tui = pkgs.callPackage ../pkgs/airpods-tui.nix { };
   zellij-harpoon = zellijExtraPlugins.harpoon;
   zellij-tabula = zellijExtraPlugins.tabula;
   nvim-base64 = neovimPlugins.base64Plugin;
@@ -29,13 +29,6 @@ in
   obsidian-homepage-mainjs = obsidianHomepageAssets.mainJs;
   obsidian-homepage-manifest = obsidianHomepageAssets.manifestJson;
   obsidian-homepage-styles = obsidianHomepageAssets.stylesCss;
-  ghostty-shader-inside-the-matrix = ghosttyShaders.inside-the-matrix;
-  ghostty-shader-galaxy = ghosttyShaders.galaxy;
-  ghostty-shader-just-snow = ghosttyShaders.just-snow;
-  ghostty-shader-fireworks = ghosttyShaders.fireworks;
-  ghostty-shader-underwater = ghosttyShaders.underwater;
-  ghostty-shader-glitchy = ghosttyShaders.glitchy;
-  ghostty-shader-starfield = ghosttyShaders.starfield;
   iran-geoip = geoData.geoip;
   iran-geosite = geoData.geosite;
 }

@@ -17,6 +17,7 @@ PanelWindow {
     property bool shown: true
     signal sidebarRequested
     signal widgetsRequested
+    signal agentsRequested
 
     readonly property bool compact: Sys.compactOutput.length > 0 && screen?.name === Sys.compactOutput
     readonly property int fontSize: compact ? 11 : 12
@@ -30,33 +31,14 @@ PanelWindow {
     readonly property int chipHeight: barHeight - (compact ? 6 : 8)
     readonly property real chrome: barHeight - chipHeight
     readonly property real rightRest: rightIsland.span - (tray.visible ? tray.span : 0) + tray.rest
-    readonly property real sideRoom: width - marginSide * 2 - rightRest - gap * 4 - clockChip.implicitWidth - chrome
-    readonly property real leftFixed: chrome + leftIsland.spacing * 9 + dashChip.width + workspaces.width + (submapChip.visible ? submapChip.width : 0) + (mediaChip.visible ? mediaChip.width : 0)
+    readonly property real sideRoom: Math.min(width - marginSide * 2 - rightRest - gap * 4 - clockChip.implicitWidth - chrome, (width - clockChip.implicitWidth - chrome) / 2 - gap * 2 - marginSide)
+    readonly property real leftFixed: chrome + leftIsland.spacing * 9 + dashChip.width + workspaces.width + (agentsChip.visible ? agentsChip.width : 0) + (submapChip.visible ? submapChip.width : 0) + (mediaChip.visible ? mediaChip.width : 0)
     readonly property real flex: sideRoom - leftFixed - (viz.visible ? viz.width : 0)
     readonly property bool wantAgenda: agenda.text.length > 0
     readonly property real agendaRoom: wantAgenda ? Math.floor(Math.min(compact ? 150 : 260, flex - agendaChip.frame)) : 0
-    readonly property real titleRoom: Math.floor(Math.min(260, flex - titleChip.frame - (wantAgenda ? agendaChip.frame + Math.max(0, agendaRoom) : 0)))
     readonly property alias tip: tipWindow
     property Item hot: null
-    property var lastFocus: null
-    property int focusTrend: 0
     property int trackTrend: 1
-
-    onFocusedChanged: {
-        const next = focused ? {
-            address: focused.address,
-            workspace: focused.workspace?.id ?? 0,
-            x: focused.lastIpcObject?.at?.[0] ?? 0
-        } : null;
-        const prev = lastFocus;
-        if (!next || !prev || next.address === prev.address)
-            focusTrend = 0;
-        else if (next.workspace !== prev.workspace)
-            focusTrend = Math.sign(next.workspace - prev.workspace);
-        else
-            focusTrend = Math.sign(next.x - prev.x);
-        lastFocus = next;
-    }
 
     function hover(item: Item): void {
         release.stop();
@@ -81,40 +63,148 @@ PanelWindow {
     readonly property var micApps: appsFrom(links.filter(g => g.source && g.target && g.source.type === PwNodeType.AudioSource && g.target.isStream))
     readonly property var camApps: appsFrom(links.filter(g => g.source && g.target && g.source.type === PwNodeType.VideoSource && !g.source.name.startsWith("xdph") && g.target.isStream))
     readonly property bool sharing: links.some(g => g.source && g.target && g.source.name.startsWith("xdph"))
-    readonly property var focused: {
-        const toplevel = Hyprland.activeToplevel;
-        return toplevel && monitor && toplevel.workspace === monitor.activeWorkspace ? toplevel : null;
-    }
     readonly property var battery: UPower.displayDevice
     readonly property bool hasBattery: battery !== null && battery.isLaptopBattery && battery.isPresent
 
     property var stats: ({
             cpu: 0,
+            gpu: 0,
             mem: 0,
             temp: 0,
             rx: 0,
             tx: 0
         })
     property var cpuPrev: null
+    property var gpuPrev: null
     property var levels: ({})
     property var netPrev: null
     property string thermalPath: ""
+    property string gpuPath: ""
+    property string gpuKind: ""
     property string layout: ""
     property string submap: ""
     property bool caffeine: false
     property var agenda: ({
             text: "",
-            tooltip: "",
-            class: ""
+            class: "",
+            status: ""
         })
+    readonly property string cacheHome: String(Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache"))
+    property var day: ({})
+    property var doneDays: ({})
+    readonly property string agendaTip: agendaTooltip(day, doneDays[Qt.formatDate(clock.date, "yyyy-MM-dd")] ?? [], clock.date, agenda.status)
     property var notifications: ({
             count: 0,
             dnd: false,
             inhibited: false
         })
+    property var airpods: ({})
 
     function esc(value: string): string {
         return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+    }
+
+    function tint(value: color, text: string): string {
+        return "<font color=\"" + value + "\">" + text + "</font>";
+    }
+
+    function clockMinutes(value: string): int {
+        const parts = value.split(":").map(Number);
+        return parts[0] * 60 + parts[1];
+    }
+
+    function eventPhase(event: var, done: var, now: int): string {
+        if (done.includes([event.start, event.title, event.calendar].join("|")))
+            return "done";
+        if (!event.start)
+            return "allday";
+        const start = panel.clockMinutes(event.start);
+        let end = event.end ? panel.clockMinutes(event.end) : start;
+        if (end < start)
+            end += 1440;
+        if (end < now)
+            return "past";
+        if (start <= now)
+            return "now";
+        if (start - now <= 15)
+            return "soon";
+        if (start - now <= 60)
+            return "upcoming";
+        return "later";
+    }
+
+    function agendaTooltip(data: var, done: var, date: var, status: string): string {
+        const today = Qt.formatDate(date, "yyyy-MM-dd");
+        const fresh = data.date === today;
+        const events = fresh ? (data.events ?? []) : [];
+        const tasks = fresh ? (data.tasks ?? []) : [];
+        const now = date.getHours() * 60 + date.getMinutes();
+        const gap = "&nbsp;&nbsp;";
+        const clip = text => panel.esc(text.length > 36 ? text.slice(0, 35) + "…" : text);
+        const phases = events.map(event => panel.eventPhase(event, done, now));
+        const gone = phases.map(phase => phase === "past" || phase === "done");
+        const left = gone.filter(value => !value).length;
+        const calendars = new Set(events.map(event => event.calendar)).size > 1;
+
+        const lines = ["<b>Today</b>" + gap + panel.tint(Theme.muted, Qt.formatDate(date, "dddd, d MMMM")) + (events.length > 0 ? panel.tint(Theme.faint, " · " + (left > 0 ? left + " of " + events.length + " left" : "all done")) : "")];
+        if (status === "setup")
+            lines.push(panel.tint(Theme.muted, "Google Calendar not connected"));
+        else if (status === "stale")
+            lines.push(panel.tint(Theme.warm, "Calendar offline" + (data.updated_at ? " · synced " + String(data.updated_at).slice(11, 16) : "")));
+        else if (status === "loading")
+            lines.push(panel.tint(Theme.muted, "Syncing calendar…"));
+        else if (events.length === 0)
+            lines.push(panel.tint(Theme.muted, "No events today"));
+
+        let skip = Math.max(0, events.length - 10);
+        const shown = [];
+        events.forEach((event, index) => {
+            if (gone[index] && skip > 0) {
+                skip--;
+                return;
+            }
+            shown.push(index);
+        });
+        const earlier = events.length - shown.length;
+        if (earlier > 0)
+            lines.push(panel.tint(Theme.faint, "+" + earlier + " earlier"));
+        let pointed = false;
+        for (const index of shown.slice(0, 10)) {
+            const event = events[index];
+            const phase = phases[index];
+            const tone = phase === "now" ? Theme.blue : phase === "soon" ? Theme.heat : phase === "upcoming" ? Theme.warm : gone[index] ? Theme.faint : Theme.muted;
+            const title = clip(String(event.title ?? "") || "(No title)");
+            let note = "";
+            if (phase === "now") {
+                const end = event.end ? panel.clockMinutes(event.end) : 0;
+                const rest = panel.duration(((end < panel.clockMinutes(event.start) ? end + 1440 : end) - now) * 60);
+                note = rest.length > 0 ? "now · " + rest + " left" : "now";
+            } else if (!gone[index] && event.start && (!pointed || phase === "soon" || phase === "upcoming")) {
+                note = "in " + panel.duration((panel.clockMinutes(event.start) - now) * 60);
+            }
+            if (!gone[index] && event.start && phase !== "now")
+                pointed = true;
+            lines.push(panel.tint(tone, phase === "done" ? "✓" : gone[index] ? "○" : "●") + gap + panel.tint(gone[index] ? Theme.faint : Theme.muted, event.start ? event.start + (event.end ? "–" + event.end : "") : "all day") + gap + (gone[index] ? panel.tint(Theme.faint, title) : phase === "now" ? panel.tint(Theme.fgBright, "<b>" + title + "</b>") : title) + (calendars && event.calendar ? panel.tint(Theme.faint, " · " + clip(String(event.calendar))) : "") + (note.length > 0 ? gap + panel.tint(tone, note.replace(/ /g, "&nbsp;")) : ""));
+        }
+        if (shown.length > 10)
+            lines.push(panel.tint(Theme.faint, "+" + (shown.length - 10) + " more"));
+
+        if (tasks.length > 0) {
+            const overdue = tasks.filter(task => task.overdue).length;
+            lines.push("");
+            lines.push("<b>Tasks</b>" + gap + panel.tint(overdue > 0 ? Theme.warm : Theme.faint, overdue > 0 ? overdue + " overdue" : tasks.length + " due today"));
+            for (const task of tasks.slice(0, 6)) {
+                const parts = String(task.date ?? today).split("-").map(Number);
+                const days = Math.round((new Date(date.getFullYear(), date.getMonth(), date.getDate()) - new Date(parts[0], parts[1] - 1, parts[2])) / 86400000);
+                lines.push(panel.tint(task.overdue ? Theme.warm : Theme.muted, "□") + gap + clip(String(task.title ?? "")) + (task.overdue && days > 0 ? gap + panel.tint(Theme.warm, days + "d overdue") : ""));
+            }
+            if (tasks.length > 6)
+                lines.push(panel.tint(Theme.faint, "+" + (tasks.length - 6) + " more"));
+        }
+
+        lines.push("");
+        lines.push(panel.tint(Theme.faint, "click: show" + (left > 0 ? " · middle: mark next done" : "") + " · right: " + (status === "setup" ? "connect" : "sync")));
+        return lines.join("\n");
     }
 
     function appsFrom(groups: var): var {
@@ -227,6 +317,12 @@ PanelWindow {
                 panel.thermalPath = (lines[0] ?? "").trim();
                 if (panel.layout.length === 0)
                     panel.layout = panel.layoutCode((lines[1] ?? "").trim());
+                const gpu = (lines[2] ?? "").trim();
+                const space = gpu.indexOf(" ");
+                if (space > 0) {
+                    panel.gpuKind = gpu.slice(0, space);
+                    panel.gpuPath = gpu.slice(space + 1);
+                }
             }
         }
     }
@@ -255,6 +351,8 @@ PanelWindow {
             netFile.reload();
             if (panel.thermalPath.length > 0)
                 tempFile.reload();
+            if (panel.gpuPath.length > 0)
+                gpuFile.reload();
         }
     }
 
@@ -301,6 +399,28 @@ PanelWindow {
     }
 
     FileView {
+        id: gpuFile
+
+        path: panel.gpuPath
+        printErrors: false
+        onLoaded: {
+            const value = Number(text().trim());
+            if (panel.gpuKind === "busy") {
+                panel.settle("gpu", value, 5);
+                return;
+            }
+            const now = Date.now();
+            const prev = panel.gpuPrev;
+            panel.gpuPrev = {
+                idle: value,
+                at: now
+            };
+            if (prev && now > prev.at)
+                panel.settle("gpu", Math.max(0, Math.min(100, 100 * (1 - (value - prev.idle) / (now - prev.at)))), 5);
+        }
+    }
+
+    FileView {
         id: netFile
 
         path: "/proc/net/dev"
@@ -343,16 +463,18 @@ PanelWindow {
                     const parsed = JSON.parse(this.text);
                     panel.agenda = {
                         text: String(parsed.text ?? "").replace(/^󰃭\s*/, ""),
-                        tooltip: String(parsed.tooltip ?? ""),
-                        class: String(parsed.class ?? "")
+                        class: String(parsed.class ?? ""),
+                        status: String(parsed.status ?? "")
                     };
                 } catch (error) {
                     panel.agenda = {
                         text: "",
-                        tooltip: "",
-                        class: ""
+                        class: "",
+                        status: ""
                     };
                 }
+                dayFile.reload();
+                doneFile.reload();
             }
         }
     }
@@ -363,6 +485,40 @@ PanelWindow {
         running: panel.live
         triggeredOnStart: true
         onTriggered: agendaProc.running = true
+    }
+
+    FileView {
+        id: dayFile
+
+        path: panel.cacheHome + "/agenda-os/today.json"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                panel.day = JSON.parse(text());
+            } catch (error) {
+                panel.day = {};
+            }
+        }
+        onLoadFailed: panel.day = {}
+    }
+
+    FileView {
+        id: doneFile
+
+        path: panel.cacheHome + "/agenda-os/done.json"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                panel.doneDays = JSON.parse(text());
+            } catch (error) {
+                panel.doneDays = {};
+            }
+        }
+        onLoadFailed: panel.doneDays = {}
     }
 
     Timer {
@@ -410,6 +566,21 @@ PanelWindow {
                 } catch (error) {}
             }
         }
+    }
+
+    FileView {
+        path: Quickshell.env("XDG_RUNTIME_DIR") + "/" + Sys.airpodsDir + "/status.json"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                panel.airpods = JSON.parse(text()) ?? {};
+            } catch (error) {
+                panel.airpods = {};
+            }
+        }
+        onLoadFailed: panel.airpods = {}
     }
 
     component Island: Rectangle {
@@ -621,20 +792,29 @@ PanelWindow {
         }
 
         Chip {
-            id: titleChip
+            id: agentsChip
+
+            readonly property var list: Agents.list
+            readonly property int asking: list.filter(agent => agent.status === "asking").length
+            readonly property int failed: list.filter(agent => agent.status === "error").length
+            readonly property int busy: list.filter(agent => agent.status === "working" || agent.status === "planning").length
+            readonly property var urgent: list.find(agent => agent.status === "asking") ?? list.find(agent => agent.status === "error") ?? null
+            readonly property string summary: {
+                const parts = [asking > 0 ? asking + " asking" : "", failed > 0 ? failed + " error" : "", busy > 0 ? busy + " working" : ""].filter(part => part.length > 0);
+                return parts.length > 0 ? parts.join(" · ") : list.length + " idle";
+            }
 
             bar: panel
-            visible: !panel.compact && panel.focused !== null && (panel.focused?.title ?? "").length > 0 && panel.titleRoom >= 80
-            icon: "󰖯"
-            iconColor: Theme.faint
-            text: panel.focused?.title ?? ""
-            textColor: Theme.muted
-            maxTextWidth: Math.max(0, panel.titleRoom)
+            visible: list.length > 0
+            icon: "󰚩"
+            iconColor: asking > 0 ? Theme.heat : failed > 0 ? Theme.danger : busy > 0 ? Theme.blue : Theme.muted
+            text: panel.compact ? String(list.length) : summary
+            textColor: asking > 0 ? Theme.heat : failed > 0 ? Theme.danger : Theme.fg
+            fill: asking > 0 ? Theme.alpha(Theme.heat, 0.14) : failed > 0 ? Theme.alpha(Theme.danger, 0.14) : "transparent"
             roll: true
-            sideways: true
-            direction: panel.focusTrend
-            tooltip: panel.focused ? "<b>" + panel.esc(panel.focused.lastIpcObject?.class ?? "window") + "</b>\n" + panel.esc(panel.focused.title) : ""
-            hoverable: false
+            tooltip: "<b>Claude</b>  " + panel.esc(summary) + "\n" + list.slice(0, 8).map(agent => "· " + panel.esc(agent.name.length > 40 ? agent.name.slice(0, 39) + "…" : agent.name) + "  " + agent.status + (agent.status === "ready" ? "" : " " + Agents.ago(agent.since, clock.date.getTime()))).join("\n") + "\nclick: agents" + (urgent ? " · right-click: open " + urgent.status : "")
+            onClicked: panel.agentsRequested()
+            onRightClicked: Agents.open(urgent)
         }
 
         Chip {
@@ -660,7 +840,7 @@ PanelWindow {
             icon: "󰃭"
             text: panel.agendaRoom >= 48 ? panel.agenda.text : ""
             maxTextWidth: Math.max(0, panel.agendaRoom)
-            tooltip: panel.agenda.tooltip
+            tooltip: panel.agendaTip
             iconColor: kind === "now" ? Theme.fgBright : kind === "soon" ? Theme.heat : kind === "upcoming" || kind === "overdue" ? Theme.warm : kind === "later" ? Theme.fg : Theme.muted
             textColor: kind === "now" ? Theme.fgBright : kind === "soon" ? Theme.heat : kind === "upcoming" || kind === "overdue" ? Theme.warm : kind === "later" ? Theme.fg : kind === "tasks" ? Theme.fg : Theme.muted
             fill: kind === "now" ? Theme.alpha(Theme.blue, 0.22) : kind === "soon" ? Theme.alpha(Theme.heat, 0.14) : "transparent"
@@ -738,9 +918,10 @@ PanelWindow {
         readonly property real gapStart: leftIsland.x + leftIsland.span + panel.gap * 2
         readonly property real gapEnd: rightIsland.x - panel.gap * 2
         readonly property real fullWidth: jalaliChip.implicitWidth + clockChip.implicitWidth + gregorianChip.implicitWidth + 2 + panel.chrome
-        readonly property bool crowded: gapEnd - gapStart < fullWidth
+        readonly property real fullStart: (panel.width - clockChip.implicitWidth - panel.chrome) / 2 - jalaliChip.implicitWidth - 1
+        readonly property bool crowded: fullStart < gapStart || fullStart + fullWidth > gapEnd
 
-        x: Math.round(Math.max(gapStart, Math.min(gapEnd - span, (panel.width - span) / 2)))
+        x: Math.round(Math.max(gapStart, Math.min(gapEnd - span, crowded ? (panel.width - span) / 2 : fullStart)))
         visible: gapEnd - gapStart >= clockChip.implicitWidth + panel.chrome
         spacing: 0
         order: 1
@@ -953,6 +1134,27 @@ PanelWindow {
         }
 
         Chip {
+            readonly property var lines: String(panel.airpods.tooltip ?? "").split("\n")
+            readonly property bool near: panel.airpods.class === "nearby"
+            readonly property bool known: lines.slice(1).some(line => !line.startsWith("C:"))
+            readonly property int percent: Number(panel.airpods.percentage) || 0
+            readonly property bool low: known && percent <= 20
+            readonly property bool critical: known && percent <= 10
+
+            bar: panel
+            visible: near || panel.airpods.class === "connected"
+            icon: near ? "\u{f1852}" : "\u{f184f}"
+            iconOrder: ["\u{f1852}", "\u{f184f}"]
+            iconColor: critical ? Theme.danger : low ? Theme.yellow : near ? Theme.faint : Theme.muted
+            text: known ? percent + "%" : ""
+            roll: true
+            textColor: critical ? Theme.danger : low ? Theme.yellow : near ? Theme.muted : Theme.fg
+            fill: critical ? Theme.alpha(Theme.danger, 0.16) : "transparent"
+            tooltip: "<b>" + panel.esc(lines[0] || "AirPods") + "</b>" + (near ? "  · nearby" : "") + lines.slice(1).map(line => "\n" + panel.esc(line)).join("") + "\nclick: airpods-tui"
+            onClicked: panel.run([Sys.uwsm, "app", "--", Sys.terminal, "-e", "airpods-tui"])
+        }
+
+        Chip {
             bar: panel
             icon: panel.caffeine ? "󰅶" : "󰛊"
             iconColor: panel.caffeine ? Theme.fgBright : Theme.faint
@@ -1073,6 +1275,17 @@ PanelWindow {
                     roll: true
                     iconColor: panel.stats.cpu >= 85 ? Theme.heat : Theme.muted
                     tooltip: "<b>CPU</b>  " + panel.stats.cpu + "%"
+                    onClicked: panel.widgetsRequested()
+                }
+
+                Chip {
+                    bar: panel
+                    visible: panel.gpuPath.length > 0
+                    icon: "󰢮"
+                    text: panel.stats.gpu + "%"
+                    roll: true
+                    iconColor: panel.stats.gpu >= 85 ? Theme.heat : Theme.muted
+                    tooltip: "<b>GPU</b>  " + panel.stats.gpu + "% busy"
                     onClicked: panel.widgetsRequested()
                 }
 

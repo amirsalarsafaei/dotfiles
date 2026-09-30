@@ -1,9 +1,10 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  isWork ? false,
+  ...
+}:
 [
   pkgs.vlc
-  pkgs.telegram-desktop
-  pkgs.spotify-player
-  pkgs.syncthing
   pkgs.texstudio
   pkgs.chromium
   pkgs.tigervnc
@@ -15,4 +16,9 @@
   pkgs.mattermost-desktop
   pkgs.xournalpp
   pkgs.masterpdfeditor
+]
+++ pkgs.lib.optionals (!isWork) [
+  pkgs.telegram-desktop
+  pkgs.spotify-player
+  pkgs.syncthing
 ]

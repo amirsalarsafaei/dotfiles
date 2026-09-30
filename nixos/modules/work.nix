@@ -99,6 +99,9 @@ lib.mkIf config.isWork {
         claudeCode.enableDevar = true;
         claudeCode.planner.enable = true;
         claudeCode.sandbox.enable = true;
+        claudeCode.enablePersonal = false;
+        claudeCode.enablePersonalDeepseek = false;
+        ntfy.enable = false;
 
         agentSkills = {
           sources.devar = {
@@ -113,6 +116,9 @@ lib.mkIf config.isWork {
             dest = "${config.home.homeDirectory}/.config/glm-claude/skills";
             structure = "symlink-tree";
           };
+          targets.local-claude.enable = false;
+          targets.personal-claude.enable = false;
+          targets.personal-deepseek-claude.enable = false;
           # The whole Divar skill set the devar plugin ships. The `agents` target
           # (home/modules/programs/development/agent-skills.nix) links these into
           # ~/.agents/skills, which Amp reads — the declarative replacement for

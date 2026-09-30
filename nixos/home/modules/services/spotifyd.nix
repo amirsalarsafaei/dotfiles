@@ -1,5 +1,6 @@
+{ lib, osConfig, ... }:
 {
-  services.spotifyd = {
+  services.spotifyd = lib.mkIf (!(osConfig.isWork or false)) {
     enable = true;
     settings = {
       device_name = "mac-linux";

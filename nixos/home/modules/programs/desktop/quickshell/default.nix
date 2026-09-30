@@ -101,6 +101,20 @@ let
       ${lib.getExe' pkgs.hyprland "hyprctl"} devices -j 2>/dev/null \
         | jq -r '([.keyboards[] | select(.main)][0] // .keyboards[0] // {}).active_keymap // ""' \
         || echo
+      gpu=""
+      for card in /sys/class/drm/card[0-9]; do
+        if [ -r "$card/device/gpu_busy_percent" ]; then
+          gpu="busy $card/device/gpu_busy_percent"
+          break
+        fi
+        for idle in "$card/gt/gt0/rc6_residency_ms" "$card/device/tile0/gt0/gtidle/idle_residency_ms"; do
+          if [ -r "$idle" ]; then
+            gpu="idle $idle"
+            break 2
+          fi
+        done
+      done
+      echo "$gpu"
     '';
   };
 
@@ -310,7 +324,11 @@ let
                 [.[] | select(.title == $session or (.title | startswith($session + " | ")))]
                 | sort_by(.focusHistoryID) | first | .address // empty') || window=""
           if [ -n "$window" ]; then
-            "$hyprctl" dispatch focuswindow "address:$window" >/dev/null
+            for _ in $(seq 20); do
+              "$hyprctl" dispatch focuswindow "address:$window" >/dev/null
+              [ "$("$hyprctl" activewindow -j | jq -r '.address // empty')" = "$window" ] && break
+              sleep 0.05
+            done
           else
             before=$(clients "$session")
             setsid -f ${lib.getExe (osConfig.programs.uwsm.package or pkgs.uwsm)} app -- \
@@ -463,6 +481,9 @@ let
         readonly property string lyricsDir: "${config.custom.lyrics.stateDir}"
         readonly property string agentsDir: "${config.custom.claudeCode.agentStatus.dir}"
         readonly property string agents: "${lib.getExe agents}"
+        readonly property string airpodsDir: "${config.custom.airpods.stateDir}"
+        readonly property string uwsm: "${lib.getExe (osConfig.programs.uwsm.package or pkgs.uwsm)}"
+        readonly property string terminal: "${lib.getExe config.programs.ghostty.package}"
         readonly property string user: "${config.home.username}"
         readonly property string host: "${osConfig.networking.hostName or "nixos"}"
     }

@@ -249,6 +249,12 @@ let
 in
 {
   options.custom.ntfy = {
+    enable = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Install the `ntfy` CLI and allow the Claude Code notification hook.";
+    };
+
     server = lib.mkOption {
       type = lib.types.str;
       default = "https://ntfy.amirsalarsafaei.com";
@@ -290,7 +296,7 @@ in
     };
   };
 
-  config = {
+  config = lib.mkIf cfg.enable {
     home.packages = [ ntfy ];
   };
 }

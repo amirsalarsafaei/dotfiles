@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Effects
+import QtQuick.Shapes
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -13,7 +14,7 @@ PanelWindow {
     property bool overlay: false
     readonly property date now: clock.date
     readonly property var monitor: Hyprland.monitorFor(wall.screen)
-    readonly property bool exposed: !overlay && !Perf.covered(monitor?.activeWorkspace ?? null)
+    readonly property bool exposed: !overlay && !Perf.covered(monitor?.activeWorkspace ?? null) && !Perf.veiled(monitor)
     readonly property bool alive: wall.visible && exposed
     readonly property bool hd: (monitor?.height ?? 0) > 1600
 
@@ -254,7 +255,16 @@ PanelWindow {
         property real level: 0
         property real swell: 0
         property real daylight: wall.sun
-        property real sunPath: Math.min(1, Math.max(0, (wall.skyHour - 6) / 13))
+        property real sunPath: {
+            const theta = 0.85 * Math.min(1, Math.max(0, (wall.skyHour - 6) / 13)) - 0.5;
+            const reach = 1.45 + 0.22 * wall.sun;
+            const shift = 0.45 * scene.pan;
+            const half = Math.max(0.28, lyricsFloat.width / 2 / Math.max(1, wall.height)) + 0.08;
+            const lo = Math.asin(Math.max(-1, Math.min(1, (-half - shift) / reach)));
+            const hi = Math.asin(Math.max(-1, Math.min(1, (half - shift) / reach)));
+            const aside = theta <= lo || theta >= hi ? theta : theta < (lo + hi) / 2 ? lo : hi;
+            return (theta + (aside - theta) * lyricsFloat.reveal + 0.5) / 0.85;
+        }
         property real moonPhase: wall.moonPhase
 
         property real pan: -0.035 * ((wall.workspace - 1) % 10)
@@ -280,6 +290,12 @@ PanelWindow {
             NumberAnimation {
                 duration: 700
                 easing.type: Easing.OutCubic
+            }
+        }
+
+        Behavior on sunPath {
+            SmoothedAnimation {
+                velocity: 0.35
             }
         }
 
@@ -467,10 +483,16 @@ PanelWindow {
         readonly property real cx: wall.width * 0.6 + scene.pan * wall.height
         readonly property real cy: (scene.horizon + 1.4) * wall.height
         readonly property real home: wall.width * 0.6 - 0.035 * ((wall.workspace - 1) % 10) * wall.height
-        readonly property real margin: 150 * unit
+        readonly property real bubble: Math.round(220 * Math.max(0.85, unit))
+        readonly property real margin: Math.max(150 * unit, bubble / 2 + 16 * unit)
         readonly property real reachRight: Math.asin(Math.max(0, Math.min(0.5, (wall.width - margin - home) / radius)))
         readonly property real reachLeft: Math.asin(Math.max(0, Math.min(0.5, (home - margin) / radius)))
-        readonly property real spacing: 200 * unit / radius
+        readonly property real slim: Math.round(0.75 * bubble)
+        readonly property real gap: Math.round(10 * Math.max(0.85, unit))
+        readonly property real edge: Math.round(16 * Math.max(0.85, unit))
+        readonly property real pixel: Math.max(3, Math.round(5 * unit))
+        readonly property real lift: 12 * pixel + 6 * unit
+        readonly property real spacing: Math.max(200 * unit, bubble + gap) / radius
         readonly property real clearing: (lyricsFloat.width / 2 + 110 * unit) / radius
         readonly property bool parted: wall.lyricsShown || wall.artMix > 0.02
         readonly property int count: Agents.ids.length
@@ -498,6 +520,98 @@ PanelWindow {
             right.forEach((agent, i) => result[agent.id] = clearing + i * step);
             return result;
         }
+        readonly property var bubbles: {
+            const spots = Agents.list.filter(agent => agent.id in slots).map(agent => {
+                const angle = slots[agent.id];
+                return {
+                    id: agent.id,
+                    x: cx + (radius + lift) * Math.sin(angle),
+                    y: cy - (radius + lift) * Math.cos(angle),
+                    rank: rank(agent.status),
+                    since: agent.since,
+                    left: angle < 0
+                };
+            });
+            const groups = parted ? [[spots.filter(spot => spot.left), edge, lyricsFloat.x - 2 * gap], [spots.filter(spot => !spot.left), lyricsFloat.x + lyricsFloat.width + 2 * gap, wall.width - edge]] : [[spots, edge, wall.width - edge]];
+            const result = {};
+            for (const [group, lo, hi] of groups) {
+                let best = null;
+                for (const width of [bubble, Math.round((bubble + slim) / 2), slim]) {
+                    const placed = arrange(group, lo, hi, width);
+                    const alerts = placed.filter(place => place.spot.rank >= 3).length;
+                    const active = placed.filter(place => place.spot.rank >= 2).length;
+                    if (!best || alerts > best.alerts || (alerts === best.alerts && active > best.active))
+                        best = {
+                            placed,
+                            alerts,
+                            active,
+                            width
+                        };
+                }
+                for (const place of best.placed) {
+                    const covered = spots.filter(spot => Math.abs(spot.x - place.x) < best.width / 2 + 6 * pixel);
+                    const top = Math.min(...covered.map(spot => spot.y));
+                    result[place.spot.id] = {
+                        width: best.width,
+                        shift: place.x - place.spot.x,
+                        raise: Math.max(0, place.spot.y - top)
+                    };
+                }
+            }
+            return result;
+        }
+
+        function rank(status: string): int {
+            return status === "asking" || status === "error" ? 3 : status === "working" || status === "planning" ? 2 : status === "ready" ? 1 : 0;
+        }
+
+        function arrange(spots: var, lo: real, hi: real, width: real): var {
+            const reach = width / 2 - 14;
+            let chosen = [];
+            let placed = [];
+            for (const spot of spots.slice().sort((a, b) => b.rank - a.rank || b.since - a.since)) {
+                const trial = chosen.concat([spot]).sort((a, b) => a.x - b.x);
+                if (trial.length * (width + gap) - gap > hi - lo)
+                    break;
+                const packed = pack(trial, lo, hi, width);
+                if (packed.every(place => Math.abs(place.x - place.spot.x) <= reach)) {
+                    chosen = trial;
+                    placed = packed;
+                }
+            }
+            return placed;
+        }
+
+        function pack(spots: var, lo: real, hi: real, width: real): var {
+            const pitch = width + gap;
+            const settle = block => {
+                const n = block.spots.length;
+                const mean = block.spots.reduce((sum, spot, k) => sum + spot.x - k * pitch, 0) / n;
+                block.start = Math.max(lo + width / 2, Math.min(hi - width / 2 - (n - 1) * pitch, mean));
+            };
+            const blocks = [];
+            for (const spot of spots) {
+                const block = {
+                    spots: [spot],
+                    start: 0
+                };
+                settle(block);
+                blocks.push(block);
+                while (blocks.length > 1) {
+                    const last = blocks[blocks.length - 1];
+                    const prev = blocks[blocks.length - 2];
+                    if (prev.start + prev.spots.length * pitch <= last.start)
+                        break;
+                    prev.spots = prev.spots.concat(last.spots);
+                    blocks.pop();
+                    settle(prev);
+                }
+            }
+            return blocks.reduce((all, block) => all.concat(block.spots.map((spot, k) => ({
+                            spot,
+                            x: block.start + k * pitch
+                        }))), []);
+        }
 
         anchors.fill: parent
         visible: count > 0
@@ -519,11 +633,20 @@ PanelWindow {
 
                 agent: Agents.byId[modelData] ?? null
                 angle: colony.slots[modelData] ?? 0
+                bubbleWidth: colony.bubbles[modelData]?.width ?? colony.bubble
+                bubbleShift: colony.bubbles[modelData]?.shift ?? 0
+                bubbleRaise: colony.bubbles[modelData]?.raise ?? 0
+                fullWidth: colony.bubble
+                lift: colony.lift
+                hushed: !(modelData in colony.bubbles)
                 x: colony.cx + colony.radius * Math.sin(angle)
                 y: colony.cy - colony.radius * Math.cos(angle)
                 unit: colony.unit
                 time: scene.time
                 now: wall.now
+                sunPath: scene.sunPath
+                twilight: scene.twilight
+                daylight: scene.daylight
                 onActivated: Agents.open(agent)
             }
         }
@@ -611,7 +734,87 @@ PanelWindow {
         }
     }
 
+    Shape {
+        id: scrim
+
+        readonly property real rx: clockBlock.width / 2 + 240
+        readonly property real ry: clockBlock.height / 2 + 150
+
+        x: Math.round(clockBlock.x + clockBlock.width / 2 - ry)
+        y: Math.round(clockBlock.y + clockBlock.height / 2 - ry)
+        width: ry * 2
+        height: ry * 2
+
+        transform: Scale {
+            origin.x: scrim.ry
+            origin.y: scrim.ry
+            xScale: scrim.rx / scrim.ry
+        }
+
+        ShapePath {
+            strokeWidth: -1
+            strokeColor: "transparent"
+            startX: 0
+            startY: 0
+
+            fillGradient: RadialGradient {
+                centerX: scrim.ry
+                centerY: scrim.ry
+                centerRadius: scrim.ry
+                focalX: scrim.ry
+                focalY: scrim.ry
+
+                GradientStop {
+                    position: 0
+                    color: Theme.alpha(Theme.ink, 0.55)
+                }
+
+                GradientStop {
+                    position: 0.35
+                    color: Theme.alpha(Theme.ink, 0.45)
+                }
+
+                GradientStop {
+                    position: 0.65
+                    color: Theme.alpha(Theme.ink, 0.2)
+                }
+
+                GradientStop {
+                    position: 0.85
+                    color: Theme.alpha(Theme.ink, 0.06)
+                }
+
+                GradientStop {
+                    position: 1
+                    color: Theme.alpha(Theme.ink, 0)
+                }
+            }
+
+            PathLine {
+                x: scrim.width
+                y: 0
+            }
+
+            PathLine {
+                x: scrim.width
+                y: scrim.height
+            }
+
+            PathLine {
+                x: 0
+                y: scrim.height
+            }
+
+            PathLine {
+                x: 0
+                y: 0
+            }
+        }
+    }
+
     Column {
+        id: clockBlock
+
         anchors.left: parent.left
         anchors.bottom: parent.bottom
         anchors.leftMargin: Math.round(wall.width * 0.07)
@@ -620,17 +823,17 @@ PanelWindow {
         layer.enabled: true
         layer.effect: MultiEffect {
             shadowEnabled: true
-            shadowColor: Theme.alpha(Theme.ink, 0.9)
+            shadowColor: Theme.ink
             shadowBlur: 1
             shadowHorizontalOffset: 0
             shadowVerticalOffset: 1
-            blurMax: 32
+            blurMax: 12
         }
 
         Text {
             leftPadding: 3
             text: wall.greeting + ", " + Sys.user
-            color: Theme.alpha(Theme.fg, 0.72)
+            color: Theme.alpha(Theme.fg, 0.9)
             font.family: Theme.sans
             font.pixelSize: 16
             font.weight: Font.Normal
@@ -638,7 +841,7 @@ PanelWindow {
 
         Text {
             text: Qt.formatTime(wall.now, "HH:mm")
-            color: Theme.alpha(Theme.fgBright, 0.94)
+            color: Theme.fgBright
             font.family: Theme.display
             font.pixelSize: 104
             font.weight: Font.Light
@@ -657,7 +860,7 @@ PanelWindow {
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: Qt.formatDate(wall.now, "dddd, d MMMM")
-                color: Theme.alpha(Theme.fgBright, 0.78)
+                color: Theme.alpha(Theme.fgBright, 0.94)
                 font.family: Theme.sans
                 font.pixelSize: 16
                 font.weight: Font.Medium
@@ -675,52 +878,47 @@ PanelWindow {
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: wall.jalali.day + " " + Jalali.months[wall.jalali.month - 1] + " " + wall.jalali.year
-                color: Theme.alpha(Theme.fg, 0.6)
+                color: Theme.alpha(Theme.fg, 0.84)
                 font.family: Theme.sans
                 font.pixelSize: 16
-                font.weight: Font.Light
+                font.weight: Font.Normal
                 font.letterSpacing: 0.5
             }
         }
 
         Row {
+            id: statusRow
+
             leftPadding: 3
             spacing: 10
 
-            Rectangle {
+            Item {
+                id: pulseSlot
+
                 anchors.verticalCenter: parent.verticalCenter
                 width: 5
                 height: 5
-                radius: 2.5
-                color: Perf.eco ? Theme.good : Theme.secondary
-
-                SequentialAnimation on opacity {
-                    running: wall.alive
-                    loops: Animation.Infinite
-                    alwaysRunToEnd: true
-
-                    NumberAnimation {
-                        to: 0.25
-                        duration: 1800
-                        easing.type: Easing.InOutSine
-                    }
-
-                    NumberAnimation {
-                        to: 1
-                        duration: 1800
-                        easing.type: Easing.InOutSine
-                    }
-                }
             }
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: [Sys.host, "ws " + wall.workspace, Perf.eco ? "eco" : "", wall.dusk ? (wall.flipHour < 16 ? "day" : "dusk") : "", wall.sun > 0.01 ? "sun " + Math.round(wall.sun * 100) + "%" : "", wall.moonName + " " + Math.round(wall.moonLit * 100) + "%"].filter(s => s !== "").join("  ·  ").toUpperCase()
-                color: Theme.alpha(Theme.muted, 0.8)
+                color: Theme.alpha(Theme.fg, 0.74)
                 font.family: Theme.mono
-                font.pixelSize: 11
+                font.pixelSize: 12
+                font.weight: Font.Medium
                 font.letterSpacing: 1
             }
         }
+    }
+
+    Rectangle {
+        x: clockBlock.x + statusRow.x + pulseSlot.x
+        y: clockBlock.y + statusRow.y + pulseSlot.y
+        width: 5
+        height: 5
+        radius: 2.5
+        color: Perf.eco ? Theme.good : Theme.secondary
+        opacity: 0.625 + 0.375 * Math.cos(Math.PI * scene.time / 1.8)
     }
 }

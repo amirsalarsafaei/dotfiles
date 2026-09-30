@@ -452,32 +452,25 @@ let
   };
 
   chromeDevtoolsMcp = pkgs.callPackage ../../../../pkgs/chrome-devtools-mcp.nix { };
-  mcpChromeBridge = pkgs.callPackage ../../../../pkgs/mcp-chrome-bridge { };
+  browserMcp = pkgs.callPackage ../../../../pkgs/agent360-browser-mcp { };
 
   browserMcpDirRel = ".config/claude-browser-mcp";
   secChromeMcpConfigRel = "${browserMcpDirRel}/chrome-devtools.json";
   secChromeMcpConfigPath = "${config.home.homeDirectory}/${secChromeMcpConfigRel}";
   chromeMcpConfigRel = "${browserMcpDirRel}/chrome.json";
   chromeMcpConfigPath = "${config.home.homeDirectory}/${chromeMcpConfigRel}";
-  chromeNativeHostRel = ".config/google-chrome/NativeMessagingHosts/com.chromemcp.nativehost.json";
   playwrightMcpConfigRel = "${browserMcpDirRel}/playwright.json";
   playwrightMcpConfigPath = "${config.home.homeDirectory}/${playwrightMcpConfigRel}";
 
   chromeMcpServers = {
     mcpServers = {
       chrome = {
-        type = "http";
-        url = "http://127.0.0.1:12306/mcp";
+        command = lib.getExe browserMcp;
+        env = {
+          BROWSER_MCP_EXTENSION_ID = "jdehgalffmffhfhmmhaokfbfnafnmgcl";
+        };
       };
     };
-  };
-
-  chromeNativeHost = {
-    name = "com.chromemcp.nativehost";
-    description = "Node.js Host for Browser Bridge Extension";
-    path = "${mcpChromeBridge}/lib/node_modules/mcp-chrome-bridge/dist/run_host.sh";
-    type = "stdio";
-    allowed_origins = [ "chrome-extension://hbdgbgagpkpjffpklnamcljpakneikee/" ];
   };
 
   secChromeMcpServers = {
@@ -1354,7 +1347,7 @@ let
       ];
     };
 
-  ntfyHooks = lib.optionalAttrs config.custom.ntfy.enableClaudeHook (
+  ntfyHooks = lib.optionalAttrs (config.custom.ntfy.enable && config.custom.ntfy.enableClaudeHook) (
     lib.genAttrs
       [
         "Stop"
@@ -2406,7 +2399,6 @@ in
         home.file = {
           ${chromeMcpConfigRel}.text = builtins.toJSON chromeMcpServers;
           ${secChromeMcpConfigRel}.text = builtins.toJSON secChromeMcpServers;
-          ${chromeNativeHostRel}.text = builtins.toJSON chromeNativeHost;
           ${playwrightMcpConfigRel}.text = builtins.toJSON playwrightMcpServers;
         };
       }

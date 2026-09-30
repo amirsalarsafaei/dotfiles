@@ -32,6 +32,38 @@
 
   hyprland.compactOutput = "eDP-1";
 
+  systemd.services.rapl-power-limit = {
+    description = "Raise the package power limit on AC in the performance profile";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "power-profiles-daemon.service" ];
+    path = [ pkgs.coreutils ];
+    serviceConfig = {
+      Restart = "on-failure";
+      RestartSec = 10;
+    };
+    script = ''
+      limit=/sys/class/powercap/intel-rapl-mmio:0/constraint_0_power_limit_uw
+      target=28000000
+      saved=""
+      [ -e "$limit" ] || exit 0
+      while :; do
+        current=$(cat "$limit")
+        if [ "$(cat /sys/class/power_supply/AC/online)" = 1 ] && [ "$(cat /sys/firmware/acpi/platform_profile)" = performance ]; then
+          if [ "$current" -lt "$target" ]; then
+            saved=$current
+            echo "$target" > "$limit" || true
+          fi
+        elif [ -n "$saved" ]; then
+          if [ "$current" = "$target" ]; then
+            echo "$saved" > "$limit" || true
+          fi
+          saved=""
+        fi
+        sleep 10
+      done
+    '';
+  };
+
   services.thinkfan = {
     enable = true;
     sensors = [
@@ -89,6 +121,8 @@
   users.users.amirsalar.extraGroups = [ "netbird-wt0" ];
 
   virtualisation.docker.enableOnBoot = false;
+  custom.localMonitoring.enable = false;
+  services.printing.browsed.enable = false;
 
   # Use the systemd-boot EFI boot loader.
   boot = {

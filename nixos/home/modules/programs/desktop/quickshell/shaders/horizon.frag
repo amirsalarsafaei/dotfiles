@@ -336,7 +336,7 @@ void main() {
             vec2 bu = (p - artCenter) / (artSize * 2.4) + 0.5;
             vec3 wash = textureLod(art, clamp(bu, 0.0, 1.0), 6.0).rgb;
             float washMask = exp(-dot(bu - 0.5, bu - 0.5) * 9.0) * smoothstep(0.0, 0.3, bu.y);
-            color += wash * wash * washMask * artMix * (0.32 + 0.12 * level);
+            color += wash * wash * washMask * artMix * (0.32 + 0.12 * swell);
 
             vec2 ad = abs(au - 0.5) * 2.0;
             float frame = length(max(ad - 0.46, 0.0)) / 0.54;
