@@ -78,6 +78,7 @@ PanelWindow {
     property var gpuPrev: null
     property var levels: ({})
     property var netPrev: null
+    property var tunnels: []
     property string thermalPath: ""
     property string gpuPath: ""
     property string gpuKind: ""
@@ -428,14 +429,24 @@ PanelWindow {
         onLoaded: {
             let rx = 0;
             let tx = 0;
+            const tunnels = [];
             for (const line of text().split("\n").slice(2)) {
                 const colon = line.indexOf(":");
-                if (colon < 0 || line.slice(0, colon).trim() === "lo")
+                if (colon < 0)
                     continue;
+                const name = line.slice(0, colon).trim();
+                if (name === "lo")
+                    continue;
+                if (/^(tun|tap|ppp)\d+$|^wg/.test(name)) {
+                    tunnels.push(name);
+                    continue;
+                }
                 const fields = line.slice(colon + 1).trim().split(/\s+/).map(Number);
                 rx += fields[0];
                 tx += fields[8];
             }
+            if (tunnels.join(" ") !== panel.tunnels.join(" "))
+                panel.tunnels = tunnels;
             const now = Date.now();
             const prev = panel.netPrev;
             panel.netPrev = {
@@ -1117,6 +1128,16 @@ PanelWindow {
         }
 
         Chip {
+            bar: panel
+            visible: panel.tunnels.length > 0
+            icon: "\u{f0582}"
+            iconColor: Theme.fg
+            text: panel.compact ? "" : "VPN"
+            tooltip: "<b>VPN</b>  " + panel.esc(panel.tunnels.join(", ")) + "\nclick: dashboard"
+            onClicked: panel.sidebarRequested()
+        }
+
+        Chip {
             readonly property var adapter: Bluetooth.defaultAdapter
             readonly property var connected: adapter ? adapter.devices.values.filter(device => device.connected) : []
 
@@ -1156,6 +1177,7 @@ PanelWindow {
 
         Chip {
             bar: panel
+            visible: !panel.compact || panel.caffeine
             icon: panel.caffeine ? "󰅶" : "󰛊"
             iconColor: panel.caffeine ? Theme.fgBright : Theme.faint
             fill: panel.caffeine ? Theme.alpha(Theme.fg, 0.1) : "transparent"
@@ -1274,13 +1296,13 @@ PanelWindow {
                     text: panel.stats.cpu + "%"
                     roll: true
                     iconColor: panel.stats.cpu >= 85 ? Theme.heat : Theme.muted
-                    tooltip: "<b>CPU</b>  " + panel.stats.cpu + "%"
+                    tooltip: "<b>CPU</b>  " + panel.stats.cpu + "%" + (panel.compact ? (panel.gpuPath.length > 0 ? "\nGPU  " + panel.stats.gpu + "% busy" : "") + "\nMemory  " + panel.stats.mem + "% used" : "")
                     onClicked: panel.widgetsRequested()
                 }
 
                 Chip {
                     bar: panel
-                    visible: panel.gpuPath.length > 0
+                    visible: panel.gpuPath.length > 0 && (!panel.compact || panel.stats.gpu >= 85)
                     icon: "󰢮"
                     text: panel.stats.gpu + "%"
                     roll: true
@@ -1291,6 +1313,7 @@ PanelWindow {
 
                 Chip {
                     bar: panel
+                    visible: !panel.compact || panel.stats.mem >= 85
                     icon: "\uefc5"
                     text: panel.stats.mem + "%"
                     roll: true
@@ -1320,7 +1343,7 @@ PanelWindow {
         Chip {
             bar: panel
             visible: panel.layout.length > 0
-            icon: "󰌌"
+            icon: panel.compact ? "" : "󰌌"
             text: panel.layout
             roll: true
             sideways: true

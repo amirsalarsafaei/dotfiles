@@ -132,23 +132,29 @@ r/unixporn.
   - privacy indicator (appears only while the mic, camera or screen share is in use)
   - tray (folded to a count on the compact panel; hover to open)
   - network (tooltip shows up/down speed)
+  - VPN (only while a `tun`, `tap`, `ppp` or `wg` interface exists, such as an
+    openvpn3 or openfortivpn session; the tooltip names the interfaces, and the
+    network speed leaves them out so tunnelled traffic is not counted twice)
   - Bluetooth (right-click toggles it)
   - AirPods (only while airpods-tui sees them): the lowest pod or headphone battery;
     an outline icon and grayer text when they are only nearby (seen over BLE, not
     connected here); yellow at 20% or less, red at 10% or less; the tooltip lists
     the model, left, right and case; click opens `airpods-tui` in Ghostty
-  - caffeine
+  - caffeine (on the compact panel only while on; the sidebar Caffeine toggle
+    turns it on)
   - notifications (click opens the center, right-click toggles DND)
   - battery (tooltip shows time left, watts and health)
   - power profile (click cycles)
   - volume (scroll to change, right-click mutes, click opens pavucontrol)
-  - CPU, GPU, memory and temperature
-  - keyboard layout (click for next layout)
+  - CPU, GPU, memory and temperature (the compact panel shows GPU and memory
+    only at 85% or more, and the CPU tooltip lists both)
+  - keyboard layout (click for next layout; no icon on the compact panel)
   - render mode (click cycles auto → eco → full)
   - power drawer (hover to open; click locks, right-click suspends; double-click
     log out, reboot or shut down)
 - The panel named by `hyprland.compactOutput` (t14: `eDP-1`) gets the tighter
-  sizing.
+  sizing and the compact folds above, which keep the right island narrow
+  enough for the clock to stay at the exact center.
 
 ### Workspace overview (Super+Tab)
 
@@ -223,7 +229,8 @@ running while nothing changes drains the battery.
   `quickshell -c shell ipc call perf set auto|eco|full`. The setting is not
   persisted and resets to `auto` when Quickshell restarts.
 - **Bar polling:**
-  - Stats read `/proc` in-process, with no subprocesses.
+  - Stats read `/proc` in-process, with no subprocesses. The VPN chip comes from
+    the same `/proc/net/dev` read as the network speed.
   - GPU load comes from the counter `bar-probe` finds once at startup:
     `gpu_busy_percent` on AMD, or RC6 idle residency on Intel (busy is the
     share of the 5 s poll not spent idle). The chip hides when neither exists.
