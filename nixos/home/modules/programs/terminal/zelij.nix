@@ -52,10 +52,6 @@ in
           "ChangeApplicationState"
           "WriteToStdin"
         ];
-        "autolock.wasm" = [
-          "ReadApplicationState"
-          "ChangeApplicationState"
-        ];
         "harpoon.wasm" = [
           "RunCommands"
           "ReadApplicationState"
@@ -86,7 +82,6 @@ in
     plugins = [
       pkgs.zellijPlugins.zjstatus
       pkgs.zellijPlugins.vim-zellij-navigator
-      pkgs.zellijPlugins.autolock
       zellijExtraPlugins.harpoon
       zellijExtraPlugins.tabula
     ];
@@ -122,7 +117,6 @@ in
 
     settings.load_plugins = lib.mkForce {
       _children = [
-        { autolock = [ ]; }
         { tabula = [ ]; }
       ];
     };
@@ -131,12 +125,6 @@ in
       { home_dir = config.home.homeDirectory; }
       { worktree_name_display = "repo_and_worktree"; }
       { worktree_name_preview_length = "10"; }
-    ];
-
-    settings.plugins.autolock._children = [
-      { is_enabled = true; }
-      { triggers = "fzf|yazi|less|man"; }
-      { reaction_seconds = "0.3"; }
     ];
 
     extraConfig = config.custom.keys.rendered.zellij;

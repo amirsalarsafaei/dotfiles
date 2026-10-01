@@ -112,42 +112,6 @@ let
       desc = "Close pane";
       inherit group;
     };
-
-  toggleFloatingLayer =
-    group:
-    zbind {
-      on = on.none K.w;
-      run = [
-        "ToggleFloatingPanes;"
-        ''SwitchToMode "Normal";''
-      ];
-      desc = "Toggle the floating layer";
-      inherit group;
-    };
-
-  floatOrTilePane =
-    group:
-    zbind {
-      on = on.none K.e;
-      run = [
-        "TogglePaneEmbedOrFloating;"
-        ''SwitchToMode "Normal";''
-      ];
-      desc = "Float or tile this pane";
-      inherit group;
-    };
-
-  pinFloatingPane =
-    group:
-    zbind {
-      on = on.none K.i;
-      run = [
-        "TogglePanePinned;"
-        ''SwitchToMode "Normal";''
-      ];
-      desc = "Pin a floating pane on top";
-      inherit group;
-    };
 in
 {
   hyprland = {
@@ -986,75 +950,6 @@ in
         desc = "Rename pane";
         group = "Panes";
       })
-      (zbind {
-        on = [
-          (on.none K.b)
-          (on.none K.bang)
-        ];
-        run = [
-          "BreakPane;"
-          ''SwitchToMode "Normal";''
-        ];
-        desc = "Break pane out to its own tab";
-        group = "Panes";
-      })
-      (zbind {
-        on = on.none K.braceOpen;
-        run = [
-          "BreakPaneLeft;"
-          ''SwitchToMode "Normal";''
-        ];
-        desc = "Break pane to the tab on the left";
-        group = "Panes";
-      })
-      (zbind {
-        on = on.none K.braceClose;
-        run = [
-          "BreakPaneRight;"
-          ''SwitchToMode "Normal";''
-        ];
-        desc = "Break pane to the tab on the right";
-        group = "Panes";
-      })
-      (zbind {
-        on = on.none K.g;
-        run = "TogglePaneInGroup;";
-        desc = "Add or remove this pane from the group";
-        group = "Panes";
-      })
-      (zbind {
-        on = on.none K.G;
-        run = "ToggleGroupMarking;";
-        desc = "Toggle group marking";
-        group = "Panes";
-      })
-      (toggleFloatingLayer "Panes")
-      (floatOrTilePane "Panes")
-      (pinFloatingPane "Panes")
-      (zbind {
-        on = on.none K.t;
-        run = [
-          ''NewPane "stacked";''
-          ''SwitchToMode "Normal";''
-        ];
-        desc = "New stacked pane";
-        group = "Panes";
-      })
-      (zbind {
-        on = [
-          (on.none K.u)
-          (on.none K.space)
-        ];
-        run = "NextSwapLayout;";
-        desc = "Next swap layout";
-        group = "Panes";
-      })
-      (zbind {
-        on = on.none K.U;
-        run = "PreviousSwapLayout;";
-        desc = "Previous swap layout";
-        group = "Panes";
-      })
 
       (zbind {
         on = on.none K.c;
@@ -1151,32 +1046,6 @@ in
         group = "Session & tools";
       })
       (zbind {
-        on = on.none K.P;
-        run = [
-          ''
-            LaunchOrFocusPlugin "plugin-manager" {
-                floating true
-                move_to_focused_tab true
-            };''
-          ''SwitchToMode "Normal";''
-        ];
-        desc = "Plugin manager";
-        group = "Session & tools";
-      })
-      (zbind {
-        on = on.none K.slash;
-        run = [
-          ''
-            LaunchOrFocusPlugin "filepicker" {
-                floating true
-                move_to_focused_tab true
-            };''
-          ''SwitchToMode "Normal";''
-        ];
-        desc = "File picker";
-        group = "Session & tools";
-      })
-      (zbind {
         on = on.none K.C;
         run = [
           ''
@@ -1252,15 +1121,6 @@ in
           desc = "Split right";
           group = "Pane mode";
         })
-        (zbind {
-          on = on.none K.s;
-          run = [
-            ''NewPane "stacked";''
-            ''SwitchToMode "Normal";''
-          ];
-          desc = "New stacked pane";
-          group = "Pane mode";
-        })
         (closePane "Pane mode")
         (zbind {
           on = on.none K.f;
@@ -1280,8 +1140,6 @@ in
           desc = "Toggle pane frames";
           group = "Pane mode";
         })
-        (toggleFloatingLayer "Pane mode")
-        (floatOrTilePane "Pane mode")
         (zbind {
           on = on.none K.c;
           run = [
@@ -1291,7 +1149,6 @@ in
           desc = "Rename pane";
           group = "Pane mode";
         })
-        (pinFloatingPane "Pane mode")
       ];
 
     tabMode = [
@@ -1342,42 +1199,6 @@ in
           ''SwitchToMode "Normal";''
         ];
         desc = "Close tab";
-        group = "Tab mode";
-      })
-      (zbind {
-        on = on.none K.s;
-        run = [
-          "ToggleActiveSyncTab;"
-          ''SwitchToMode "Normal";''
-        ];
-        desc = "Type into every pane of this tab at once";
-        group = "Tab mode";
-      })
-      (zbind {
-        on = on.none K.b;
-        run = [
-          "BreakPane;"
-          ''SwitchToMode "Normal";''
-        ];
-        desc = "Break pane out to its own tab";
-        group = "Tab mode";
-      })
-      (zbind {
-        on = on.none K.bracketClose;
-        run = [
-          "BreakPaneRight;"
-          ''SwitchToMode "Normal";''
-        ];
-        desc = "Break pane to the tab on the right";
-        group = "Tab mode";
-      })
-      (zbind {
-        on = on.none K.bracketOpen;
-        run = [
-          "BreakPaneLeft;"
-          ''SwitchToMode "Normal";''
-        ];
-        desc = "Break pane to the tab on the left";
         group = "Tab mode";
       })
       (zbind {
@@ -1660,7 +1481,6 @@ in
           [
             (plugin K.w "session-manager" "Session manager")
             (plugin K.c "configuration" "Zellij's own configuration screen")
-            (plugin K.p "plugin-manager" "Plugin manager")
             (plugin K.a "zellij:about" "About zellij")
             (plugin K.s "zellij:share" "Share the session")
             (plugin K.l "zellij:layout-manager" "Layout manager")
