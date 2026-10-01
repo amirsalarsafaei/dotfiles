@@ -30,9 +30,8 @@ PanelWindow {
     readonly property int gap: compact ? 4 : 6
     readonly property int chipHeight: barHeight - (compact ? 6 : 8)
     readonly property real chrome: barHeight - chipHeight
-    readonly property real rightRest: rightIsland.span - (tray.visible ? tray.span : 0) + tray.rest
-    readonly property real sideRoom: Math.min(width - marginSide * 2 - rightRest - gap * 4 - clockChip.implicitWidth - chrome, (width - clockChip.implicitWidth - chrome) / 2 - gap * 2 - marginSide)
-    readonly property real leftFixed: chrome + leftIsland.spacing * 9 + dashChip.width + workspaces.width + (agentsChip.visible ? agentsChip.width : 0) + (submapChip.visible ? submapChip.width : 0) + (mediaChip.visible ? mediaChip.width : 0)
+    readonly property real sideRoom: Math.min(width - marginSide * 2 - rightIsland.span - gap * 4 - clockChip.implicitWidth - chrome, (width - clockChip.implicitWidth - chrome) / 2 - gap * 2 - marginSide)
+    readonly property real leftFixed: chrome + leftIsland.spacing * 11 + dashChip.width + workspaces.width + notifChip.width + tray.rest + (agentsChip.visible ? agentsChip.width : 0) + (submapChip.visible ? submapChip.width : 0) + (mediaChip.visible ? mediaChip.width : 0)
     readonly property real flex: sideRoom - leftFixed - (viz.visible ? viz.width : 0)
     readonly property bool wantAgenda: agenda.text.length > 0
     readonly property real agendaRoom: wantAgenda ? Math.floor(Math.min(compact ? 150 : 260, flex - agendaChip.frame)) : 0
@@ -79,6 +78,8 @@ PanelWindow {
     property var levels: ({})
     property var netPrev: null
     property var tunnels: []
+    property string load: ""
+    property string memory: ""
     property string thermalPath: ""
     property string gpuPath: ""
     property string gpuKind: ""
@@ -310,6 +311,10 @@ PanelWindow {
     }
 
     Process {
+        id: probe
+
+        property int tries: 0
+
         running: true
         command: [Sys.barProbe]
         stdout: StdioCollector {
@@ -318,6 +323,10 @@ PanelWindow {
                 panel.thermalPath = (lines[0] ?? "").trim();
                 if (panel.layout.length === 0)
                     panel.layout = panel.layoutCode((lines[1] ?? "").trim());
+                if (panel.layout.length === 0 && probe.tries < 5) {
+                    probe.tries++;
+                    reprobe.restart();
+                }
                 const gpu = (lines[2] ?? "").trim();
                 const space = gpu.indexOf(" ");
                 if (space > 0) {
@@ -326,6 +335,12 @@ PanelWindow {
                 }
             }
         }
+    }
+
+    Timer {
+        id: reprobe
+        interval: 2000
+        onTriggered: probe.running = true
     }
 
     Connections {
@@ -349,6 +364,7 @@ PanelWindow {
         onTriggered: {
             statFile.reload();
             memFile.reload();
+            loadFile.reload();
             netFile.reload();
             if (panel.thermalPath.length > 0)
                 tempFile.reload();
@@ -384,11 +400,19 @@ PanelWindow {
         onLoaded: {
             const total = Number((/MemTotal:\s+(\d+)/.exec(text()) ?? [0, 0])[1]);
             const available = Number((/MemAvailable:\s+(\d+)/.exec(text()) ?? [0, 0])[1]);
-            if (total > 0)
-                panel.stats = Object.assign({}, panel.stats, {
-                    mem: Math.round(100 * (total - available) / total)
-                });
+            if (total <= 0)
+                return;
+            panel.settle("mem", 100 * (total - available) / total, 2);
+            panel.memory = ((total - available) / 1048576).toFixed(1) + " of " + (total / 1048576).toFixed(1) + " GiB";
         }
+    }
+
+    FileView {
+        id: loadFile
+
+        path: "/proc/loadavg"
+        printErrors: false
+        onLoaded: panel.load = text().trim().split(/\s+/).slice(0, 3).join(" · ")
     }
 
     FileView {
@@ -803,6 +827,20 @@ PanelWindow {
         }
 
         Chip {
+            id: notifChip
+
+            bar: panel
+            icon: panel.notifications.dnd ? "󰂛" : panel.notifications.count > 0 ? "󰂞" : "󰂚"
+            iconOrder: ["󰂛", "󰂚", "󰂞"]
+            iconColor: panel.notifications.dnd ? Theme.faint : panel.notifications.count > 0 ? Theme.fg : Theme.muted
+            text: panel.notifications.count > 0 ? String(panel.notifications.count) : ""
+            roll: true
+            tooltip: "<b>" + (panel.notifications.count > 0 ? panel.notifications.count + " notification" + (panel.notifications.count === 1 ? "" : "s") : "No notifications") + "</b>" + (panel.notifications.dnd ? "  · do not disturb" : "") + "\nclick: center · right-click: dnd"
+            onClicked: panel.run([Sys.swaync, "-t", "-sw"])
+            onRightClicked: panel.run([Sys.swaync, "-d", "-sw"])
+        }
+
+        Chip {
             id: agentsChip
 
             readonly property var list: Agents.list
@@ -921,6 +959,106 @@ PanelWindow {
                 }
             }
         }
+
+        Item {
+            id: tray
+
+            readonly property int count: SystemTray.items.values.length
+            readonly property bool urgent: SystemTray.items.values.some(item => item.status === Status.NeedsAttention)
+            readonly property bool folded: panel.compact && !trayHover.hovered
+            readonly property real rest: visible ? (panel.compact ? trayHandle.implicitWidth : trayRow.implicitWidth) + panel.gap : 0
+            readonly property real span: (folded ? trayHandle.implicitWidth : trayRow.implicitWidth) + panel.gap
+
+            anchors.verticalCenter: parent.verticalCenter
+            visible: count > 0
+            width: span
+            height: panel.chipHeight
+            clip: true
+
+            Behavior on width {
+                NumberAnimation {
+                    duration: 300
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+            HoverHandler {
+                id: trayHover
+            }
+
+            Chip {
+                id: trayHandle
+
+                x: panel.gap
+                bar: panel
+                visible: tray.folded
+                icon: "\u{f0142}"
+                iconColor: tray.urgent ? Theme.danger : Theme.muted
+                text: String(tray.count)
+                textColor: tray.urgent ? Theme.danger : Theme.muted
+                hoverable: false
+            }
+
+            Row {
+                id: trayRow
+
+                x: panel.gap
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 2
+                visible: !tray.folded
+
+                Repeater {
+                    model: SystemTray.items
+
+                    Rectangle {
+                        id: trayItem
+
+                        required property var modelData
+
+                        width: panel.chipHeight
+                        height: panel.chipHeight
+                        radius: height / 2
+                        color: modelData.status === Status.NeedsAttention ? Theme.alpha(Theme.danger, 0.25) : "transparent"
+
+                        IconImage {
+                            anchors.centerIn: parent
+                            implicitSize: panel.iconSize + 2
+                            source: trayItem.modelData.icon
+                        }
+
+                        MouseArea {
+                            id: trayMouse
+
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+                            onEntered: {
+                                panel.tip.show(trayItem, panel.esc(trayItem.modelData.tooltipTitle || trayItem.modelData.title || trayItem.modelData.id));
+                                panel.hover(trayItem);
+                            }
+                            onExited: {
+                                panel.tip.hide(trayItem);
+                                panel.leave(trayItem);
+                            }
+                            onClicked: mouseEvent => {
+                                panel.tip.hide(trayItem);
+                                if (mouseEvent.button === Qt.MiddleButton) {
+                                    trayItem.modelData.secondaryActivate();
+                                } else if (mouseEvent.button === Qt.RightButton || trayItem.modelData.onlyMenu) {
+                                    if (trayItem.modelData.hasMenu) {
+                                        const pos = trayItem.mapToItem(null, 0, trayItem.height + 6);
+                                        trayItem.modelData.display(panel, Math.round(pos.x), Math.round(pos.y));
+                                    }
+                                } else {
+                                    trayItem.modelData.activate();
+                                }
+                            }
+                            onWheel: wheelEvent => trayItem.modelData.scroll(wheelEvent.angleDelta.y !== 0 ? wheelEvent.angleDelta.y : wheelEvent.angleDelta.x, wheelEvent.angleDelta.y === 0)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     Island {
@@ -1007,104 +1145,6 @@ PanelWindow {
             tooltip: [panel.sharing ? "<b>Screen shared</b>" : "", panel.camApps.length > 0 ? "<b>Camera</b>  " + panel.esc(panel.camApps.join(", ")) : "", panel.micApps.length > 0 ? "<b>Microphone</b>  " + panel.esc(panel.micApps.join(", ")) : ""].filter(line => line.length > 0).join("\n")
         }
 
-        Item {
-            id: tray
-
-            readonly property int count: SystemTray.items.values.length
-            readonly property bool urgent: SystemTray.items.values.some(item => item.status === Status.NeedsAttention)
-            readonly property bool folded: panel.compact && !trayHover.hovered
-            readonly property real rest: visible ? (panel.compact ? trayHandle.implicitWidth : trayRow.implicitWidth) + panel.gap : 0
-            readonly property real span: (folded ? trayHandle.implicitWidth : trayRow.implicitWidth) + panel.gap
-
-            anchors.verticalCenter: parent.verticalCenter
-            visible: count > 0
-            width: span
-            height: panel.chipHeight
-            clip: true
-
-            Behavior on width {
-                NumberAnimation {
-                    duration: 300
-                    easing.type: Easing.OutCubic
-                }
-            }
-
-            HoverHandler {
-                id: trayHover
-            }
-
-            Chip {
-                id: trayHandle
-
-                bar: panel
-                visible: tray.folded
-                icon: "󰅁"
-                iconColor: tray.urgent ? Theme.danger : Theme.muted
-                text: String(tray.count)
-                textColor: tray.urgent ? Theme.danger : Theme.muted
-                hoverable: false
-            }
-
-            Row {
-                id: trayRow
-
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 2
-                visible: !tray.folded
-
-                Repeater {
-                    model: SystemTray.items
-
-                    Rectangle {
-                        id: trayItem
-
-                        required property var modelData
-
-                        width: panel.chipHeight
-                        height: panel.chipHeight
-                        radius: height / 2
-                        color: modelData.status === Status.NeedsAttention ? Theme.alpha(Theme.danger, 0.25) : "transparent"
-
-                        IconImage {
-                            anchors.centerIn: parent
-                            implicitSize: panel.iconSize + 2
-                            source: trayItem.modelData.icon
-                        }
-
-                        MouseArea {
-                            id: trayMouse
-
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-                            onEntered: {
-                                panel.tip.show(trayItem, panel.esc(trayItem.modelData.tooltipTitle || trayItem.modelData.title || trayItem.modelData.id));
-                                panel.hover(trayItem);
-                            }
-                            onExited: {
-                                panel.tip.hide(trayItem);
-                                panel.leave(trayItem);
-                            }
-                            onClicked: mouseEvent => {
-                                panel.tip.hide(trayItem);
-                                if (mouseEvent.button === Qt.MiddleButton) {
-                                    trayItem.modelData.secondaryActivate();
-                                } else if (mouseEvent.button === Qt.RightButton || trayItem.modelData.onlyMenu) {
-                                    if (trayItem.modelData.hasMenu) {
-                                        const pos = trayItem.mapToItem(null, 0, trayItem.height + 6);
-                                        trayItem.modelData.display(panel, Math.round(pos.x), Math.round(pos.y));
-                                    }
-                                } else {
-                                    trayItem.modelData.activate();
-                                }
-                            }
-                            onWheel: wheelEvent => trayItem.modelData.scroll(wheelEvent.angleDelta.y !== 0 ? wheelEvent.angleDelta.y : wheelEvent.angleDelta.x, wheelEvent.angleDelta.y === 0)
-                        }
-                    }
-                }
-            }
-        }
-
         Chip {
             readonly property var devices: Networking.devices.values
             readonly property var wifi: devices.find(device => device.type === DeviceType.Wifi && device.connected) ?? null
@@ -1186,18 +1226,6 @@ PanelWindow {
                 panel.action(["caffeine"]);
                 caffeineRefresh.restart();
             }
-        }
-
-        Chip {
-            bar: panel
-            icon: panel.notifications.dnd ? "󰂛" : panel.notifications.count > 0 ? "󰂞" : "󰂚"
-            iconOrder: ["󰂛", "󰂚", "󰂞"]
-            iconColor: panel.notifications.dnd ? Theme.faint : panel.notifications.count > 0 ? Theme.fg : Theme.muted
-            text: panel.notifications.count > 0 ? String(panel.notifications.count) : ""
-            roll: true
-            tooltip: "<b>" + (panel.notifications.count > 0 ? panel.notifications.count + " notification" + (panel.notifications.count === 1 ? "" : "s") : "No notifications") + "</b>" + (panel.notifications.dnd ? "  · do not disturb" : "") + "\nclick: center · right-click: dnd"
-            onClicked: panel.run([Sys.swaync, "-t", "-sw"])
-            onRightClicked: panel.run([Sys.swaync, "-d", "-sw"])
         }
 
         Chip {
@@ -1283,57 +1311,54 @@ PanelWindow {
             width: hardware.implicitWidth + 4
             height: panel.chipHeight
             radius: height / 2
-            color: Theme.alpha(Theme.raisedGlass, 0.6)
+            color: Theme.alpha(Theme.ink, 0.55)
+            border.color: Theme.line
+            border.width: 1
 
             Row {
                 id: hardware
 
                 anchors.centerIn: parent
 
-                Chip {
+                Stat {
                     bar: panel
                     icon: "\uf4bc"
-                    text: panel.stats.cpu + "%"
-                    roll: true
-                    iconColor: panel.stats.cpu >= 85 ? Theme.heat : Theme.muted
-                    tooltip: "<b>CPU</b>  " + panel.stats.cpu + "%" + (panel.compact ? (panel.gpuPath.length > 0 ? "\nGPU  " + panel.stats.gpu + "% busy" : "") + "\nMemory  " + panel.stats.mem + "% used" : "")
+                    value: panel.stats.cpu
+                    unit: panel.compact ? "" : "%"
+                    steps: [60, 85]
+                    tooltip: "<b>CPU</b>  " + panel.stats.cpu + "%" + (panel.load.length > 0 ? "\n" + panel.tint(Theme.muted, "load " + panel.load) : "")
                     onClicked: panel.widgetsRequested()
                 }
 
-                Chip {
+                Stat {
                     bar: panel
-                    visible: panel.gpuPath.length > 0 && (!panel.compact || panel.stats.gpu >= 85)
+                    visible: panel.gpuPath.length > 0
                     icon: "󰢮"
-                    text: panel.stats.gpu + "%"
-                    roll: true
-                    iconColor: panel.stats.gpu >= 85 ? Theme.heat : Theme.muted
+                    value: panel.stats.gpu
+                    unit: panel.compact ? "" : "%"
+                    steps: [60, 85]
                     tooltip: "<b>GPU</b>  " + panel.stats.gpu + "% busy"
                     onClicked: panel.widgetsRequested()
                 }
 
-                Chip {
+                Stat {
                     bar: panel
-                    visible: !panel.compact || panel.stats.mem >= 85
                     icon: "\uefc5"
-                    text: panel.stats.mem + "%"
-                    roll: true
-                    iconColor: panel.stats.mem >= 85 ? Theme.heat : Theme.muted
-                    tooltip: "<b>Memory</b>  " + panel.stats.mem + "% used"
+                    value: panel.stats.mem
+                    unit: panel.compact ? "" : "%"
+                    steps: [75, 90]
+                    tooltip: "<b>Memory</b>  " + panel.stats.mem + "% used" + (panel.memory.length > 0 ? "\n" + panel.tint(Theme.muted, panel.memory) : "")
                     onClicked: panel.widgetsRequested()
                 }
 
-                Chip {
-                    readonly property bool hot: panel.stats.temp >= 80
-
+                Stat {
                     bar: panel
                     visible: panel.thermalPath.length > 0
-                    icon: panel.stats.temp >= 70 ? "\uf2c7" : panel.stats.temp >= 50 ? "\uf2c9" : "\uf2cb"
-                    iconOrder: ["\uf2cb", "\uf2c9", "\uf2c7"]
-                    text: panel.stats.temp + "°C"
-                    roll: true
-                    iconColor: hot ? Theme.danger : Theme.muted
-                    textColor: hot ? Theme.danger : Theme.fg
-                    fill: hot ? Theme.alpha(Theme.danger, 0.18) : "transparent"
+                    icon: "\uf2c7"
+                    value: panel.stats.temp
+                    unit: "°"
+                    range: [30, 100]
+                    steps: [70, 75, 80]
                     tooltip: "<b>Temperature</b>  " + panel.stats.temp + "°C"
                     onClicked: panel.widgetsRequested()
                 }
@@ -1349,7 +1374,7 @@ PanelWindow {
             sideways: true
             direction: 1
             tooltip: "<b>Keyboard layout</b>\nclick: next layout"
-            onClicked: Hyprland.dispatch("switchxkblayout all next")
+            onClicked: Hyprland.dispatch("hl.dsp.exec_cmd(\"hyprctl switchxkblayout all next\")")
         }
 
         Chip {

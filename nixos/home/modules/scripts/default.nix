@@ -6,11 +6,11 @@ let
     set -euo pipefail
     case "''${1:-}" in
       on)
-        hyprctl keyword monitor "eDP-1,preferred,auto,1.6"
+        hyprctl eval "hl.monitor({ output = 'eDP-1', mode = 'preferred', position = 'auto', scale = '1.6', disabled = false, mirror = \"\" })"
         notify-send "Internal Display" "Enabled"
         ;;
       off)
-        hyprctl keyword monitor "eDP-1,disable"
+        hyprctl eval "hl.monitor({ output = 'eDP-1', disabled = true })"
         notify-send "Internal Display" "Disabled"
         ;;
       *)

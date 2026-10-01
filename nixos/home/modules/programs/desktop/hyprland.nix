@@ -17,6 +17,42 @@ let
   compactOutput = osConfig.hyprland.compactOutput or null;
   spotifyGreen = "1ed760";
   spotifyDeep = "1db954";
+  hyprDynamicCursors = pkgs.callPackage ../../../../pkgs/hypr-dynamic-cursors.nix {
+    inherit (pkgs.hyprlandPlugins) mkHyprlandPlugin;
+  };
+  luaString = builtins.toJSON;
+
+  monitorRule =
+    let
+      fields = map lib.trim (lib.splitString "," monitorConfig);
+    in
+    if builtins.length fields != 4 then
+      throw "hyprland.monitorConfig must be output,mode,position,scale, got: ${monitorConfig}"
+    else
+      {
+        output = builtins.elemAt fields 0;
+        mode = builtins.elemAt fields 1;
+        position = builtins.elemAt fields 2;
+        scale = builtins.elemAt fields 3;
+      };
+
+  hyprMonitor = pkgs.writeShellApplication {
+    name = "hypr-monitor";
+    text = ''
+      case "''${1:-}" in
+        on)
+          hyprctl eval "hl.monitor({ output = '$2', mode = '$3', position = '$4', scale = '$5', disabled = false, mirror = '$6' })" >/dev/null
+          ;;
+        off)
+          hyprctl eval "hl.monitor({ output = '$2', disabled = true })" >/dev/null
+          ;;
+        *)
+          echo "usage: hypr-monitor on OUTPUT MODE POSITION SCALE MIRROR | off OUTPUT" >&2
+          exit 2
+          ;;
+      esac
+    '';
+  };
 
   displayLid = pkgs.writeShellApplication {
     name = "display-lid";
@@ -24,6 +60,7 @@ let
       pkgs.jq
       pkgs.coreutils
       pkgs.gnugrep
+      hyprMonitor
     ];
     text = ''
       lid_closed() {
@@ -34,11 +71,11 @@ let
         hyprctl monitors all -j \
           | jq -r '.[] | select(.name | startswith("eDP")) | .name' \
           | while read -r panel; do
-              rule=${lib.escapeShellArg monitorConfig}
-              if [[ "$rule" != "$panel,"* ]]; then
-                rule="$panel, preferred, auto, auto"
+              if [ "$panel" = ${lib.escapeShellArg monitorRule.output} ]; then
+                hypr-monitor on "$panel" ${lib.escapeShellArg monitorRule.mode} ${lib.escapeShellArg monitorRule.position} ${lib.escapeShellArg monitorRule.scale} ""
+              else
+                hypr-monitor on "$panel" preferred auto auto ""
               fi
-              hyprctl keyword monitor "$rule" >/dev/null
             done
       }
 
@@ -46,7 +83,7 @@ let
         hyprctl monitors -j \
           | jq -r '.[] | select(.name | startswith("eDP")) | .name' \
           | while read -r panel; do
-              hyprctl keyword monitor "$panel, disable" >/dev/null
+              hypr-monitor off "$panel"
             done
       }
 
@@ -93,10 +130,10 @@ let
           ($order) as \$o
           | [.[] | select((.disabled | not) and .mirrorOf == \"none\")] as \$live
           | (\$live[] | .name as \$n | (\$o | index(\$n)) * 10 as \$b
-              | (range(1; 11) | \"keyword workspace \(\$b + .), monitor:\(\$n)\(if . == 1 then \", default:true\" else \"\" end)\"),
+              | (range(1; 11) | \"eval hl.workspace_rule({ workspace = '\(\$b + .)', monitor = '\(\$n)'\(if . == 1 then \", default = true\" else \"\" end) })\"),
                 (select(.activeWorkspace.id <= \$b or .activeWorkspace.id > \$b + 10)
-                  | \"dispatch focusmonitor \(\$n)\", \"dispatch workspace \(\$b + 1)\")),
-            (.[] | select(.focused) | \"dispatch focusmonitor \(.name)\")
+                  | \"dispatch hl.dsp.focus({ monitor = '\(\$n)' })\", \"dispatch hl.dsp.focus({ workspace = '\(\$b + 1)' })\")),
+            (.[] | select(.focused) | \"dispatch hl.dsp.focus({ monitor = '\(.name)' })\")
         " <<< "$monitors" | paste -sd ';')
         [ -n "$batch" ] && hyprctl --batch "$batch" >/dev/null
 
@@ -107,7 +144,7 @@ let
           | .[] | select(.id > 0)
           | \$o[((.id - 1) / 10 | floor)] as \$owner
           | select(\$owner != null and (\$live | index(\$owner)) != null and .monitor != \$owner)
-          | \"dispatch moveworkspacetomonitor \(.id) \(\$owner)\"
+          | \"dispatch hl.dsp.workspace.move({ workspace = '\(.id)', monitor = '\(\$owner)' })\"
         " <<< "$workspaces" | paste -sd ';')
         [ -n "$batch" ] && hyprctl --batch "$batch" >/dev/null
         true
@@ -115,11 +152,11 @@ let
 
       case "''${1:-}" in
         focus)
-          hyprctl dispatch focusworkspaceoncurrentmonitor "$(($(base) + $2))" >/dev/null
+          hyprctl dispatch "hl.dsp.focus({ workspace = '$(($(base) + $2))', on_current_monitor = true })" >/dev/null
           ;;
         move)
           target=$(($(base) + $2))
-          hyprctl --batch "dispatch movetoworkspacesilent $target; dispatch focusworkspaceoncurrentmonitor $target" >/dev/null
+          hyprctl --batch "dispatch hl.dsp.window.move({ workspace = '$target', follow = false }); dispatch hl.dsp.focus({ workspace = '$target', on_current_monitor = true })" >/dev/null
           ;;
         home)
           home
@@ -161,6 +198,7 @@ let
       pkgs.rofi
       pkgs.libnotify
       displayLid
+      hyprMonitor
     ];
     text = ''
       monitors=$(hyprctl monitors all -j)
@@ -197,27 +235,27 @@ let
             "Extend above") position=auto-up ;;
             "Extend below") position=auto-down ;;
           esac
-          hyprctl keyword monitor "$external, preferred, $position, auto"
+          hypr-monitor on "$external" preferred "$position" auto ""
           display-lid sync
           ;;
         "Mirror laptop")
           display-lid open
-          hyprctl keyword monitor "$external, preferred, auto, auto, mirror, $panel"
+          hypr-monitor on "$external" preferred auto auto "$panel"
           ;;
         "External only")
-          hyprctl keyword monitor "$external, preferred, auto, auto"
-          hyprctl keyword monitor "$panel, disable"
+          hypr-monitor on "$external" preferred auto auto ""
+          hypr-monitor off "$panel"
           ;;
         "Laptop only")
           display-lid open
           for output in "''${externals[@]}"; do
-            hyprctl keyword monitor "$output, disable"
+            hypr-monitor off "$output"
           done
           ;;
         "Reset")
           display-lid open
           for output in "''${externals[@]}"; do
-            hyprctl keyword monitor "$output, preferred, auto, auto"
+            hypr-monitor on "$output" preferred auto auto ""
           done
           display-lid sync
           ;;
@@ -261,13 +299,13 @@ let
         address=''${found%% *}
         workspace=''${found#* }
         if [ "$workspace" != "special:spotify" ]; then
-          hyprctl dispatch movetoworkspacesilent "special:spotify,address:$address" >/dev/null
+          hyprctl dispatch "hl.dsp.window.move({ workspace = 'special:spotify', follow = false, window = 'address:$address' })" >/dev/null
           fresh=1
         fi
         if [ "$fresh" -eq 1 ] && shown; then
           exit 0
         fi
-        hyprctl dispatch togglespecialworkspace spotify >/dev/null
+        hyprctl dispatch "hl.dsp.workspace.toggle_special('spotify')" >/dev/null
       }
 
       watch() {
@@ -276,7 +314,7 @@ let
               case "$event" in
                 workspacev2\>\>*)
                   if shown; then
-                    hyprctl dispatch togglespecialworkspace spotify >/dev/null
+                    hyprctl dispatch "hl.dsp.workspace.toggle_special('spotify')" >/dev/null
                   fi
                   ;;
               esac
@@ -310,175 +348,176 @@ let
         ${config.custom.keys.commands.barShow}
       else
         touch "$state"
-        hyprctl --batch "keyword general:gaps_in 0; keyword general:gaps_out 0; keyword decoration:rounding 0${
+        hyprctl --batch "eval hl.config({ general = { gaps_in = 0, gaps_out = 0 }, decoration = { rounding = 0 } })${
           lib.optionalString (
             compactOutput != null
-          ) "; keyword workspace m[${compactOutput}], gapsin:0, gapsout:0"
+          ) "; eval hl.workspace_rule({ workspace = 'm[${compactOutput}]', gaps_in = 0, gaps_out = 0 })"
         }" >/dev/null
         ${config.custom.keys.commands.barHide}
       fi
     '';
   };
 
+  startupCommands = [
+    (lib.getExe displayWatch)
+    "${lib.getExe spotifySpace} watch"
+  ]
+  ++ lib.optional (
+    xwaylandDpi != null
+  ) "printf 'Xft.dpi: ${toString xwaylandDpi}\\n' | ${lib.getExe pkgs.xrdb} -merge -";
+
   decorationBlock =
     if !isLowPower then
       ''
-        decoration {
-            rounding = 14
-            rounding_power = 2.6
-            active_opacity = 1.0
-            inactive_opacity = 1.0
-            fullscreen_opacity = 1.0
-            dim_inactive = true
-            dim_strength = 0.10
-
-            blur {
-                enabled = false
-            }
-
-            shadow {
-                enabled = true
-                range = 18
-                render_power = 3
-                offset = 0 4
-                color = rgba(${themeLib.stripHash s.ink}b3)
-            }
-        }
+        hl.config({
+          decoration = {
+            rounding = 14,
+            rounding_power = 2.6,
+            active_opacity = 1.0,
+            inactive_opacity = 1.0,
+            fullscreen_opacity = 1.0,
+            dim_inactive = true,
+            dim_strength = 0.10,
+            blur = {
+              enabled = false,
+            },
+            shadow = {
+              enabled = true,
+              range = 18,
+              render_power = 3,
+              offset = { 0, 4 },
+              color = "rgba(${themeLib.stripHash s.ink}b3)",
+            },
+          },
+        })
       ''
     else
       ''
-        decoration {
-            rounding = 14
-            active_opacity = 1.0
-            inactive_opacity = 1.0
-            fullscreen_opacity = 1.0
-            dim_inactive = false
-
-            blur {
-                enabled = false
-            }
-
-            shadow {
-                enabled = false
-            }
-        }
+        hl.config({
+          decoration = {
+            rounding = 14,
+            active_opacity = 1.0,
+            inactive_opacity = 1.0,
+            fullscreen_opacity = 1.0,
+            dim_inactive = false,
+            blur = {
+              enabled = false,
+            },
+            shadow = {
+              enabled = false,
+            },
+          },
+        })
       '';
 
   animationBlock =
     if !isLowPower then
       ''
-        animations {
-            enabled = true
+        hl.config({ animations = { enabled = true } })
 
-            bezier = wind,       0.05, 0.9, 0.1, 1.05
-            bezier = overshot,   0.13, 0.99, 0.29, 1.1
-            bezier = smoothOut,  0.36, 0, 0.66, -0.56
-            bezier = smoothIn,   0.25, 1, 0.5, 1
-            bezier = slide,      0.32, 0.85, 0.18, 1.0
-            bezier = drawer,     0.16, 1, 0.3, 1
+        hl.curve("wind", { type = "bezier", points = { { 0.05, 0.9 }, { 0.1, 1.05 } } })
+        hl.curve("overshot", { type = "bezier", points = { { 0.13, 0.99 }, { 0.29, 1.1 } } })
+        hl.curve("smoothOut", { type = "bezier", points = { { 0.36, 0 }, { 0.66, -0.56 } } })
+        hl.curve("smoothIn", { type = "bezier", points = { { 0.25, 1 }, { 0.5, 1 } } })
+        hl.curve("slide", { type = "bezier", points = { { 0.32, 0.85 }, { 0.18, 1.0 } } })
+        hl.curve("drawer", { type = "bezier", points = { { 0.16, 1 }, { 0.3, 1 } } })
 
-            animation = windows,     1, 5, overshot, popin 88%
-            animation = windowsIn,   1, 4, smoothIn, popin 90%
-            animation = windowsOut,  1, 4, smoothOut, popin 90%
-            animation = windowsMove, 1, 4, wind
-            animation = border,      1, 10, default
-            animation = borderangle, 1, 10, drawer, once
-            animation = fade,        1, 6, smoothIn
-            animation = fadeIn,      0
-            animation = fadeSwitch,  0
-            animation = fadeDim,     0
-            animation = workspaces,  1, 6, slide
-            animation = specialWorkspace, 1, 5, wind, slidevert
-            animation = layersIn,    1, 4, drawer, fade
-            animation = layersOut,   1, 3, smoothIn, fade
-            animation = fadeLayersIn,  1, 3, smoothIn
-            animation = fadeLayersOut, 1, 2, smoothIn
-        }
+        hl.animation({ leaf = "windows", enabled = true, speed = 5, bezier = "overshot", style = "popin 88%" })
+        hl.animation({ leaf = "windowsIn", enabled = true, speed = 4, bezier = "smoothIn", style = "popin 90%" })
+        hl.animation({ leaf = "windowsOut", enabled = true, speed = 4, bezier = "smoothOut", style = "popin 90%" })
+        hl.animation({ leaf = "windowsMove", enabled = true, speed = 4, bezier = "wind" })
+        hl.animation({ leaf = "border", enabled = true, speed = 10, bezier = "default" })
+        hl.animation({ leaf = "borderangle", enabled = true, speed = 10, bezier = "drawer", style = "once" })
+        hl.animation({ leaf = "fade", enabled = true, speed = 6, bezier = "smoothIn" })
+        hl.animation({ leaf = "fadeIn", enabled = false })
+        hl.animation({ leaf = "fadeSwitch", enabled = false })
+        hl.animation({ leaf = "fadeDim", enabled = false })
+        hl.animation({ leaf = "workspaces", enabled = true, speed = 6, bezier = "slide" })
+        hl.animation({ leaf = "specialWorkspace", enabled = true, speed = 5, bezier = "wind", style = "slidevert" })
+        hl.animation({ leaf = "layersIn", enabled = true, speed = 4, bezier = "drawer", style = "fade" })
+        hl.animation({ leaf = "layersOut", enabled = true, speed = 3, bezier = "smoothIn", style = "fade" })
+        hl.animation({ leaf = "fadeLayersIn", enabled = true, speed = 3, bezier = "smoothIn" })
+        hl.animation({ leaf = "fadeLayersOut", enabled = true, speed = 2, bezier = "smoothIn" })
       ''
     else
       ''
-        animations {
-            enabled = true
-            animation = windows, 1, 3, default, popin 90%
-            animation = windowsOut, 1, 3, default, popin 92%
-            animation = border, 1, 6, default
-            animation = fade, 1, 3, default
-            animation = fadeIn, 0
-            animation = workspaces, 1, 4, default
-        }
+        hl.config({ animations = { enabled = true } })
+
+        hl.animation({ leaf = "windows", enabled = true, speed = 3, bezier = "default", style = "popin 90%" })
+        hl.animation({ leaf = "windowsOut", enabled = true, speed = 3, bezier = "default", style = "popin 92%" })
+        hl.animation({ leaf = "border", enabled = true, speed = 6, bezier = "default" })
+        hl.animation({ leaf = "fade", enabled = true, speed = 3, bezier = "default" })
+        hl.animation({ leaf = "fadeIn", enabled = false })
+        hl.animation({ leaf = "workspaces", enabled = true, speed = 4, bezier = "default" })
       '';
 
   pluginBlock = ''
-    plugin {
-        dynamic-cursors {
-            enabled = true
-            mode = tilt
-            threshold = 2
-
-            tilt {
-                limit = 4000
-                activation = negative_quadratic
-                window = 100
-                full = 35
-            }
-
-            shake {
-                enabled = true
-                threshold = 6.0
-                base = 3.0
-                speed = 3.0
-                timeout = 1500
-            }
-        }
-
-        hyprtasking {
-            layout = grid
-            gap_size = 14
-            bg_color = 0xff${themeLib.stripHash s.ink}
-            border_size = 2
-            exit_on_hovered = false
-            warp_on_move_window = 1
-            close_overview_on_reload = true
-            drag_button = 0x110
-            select_button = 0x111
-
-            jump {
-                enabled = true
-                label_color = 0xff${themeLib.stripHash t.base06}
-                label_background = 0xcc${themeLib.stripHash s.ink}
-                label_size = 26
-                show_workspace_names = false
-            }
-
-            gestures {
-                enabled = true
-                move_fingers = 5
-                open_fingers = 4
-                open_distance = 300
-                open_positive = true
-            }
-
-            grid {
-                rows = 3
-                cols = 3
-                loop = false
-                layers = 1
-                gaps_use_aspect_ratio = true
-            }
-        }
-    }
+    hl.config({
+      plugin = {
+        dynamic_cursors = {
+          enabled = true,
+          mode = "tilt",
+          threshold = 2,
+          tilt = {
+            limit = 4000,
+            activation = "negative_quadratic",
+            window = 100,
+            full = 35,
+          },
+          shake = {
+            enabled = true,
+            threshold = 6.0,
+            base = 3.0,
+            speed = 3.0,
+            timeout = 1500,
+          },
+        },
+        hyprtasking = {
+          layout = "grid",
+          gap_size = 14,
+          bg_color = 0xff${themeLib.stripHash s.ink},
+          border_size = 2,
+          exit_on_hovered = false,
+          warp_on_move_window = 1,
+          close_overview_on_reload = true,
+          drag_button = 0x110,
+          select_button = 0x111,
+          jump = {
+            enabled = true,
+            label_color = 0xff${themeLib.stripHash t.base06},
+            label_background = 0xcc${themeLib.stripHash s.ink},
+            label_size = 26,
+            show_workspace_names = false,
+          },
+          gestures = {
+            enabled = true,
+            move_fingers = 5,
+            open_fingers = 4,
+            open_distance = 300,
+            open_positive = true,
+          },
+          grid = {
+            rows = 3,
+            cols = 3,
+            loop = false,
+            layers = 1,
+            gaps_use_aspect_ratio = true,
+          },
+        },
+      },
+    })
   '';
 
   layerRuleBlock = ''
-    layerrule = animation slide top, match:namespace ^(panel)$
-    layerrule = animation popin 92%, dim_around on, match:namespace rofi
-    layerrule = animation fade, match:namespace wlogout
-    layerrule = animation slide right, match:namespace swaync-control-center
-    layerrule = animation slide right, match:namespace swaync-notification-window
-    layerrule = no_anim on, match:namespace selection|hyprpicker
-    layerrule = no_anim on, match:namespace sidebar
-    layerrule = no_anim on, match:namespace widgets
-    layerrule = no_anim on, match:namespace ^(osd)$
+    hl.layer_rule({ match = { namespace = "^(panel)$" }, animation = "slide top" })
+    hl.layer_rule({ match = { namespace = "rofi" }, animation = "popin 92%", dim_around = true })
+    hl.layer_rule({ match = { namespace = "wlogout" }, animation = "fade" })
+    hl.layer_rule({ match = { namespace = "swaync-control-center" }, animation = "slide right" })
+    hl.layer_rule({ match = { namespace = "swaync-notification-window" }, animation = "slide right" })
+    hl.layer_rule({ match = { namespace = "selection|hyprpicker" }, no_anim = true })
+    hl.layer_rule({ match = { namespace = "sidebar" }, no_anim = true })
+    hl.layer_rule({ match = { namespace = "widgets" }, no_anim = true })
+    hl.layer_rule({ match = { namespace = "^(osd)$" }, no_anim = true })
   '';
 
 in
@@ -492,6 +531,9 @@ in
   ];
 
   custom.keys.commands = {
+    terminal = "uwsm app -- ghostty";
+    menu = "rofi -show drun -run-command 'uwsm app -- {cmd}'";
+    clipboard = "clipboard-menu";
     focusMode = lib.getExe focusMode;
     spotifySpace = lib.getExe spotifySpace;
     displayMenu = lib.getExe displayMenu;
@@ -502,47 +544,49 @@ in
   wayland.windowManager.hyprland = {
     enable = true;
     systemd.enable = false;
-    configType = "hyprlang";
-    plugins = with pkgs.hyprlandPlugins; [
-      hypr-dynamic-cursors
-      hyprtasking
+    configType = "lua";
+    plugins = [
+      hyprDynamicCursors
+      pkgs.hyprlandPlugins.hyprtasking
     ];
     extraConfig = ''
-      $terminal = uwsm app -- ghostty
-      $fileManager = uwsm app -- thunar
-      $menu = rofi -show drun -run-command 'uwsm app -- {cmd}'
-      $clipboard = clipboard-menu
+      hl.env("SSH_ASKPASS_REQUIRE", "force")
 
-      env = SSH_ASKPASS_REQUIRE,force
+      hl.monitor({ output = "", mode = "preferred", position = "auto", scale = "auto" })
+      hl.monitor({ output = ${luaString monitorRule.output}, mode = ${luaString monitorRule.mode}, position = ${luaString monitorRule.position}, scale = ${luaString monitorRule.scale} })
 
-      monitor = ,preferred,auto,auto
-      monitor = ${monitorConfig}
-      exec-once = ${lib.getExe displayWatch}
-      exec-once = ${lib.getExe spotifySpace} watch
+      hl.on("hyprland.start", function()
+      ${lib.concatMapStrings (command: "  hl.exec_cmd(${luaString command})\n") startupCommands}end)
 
-      xwayland {
-          force_zero_scaling = true
-      }
+      hl.config({
+        xwayland = {
+          force_zero_scaling = true,
+        },
+        general = {
+          gaps_in = 4,
+          gaps_out = 12,
+          border_size = 2,
+          col = {
+            active_border = {
+              colors = {
+                "rgba(${themeLib.stripHash a.border}ff)",
+                "rgba(${themeLib.stripHash a.border}ff)",
+                "rgba(${themeLib.stripHash a.secondary}66)",
+              },
+              angle = 45,
+            },
+            inactive_border = "rgba(${themeLib.stripHash s.line}99)",
+          },
+          resize_on_border = false,
+          allow_tearing = false,
+          layout = "dwindle",
+        },
+      })
 
-      ${lib.optionalString (xwaylandDpi != null) ''
-        exec-once = printf 'Xft.dpi: ${toString xwaylandDpi}\n' | ${lib.getExe pkgs.xrdb} -merge -
-      ''}
-
-      general {
-          gaps_in = 4
-          gaps_out = 12
-          border_size = 2
-          col.active_border = rgba(${themeLib.stripHash a.border}ff) rgba(${themeLib.stripHash a.border}ff) rgba(${themeLib.stripHash a.secondary}66) 45deg
-          col.inactive_border = rgba(${themeLib.stripHash s.line}99)
-          resize_on_border = false
-          allow_tearing = false
-          layout = dwindle
-      }
-
-      gesture = 3, horizontal, workspace
+      hl.gesture({ fingers = 3, direction = "horizontal", action = "workspace" })
 
       ${lib.optionalString (compactOutput != null) ''
-        workspace = m[${compactOutput}], gapsin:3, gapsout:6
+        hl.workspace_rule({ workspace = ${luaString "m[${compactOutput}]"}, gaps_in = 3, gaps_out = 6 })
       ''}
 
       ${decorationBlock}
@@ -553,50 +597,44 @@ in
 
       ${animationBlock}
 
-      dwindle {
-          preserve_split = true
-      }
+      hl.config({
+        dwindle = {
+          preserve_split = true,
+        },
+        master = {
+          new_status = "master",
+        },
+        misc = {
+          force_default_wallpaper = -1,
+          disable_hyprland_logo = true,
+          disable_splash_rendering = true,
+          allow_session_lock_restore = true,
+        },
+        debug = {
+          disable_logs = true,
+        },
+        input = {
+          kb_layout = "us,ir",
+          kb_options = "grp:alt_shift_toggle,caps:none",
+          follow_mouse = 0,
+          sensitivity = 0,
+          touchpad = {
+            natural_scroll = false,
+            disable_while_typing = false,
+          },
+        },
+      })
 
-      master {
-          new_status = master
-      }
-
-      misc {
-          force_default_wallpaper = -1
-          disable_hyprland_logo = true
-          disable_splash_rendering = true
-          allow_session_lock_restore = true
-      }
-
-      debug {
-          disable_logs = true
-      }
-
-      input {
-          kb_layout = us,ir
-          kb_options = grp:alt_shift_toggle,caps:none
-          follow_mouse = 0
-          sensitivity = 0
-
-          touchpad {
-              natural_scroll = false
-              disable_while_typing = false
-          }
-      }
-
-      device {
-          name = epic-mouse-v1
-          sensitivity = -0.5
-      }
+      hl.device({ name = "epic-mouse-v1", sensitivity = -0.5 })
 
       ${config.custom.keys.rendered.hyprland}
 
-      workspace = special:spotify, gapsin:6, gapsout:36 64, bordersize:3
-      windowrule = workspace special:spotify, match:class ^(spotify)$
-      windowrule = border_color rgba(${spotifyGreen}ff) rgba(${spotifyGreen}ff) rgba(${spotifyDeep}55) 45deg rgba(${spotifyDeep}88), match:class ^(spotify)$
+      hl.workspace_rule({ workspace = "special:spotify", gaps_in = 6, gaps_out = { top = 36, right = 64, bottom = 36, left = 64 }, border_size = 3 })
+      hl.window_rule({ match = { class = "^(spotify)$" }, workspace = "special:spotify" })
+      hl.window_rule({ match = { class = "^(spotify)$" }, border_color = "rgba(${spotifyGreen}ff) rgba(${spotifyGreen}ff) rgba(${spotifyDeep}55) 45deg rgba(${spotifyDeep}88)" })
 
       hl.window_rule({ match = { class = "Godot", title = "^(Godot)(.*)$" }, tile = true })
-      hl.window_rule({ match = { class = "Godot", title = "^(?!Godot)(.*)$" }, float = true })
+      hl.window_rule({ match = { class = "Godot", title = "negative:^Godot.*$" }, float = true })
     '';
   };
 }

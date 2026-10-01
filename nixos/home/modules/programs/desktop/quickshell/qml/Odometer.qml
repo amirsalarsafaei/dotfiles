@@ -6,6 +6,7 @@ Row {
     property string text: ""
     property bool whole: false
     property bool numeric: true
+    property bool fade: false
     property int direction: 0
     property var order: []
     property color color: Theme.fg
@@ -76,8 +77,18 @@ Row {
                 if (outgoing.text === glyph)
                     return;
                 roll.stop();
+                blend.stop();
                 incoming.text = glyph;
                 flip = !flip;
+                if (odometer.fade) {
+                    incoming.shift = 0;
+                    incoming.opacity = 0;
+                    outgoing.shift = 0;
+                    blend.incoming = incoming;
+                    blend.outgoing = outgoing;
+                    blend.start();
+                    return;
+                }
                 if (odometer.sign === 0 || outgoing.text.length === 0 || glyph.length === 0) {
                     incoming.shift = 0;
                     outgoing.shift = odometer.travel * 2;
@@ -121,6 +132,37 @@ Row {
                         duration: 240
                         easing.type: Easing.BezierSpline
                         easing.bezierCurve: Theme.exit
+                    }
+                }
+            }
+
+            ParallelAnimation {
+                id: blend
+
+                property Text incoming: lineB
+                property Text outgoing: lineA
+
+                NumberAnimation {
+                    target: blend.outgoing
+                    property: "opacity"
+                    to: 0
+                    duration: Theme.brisk
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: Theme.exit
+                }
+
+                SequentialAnimation {
+                    PauseAnimation {
+                        duration: Theme.quick
+                    }
+
+                    NumberAnimation {
+                        target: blend.incoming
+                        property: "opacity"
+                        to: 1
+                        duration: Theme.calm
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Theme.drift
                     }
                 }
             }

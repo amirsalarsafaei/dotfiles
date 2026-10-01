@@ -71,12 +71,85 @@ let
     '';
   };
 
+  msbcProfileFilter = pkgs.writeText "cisco-jabber-msbc-profile.jq" ''
+    .[]
+    | select((.name | startswith("bluez_card.")) and .active_profile != "off")
+    | .name as $card
+    | .active_profile as $active
+    | [.profiles | to_entries[] | select(.value.available and (.value.description | contains("codec MSBC")))]
+    | .[0] // empty
+    | select(.key != $active)
+    | "\($card) \(.key)"
+  '';
+
+  a2dpProfileFilter = pkgs.writeText "cisco-jabber-a2dp-profile.jq" ''
+    .[]
+    | select((.name | startswith("bluez_card.")) and (.active_profile // "" | startswith("headset-head-unit")))
+    | .name as $card
+    | [.profiles | to_entries[] | select(.value.available and (.key | startswith("a2dp-sink")))]
+    | max_by(.value.priority) // empty
+    | "\($card) \(.key)"
+  '';
+
+  ciscoJabberPinMsbc = pkgs.writeShellApplication {
+    name = "cisco-jabber-pin-msbc";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.jq
+      pkgs.pulseaudio
+      pkgs.wireplumber
+    ];
+    text = ''
+      set_profiles() {
+        pactl -f json list cards | jq -r -f "$1" | while read -r card profile; do
+          pactl set-card-profile "$card" "$profile" || true
+        done
+      }
+
+      pin() {
+        set_profiles ${msbcProfileFilter}
+      }
+
+      restore() {
+        set_profiles ${a2dpProfileFilter}
+      }
+
+      watcher=""
+      cleanup() {
+        if [[ -n $watcher ]]; then
+          kill "$watcher" 2>/dev/null || true
+        fi
+        wpctl settings bluetooth.autoswitch-to-headset-profile true >/dev/null || true
+        restore || true
+      }
+      trap cleanup EXIT
+      trap 'exit 0' INT TERM HUP
+
+      while true; do
+        wpctl settings bluetooth.autoswitch-to-headset-profile false >/dev/null || true
+        exec {events}< <(exec pactl subscribe)
+        watcher=$!
+        pin || true
+        while read -r line <&"$events"; do
+          if [[ $line == *" on card "* ]]; then
+            pin || true
+          fi
+        done
+        exec {events}<&-
+        watcher=""
+        sleep 2
+      done
+    '';
+  };
+
   ciscoJabberLaunch = pkgs.writeShellApplication {
     name = "cisco-jabber";
     runtimeInputs = [
       ciscoJabberWine
+      ciscoJabberPinMsbc
       pkgs.coreutils
       pkgs.findutils
+      pkgs.util-linux
     ];
     text = ''
       exe=$(find "${prefixDir}/drive_c" -iname 'CiscoJabber.exe' 2>/dev/null | head -n1)
@@ -91,7 +164,14 @@ let
         mv "$log" "${logDir}/jabber-$(date +%Y%m%d-%H%M%S).log"
         find "${logDir}" -maxdepth 1 -name 'jabber-*.log' | sort -r | tail -n +11 | xargs -r -d '\n' rm -f --
       fi
-      exec cisco-jabber-wine "$exe" "$@"
+      exec 9>"''${XDG_RUNTIME_DIR:?}/cisco-jabber-msbc.lock"
+      if ! flock -n 9; then
+        exec cisco-jabber-wine "$exe" "$@" 9>&-
+      fi
+      cisco-jabber-pin-msbc 9>&- &
+      pin=$!
+      trap 'kill "$pin" 2>/dev/null || true; wait "$pin" || true' EXIT
+      cisco-jabber-wine "$exe" "$@" 9>&-
     '';
   };
 in

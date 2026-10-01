@@ -443,23 +443,23 @@ let
     in
     lib.concatStringsSep "\n" result.lines;
 
-  hyprChord =
-    chord: "${lib.concatStringsSep "_" (map (modFor "hypr") chord.mods)}, ${keyFor "hypr" chord.key}";
+  hyprChord = joinChord " + " (modFor "hypr") (keyFor "hypr");
+
+  luaString = builtins.toJSON;
 
   hyprFlavors = {
-    normal = "bind";
-    repeat = "binde";
-    mouse = "bindm";
-    media = "bindel";
-    switch = "bindl";
+    normal = null;
+    repeat = "{ repeating = true }";
+    mouse = "{ mouse = true }";
+    media = "{ locked = true, repeating = true }";
+    switch = "{ locked = true }";
   };
 
   hypr = rec {
     bind =
       {
         on,
-        dispatcher,
-        arg ? null,
+        dsp,
         desc,
         group ? null,
         flavor ? "normal",
@@ -468,8 +468,7 @@ let
         app = "hyprland";
         inherit
           on
-          dispatcher
-          arg
+          dsp
           desc
           group
           flavor
@@ -481,18 +480,15 @@ let
       bind (
         (builtins.removeAttrs args [ "cmd" ])
         // {
-          dispatcher = "exec";
-          arg = cmd;
+          dsp = "hl.dsp.exec_cmd(${luaString cmd})";
         }
       );
 
-    line =
-      b:
-      let
-        kw = hyprFlavors.${b.flavor};
-        tail = lib.optionalString (b.arg != null) ", ${b.arg}";
-      in
-      "${kw} = ${hyprChord b.on}, ${b.dispatcher}${tail}";
+    bindLine =
+      chord: dsp: opts:
+      "hl.bind(${luaString (hyprChord chord)}, ${dsp}${lib.optionalString (opts != null) ", ${opts}"})";
+
+    line = b: bindLine b.on b.dsp hyprFlavors.${b.flavor};
 
     submap =
       {
@@ -515,7 +511,7 @@ let
       {
         name,
         enter,
-        dispatcher,
+        action,
         desc,
         step ? 40,
         fine ? 10,
@@ -525,10 +521,10 @@ let
         vector =
           direction: n:
           {
-            h = "-${toString n} 0";
-            l = "${toString n} 0";
-            k = "0 -${toString n}";
-            j = "0 ${toString n}";
+            h = "x = -${toString n}, y = 0";
+            l = "x = ${toString n}, y = 0";
+            k = "x = 0, y = -${toString n}";
+            j = "x = 0, y = ${toString n}";
           }
           .${direction};
         row =
@@ -538,8 +534,7 @@ let
               direction:
               bind {
                 on = mkChord mods K.${direction};
-                inherit dispatcher;
-                arg = vector direction n;
+                dsp = "hl.dsp.window.${action}({ ${vector direction n}, relative = true })";
                 desc = "${desc} ${
                   {
                     h = "left";
@@ -566,18 +561,23 @@ let
 
     renderSubmap =
       s:
+      let
+        reset = chord: bindLine chord ''hl.dsp.submap("reset")'' null;
+      in
       lib.concatStringsSep "\n" (
         [
-          "bind = ${hyprChord s.enter}, submap, ${s.name}"
-          "submap = ${s.name}"
+          (bindLine s.enter "hl.dsp.submap(${luaString s.name})" null)
+          "hl.define_submap(${luaString s.name}, function()"
         ]
-        ++ map line s.binds
-        ++ [
-          "bind = ${hyprChord (on.none K.escLower)}, submap, reset"
-          "bind = ${hyprChord (on.none K.enter)}, submap, reset"
-          "bind = ${hyprChord s.enter}, submap, reset"
-          "submap = reset"
-        ]
+        ++ map (indent "  ") (
+          map line s.binds
+          ++ [
+            (reset (on.none K.escLower))
+            (reset (on.none K.enter))
+            (reset s.enter)
+          ]
+        )
+        ++ [ "end)" ]
       );
 
     render =
@@ -585,7 +585,7 @@ let
         binds ? [ ],
         submaps ? [ ],
       }:
-      lib.concatStringsSep "\n\n" ([ (withGroupHeaders "#" line binds) ] ++ map renderSubmap submaps);
+      lib.concatStringsSep "\n\n" ([ (withGroupHeaders "--" line binds) ] ++ map renderSubmap submaps);
   };
 
   tmuxChord =

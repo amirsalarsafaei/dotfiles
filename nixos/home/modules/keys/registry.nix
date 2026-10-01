@@ -15,7 +15,6 @@ let
       key = K.h;
       upper = K.H;
       arrow = K.left;
-      hypr = "l";
       zellij = "Left";
       tmux = "L";
       word = "left";
@@ -24,7 +23,6 @@ let
       key = K.j;
       upper = K.J;
       arrow = K.down;
-      hypr = "d";
       zellij = "Down";
       tmux = "D";
       word = "down";
@@ -33,7 +31,6 @@ let
       key = K.k;
       upper = K.K;
       arrow = K.up;
-      hypr = "u";
       zellij = "Up";
       tmux = "U";
       word = "up";
@@ -42,7 +39,6 @@ let
       key = K.l;
       upper = K.L;
       arrow = K.right;
-      hypr = "r";
       zellij = "Right";
       tmux = "R";
       word = "right";
@@ -118,19 +114,19 @@ in
     binds = [
       (keysLib.hypr.exec {
         on = on.super K.enter;
-        cmd = "$terminal";
+        cmd = cmd.terminal;
         desc = "Open a terminal";
         group = "Session";
       })
       (keysLib.hypr.exec {
         on = on.super K.space;
-        cmd = "$menu";
+        cmd = cmd.menu;
         desc = "App launcher";
         group = "Session";
       })
-      (keysLib.hypr.exec {
+      (keysLib.hypr.bind {
         on = on.super K.tab;
-        cmd = "hyprctl dispatch hyprtasking:toggle cursor";
+        dsp = ''function() hl.plugin.hyprtasking.toggle("cursor") end'';
         desc = "Workspace overview";
         group = "Session";
       })
@@ -172,7 +168,7 @@ in
       })
       (keysLib.hypr.bind {
         on = on.superShift K.Q;
-        dispatcher = "exit";
+        dsp = "hl.dsp.exit()";
         desc = "Quit Hyprland";
         group = "Session";
       })
@@ -220,7 +216,7 @@ in
       })
       (keysLib.hypr.exec {
         on = on.super K.v;
-        cmd = "$clipboard";
+        cmd = cmd.clipboard;
         desc = "Clipboard history";
         group = "Session";
       })
@@ -251,47 +247,45 @@ in
 
       (keysLib.hypr.bind {
         on = on.super K.mouseLeft;
-        dispatcher = "movewindow";
+        dsp = "hl.dsp.window.drag()";
         desc = "Move window with the mouse";
         group = "Windows";
         flavor = "mouse";
       })
       (keysLib.hypr.bind {
         on = on.super K.mouseRight;
-        dispatcher = "resizewindow";
+        dsp = "hl.dsp.window.resize()";
         desc = "Resize window with the mouse";
         group = "Windows";
         flavor = "mouse";
       })
       (keysLib.hypr.bind {
         on = on.super K.w;
-        dispatcher = "killactive";
+        dsp = "hl.dsp.window.close()";
         desc = "Close the focused window";
         group = "Windows";
       })
       (keysLib.hypr.bind {
         on = on.superShift K.t;
-        dispatcher = "togglefloating";
+        dsp = ''hl.dsp.window.float({ action = "toggle" })'';
         desc = "Toggle floating";
         group = "Windows";
       })
       (keysLib.hypr.bind {
         on = on.super K.f;
-        dispatcher = "fullscreen";
-        arg = "1";
+        dsp = ''hl.dsp.window.fullscreen({ mode = "maximized" })'';
         desc = "Maximize (keep the bar)";
         group = "Windows";
       })
       (keysLib.hypr.bind {
         on = on.superShift K.F;
-        dispatcher = "fullscreen";
-        arg = "0";
+        dsp = ''hl.dsp.window.fullscreen({ mode = "fullscreen" })'';
         desc = "Fullscreen";
         group = "Windows";
       })
       (keysLib.hypr.bind {
         on = on.super K.P;
-        dispatcher = "pseudo";
+        dsp = "hl.dsp.window.pseudo()";
         desc = "Toggle pseudo-tiling";
         group = "Windows";
       })
@@ -300,8 +294,7 @@ in
       d:
       keysLib.hypr.bind {
         on = on.super d.key;
-        dispatcher = "movefocus";
-        arg = d.hypr;
+        dsp = ''hl.dsp.focus({ direction = "${d.word}" })'';
         desc = "Focus ${d.word}";
         group = "Focus";
       }
@@ -310,8 +303,7 @@ in
       d:
       keysLib.hypr.bind {
         on = on.superShift d.key;
-        dispatcher = "swapwindow";
-        arg = d.hypr;
+        dsp = ''hl.dsp.window.swap({ direction = "${d.word}" })'';
         desc = "Swap window ${d.word}";
         group = "Focus";
       }
@@ -320,15 +312,15 @@ in
       d:
       keysLib.hypr.bind {
         on = on.superAlt d.key;
-        dispatcher = "resizeactive";
-        arg =
+        dsp = "hl.dsp.window.resize({ ${
           {
-            h = "-40 0";
-            l = "40 0";
-            k = "0 -40";
-            j = "0 40";
+            h = "x = -40, y = 0";
+            l = "x = 40, y = 0";
+            k = "x = 0, y = -40";
+            j = "x = 0, y = 40";
           }
-          .${d.key.id};
+          .${d.key.id}
+        }, relative = true })";
         desc = "Resize ${d.word}";
         group = "Focus";
         flavor = "repeat";
@@ -360,43 +352,37 @@ in
     ++ [
       (keysLib.hypr.bind {
         on = on.superCtrl K.n;
-        dispatcher = "workspace";
-        arg = "m+1";
+        dsp = ''hl.dsp.focus({ workspace = "m+1" })'';
         desc = "Next workspace on this monitor";
         group = "Workspaces";
       })
       (keysLib.hypr.bind {
         on = on.superCtrl K.p;
-        dispatcher = "workspace";
-        arg = "m-1";
+        dsp = ''hl.dsp.focus({ workspace = "m-1" })'';
         desc = "Previous workspace on this monitor";
         group = "Workspaces";
       })
       (keysLib.hypr.bind {
         on = on.super K.wheelDown;
-        dispatcher = "workspace";
-        arg = "m+1";
+        dsp = ''hl.dsp.focus({ workspace = "m+1" })'';
         desc = "Next workspace on this monitor";
         group = "Workspaces";
       })
       (keysLib.hypr.bind {
         on = on.super K.wheelUp;
-        dispatcher = "workspace";
-        arg = "m-1";
+        dsp = ''hl.dsp.focus({ workspace = "m-1" })'';
         desc = "Previous workspace on this monitor";
         group = "Workspaces";
       })
       (keysLib.hypr.bind {
         on = on.super K.S;
-        dispatcher = "togglespecialworkspace";
-        arg = "magic";
+        dsp = ''hl.dsp.workspace.toggle_special("magic")'';
         desc = "Toggle the scratchpad";
         group = "Workspaces";
       })
       (keysLib.hypr.bind {
         on = on.superShift K.S;
-        dispatcher = "movetoworkspace";
-        arg = "special:magic";
+        dsp = ''hl.dsp.window.move({ workspace = "special:magic" })'';
         desc = "Move window to the scratchpad";
         group = "Workspaces";
       })
@@ -408,43 +394,37 @@ in
       })
       (keysLib.hypr.bind {
         on = on.super K.left;
-        dispatcher = "focusmonitor";
-        arg = "-1";
+        dsp = ''hl.dsp.focus({ monitor = "-1" })'';
         desc = "Focus the previous monitor";
         group = "Workspaces";
       })
       (keysLib.hypr.bind {
         on = on.super K.right;
-        dispatcher = "focusmonitor";
-        arg = "+1";
+        dsp = ''hl.dsp.focus({ monitor = "+1" })'';
         desc = "Focus the next monitor";
         group = "Workspaces";
       })
       (keysLib.hypr.bind {
         on = on.superShift K.left;
-        dispatcher = "movewindow";
-        arg = "mon:-1";
+        dsp = ''hl.dsp.window.move({ monitor = "-1" })'';
         desc = "Move window to the previous monitor";
         group = "Monitors";
       })
       (keysLib.hypr.bind {
         on = on.superShift K.right;
-        dispatcher = "movewindow";
-        arg = "mon:+1";
+        dsp = ''hl.dsp.window.move({ monitor = "+1" })'';
         desc = "Move window to the next monitor";
         group = "Monitors";
       })
       (keysLib.hypr.bind {
         on = on.superAlt K.left;
-        dispatcher = "movecurrentworkspacetomonitor";
-        arg = "-1";
+        dsp = ''hl.dsp.workspace.move({ monitor = "-1" })'';
         desc = "Move workspace to the previous monitor";
         group = "Monitors";
       })
       (keysLib.hypr.bind {
         on = on.superAlt K.right;
-        dispatcher = "movecurrentworkspacetomonitor";
-        arg = "+1";
+        dsp = ''hl.dsp.workspace.move({ monitor = "+1" })'';
         desc = "Move workspace to the next monitor";
         group = "Monitors";
       })
@@ -470,15 +450,13 @@ in
       })
       (keysLib.hypr.bind {
         on = on.superCtrl K.left;
-        dispatcher = "swapactiveworkspaces";
-        arg = "current -1";
+        dsp = ''hl.dsp.workspace.swap_monitors({ monitor1 = "current", monitor2 = "-1" })'';
         desc = "Swap workspaces with the previous monitor";
         group = "Workspaces";
       })
       (keysLib.hypr.bind {
         on = on.superCtrl K.right;
-        dispatcher = "swapactiveworkspaces";
-        arg = "current +1";
+        dsp = ''hl.dsp.workspace.swap_monitors({ monitor1 = "current", monitor2 = "+1" })'';
         desc = "Swap workspaces with the next monitor";
         group = "Workspaces";
       })
@@ -551,13 +529,13 @@ in
       (keysLib.hypr.nudgeSubmap {
         name = "move";
         enter = on.super K.M;
-        dispatcher = "moveactive";
+        action = "move";
         desc = "Move window";
       })
       (keysLib.hypr.nudgeSubmap {
         name = "resize";
         enter = on.super K.R;
-        dispatcher = "resizeactive";
+        action = "resize";
         desc = "Resize window";
       })
     ];

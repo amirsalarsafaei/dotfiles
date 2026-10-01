@@ -301,11 +301,11 @@ let
           grep -qxF -- "$session" <<<"$running" || exit 0
           window=$("$hyprctl" clients -j \
             | jq -r --arg session "$session" '
-                [.[] | select(.title == $session or (.title | startswith($session + " | ")))]
+                [.[] | select(.title | ltrimstr("🔔 ") | ltrimstr("🔍 ") | . == $session or startswith($session + " | "))]
                 | sort_by(.focusHistoryID) | first | .address // empty') || window=""
           if [ -n "$window" ]; then
             for _ in $(seq 20); do
-              "$hyprctl" dispatch focuswindow "address:$window" >/dev/null
+              "$hyprctl" dispatch "hl.dsp.focus({ window = 'address:$window' })" >/dev/null
               [ "$("$hyprctl" activewindow -j | jq -r '.address // empty')" = "$window" ] && break
               sleep 0.05
             done

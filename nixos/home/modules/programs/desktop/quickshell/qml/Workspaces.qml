@@ -42,7 +42,7 @@ Item {
         onWheel: wheelEvent => {
             const delta = wheelEvent.angleDelta.y !== 0 ? wheelEvent.angleDelta.y : wheelEvent.angleDelta.x;
             if (delta !== 0)
-                Hyprland.dispatch(delta > 0 ? "workspace m-1" : "workspace m+1");
+                Hyprland.dispatch(delta > 0 ? "hl.dsp.focus({ workspace = \"m-1\" })" : "hl.dsp.focus({ workspace = \"m+1\" })");
         }
     }
 
