@@ -63,7 +63,7 @@
           structure = "symlink-tree";
         };
         work-claude = {
-          enable = true;
+          enable = config.custom.claudeCode.enableWork;
           dest = "${config.home.homeDirectory}/.config/work-claude/skills";
           structure = "symlink-tree";
         };

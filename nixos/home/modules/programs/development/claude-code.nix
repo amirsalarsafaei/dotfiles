@@ -1332,6 +1332,23 @@ let
     "off"
   ];
 
+  mkWorkEnableOption =
+    description:
+    lib.mkEnableOption description
+    // {
+      default = config.custom.work.enable;
+      defaultText = lib.literalExpression "config.custom.work.enable";
+    };
+
+  workOnlyOptions = [
+    "enableWork"
+    "enableGlm"
+    "enableDeepseek"
+    "enableWorkDivarGlm"
+    "enableWorkDivarDeepseek"
+    "enableDevar"
+  ];
+
   zellijAttentionHooks =
     let
       hook = {
@@ -1724,17 +1741,17 @@ in
 {
   options.custom.claudeCode = {
     enable = lib.mkEnableOption "Install claude-code and the gap-claude wrapper";
-    enableGlm = lib.mkEnableOption "Route the default claude command through GLM";
-    enableDeepseek = lib.mkEnableOption ''
+    enableGlm = mkWorkEnableOption "Route the default claude command through GLM";
+    enableDeepseek = mkWorkEnableOption ''
       the deepseek-claude variant: routes through DeepSeek's native
       Anthropic-compatible endpoint (https://api.deepseek.com/anthropic).
       Reads the API key from ~/deepseek-key
     '';
-    enableWorkDivarGlm = lib.mkEnableOption ''
+    enableWorkDivarGlm = mkWorkEnableOption ''
       the work-divar-glm-claude variant: work group, routed through the Divar
       LiteLLM gateway (divar-glm5.3). Reads the token from ~/divar-glm
     '';
-    enableWorkDivarDeepseek = lib.mkEnableOption ''
+    enableWorkDivarDeepseek = mkWorkEnableOption ''
       the work-divar-deepseek-claude variant: work group, routed through the
       Divar LiteLLM gateway (divar-deepseek). Reads the token from
       ~/divar-deepseek
@@ -1745,7 +1762,7 @@ in
       (non-work) use — its own config dir and no work MCP config / devar
       plugin. Reads the API key from ~/personal-deepseek
     '';
-    enableWork = lib.mkEnableOption "Install the work-claude variant (work-host only)";
+    enableWork = mkWorkEnableOption "Install the work-claude variant (work-host only)";
     enableLocal = lib.mkEnableOption "Install the local-claude variant (LiteLLM -> local llama-swap model)";
     enablePersonal = lib.mkEnableOption ''
       the personal-claude variant: vanilla Anthropic-direct claude wrapped
@@ -1754,12 +1771,11 @@ in
       deliberate, since connecting to Anthropic from a sanctioned region
       risks the account
     '';
-    enableDevar = lib.mkEnableOption ''
+    enableDevar = mkWorkEnableOption ''
       the Divar `devar` plugin in the work variant: the directory-sourced
       "divar" marketplace (~/divar/devar) and the `devar@divar` plugin entry.
-      Set by modules/work.nix (isWork) so it lands only on the work laptop —
-      the host that has the ~/divar/devar checkout. Other work-claude hosts
-      (e.g. g14) get the variant without devar
+      Work-only like the work variants: only the work laptop has the
+      ~/divar/devar checkout
     '';
     enableCaveman = lib.mkEnableOption ''
       the caveman plugin (JuliusBrussee/caveman, github.com/juliusbrussee/caveman),
@@ -2199,6 +2215,12 @@ in
   config = lib.mkMerge [
     {
       home.packages = [ pkgs.crit ];
+    }
+    {
+      assertions = map (name: {
+        assertion = cfg.${name} -> config.custom.work.enable;
+        message = "custom.claudeCode.${name} is work-only and requires custom.work.enable, which modules/work.nix sets on the work laptop.";
+      }) workOnlyOptions;
     }
     (lib.mkIf cfg.agentStatus.enable {
       systemd.user.tmpfiles.rules = [

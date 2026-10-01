@@ -2,6 +2,7 @@
 {
   imports = [
     ../modules/personal.nix
+    ../modules/work.nix
     ../modules/power-profile.nix
     ../modules/keys
   ];

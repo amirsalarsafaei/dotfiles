@@ -81,16 +81,11 @@ lib.mkIf config.isWork {
 
       custom = {
         claudeCode = {
-          enableGlm = true;
-          enableWork = true;
-          enableDeepseek = true;
-          enableWorkDivarGlm = true;
-          enableWorkDivarDeepseek = true;
-          enableDevar = true;
           planner.enable = true;
           sandbox.enable = true;
         };
         personal.enable = false;
+        work.enable = true;
 
         agentSkills = {
           sources.devar = {
