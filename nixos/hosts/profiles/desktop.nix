@@ -8,6 +8,7 @@
 }:
 let
   localMonitoring = config.custom.localMonitoring.enable;
+  browserPolicy = builtins.toJSON { DefaultBrowserSettingEnabled = false; };
   collectNvidiaMetrics =
     localMonitoring && hostname == "g14" && builtins.elem "nvidia" config.services.xserver.videoDrivers;
   sshAskpassSkAware = pkgs.writeShellApplication {
@@ -280,6 +281,9 @@ in
     };
 
     environment.variables.EDITOR = lib.mkForce "nvim";
+
+    environment.etc."opt/chrome/policies/managed/default-browser.json".text = browserPolicy;
+    environment.etc."chromium/policies/managed/default-browser.json".text = browserPolicy;
 
     programs.hyprland = {
       enable = true;
