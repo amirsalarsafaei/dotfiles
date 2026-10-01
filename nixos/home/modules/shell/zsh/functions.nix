@@ -15,7 +15,7 @@
 
     _arguments \
       '--effort[effort level for this session]:level:(low medium high xhigh max)' \
-      '--chrome[attach browser-mcp (control your logged-in Chrome via the Agent360 Browser MCP extension, one tab group per session)]' \
+      '--chrome[attach playwright-mcp --extension (control your logged-in Chrome via the Playwright Extension, one tab group per session, approve each connection)]' \
       '--sec-chrome[attach chrome-devtools-mcp (DevTools inspection + network/console capture)]' \
       '--playwright[attach playwright-mcp]' \
       '--no-sandbox[skip the bubblewrap sandbox for this launch]' \
@@ -33,7 +33,7 @@
       '--agentic-mcps[attach agentic-development-mcps for this launch]' \
       '--gitlab-mcp[allow the gitlab_* tool family on agentic-development-mcps]' \
       '--nixos[attach mcp-nixos (nixpkgs/NixOS/Home Manager/nix-darwin search)]' \
-      '--chrome[attach browser-mcp (control your logged-in Chrome via the Agent360 Browser MCP extension, one tab group per session)]' \
+      '--chrome[attach playwright-mcp --extension (control your logged-in Chrome via the Playwright Extension, one tab group per session, approve each connection)]' \
       '--sec-chrome[attach chrome-devtools-mcp (DevTools inspection + network/console capture)]' \
       '--playwright[attach playwright-mcp]' \
       '--no-sandbox[skip the bubblewrap sandbox for this launch]' \

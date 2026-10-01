@@ -1,4 +1,4 @@
-{ inputs, pkgs }:
+{ pkgs }:
 let
   zellijExtraPlugins = pkgs.callPackage ../pkgs/zellij-plugins.nix { };
   neovimPlugins = pkgs.callPackage ../pkgs/neovim-plugins.nix { };
@@ -8,9 +8,7 @@ let
   geoData = pkgs.callPackage ../pkgs/geo-data.nix { };
 in
 {
-  devar = pkgs.callPackage ../pkgs/devar.nix { devarSrc = inputs.devar; };
   chrome-devtools-mcp = pkgs.callPackage ../pkgs/chrome-devtools-mcp.nix { };
-  agent360-browser-mcp = pkgs.callPackage ../pkgs/agent360-browser-mcp { };
   airpods-tui = pkgs.callPackage ../pkgs/airpods-tui.nix { };
   zellij-harpoon = zellijExtraPlugins.harpoon;
   zellij-tabula = zellijExtraPlugins.tabula;

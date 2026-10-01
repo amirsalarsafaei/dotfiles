@@ -87,16 +87,6 @@
       url = "github:amirsalarsafaei/amirsalarsafaei.com";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    devar = {
-      url = "path:/home/amirsalar/divar/devar";
-      flake = false;
-    };
-
-    avosh-bot = {
-      url = "path:/etc/avosh-bot";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs = inputs: import ./flake inputs;

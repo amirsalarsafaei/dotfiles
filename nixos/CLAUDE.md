@@ -115,8 +115,8 @@ Use two-space indentation in `.nix` files and keep attribute sets readable by gr
 
 ## Adding a New Package
 Any package or asset fetched with a pinned content hash (`fetchurl`, `fetchFromGitHub`, `fetchgit`, `cargoHash`/`vendorHash`, etc.) must be structured so `nix-update` can refresh that hash standalone, without a full host build:
-- Define it in its own file under `pkgs/`, taking only the specific `pkgs` attributes it needs as function arguments (see `pkgs/zellij-plugins.nix`, `pkgs/devar.nix`).
-- Keep derivations independent of Home Manager configuration. Accept explicit package dependencies through `callPackage`; pass external sources at the output boundary (as with `devarSrc`). Optional UI context should default to `null` and only affect the wrapper that needs it.
+- Define it in its own file under `pkgs/`, taking only the specific `pkgs` attributes it needs as function arguments (see `pkgs/zellij-plugins.nix`, `pkgs/airpods-tui.nix`).
+- Keep derivations independent of Home Manager configuration. Accept explicit package dependencies through `callPackage`; pass external sources at the output boundary. Optional UI context should default to `null` and only affect the wrapper that needs it.
 - Expose it in `flake/packages.nix` under the existing x86_64 package outputs so `nix-update --flake <name>` (or `--version skip` for content that has no real version, like a rolling upstream file) can target it.
 - One hash per exposed derivation — `nix-update` finds the fetcher attached to that specific package, so don't bundle multiple unrelated fetches with independent hashes into one derivation.
 - Modules that consume the package should `pkgs.callPackage ./pkgs/<file>.nix { ... }` rather than inlining the fetch.

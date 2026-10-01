@@ -125,7 +125,7 @@ let
       ])
   );
 
-  devar = pkgs.callPackage ../../../../pkgs/devar.nix { devarSrc = inputs.devar; };
+  devarLauncher = "${config.home.homeDirectory}/divar/devar/bin/devar";
 
   workEffortLevel = "xhigh";
 
@@ -449,7 +449,7 @@ let
   };
 
   chromeDevtoolsMcp = pkgs.callPackage ../../../../pkgs/chrome-devtools-mcp.nix { };
-  browserMcp = pkgs.callPackage ../../../../pkgs/agent360-browser-mcp { };
+  googleChrome = lib.getExe' pkgs.google-chrome "google-chrome-stable";
 
   browserMcpDirRel = ".config/claude-browser-mcp";
   secChromeMcpConfigRel = "${browserMcpDirRel}/chrome-devtools.json";
@@ -462,10 +462,15 @@ let
   chromeMcpServers = {
     mcpServers = {
       chrome = {
-        command = lib.getExe browserMcp;
-        env = {
-          BROWSER_MCP_EXTENSION_ID = "jdehgalffmffhfhmmhaokfbfnafnmgcl";
-        };
+        command = lib.getExe' pkgs.playwright-mcp "playwright-mcp";
+        args = [
+          "--extension"
+          "--browser"
+          "chrome"
+          "--executable-path"
+          googleChrome
+        ];
+        env.PLAYWRIGHT_MCP_USER_DATA_DIR = "${config.home.homeDirectory}/.config/google-chrome";
       };
     };
   };
@@ -476,7 +481,7 @@ let
         command = lib.getExe chromeDevtoolsMcp;
         args = [
           "--executablePath"
-          (lib.getExe' pkgs.google-chrome "google-chrome-stable")
+          googleChrome
           "--no-category-performance"
           "--no-usage-statistics"
         ];
@@ -530,6 +535,18 @@ let
     resultVar = "_claude_gitlab_mcp";
   };
 
+  devarSecurityFlag = {
+    flag = "--security";
+    desc = "enable the devar security lab (sec and cve tools, seclab skill, devar sec) for this launch";
+  };
+
+  devarSecurityDeny = [
+    "mcp__plugin_devar_devar__sec_*"
+    "mcp__plugin_devar_devar__cve_*"
+    "Skill(devar:seclab)"
+    "Bash(devar sec:*)"
+  ];
+
   flagPlugins = [
     {
       flag = "--no-devar";
@@ -576,7 +593,9 @@ let
     inherit (cfg.planner) mcpConfigs;
   };
 
-  flagPluginsZshArgs = lib.concatMapStringsSep " " (p: "'${p.flag}[${p.desc}]'") flagPlugins;
+  flagPluginsZshArgs = lib.concatMapStringsSep " " (p: "'${p.flag}[${p.desc}]'") (
+    flagPlugins ++ lib.optional cfg.enableDevar devarSecurityFlag
+  );
 
   pluginFlagsParserText =
     let
@@ -618,7 +637,11 @@ let
         + lib.optionalString (p ? levelEnv) (levelArm p)
       ) flagPlugins;
     in
-    ''
+    lib.optionalString cfg.enableDevar (mkBoolFlagParser {
+      inherit (devarSecurityFlag) flag;
+      resultVar = "_claude_devar_security";
+    })
+    + ''
       _claude_plugin_flags=()
       _claude_plugin_marketplaces=()
       _claude_plugin_env=()
@@ -684,6 +707,12 @@ let
       _claude_extra_args+=(--mcp-config "$_claude_pc")
     done
     unset _claude_plugin_flags _claude_plugin_marketplaces _claude_plugin_env _claude_plugin_mcp _claude_pc
+  ''
+  + lib.optionalString cfg.enableDevar ''
+    if [ "$_claude_devar_security" -eq 0 ]; then
+      _claude_extra_args+=(${lib.escapeShellArg "--disallowedTools=${lib.concatStringsSep "," devarSecurityDeny}"})
+    fi
+    unset _claude_devar_security
   '';
 
   browserMcpParserText =
@@ -1492,7 +1521,7 @@ let
             command = ''
               skill=$(${lib.getExe' pkgs.jq "jq"} -er '.skill_name // empty' 2>/dev/null) || exit 0
               if [ -n "$skill" ]; then
-                ${lib.getExe' devar "devar"} usage record skill "$skill" || true
+                ${lib.escapeShellArg devarLauncher} usage record skill "$skill" || true
               fi
               exit 0
             '';

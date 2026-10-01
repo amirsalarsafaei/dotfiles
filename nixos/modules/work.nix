@@ -1,19 +1,21 @@
 {
   lib,
   config,
-  pkgs,
-  inputs,
   ...
 }:
 let
-  devarCli = pkgs.callPackage ../pkgs/devar.nix { devarSrc = inputs.devar; };
+  syncPolicy = builtins.toJSON { SyncTypesListDisabled = [ "extensions" ]; };
 in
 lib.mkIf config.isWork {
-  environment.etc."chromium/policies/managed/cloaq.json".text = builtins.toJSON {
-    ExtensionInstallForcelist = [
-      "fcalilbnpkfikdppppppchmkdipibalb"
-      "eiadekoaikejlgdbkbdfeijglgfdalml"
-    ];
+  environment.etc = {
+    "chromium/policies/managed/cloaq.json".text = builtins.toJSON {
+      ExtensionInstallForcelist = [
+        "fcalilbnpkfikdppppppchmkdipibalb"
+        "eiadekoaikejlgdbkbdfeijglgfdalml"
+      ];
+    };
+    "opt/chrome/policies/managed/work-sync.json".text = syncPolicy;
+    "chromium/policies/managed/work-sync.json".text = syncPolicy;
   };
 
   home-manager.users.amirsalar =
@@ -24,6 +26,8 @@ lib.mkIf config.isWork {
       ...
     }:
     let
+      devarLauncher = "${config.home.homeDirectory}/divar/devar/bin/devar";
+
       workCodex = pkgs.writeShellApplication {
         name = "work-codex";
         runtimeInputs = [ pkgs.codex ];
@@ -37,10 +41,12 @@ lib.mkIf config.isWork {
     {
       home = {
         packages = [
-          devarCli
           workCodex
           pkgs.openfortivpn
         ];
+
+        sessionPath = [ "${config.home.homeDirectory}/divar/devar/bin" ];
+        sessionVariables.DEVAR_FLAVOR = "lab";
 
         file.".config/amp/plugins/devar-usage.ts".text = ''
           import type { PluginAPI } from '@ampcode/plugin'
@@ -53,7 +59,7 @@ lib.mkIf config.isWork {
               if (typeof name !== 'string' || name.length === 0) return { action: 'allow' }
 
               try {
-                await ctx.$`${lib.getExe' devarCli "devar"} usage record skill ''${name}`
+                await ctx.$`${devarLauncher} usage record skill ''${name}`
               } catch (error) {
                 ctx.logger.log('Could not record skill usage', error)
               }
@@ -68,7 +74,7 @@ lib.mkIf config.isWork {
           run mkdir -p "$(dirname "$settings")"
           [ -s "$settings" ] || run sh -c "echo '{}' > '$settings'"
           tmp=$(mktemp)
-          if "$jq" --arg cmd "${lib.getExe' devarCli "devar"}" \
+          if "$jq" --arg cmd ${lib.escapeShellArg devarLauncher} \
                '.["amp.mcpServers"].devar = { command: $cmd, args: ["mcp"] }' \
                "$settings" > "$tmp" 2>/dev/null; then
             cmp -s "$tmp" "$settings" || run cp "$tmp" "$settings"
@@ -90,18 +96,10 @@ lib.mkIf config.isWork {
         personal.enable = false;
         work.enable = true;
 
-        agentSkills = {
-          sources.devar = {
-            input = "devar";
-            subdir = "skills";
-            filter.maxDepth = 2;
-          };
-          targets.glm-claude = {
-            enable = true;
-            dest = "${config.home.homeDirectory}/.config/glm-claude/skills";
-            structure = "symlink-tree";
-          };
-          enableAll = [ "devar" ];
+        agentSkills.targets.glm-claude = {
+          enable = true;
+          dest = "${config.home.homeDirectory}/.config/glm-claude/skills";
+          structure = "symlink-tree";
         };
       };
     };

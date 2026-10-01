@@ -43,23 +43,6 @@
         "type": "github"
       }
     },
-    "avosh-bot": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1787837205,
-        "narHash": "sha256-WMVOIFEXgU7mAD5oHg/Q7XEz2KmU9A+RDg3P0KdIzqg=",
-        "path": "/etc/avosh-bot",
-        "type": "path"
-      },
-      "original": {
-        "path": "/etc/avosh-bot",
-        "type": "path"
-      }
-    },
     "base16": {
       "inputs": {
         "fromYaml": "fromYaml"
@@ -165,19 +148,6 @@
         "owner": "tomasz-tomczyk",
         "repo": "crit",
         "type": "github"
-      }
-    },
-    "devar": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1790772347,
-        "narHash": "sha256-vLzRlKY/T5Phqgt6Z7v2JNRCyUHgML84Ov/DqO1t9d4=",
-        "path": "/home/amirsalar/divar/devar",
-        "type": "path"
-      },
-      "original": {
-        "path": "/home/amirsalar/divar/devar",
-        "type": "path"
       }
     },
     "disko": {
@@ -477,10 +447,8 @@
       "inputs": {
         "agent-skills": "agent-skills",
         "amirsalarsafaei-com": "amirsalarsafaei-com",
-        "avosh-bot": "avosh-bot",
         "claude-code": "claude-code",
         "crit": "crit",
-        "devar": "devar",
         "disko": "disko",
         "fast-syntax-highlighting": "fast-syntax-highlighting",
         "fzf-tab": "fzf-tab",

@@ -168,7 +168,6 @@ let
 in
 {
   packages.${systems.x86_64} = import ./packages.nix {
-    inherit inputs;
     pkgs = pkgsFor.${systems.x86_64};
   };
 
