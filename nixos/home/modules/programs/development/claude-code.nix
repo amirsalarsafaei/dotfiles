@@ -361,32 +361,22 @@ let
   };
 
   chromeDevtoolsMcp = pkgs.callPackage ../../../../pkgs/chrome-devtools-mcp.nix { };
-  mcpChromeBridge = pkgs.callPackage ../../../../pkgs/mcp-chrome-bridge { };
+  browserMcp = pkgs.callPackage ../../../../pkgs/browser-mcp { };
 
   browserMcpDirRel = ".config/claude-browser-mcp";
   secChromeMcpConfigRel = "${browserMcpDirRel}/chrome-devtools.json";
   secChromeMcpConfigPath = "${config.home.homeDirectory}/${secChromeMcpConfigRel}";
-  chromeMcpConfigRel = "${browserMcpDirRel}/chrome.json";
-  chromeMcpConfigPath = "${config.home.homeDirectory}/${chromeMcpConfigRel}";
-  chromeNativeHostRel = ".config/google-chrome/NativeMessagingHosts/com.chromemcp.nativehost.json";
+  browserMcpConfigRel = "${browserMcpDirRel}/browser-mcp.json";
+  browserMcpConfigPath = "${config.home.homeDirectory}/${browserMcpConfigRel}";
   playwrightMcpConfigRel = "${browserMcpDirRel}/playwright.json";
   playwrightMcpConfigPath = "${config.home.homeDirectory}/${playwrightMcpConfigRel}";
 
-  chromeMcpServers = {
+  browserMcpServers = {
     mcpServers = {
-      chrome = {
-        type = "http";
-        url = "http://127.0.0.1:12306/mcp";
+      browsermcp = {
+        command = "${browserMcp}/bin/mcp-server-browsermcp";
       };
     };
-  };
-
-  chromeNativeHost = {
-    name = "com.chromemcp.nativehost";
-    description = "Node.js Host for Browser Bridge Extension";
-    path = "${mcpChromeBridge}/lib/node_modules/mcp-chrome-bridge/dist/run_host.sh";
-    type = "stdio";
-    allowed_origins = [ "chrome-extension://hbdgbgagpkpjffpklnamcljpakneikee/" ];
   };
 
   secChromeMcpServers = {
@@ -632,7 +622,7 @@ let
   browserMcpArgText = ''
     _claude_extra_args+=(--no-chrome)
     if [ "$_claude_chrome" -eq 1 ]; then
-      _claude_extra_args+=(--mcp-config "${chromeMcpConfigPath}")
+      _claude_extra_args+=(--mcp-config "${browserMcpConfigPath}")
     fi
     if [ "$_claude_sec_chrome" -eq 1 ]; then
       _claude_extra_args+=(--mcp-config "${secChromeMcpConfigPath}")
@@ -2316,9 +2306,8 @@ in
       )
       {
         home.file = {
-          ${chromeMcpConfigRel}.text = builtins.toJSON chromeMcpServers;
+          ${browserMcpConfigRel}.text = builtins.toJSON browserMcpServers;
           ${secChromeMcpConfigRel}.text = builtins.toJSON secChromeMcpServers;
-          ${chromeNativeHostRel}.text = builtins.toJSON chromeNativeHost;
           ${playwrightMcpConfigRel}.text = builtins.toJSON playwrightMcpServers;
         };
       }

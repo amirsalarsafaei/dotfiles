@@ -1,0 +1,68 @@
+--- a/dist/index.js	2026-09-25 16:54:46.782543639 +0330
++++ b/dist/index.js	2026-09-25 16:55:50.558242598 +0330
+@@ -107,7 +107,7 @@
+ };
+ 
+ // src/context.ts
+-var noConnectionMessage = `No connection to browser extension. In order to proceed, you must first connect a tab by clicking the Browser MCP extension icon in the browser toolbar and clicking the 'Connect' button.`;
++var noConnectionMessage = `No connection to browser extension. Check that the browser MCP broker is running (systemctl --user status browser-mcp-broker), then connect a tab by clicking the Browser MCP extension icon in the browser toolbar and clicking the 'Connect' button.`;
+ var Context = class {
+   _ws;
+   get ws() {
+@@ -166,25 +166,40 @@
+     server.listen(port);
+   });
+ }
+-function killProcessOnPort(port) {
+-  try {
+-    if (process.platform === "win32") {
+-      execSync(
+-        `FOR /F "tokens=5" %a in ('netstat -ano ^| findstr :${port}') do taskkill /F /PID %a`
+-      );
+-    } else {
+-      execSync(`lsof -ti:${port} | xargs kill -9`);
++function browserMcpSocketPath() {
++  const dir = process.env.XDG_RUNTIME_DIR || `/run/user/${process.getuid()}`;
++  return process.env.BROWSER_MCP_BROKER_SOCKET || `${dir}/browser-mcp.sock`;
++}
++function createBrokerClient() {
++  const listeners = [];
++  const connectToBroker = () => {
++    const client = new WebSocket(`ws+unix://${browserMcpSocketPath()}:/`);
++    client.addEventListener("open", () => {
++      for (const listener of listeners) {
++        listener(client);
++      }
++    });
++    client.addEventListener("error", () => {
++    });
++    client.addEventListener("close", () => {
++      setTimeout(connectToBroker, 500);
++    });
++  };
++  connectToBroker();
++  return {
++    on(event, listener) {
++      if (event === "connection") {
++        listeners.push(listener);
++      }
+     }
+-  } catch (error) {
+-    console.error(`Failed to kill process on port ${port}:`, error);
+-  }
++  };
+ }
+-
+-// src/ws.ts
+ async function createWebSocketServer(port = mcpConfig.defaultWsPort) {
+-  killProcessOnPort(port);
+-  while (await isPortInUse(port)) {
+-    await wait(100);
++  if (!process.env.BROWSER_MCP_DIRECT) {
++    return createBrokerClient();
++  }
++  if (await isPortInUse(port)) {
++    throw new Error(`port ${port} is already in use by another process`);
+   }
+   return new WebSocketServer({ port });
+ }

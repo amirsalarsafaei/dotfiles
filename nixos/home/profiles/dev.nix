@@ -11,6 +11,7 @@
     ../modules/scripts/user.nix # file-based user scripts (custom.userScripts)
     ../modules/packages/dev-core.nix
     ../modules/programs/development/core.nix
+    ../modules/programs/development/browser-mcp-broker.nix
     ../modules/programs/development/claude-code.nix
     ../modules/programs/development/opencode.nix
     ../modules/programs/development/agent-skills.nix
