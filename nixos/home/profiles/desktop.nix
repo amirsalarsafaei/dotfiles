@@ -21,7 +21,5 @@
       path = "${config.home.homeDirectory}/.ssh/config.d/sops";
     };
   };
-  # Cheats live in-tree (../modules/navi-cheats), so editing a .cheat takes
-  # effect on the next local rebuild instead of requiring a push + re-lock.
   custom.dev.naviCheatsPath = "${../modules/navi-cheats}";
 }

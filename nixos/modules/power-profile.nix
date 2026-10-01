@@ -4,8 +4,6 @@ let
   isLowPower = cfg == "low-power";
   isPerformance = cfg == "performance";
 
-  # "performance" mirrors the AC-power settings onto battery too, so the
-  # laptop never throttles regardless of power source.
   acSettings = {
     CPU_SCALING_GOVERNOR = "performance";
     CPU_ENERGY_PERF_POLICY = "performance";
@@ -78,11 +76,6 @@ in
     })
 
     (lib.mkIf config.isLaptop {
-      # TLP's AC/battery split already does the right thing regardless of
-      # powerProfile: performance governor on AC, powersave on battery. Used
-      # to be gated to low-power only, which left "normal" laptops managed by
-      # power-profiles-daemon's "balanced" EPP — clocks stuck low (~1.5GHz)
-      # under load even on AC power.
       services.power-profiles-daemon.enable = config.custom.dynamicPowerProfiles;
       services.tlp = {
         enable = !config.custom.dynamicPowerProfiles;

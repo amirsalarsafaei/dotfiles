@@ -1,28 +1,10 @@
 {
-  config,
   lib,
   pkgs,
   ...
 }:
 
-# Local coding LLM for Claude Code (g14 only).
-#
-# Serves Qwen3.6-35B-A3B-APEX (MoE: 35B total / 3B active, 256 experts,
-# 40 layers, 256k native context) through llama-swap on a CUDA llama.cpp,
-# bridged to Claude Code via LiteLLM (see
-# home/modules/programs/development/claude-code.nix, `local-claude`).
-#
-# Hardware: RTX 5080 Mobile (16 GB VRAM, sm_120) + Ryzen AI 9 HX 370 + 32 GB
-# RAM. MoE-aware split: ALL attention + shared experts + KV cache on GPU
-# (`-ngl 999`); only routed-expert FFN tensors of the first `--n-cpu-moe`
-# layers spill to CPU. Concurrency is 2 (`-np 2`) so Claude Code's main and
-# safety-classifier/background requests are served simultaneously;
-# `--kv-unified` shares --ctx-size as one KV pool across slots.
-
 let
-  # ---------------------------------------------------------------------
-  # Constants
-  # ---------------------------------------------------------------------
   port = 18080;
   litellmPort = 18081;
   apiBase = "http://127.0.0.1:${toString port}";
@@ -30,15 +12,10 @@ let
   localModelFast = "qwen3.6-apex-nothink";
   localProxyKey = "sk-local";
 
-  # Timeout configuration for local LLM with hardware constraints
-  requestTimeout = 600; # 10min - standard timeout for local processing
-  longRequestTimeout = 1800; # 30min - extended timeout for complex/long-context requests
-  healthCheckTimeout = 600; # 10min - cold start loads weights + copies tensors to VRAM
+  requestTimeout = 600;
+  longRequestTimeout = 1800;
+  healthCheckTimeout = 600;
 
-  # GGUF too large (~17 GB) to be nix-managed; lives outside /home because
-  # the llama-swap unit sets ProtectHome=true. Bootstrap with:
-  #   sudo install -d -m0755 /var/lib/llama-models
-  #   sudo mv ~/Downloads/Qwen3.6-35B-A3B-APEX-I-Compact.gguf /var/lib/llama-models/
   modelDir = "/var/lib/llama-models";
   defaultModel = "Qwen3.6-35B-A3B-APEX-I-Compact.gguf";
   qwen27bDownload = "/home/amirsalar/Downloads/Qwen3.6-27B-UD-Q4_K_XL.gguf";
@@ -46,7 +23,6 @@ let
   currentModelPath = "${modelDir}/current.gguf";
   currentModelEnv = "${modelDir}/current.env";
 
-  # Default profile settings (overridden by per-model rules)
   defaultProfile = {
     gpuLayers = 999;
     nCpuMoe = 7;
@@ -60,7 +36,6 @@ let
     cacheTypeV = "q8_0";
   };
 
-  # Per-model tuning, ordered (first glob match wins)
   profileRules = [
     {
       pattern = "Qwen3.6-27B-*";
@@ -70,11 +45,6 @@ let
       ubatch = 512;
       ctx_size = 65536;
     }
-    # Dense 27B, 64 layers total. Live-probed full production shape (ctx
-    # 65536, parallel=2, q8/q8 KV, --kv-unified) on the 16 GB 5080 Mobile:
-    # ngl=48 is the hard OOM ceiling (141 MiB free — too thin for real load
-    # spikes), ngl=50 OOMs outright. ngl=46 chosen for headroom (727 MiB
-    # free) while still offloading 46/64 layers to GPU.
     {
       pattern = "Qwen3.8-27B-Q5_K_M*";
       gpuLayers = 46;
@@ -134,12 +104,6 @@ let
     "qwen3.8-q5" = qwen38Q5Download;
   };
 
-  # ---------------------------------------------------------------------
-  # CUDA llama.cpp
-  # ---------------------------------------------------------------------
-  # nixpkgs `llama-cpp` in this flake is CPU-only; re-import the same pinned
-  # nixpkgs with CUDA on, pinned to sm_120 so kernels are precompiled —
-  # no runtime PTX JIT, which would trip MemoryDenyWriteExecute=true.
   llamaCppCuda =
     (import pkgs.path {
       system = pkgs.stdenv.hostPlatform.system;
@@ -189,9 +153,6 @@ let
     '';
   };
 
-  # ---------------------------------------------------------------------
-  # Shared shell library (profile selection + activation)
-  # ---------------------------------------------------------------------
   profileCase = lib.concatMapStringsSep "\n        " (
     r:
     let
@@ -256,9 +217,6 @@ let
       runtimeInputs = [ pkgs.coreutils ] ++ extraInputs;
     };
 
-  # ---------------------------------------------------------------------
-  # Tools
-  # ---------------------------------------------------------------------
   tools = {
     llm-switch = mkTool "llm-switch" [ pkgs.systemd ] ''
       ${llmShellLib}
@@ -463,8 +421,6 @@ let
         ngl_args+=(-ngl "$gpu_layers")
       fi
 
-      # llama-bench (this pinned build): -fa takes on|off|auto, not 0|1; and
-      # -c/--ctx-size was dropped upstream (ctx is a server-only knob now).
       exec llama-bench \
         -m "${currentModelPath}" \
         "''${ngl_args[@]}" \
@@ -542,7 +498,6 @@ let
 
       case "$model_name" in
         *27B*)
-          # Dense model: vary GPU layer offload instead of CPU-MoE spill
           candidates+=(
             "50:0:$threads:$ubatch:$ctx_size:$cache_type_k:$cache_type_v:ngl50"
             "45:0:$threads:$ubatch:$ctx_size:$cache_type_k:$cache_type_v:ngl45"
@@ -676,15 +631,6 @@ in
       logLevel = "info";
 
       models.${localModel} = {
-        # --n-cpu-moe is the offload split: lower = more experts on GPU =
-        # faster, until VRAM (weights + 128k KV) is exhausted. Benchmarked
-        # (warmup + 4-rep mean) on this 5080 (16 GB) at -c 131072, q8 KV:
-        #   n=12 -> 2.2 GB free,  36.7 tok/s gen
-        #   n=10 -> 1.55 GB free, 36.5 tok/s gen
-        #   n=8  -> 0.9
-        #   n=7  -> 0.3 GB free, 38.9 tok/s gen (chosen)
-        #   n=6  -> OOM
-        # Selected n=7 for best speed + VRAM margin. Lower if OOM occurs.
         cmd = "${lib.getExe llamaServerCurrent} \${PORT}";
         aliases = [
           localModelFast
@@ -749,36 +695,23 @@ in
 
       general_settings = {
         master_key = localProxyKey;
-        # No database_url: nixpkgs' litellm package doesn't ship generated
-        # Prisma query-engine binaries, so setting database_url makes the
-        # proxy crash on startup ("Unable to find Prisma binaries. Please run
-        # 'prisma generate' first."). store_model_in_db = false anyway, so the
-        # DB was only wiring the admin /ui login — losing that is an
-        # acceptable trade for a proxy that actually starts.
         store_model_in_db = false;
       };
     };
   };
 
-  # Systemd unit hardening
   systemd.services.llama-swap = {
     serviceConfig = {
-      # Relax ProcSubset to "all" so llama-server can read /proc/self/stat
-      # for thread metrics and /proc/meminfo for CUDA memory accounting.
       ProcSubset = lib.mkForce "all";
 
-      # Source per-model environment variables (n-cpu-moe, ctx-size, etc.)
       EnvironmentFile = lib.mkForce [ "-${currentModelEnv}" ];
 
-      # Allow unlimited mlock for pinning model weights in RAM
       LimitMEMLOCK = "infinity";
 
-      # Prioritize compute for responsiveness
       Nice = -5;
       IOSchedulingClass = "realtime";
       IOSchedulingPriority = 0;
 
-      # Prevent CUDA from writing shader cache to $HOME/.nv/ComputeCache
       Environment = [ "CUDA_CACHE_DISABLE=1" ];
     };
   };

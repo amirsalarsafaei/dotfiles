@@ -14,7 +14,6 @@ let
   envVarLines = lib.concatStringsSep "\n" (lib.mapAttrsToList (k: v: "${k}=${v}") cfg.envVars);
   envVarNames = lib.concatStringsSep " " (lib.attrNames cfg.envVars);
 
-  # Common mosquitto_pub args. Reads MQTT_USER/MQTT_PASS from env if set.
   mqttPubInvocation = ''
     mqtt_pub_args=(
       -h ${lib.escapeShellArg mqtt.host}
@@ -29,7 +28,6 @@ let
     fi
   '';
 
-  # Sourced into dispatcher / services if credentialsFile is set.
   loadMqttCreds = lib.optionalString (mqtt.credentialsFile != null) ''
     if [ -r ${lib.escapeShellArg mqtt.credentialsFile} ]; then
       set -a
@@ -88,7 +86,6 @@ let
       systemctl stop at-home.target
     fi
 
-    # State files for user-space consumers (shell prompts, scripts, etc.).
     install -d -m 0755 /run/at-home
     printf '%s\n' "$state" > /run/at-home/state.tmp \
       && mv -f /run/at-home/state.tmp /run/at-home/state
@@ -97,9 +94,6 @@ let
       echo "AT_HOME_STATE=$state"
       printf 'AT_HOME_SSID=%q\n' "''${connected_ssid:-}"
       printf 'AT_HOME_IFACE=%q\n' "''${iface:-}"
-      # AT_HOME_VARS lists the additional env names this file may export, so
-      # consumers can unset them on transition away. Always emit the list
-      # (even when away) so the shell hook knows what to clear.
       echo "AT_HOME_VARS=${lib.escapeShellArg envVarNames}"
       if [ "$is_home" = 1 ] && [ -r /etc/at-home/env.home ]; then
         cat /etc/at-home/env.home
@@ -269,15 +263,11 @@ in
       description = "System is on the home network";
     };
 
-    # Static, declarative file with the at-home-only env vars. The dispatcher
-    # cats this into /run/at-home/env when at home and omits it when away.
     environment.etc."at-home/env.home" = lib.mkIf (cfg.envVars != { }) {
       text = envVarLines + "\n";
       mode = "0644";
     };
 
-    # Seed default state files at boot so consumers can always read them
-    # even before the first NetworkManager event has fired.
     systemd.tmpfiles.rules = [
       "d /run/at-home 0755 root root - -"
       "f /run/at-home/state 0644 root root - not_home"
@@ -314,8 +304,6 @@ in
       }
     ];
 
-    # HA MQTT discovery: publish retained config on boot + after network is up.
-    # Also re-publish current state so HA gets a value even before any NM event.
     systemd.services.at-home-mqtt-discovery = lib.mkIf mqtt.enable {
       description = "Publish HA MQTT discovery for at-home device_tracker";
       after = [ "network-online.target" ];
@@ -335,10 +323,6 @@ in
         set -u
         ${loadMqttCreds}
         ${mqttPubInvocation}
-        # Tolerate an unreachable broker (e.g. away from the LAN): a failed
-        # publish logs a warning but never fails the unit, so nixos-rebuild
-        # switch doesn't report this service as failed when off-network. The
-        # config/state are retained, so they'll be re-sent on the next event.
         mosquitto_pub "''${mqtt_pub_args[@]}" -r \
           -t ${lib.escapeShellArg discoveryTopic} \
           -m ${lib.escapeShellArg discoveryPayload} \

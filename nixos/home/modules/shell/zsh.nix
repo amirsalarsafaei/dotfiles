@@ -8,8 +8,6 @@
 }:
 let
   shellAliases = import ./zsh/aliases.nix;
-  # Render the alias attrset as `alias name='value'` lines (same escaping
-  # home-manager uses for programs.zsh.shellAliases).
   aliasLines = lib.concatStringsSep "\n" (
     lib.mapAttrsToList (name: value: "alias ${name}=${lib.escapeShellArg value}") shellAliases
   );
@@ -67,9 +65,6 @@ in
       }
     ];
 
-    # Define aliases in .zshenv (via envExtra) rather than .zshrc (shellAliases)
-    # so they are available to non-interactive shells too — Neovim's :! and
-    # system() (zsh -c …), formatters, and scripts — not just interactive ones.
     envExtra = ''
       ${aliasLines}
 
@@ -104,15 +99,10 @@ in
         eval "$(kubectl-argo-rollouts completion zsh)"
       fi
 
-      # ── fzf-tab config ────────────────────────────────────────────────────
-      # preview directory contents on cd completion
       zstyle ':fzf-tab:complete:cd:*' fzf-preview 'ls --color=always $realpath'
-      # use fzf for all completions
       zstyle ':completion:*' menu no
-      # show group descriptions
       zstyle ':fzf-tab:*' fzf-flags --height=50% --layout=reverse --border
 
-      # ── Up/Down arrows: history prefix search ────────────────────────────
       autoload -Uz up-line-or-beginning-search down-line-or-beginning-search
       zle -N up-line-or-beginning-search
       zle -N down-line-or-beginning-search
@@ -121,15 +111,10 @@ in
       bindkey '^[[B' down-line-or-beginning-search
       bindkey '^[OB'  down-line-or-beginning-search
 
-      # ── Edit current command line in neovim (Ctrl-G) ─────────────────────
       autoload -Uz edit-command-line
       zle -N edit-command-line
       bindkey '^G' edit-command-line
 
-      # ── zsh-autosuggestions config ─────────────────────────────────────────
-      # Ctrl+Space used to accept the autosuggestion; it is zellij's prefix now,
-      # so zellij eats it before zsh ever sees it. zsh-autosuggestions still
-      # accepts on Right arrow and End, which is what it binds by default.
       ZSH_AUTOSUGGEST_STRATEGY=(history completion)
       ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
 
@@ -138,6 +123,6 @@ in
 
   home.sessionVariables = {
     EDITOR = "nvim";
-    DISABLE_MAGIC_FUNCTIONS = "true"; # from virtualenv plugin
+    DISABLE_MAGIC_FUNCTIONS = "true";
   };
 }

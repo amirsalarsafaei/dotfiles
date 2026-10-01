@@ -8,10 +8,6 @@
 let
   goHassAgent = pkgs.go-hass-agent;
 
-  # Registration (HA server URL + long-lived token) is one-time and persisted
-  # to ~/.config/go-hass-agent/preferences.toml ([agent] registered = true),
-  # so it's only run when that flag is missing. MQTT settings are re-applied
-  # on every start so drift from the sops secret / homeNetwork config self-heals.
   goHassAgentStart = pkgs.writeShellScript "go-hass-agent-start" ''
     set -eu
 
@@ -68,14 +64,12 @@ let
     wireplumber
     mesa-demos
 
-    # Secrets/keyring
     lxqt.lxqt-openssh-askpass
     gnome-keyring
     libsecret
     libgnome-keyring
     gcr_4
 
-    # Nvidia/graphics
     nvidia-vaapi-driver
     libva
     libvdpau
@@ -88,10 +82,8 @@ let
     mesa
     libva-utils
 
-    # Networking
     networkmanager-fortisslvpn
 
-    # Desktop
     kdePackages.qtmultimedia
     esptool
     protonup-qt
@@ -125,12 +117,6 @@ in
 
   sops.secrets.mqtt-credentials = {
     owner = "amirsalar";
-    # Add to secrets/secrets.yaml via `sops secrets/secrets.yaml`:
-    #   mqtt-credentials: |
-    #     MQTT_USER=mqtt
-    #     MQTT_PASS=<password>
-    #     HA_SERVER=http://homeassistant.local:8123
-    #     HA_TOKEN=<long-lived access token>
     mode = "0400";
   };
 
@@ -138,8 +124,6 @@ in
     custom = {
       claudeCode = {
         enableWork = true;
-        # Local model bridge (`local-claude` -> LiteLLM -> llama-swap).
-        # The server side lives in ./local-llm.nix.
         enableLocal = true;
         plugins.local."clangd-lsp@claude-plugins-official" = true;
       };
@@ -166,9 +150,6 @@ in
         Install.WantedBy = [ "graphical-session.target" ];
       };
 
-      # Auto-launch ROG Control Center (tray companion to asusd). Bound to
-      # graphical-session.target (started by uwsm) rather than a hyprland target,
-      # since Hyprland runs with systemd.enable off — same approach as clipse.
       rog-control-center = {
         Unit = {
           Description = "ROG Control Center";
@@ -189,14 +170,12 @@ in
     };
   };
 
-  # ASUS/ROG
   services.asusd = {
     enable = true;
   };
   services.supergfxd.enable = true;
   systemd.services.supergfxd.path = [ pkgs.pciutils ];
 
-  # Boot
   boot = {
     loader.systemd-boot.enable = true;
     loader.efi.canTouchEfiVariables = true;
@@ -209,7 +188,6 @@ in
     kernelPackages = pkgs.linuxPackages_latest;
   };
 
-  # Graphics
   services.xserver.videoDrivers = [
     "amdgpu"
     "nvidia"
@@ -220,7 +198,6 @@ in
     enable32Bit = true;
   };
 
-  # Audio
   services.pulseaudio.enable = false;
   security.rtkit.enable = true;
   services.pipewire = {
@@ -232,7 +209,6 @@ in
     wireplumber.enable = true;
   };
 
-  # Apps
   programs.firefox.enable = true;
   programs.steam = {
     enable = true;
@@ -274,9 +250,6 @@ in
     package = pkgs.llama-cpp;
   };
 
-  # services.llama-swap is configured in ./local-llm.nix (CUDA llama.cpp +
-  # the Qwen3.6-APEX coding model wired to Claude Code).
-
   services.open-webui = {
     enable = true;
     environment = {
@@ -285,13 +258,6 @@ in
     };
   };
 
-  # face unlock (Windows Hello-style)
-  # IMPORTANT: control = "sufficient" means a face match grants auth,
-  # but a failure/timeout falls back to password. Never use "required"
-  # (the upstream default) — a failed face match would lock you out.
-  # After rebuild you MUST enroll a face before it can match:
-  #   sudo howdy -U amirsalar add
-  # Test it without risk via: sudo -k; sudo -i
   services.howdy = {
     enable = true;
     control = "sufficient";
@@ -325,8 +291,6 @@ in
 
     custom.powerProfile = "low-power";
 
-    # G14-specific: rip out Nvidia entirely (TLP, heavy services, and
-    # swaync→dunst fallback are handled by modules/power-profile.nix).
     services.xserver.videoDrivers = lib.mkForce [ "amdgpu" ];
     hardware.nvidia.prime.sync.enable = lib.mkForce false;
     hardware.nvidia.prime.offload.enable = lib.mkForce false;
@@ -334,7 +298,6 @@ in
     boot.blacklistedKernelModules = blacklistNvidia;
     boot.extraModprobeConfig = lib.concatMapStringsSep "\n" (m: "blacklist ${m}") blacklistNvidia;
 
-    # Disable nvidia-gpu exporter since nvidia is disabled
     services.prometheus.exporters.nvidia-gpu.enable = lib.mkForce false;
 
     hyprland.monitorConfig = "eDP-1,2880x1800@120,0x0,1.6";
@@ -342,14 +305,9 @@ in
 
   hardware.nvidia-container-toolkit.enable = true;
 
-  # OLED burn-in guard: plugging/unplugging AC flips the internal panel
-  # (see home/modules/scripts/default.nix's oled-power-sync). Delegates to
-  # the user's own systemd session rather than running hyprctl as root, so
-  # it doesn't need to reach into the Wayland socket/env by hand.
   services.udev.extraRules = ''
     SUBSYSTEM=="power_supply", KERNEL=="ACAD", ACTION=="change", RUN+="${pkgs.systemd}/bin/systemctl --machine=amirsalar@ --user start oled-power-sync.service"
   '';
 
   system.stateVersion = "25.05";
-  # programs.wireshark.enable = true; # temporarily disabled: upstream hash mismatch
 }

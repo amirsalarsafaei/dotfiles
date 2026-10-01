@@ -1,24 +1,5 @@
-# Keybinding vocabulary shared by every app in this config.
-#
-# Why this exists: a chord used to be written three times — once in the app's
-# own config syntax, once in a hand-maintained cheatsheet, once in prose — and
-# the copies drifted (see the note that used to sit above zjKeys in zelij.nix).
-# Here a binding is declared once, as data: a *named* chord plus a description.
-# The emitters below turn that data into hyprlang / tmux / zellij KDL / ghostty
-# syntax, and home/modules/keys/default.nix turns the same data into the
-# cheatsheet. Adding a shortcut in registry.nix updates the config and the
-# cheatsheet together, by construction.
-#
-# Pure — no `config`, no `pkgs` — so it can be imported from anywhere.
 { lib }:
 let
-  # ── keys ────────────────────────────────────────────────────────────────
-  # A key is a token, never a bare string, because every app spells the same
-  # physical key differently: Return is RETURN in hyprlang, Enter in zellij's
-  # KDL, enter in ghostty. The spellings live here once and each emitter reads
-  # its own column. `null` means "this app has no name for this key"; using
-  # such a key for that app is a build-time error rather than a binding that
-  # silently does nothing.
   mkKey =
     {
       id,
@@ -49,10 +30,6 @@ let
     else
       spelling;
 
-  # Letters and digits spell the same everywhere. Uppercase letters are their
-  # own tokens rather than shift+letter, because that is how tmux and zellij
-  # see them; hyprland wants an explicit SHIFT modifier alongside, and ghostty
-  # has no uppercase form at all.
   letter =
     c:
     mkKey {
@@ -223,8 +200,6 @@ let
       tmux = "!";
       zellij = "!";
     };
-    # KDL quotes every bind key, so a literal double quote has to arrive here
-    # already escaped — `bind "\""`, the same spelling zellij's own defaults use.
     dquote = mkKey {
       id = "dquote";
       label = "\"";
@@ -277,7 +252,6 @@ let
       hypr = "Print";
     };
 
-    # Hyprland-only: pointer buttons and wheel, used by bindm / bind.
     mouseLeft = mkKey {
       id = "mouse-left";
       label = "Left-drag";
@@ -299,7 +273,6 @@ let
       hypr = "mouse_up";
     };
 
-    # Laptop function row (XF86 keysyms), Hyprland-only.
     volumeUp = mkKey {
       id = "volume-up";
       label = "Vol+";
@@ -349,7 +322,6 @@ let
 
   K = named.letters // named.uppers // named.digits // specials;
 
-  # ── modifiers ───────────────────────────────────────────────────────────
   M = {
     super = {
       id = "super";
@@ -401,14 +373,11 @@ let
     else
       spelling;
 
-  # ── chords ──────────────────────────────────────────────────────────────
   mkChord = mods: key: {
     mods = sortMods mods;
     inherit key;
   };
 
-  # Named constructors, so a binding reads as `on.superShift K.Q` rather than
-  # as the string "SUPER_SHIFT, Q".
   on = {
     none = mkChord [ ];
     super = mkChord [ M.super ];
@@ -441,20 +410,16 @@ let
     ];
   };
 
-  # Human-readable form, used by the cheatsheet: "Super+Shift+Q", "Ctrl-b".
   human = chord: lib.concatStringsSep "+" ((map (m: m.label) chord.mods) ++ [ chord.key.label ]);
 
   toList = x: if lib.isList x then x else [ x ];
 
-  # Indent a block, leaving blank lines blank rather than filled with spaces.
   indent =
     pad: text:
     lib.concatMapStringsSep "\n" (line: if line == "" then "" else "${pad}${line}") (
       lib.splitString "\n" text
     );
 
-  # Emit `# group` / `// group` headers whenever the group changes, so the
-  # generated config stays as readable as the hand-written one it replaced.
   withGroupHeaders =
     comment: renderOne: entries:
     let
@@ -476,17 +441,14 @@ let
     in
     lib.concatStringsSep "\n" result.lines;
 
-  # ── hyprland (hyprlang) ─────────────────────────────────────────────────
   hyprChord =
     chord: "${lib.concatStringsSep "_" (map (modFor "hypr") chord.mods)}, ${keyFor "hypr" chord.key}";
 
-  # bind/binde/bindm/bindel — hyprland's four flavors, named after what they
-  # are for rather than after their suffix.
   hyprFlavors = {
     normal = "bind";
-    repeat = "binde"; # held key repeats the dispatch
-    mouse = "bindm"; # pointer drag
-    media = "bindel"; # repeats *and* works on the lock screen (volume, backlight)
+    repeat = "binde";
+    mouse = "bindm";
+    media = "bindel";
     switch = "bindl";
   };
 
@@ -530,10 +492,6 @@ let
       in
       "${kw} = ${hyprChord b.on}, ${b.dispatcher}${tail}";
 
-    # A submap is a modal layer: <enter> opens it, every key inside acts
-    # without a modifier, and Esc / Enter / <enter> again leave it. The exits
-    # are generated so they can never be forgotten in one submap and present
-    # in another.
     submap =
       {
         name,
@@ -551,8 +509,6 @@ let
           ;
       };
 
-    # move/resize are the same submap with a different dispatcher: vi keys
-    # nudge by `step`, Shift by `fine`, Ctrl by `coarse`.
     nudgeSubmap =
       {
         name,
@@ -630,9 +586,6 @@ let
       lib.concatStringsSep "\n\n" ([ (withGroupHeaders "#" line binds) ] ++ map renderSubmap submaps);
   };
 
-  # ── tmux ────────────────────────────────────────────────────────────────
-  # tmux keys are reached through the prefix (Ctrl-b here), so a chord carries
-  # no Super and the cheatsheet prints the prefix in front of it.
   tmuxChord =
     chord: "${lib.concatStrings (map (modFor "tmux") chord.mods)}${keyFor "tmux" chord.key}";
 
@@ -643,8 +596,8 @@ let
         run,
         desc,
         group ? null,
-        repeat ? false, # -r: key can be repeated without re-pressing the prefix
-        table ? null, # -T: e.g. copy-mode-vi
+        repeat ? false,
+        table ? null,
       }:
       {
         app = "tmux";
@@ -691,14 +644,11 @@ let
     render = binds: withGroupHeaders "#" tmux.line binds;
   };
 
-  # ── zellij (KDL) ────────────────────────────────────────────────────────
   zellijChord =
     chord:
     lib.concatStringsSep " " ((map (modFor "zellij") chord.mods) ++ [ (keyFor "zellij" chord.key) ]);
 
   zellij = {
-    # `on` may be several chords: zellij allows one action block to answer to
-    # more than one key (`bind "b" "!" { BreakPane; }`).
     bind =
       {
         on,
@@ -713,10 +663,6 @@ let
         inherit desc group;
       };
 
-    # A mode block: `tmux { ... }`, `shared_except "locked" "tmux" { ... }`.
-    # `mode` is a single mode name; `except` is the list of modes a
-    # shared_except block leaves out. The KDL `selector` is derived from these
-    # so the collision check can also see which modes a section targets.
     section =
       {
         mode ? null,
@@ -765,15 +711,6 @@ let
         ++ [ "}" ]
       );
 
-    # The whole `keybinds` node, ready to drop into zellij's config: a second
-    # keybinds node would be ignored, so this has to be the only one.
-    #
-    # `clear-defaults=true` is the reason the sections below can be read as the
-    # whole keymap. Without it zellij *merges* what is declared here into its
-    # own defaults, so a chord it already binds fires both actions and the only
-    # way to take one back is an `unbind` — which in 0.44.3 dead-ends the key
-    # entirely if it is then re-bound. Starting from nothing costs a longer
-    # registry and buys a keymap that is exactly what the file says.
     render =
       {
         sections ? [ ],
@@ -784,7 +721,6 @@ let
         }'';
   };
 
-  # ── ghostty ─────────────────────────────────────────────────────────────
   ghosttyChord =
     chord:
     lib.concatStringsSep "+" ((map (modFor "ghostty") chord.mods) ++ [ (keyFor "ghostty" chord.key) ]);
@@ -807,31 +743,18 @@ let
           ;
       };
 
-    # ghostty takes a list of "chord=action" strings, so there is nothing to
-    # lay out — the list *is* the config.
     render = binds: map (b: "${ghosttyChord b.on}=${b.action}") binds;
   };
 
-  # ── collision checks ────────────────────────────────────────────────────
-  # Both return a list of error strings (empty = clean). default.nix throws on
-  # any non-empty result, so a bad bind fails the build instead of silently
-  # double-firing at runtime.
-
-  # A chord bound more than once within one namespace. `entries` is a list of
-  # binds, each with `.on` (a chord or a list of chords); `chordF` canonicalizes
-  # a chord to its string form for that app.
   duplicatesIn =
     chordF: namespace: entries:
     let
-      flat = lib.concatMap (b: map (c: chordF c) (toList b.on)) entries;
+      flat = lib.concatMap (b: map chordF (toList b.on)) entries;
       count = lib.foldl' (acc: c: acc // { ${c} = (acc.${c} or 0) + 1; }) { } flat;
       dups = lib.filterAttrs (_: n: n > 1) count;
     in
     lib.mapAttrsToList (c: n: "${namespace}: '${c}' is bound ${toString n} times") dups;
 
-  # Every zellij mode, in the order zellij names them. Sections say which modes
-  # they target (`mode = "pane"`, or `except = [ "locked" ]`), and the conflict
-  # check below expands those into concrete modes against this list.
   zellijModes = [
     "normal"
     "locked"
@@ -848,22 +771,12 @@ let
     "tmux"
   ];
 
-  # One chord bound twice in the same mode. With clear-defaults there are no
-  # hidden defaults left to collide with, so the only way to bind a key twice is
-  # to declare it twice — which zellij resolves silently, leaving a key that
-  # does the wrong thing.
-  #
-  # A mode block and a `shared_except` block are *not* a conflict: zellij lets
-  # the mode-specific bind win, and the defaults rely on that (entersearch binds
-  # Enter/Esc itself while shared_except "normal" "locked" also covers it). So
-  # the two kinds are checked against themselves, not against each other.
   zellijModeConflicts =
     sections:
     let
       targetModes =
         s: if s.except != null then lib.filter (m: !(lib.elem m s.except)) zellijModes else [ s.mode ];
 
-      # [{ mode, chord, kind, desc }] for every chord of every bind.
       entries = lib.concatMap (
         s:
         let
@@ -894,11 +807,6 @@ let
       })"
     ) (lib.filterAttrs (_: es: lib.length es > 1) byKey);
 
-  # ── documentation-only entries ──────────────────────────────────────────
-  # Shortcuts this config does not declare but a user still needs to know:
-  # an app's own defaults (zellij's Alt-hjkl), or a technique rather than a
-  # single chord (how to yank out of a scrollback). They reach the cheatsheet
-  # and nothing else.
   doc =
     {
       keys,
@@ -910,10 +818,6 @@ let
       doc = true;
     };
 
-  # ── cheatsheet rows ─────────────────────────────────────────────────────
-  # One flat, app-agnostic shape for every consumer (the `keys` fzf TUI,
-  # rofi, plain text). `keys` is already human-readable; `prefix` is folded
-  # in here so a tmux row reads "Ctrl-b h" rather than a bare "h".
   rowsFor =
     {
       app,
@@ -935,7 +839,7 @@ let
       inherit app;
       group = b.group or null;
       keys = withPrefix (chordText b);
-      desc = b.desc;
+      inherit (b) desc;
     }) (lib.filter (b: !(b ? unbind) && (b.desc or null) != null) binds);
 in
 {

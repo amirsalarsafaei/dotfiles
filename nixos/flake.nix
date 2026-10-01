@@ -6,16 +6,12 @@
       "https://cache.nixos.org"
       "https://nix-community.cachix.org"
       "https://devenv.cachix.org"
-      # Enable after creating the cache and replacing the matching public key below.
-      # "https://amirsalarsafaei-com.cachix.org"
     ];
     trusted-public-keys = [
       "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
       "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw="
       "nixpkgs-python.cachix.org-1:hxjI7pFxTyuTHn2NkvWCrAUcNZLNS3ZAvfYNuYifcEU="
-      # Replace TODO with the exact public key from `cachix use amirsalarsafaei-com`.
-      # "amirsalarsafaei-com.cachix.org-1:TODO"
     ];
     extra-experimental-features = "nix-command flakes";
   };
@@ -65,15 +61,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Skill packs (raw SKILL.md repos — `flake = false`).
-    # Wire them up under `custom.agentSkills.sources` and opt-in per skill
-    # ID via `custom.agentSkills.skills`.
     samber-go-skills = {
       url = "github:samber/cc-skills-golang";
       flake = false;
     };
 
-    # Zsh plugins (formerly in dev-home)
     fzf-tab = {
       url = "github:Aloxaf/fzf-tab";
       flake = false;
@@ -91,47 +83,20 @@
       flake = false;
     };
 
-    # Personal website (Next.js frontend + Rust backend). Exposes the
-    # NixOS module and package set consumed by franksalar.
-    #
-    # NOTE: this requires the nix-packaging fixes (src filters, sqlx offline
-    # build, regenerated yarn.lock, Next.js standalone output) to be on the
-    # referenced commit. Commit & push those to master, then re-lock with
-    # `nix flake update amirsalarsafaei-com`. To build before pushing, deploy
-    # with `--override-input amirsalarsafaei-com git+file:///home/amirsalar/personal/amirsalarsafaei.com`.
     amirsalarsafaei-com = {
       url = "github:amirsalarsafaei/amirsalarsafaei.com";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Private skill pack + the devar CLI source — not in any public repo.
-    # Sourced from the local working copy (the `devar@divar` Claude Code plugin
-    # repo, cloned at ~/divar/devar) via a `path:` input rather than the git
-    # remote, so local edits flow through without a commit/push/re-lock cycle and
-    # no SSH round-trip to git.divar.cloud is needed to evaluate. Only the work
-    # host (isWork, see modules/work.nix) ever forces this input — both the
-    # agent-skills source (subdir `skills`) and the `devar` binary package build
-    # from it — so other hosts never reference the path. The checkout must exist
-    # on disk; `nix flake update devar` re-copies the current tree.
     devar = {
       url = "path:/home/amirsalar/divar/devar";
       flake = false;
     };
 
-    # Avosh diet bot: Django app (admin + Mini App) and a Telegram bot (long
-    # polling), exposed as `nixosModules.default`. No public remote yet, so
-    # this is a local `path:` input — same rationale as `devar` above: local
-    # edits flow straight through, no commit/push/re-lock cycle. Run
-    # `nix flake update avosh-bot` to pick up on-disk changes for a build.
     avosh-bot = {
       url = "path:/etc/avosh-bot";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    # system-bridge = {
-    #   url = "path:/home/amirsalar/personal/system-bridge";
-    #   inputs.nixpkgs.follows = "nixpkgs";
-    # };
   };
 
   outputs = inputs: import ./flake inputs;

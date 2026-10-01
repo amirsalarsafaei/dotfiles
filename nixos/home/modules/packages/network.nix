@@ -6,7 +6,6 @@
   pkgs.nftables
   pkgs.nethogs
   pkgs.mtr
-  # pkgs.wireshark # temporarily disabled: upstream hash mismatch
   pkgs.xray
   pkgs.v2ray
   pkgs.tcpdump

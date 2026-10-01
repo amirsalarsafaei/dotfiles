@@ -1,9 +1,9 @@
-# Development packages module — aggregates dev-specific categories into home.packages.
-{ pkgs
-, config
-, lib
-, inputs
-, ...
+{
+  pkgs,
+  config,
+  lib,
+  inputs,
+  ...
 }:
 let
   packages = import ./lib.nix { inherit pkgs; };
@@ -40,7 +40,12 @@ let
   );
 
   categoryArgs = {
-    inherit pkgs inputs luaPackages python;
+    inherit
+      pkgs
+      inputs
+      luaPackages
+      python
+      ;
   };
 
   categories = [
@@ -69,11 +74,10 @@ in
 
   config = {
     home.packages =
-      packages.concatCategories
-        {
-          categories = categories;
-          args = categoryArgs;
-        }
+      packages.concatCategories {
+        inherit categories;
+        args = categoryArgs;
+      }
       ++ cfg.extraPackages;
   };
 }

@@ -22,10 +22,10 @@
   pkgs.lldb
 
   pkgs.sqls
-  pkgs.sqlfluff # conform: sql format-on-save
+  pkgs.sqlfluff
 
   pkgs.pyright
-  pkgs.ruff # conform: python format + import sorting (ruff_format / ruff_organize_imports)
+  pkgs.ruff
   pkgs.mypy
 
   pkgs.buf
@@ -50,6 +50,6 @@
 
   pkgs.prettier
   pkgs.shellcheck
-  pkgs.shfmt # conform: sh/bash format-on-save
+  pkgs.shfmt
   pkgs.vimPlugins.telescope-fzf-native-nvim
 ]

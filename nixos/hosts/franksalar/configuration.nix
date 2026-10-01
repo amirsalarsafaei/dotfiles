@@ -1,8 +1,9 @@
-{ inputs
-, secrets
-, lib
-, pkgs
-, ...
+{
+  inputs,
+  secrets,
+  lib,
+  pkgs,
+  ...
 }:
 {
   imports = [
@@ -12,8 +13,6 @@
     inputs.avosh-bot.nixosModules.default
   ];
 
-  # Personal website, built from source via the upstream flake's nix module.
-  # nginx reverse proxy + ACME certs live in the private franksalar module.
   services.amirsalarsafaei-com = {
     enable = true;
     domain = "amirsalarsafaei.com";
@@ -37,20 +36,12 @@
       redirectUri = secrets.spotify.redirectUri;
     };
 
-    # SSH front-end (Wish + Bubble Tea TUI) served on the standard SSH port.
     ssh = {
       enable = true;
       port = 22;
     };
   };
 
-  # Avosh diet bot: Django admin + Mini App (gunicorn on 127.0.0.1:8010) and
-  # a Telegram bot process (long polling). nginx reverse proxy + ACME cert
-  # live in the private franksalar module, same split as amirsalarsafaei-com
-  # above. The app tree is deployed to /etc/avosh-bot out of band (git
-  # pull/rsync). franksalar doesn't run sops-nix (useSops = false, see
-  # flake.nix), so secrets flow the same way amirsalarsafaeiCom's do above:
-  # baked at eval time from the git-crypt-encrypted secrets.json.
   services.avosh-bot.enable = true;
 
   systemd.services.avosh-bot-env = {
@@ -85,11 +76,7 @@
     after = [ "avosh-bot-env.service" ];
   };
 
-  # The website's SSH front-end owns port 22, so move the real OpenSSH daemon
-  # to 2222 (shared default lives in modules/server/security.nix).
   services.openssh.ports = lib.mkForce [ 2222 ];
-  # 2223: tuissh's browser bridge (xterm.js WebSocket). nginx also fronts it
-  # over TLS at ssh.amirsalarsafaei.com, but open it raw too.
   networking.firewall.allowedTCPPorts = [
     2222
     2223
@@ -100,7 +87,7 @@
   swapDevices = [
     {
       device = "/swapfile";
-      size = 8192; # 8 GB
+      size = 8192;
     }
   ];
 
@@ -111,7 +98,6 @@
   };
 
   boot.kernelModules = [
-    # virtio drivers (most common for VPSes)
     "virtio_pci"
     "virtio_blk"
     "virtio_net"
@@ -119,7 +105,6 @@
     "virtio_balloon"
     "virtio_console"
 
-    # virtio-9p filesystem sharing
     "9p"
     "9pnet_virtio"
   ];
@@ -131,7 +116,7 @@
     "virtio_scsi"
     "sd_mod"
     "sr_mod"
-    "virtio_blk" # crucial for /dev/vda
+    "virtio_blk"
   ];
 
   networking.networkmanager.enable = false;

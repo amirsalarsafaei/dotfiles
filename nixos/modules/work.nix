@@ -6,33 +6,13 @@
   ...
 }:
 let
-  # The devar SDUI helper CLI, built from the same path input that feeds the
-  # skill pack (inputs.devar = the local plugin repo root, ~/divar/devar). Lives
-  # in this work-only module — next to the divar skills it backs — so it lands on
-  # the work laptop alone and `devar <subcommand>` is on PATH instead of relying
-  # on the repo's bin/devar build-on-first-call shim. `nix flake update devar`
-  # re-copies the working tree, bumping both the skills and this binary.
-  # Also exposed as the `devar` flake package (see flake.nix) so `nix-update
-  # --flake devar --version skip` can maintain pkgs/devar.nix's vendorHash.
   devarCli = pkgs.callPackage ../pkgs/devar.nix { devarSrc = inputs.devar; };
 in
 lib.mkIf config.isWork {
-  # Force-installs Cloaq (timezone/geolocation/locale spoofer) and WebRTC Leak
-  # Prevent into chromium only, via a Chrome Enterprise policy file scoped to
-  # chromium's managed policy dir — google-chrome and brave are untouched, so
-  # this doesn't leak into every profile of every Chromium-based browser on
-  # the host. Written by hand (not via programs.chromium.extensions) because
-  # that option applies the same extension list to chromium, google-chrome,
-  # and brave simultaneously and can't scope to one browser alone.
-  #
-  # WebRTC Leak Prevent sits next to Cloaq because Cloaq only spoofs
-  # navigator/Intl/geolocation APIs — WebRTC's ICE candidate gathering talks
-  # to STUN servers directly and can still expose the real local/public IP
-  # (and thus real location), bypassing Cloaq's spoof entirely.
   environment.etc."chromium/policies/managed/cloaq.json".text = builtins.toJSON {
     ExtensionInstallForcelist = [
-      "fcalilbnpkfikdppppppchmkdipibalb" # Cloaq - https://chromewebstore.google.com/detail/cloaq-location-guard-loca/fcalilbnpkfikdppppppchmkdipibalb
-      "eiadekoaikejlgdbkbdfeijglgfdalml" # WebRTC Leak Prevent - https://chromewebstore.google.com/detail/webrtc-leak-prevent/eiadekoaikejlgdbkbdfeijglgfdalml
+      "fcalilbnpkfikdppppppchmkdipibalb"
+      "eiadekoaikejlgdbkbdfeijglgfdalml"
     ];
   };
 
@@ -44,12 +24,6 @@ lib.mkIf config.isWork {
       ...
     }:
     let
-      # work-codex: Codex CLI wrapped with an isolated CODEX_HOME, mirroring
-      # work-claude's CLAUDE_CONFIG_DIR isolation (claude-code.nix) — separate
-      # login/session/config state from any personal `codex` use on this host.
-      # CODEX_HOME is confirmed via `codex --help` (-p/--profile: "Layer
-      # $CODEX_HOME/<name>.config.toml on top of the base user config") and
-      # `codex doctor`, which reports unresolved/missing CODEX_HOME directly.
       workCodex = pkgs.writeShellApplication {
         name = "work-codex";
         runtimeInputs = [ pkgs.codex ];
@@ -87,15 +61,11 @@ lib.mkIf config.isWork {
       '';
 
       custom = {
-        # Work skills inherit claudeCode.defaultSkillMode ("user-invocable-only"):
-        # `/divar-widgets` etc. work but stay out of the model's context.
         claudeCode.enableGlm = true;
         claudeCode.enableWork = true;
         claudeCode.enableDeepseek = true;
         claudeCode.enableWorkDivarGlm = true;
         claudeCode.enableWorkDivarDeepseek = true;
-        # The directory-sourced devar marketplace + plugin only here — this is the
-        # host with the ~/divar/devar checkout. See claudeCode.enableDevar.
         claudeCode.enableDevar = true;
         claudeCode.planner.enable = true;
         claudeCode.sandbox.enable = true;
@@ -104,8 +74,6 @@ lib.mkIf config.isWork {
         agentSkills = {
           sources.devar = {
             input = "devar";
-            # The input is now the repo root (was the skills/ dir), so point skill
-            # discovery at skills/.
             subdir = "skills";
             filter.maxDepth = 2;
           };
@@ -114,22 +82,10 @@ lib.mkIf config.isWork {
             dest = "${config.home.homeDirectory}/.config/glm-claude/skills";
             structure = "symlink-tree";
           };
-          # The whole Divar skill set the devar plugin ships. The `agents` target
-          # (home/modules/programs/development/agent-skills.nix) links these into
-          # ~/.agents/skills, which Amp reads — the declarative replacement for
-          # install.sh's symlinks into ~/.config/agents/skills.
           enableAll = [ "devar" ];
         };
       };
 
-      # Register the devar MCP server with Amp — install.sh's `amp mcp add devar`
-      # step, done declaratively. Amp owns ~/.config/amp/settings.json (it
-      # rewrites it at runtime and tracks its own writes in settings.json
-      # .amp-write-meta), so we can't hand it a read-only Nix symlink. Instead we
-      # idempotently merge just the one entry on every switch, pinned to the
-      # Nix-built devar, and leave the rest of the file (permissions, etc.)
-      # untouched. An external edit like this is what `amp config edit` does too,
-      # so Amp re-reads it cleanly on next launch.
       home.activation.ampDevarMcp = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         settings="${config.home.homeDirectory}/.config/amp/settings.json"
         jq=${pkgs.jq}/bin/jq

@@ -39,17 +39,6 @@ let
 
 in
 {
-  # Zellij asks a plugin's permissions the first time it loads, and it draws that
-  # "Allow? (y/n)" prompt *inside the plugin's own pane*. The status bar lives
-  # in a one-row pane, so the prompt has nowhere to render and cannot be
-  # answered — the bar just stays blank forever. Pre-seeding the grant is the only
-  # way out, and it is safe here because these three plugins are pinned by this
-  # module rather than fetched at runtime.
-  #
-  # The cache is keyed by absolute plugin path; the module symlinks plugins to
-  # stable ~/.config paths, so a grant survives package updates. It is merged
-  # rather than overwritten so grants for any other plugin are preserved, and it
-  # stays a real file (not a store symlink) because zellij writes to it.
   home.activation.zellijPluginPermissions =
     let
       pluginPermissions = {
@@ -61,7 +50,7 @@ in
         "vim-zellij-navigator.wasm" = [
           "ReadApplicationState"
           "ChangeApplicationState"
-          "WriteToStdin" # forwards the keypress into vim when vim has focus
+          "WriteToStdin"
         ];
         "autolock.wasm" = [
           "ReadApplicationState"
@@ -94,16 +83,6 @@ in
   programs.zellij = {
     enable = true;
 
-    # Built from the store and symlinked into ~/.config/zellij/plugins, so there
-    # is no download-at-startup and no re-granting permissions when a path
-    # changes.
-    #   vim-zellij-navigator  - replaces tmuxPlugins.vim-tmux-navigator
-    #   autolock              - drops to Locked mode while nvim/fzf/etc has focus,
-    #                           so their keys are never swallowed by zellij
-    #   harpoon               - pin panes to a list, jump straight back to one
-    #                           (Ctrl+Space h, see keys/registry.nix)
-    #   tabula                - renames each tab after its panes' cwd (or git
-    #                           worktree), replacing the default "Tab #1"
     plugins = [
       pkgs.zellijPlugins.zjstatus
       pkgs.zellijPlugins.vim-zellij-navigator
@@ -112,65 +91,35 @@ in
       zellijExtraPlugins.tabula
     ];
 
-    # Note: theme is deliberately unset. Stylix writes themes/stylix.kdl with the
-    # scheme named "default", which zellij picks up on its own; naming a theme
-    # here would shadow it.
     settings = {
       default_layout = "zjstatus";
       pane_frames = false;
 
-      # ── parity with the tmux options ──────────────────────────────────
-      scroll_buffer_size = 100000; # historyLimit = 100000
-      mouse_mode = true; # mouse = true
-      copy_command = "wl-copy"; # tmuxPlugins.yank
-      copy_on_select = true; # tmux mouse-drag copies on release
+      scroll_buffer_size = 100000;
+      mouse_mode = true;
+      copy_command = "wl-copy";
+      copy_on_select = true;
       scrollback_editor = lib.getExe config.programs.nixvim.build.package;
 
-      # ── the fix for links breaking across split panes ─────────────────
-      # Zellij defaults osc8_hyperlinks to false, which strips the OSC 8
-      # sequences programs emit and leaves Ghostty to guess at URLs from the
-      # rendered grid. That guess is exactly what fails in a split: a long URL
-      # is hard-wrapped at the pane width and the cells beside it belong to the
-      # neighbouring pane, so the click grabs a truncated URL or nothing.
-      # Forwarding OSC 8 makes the link semantic, so wrapping stops mattering.
       osc8_hyperlinks = true;
       styled_underlines = true;
 
-      # ── things tmux has no equivalent for ─────────────────────────────
-      session_serialization = true; # sessions survive reboot
+      session_serialization = true;
       serialize_pane_viewport = true;
       scrollback_lines_to_serialize = 10000;
       serialization_interval = 60;
-      # Keep stacked_resize on. It is not cosmetic: it is what lets a resize
-      # succeed when a pane has no room left to grow, by folding the panes it
-      # runs into a stack. Turned off, Ctrl-b H/J/K/L silently does nothing in
-      # any layout that is already tight — the keybinds look broken.
       stacked_resize = true;
 
-      # auto_layout off, though, because it fights the custom layout below: it
-      # re-applies a *swap layout* whenever the pane count changes, and this
-      # config defines only a default_tab_template, no swap_tiled_layout, so
-      # zellij reaches for its built-in swap layouts — which know nothing about
-      # the size=1 borderless status-bar pane the template prepends.
-      #
-      # The measured cause of the "panes zoom and unzoom forever after a split"
-      # flicker was zjstatus driving pane frames on and off against
-      # `pane_frames false`; this stays off as a suspected
-      # second contributor rather than a proven one.
       auto_layout = false;
       advanced_mouse_actions = true;
       mouse_hover_effects = true;
       support_kitty_keyboard_protocol = true;
 
       on_force_close = "detach";
-      show_startup_tips = false; # otherwise a floating pane steals focus at start
+      show_startup_tips = false;
       show_release_notes = false;
     };
 
-    # The module adds every entry of `plugins` to load_plugins. autolock and
-    # tabula want to run in the background from the start (locking/renaming
-    # only work if they are already watching); vim-zellij-navigator/harpoon are messaged or
-    # launched on demand from a keybind.
     settings.load_plugins = lib.mkForce {
       _children = [
         { autolock = [ ]; }
@@ -178,8 +127,6 @@ in
       ];
     };
 
-    # Plugin configuration is read from a plugin alias' child nodes, not from
-    # properties on the node itself, so this has to go through _children.
     settings.plugins.tabula._children = [
       { home_dir = config.home.homeDirectory; }
       { worktree_name_display = "repo_and_worktree"; }
@@ -188,30 +135,13 @@ in
 
     settings.plugins.autolock._children = [
       { is_enabled = true; }
-      # Deliberately no nvim/vim here. Locking on nvim would stop the Ctrl-hjkl
-      # binds from reaching vim-zellij-navigator, breaking seamless navigation —
-      # and nvim losing Ctrl-b to the prefix is exactly what tmux did too.
-      # Also deliberately no lazygit: locking on it blocked zellij's own binds
-      # (pane nav, prefix, etc.) the whole time lazygit had focus, which was
-      # worse than the occasional key lazygit itself might have swallowed.
       { triggers = "fzf|yazi|less|man"; }
       { reaction_seconds = "0.3"; }
     ];
 
-    # Keybinds are declared in home/modules/keys/registry.nix and rendered to
-    # KDL from there. They live in extraConfig rather than in `settings`
-    # because a second `keybinds` node would be ignored, and because the raw
-    # KDL keeps the nesting readable. `keys zellij` lists the same data.
     extraConfig = config.custom.keys.rendered.zellij;
   };
 
-  # The status bar is a one-row pane at the top of every tab, matching what
-  # tmux's status-position did.
-  #
-  # `zellij` with no arguments opens this layout rather than zellij's built-in
-  # welcome screen, which is itself just a layout (`zellij:session-manager` with
-  # welcome_screen true) selected when default_layout is left alone. The session
-  # manager is still one keystroke away — see the prefix + f bind.
   xdg.configFile."zellij/layouts/zjstatus.kdl".text = ''
     layout {
         default_tab_template {

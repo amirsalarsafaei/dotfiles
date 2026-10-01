@@ -38,7 +38,6 @@ let
     ];
   };
 
-  # Profile modules that hosts can compose (home-manager side)
   homeProfileModules = {
     base = ../home/profiles/base.nix;
     dev = ../home/profiles/dev.nix;
@@ -50,10 +49,6 @@ let
   mkHomeImports =
     hostConfig: map (name: homeProfileModules.${name}) (hostConfig.homeProfiles or [ "full" ]);
 
-  # Profile modules that hosts can compose (NixOS side). Mirrors the
-  # home-manager `profiles/` layout. `base` is universal; `desktop` is
-  # the (renamed) old `hosts/common/default.nix`; `server` pulls in the
-  # headless / VPS modules under `modules/server/`.
   nixosProfileModules = {
     base = ../hosts/profiles/base.nix;
     desktop = ../hosts/profiles/desktop.nix;
@@ -69,7 +64,6 @@ let
       ]
     );
 
-  # Host definitions with multi-user support
   allHosts = import ../hosts { inherit systems disko; };
 
   normalizeUsers =
@@ -81,7 +75,6 @@ let
         throw "Host configuration must have either 'users' or 'username' field"
     );
 
-  # Common home-manager shared modules (compat shims, nixpkgs config)
   commonHomeModules = [
     agent-skills.homeManagerModules.default
     nixvim.homeModules.nixvim
@@ -150,7 +143,6 @@ let
         ++ extraModules;
     };
 
-  # Build standalone home-manager configuration
   mkHomeManager =
     {
       hostname,
@@ -183,7 +175,6 @@ let
       ++ mkHomeImports hostConfig;
     };
 
-  # Filter hosts by type
   nixosHosts = lib.filterAttrs (_: hostConfig: hostConfig.type == "nixos") allHosts;
   homeManagerHosts = lib.filterAttrs (_: hostConfig: hostConfig.type == "home-manager") allHosts;
 
@@ -204,15 +195,6 @@ let
 
 in
 {
-  # `nix-update --flake devar --version skip` (run from the repo root)
-  # bumps pkgs/devar.nix's vendorHash when ~/divar/devar's go.mod/go.sum
-  # changes — see the comment there. Only x86_64-linux carries this: it's
-  # the only host that sets isWork (modules/work.nix), which is what
-  # actually installs the built devarCli.
-  # `nix-update --flake zellij-harpoon` / `zellij-tabula` (run from the repo
-  # root) bumps pkgs/zellij-plugins.nix's version + hash to the latest
-  # GitHub release, since both fetchurl calls there template the version
-  # into the release-asset URL.
   packages.${systems.x86_64} = import ./packages.nix {
     inherit inputs nixpkgs commonNixpkgsConfig;
     system = systems.x86_64;
@@ -238,7 +220,6 @@ in
     }
   );
 
-  # NixOS configurations (with integrated home-manager for all users)
   nixosConfigurations = lib.mapAttrs (
     hostname: hostConfig:
     mkNixOS (

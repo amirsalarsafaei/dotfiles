@@ -1,4 +1,4 @@
-{ config, lib, ... }:
+{ config, ... }:
 let
   isLowPower = config.custom.powerProfile == "low-power";
   t = config.custom.theme.resolved.colors;
@@ -15,7 +15,6 @@ in
         font-size: 12pt;
       }
 
-      /* progress bars */
       progress, progressbar, trough {
         border-radius: 6px;
       }
@@ -25,12 +24,6 @@ in
       }
       progress { background: ${a.primary}; }
 
-      /* notification card — one element owns the border + radius, so there is
-         no second misaligned frame and the urgency accent recolors that single
-         border rather than adding another. The background stays translucent on
-         purpose: hyprland.nix blurs the `swaync-notification-window` layer, so
-         the wallpaper shows through the card instead of it reading as a flat
-         opaque rectangle. */
       .notification {
         margin: 6px 8px;
         border: none;
@@ -49,7 +42,6 @@ in
         color: ${t.base05};
       }
 
-      /* urgency accent — recolors the single border, no extra frame */
       .notification.low .notification-content { border-color: ${t.base03}; }
       .notification.low progress { background: ${t.base03}; }
       .notification.normal .notification-content { border-color: ${a.border}; }
@@ -79,8 +71,6 @@ in
       }
       .close-button:hover { background: ${t.base09}; }
 
-      /* control center — translucent for the same reason as the card above
-         (blurred `swaync-control-center` layer) */
       .control-center {
         background: ${s.ink}eb;
         border: 1px solid ${s.line};

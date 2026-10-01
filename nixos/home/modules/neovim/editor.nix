@@ -1,7 +1,8 @@
-{ config
-, lib
-, pkgs
-, ...
+{
+  config,
+  lib,
+  pkgs,
+  ...
 }:
 let
   cfg = config.custom.neovim;
@@ -21,9 +22,13 @@ in
         (normalKeymap "<leader>ec" "<cmd>NvimTreeCollapse<CR>" { desc = "Collapse explorer"; })
         (normalKeymap "<leader>er" "<cmd>NvimTreeRefresh<CR>" { desc = "Refresh explorer"; })
         (normalKeymap "<leader>xx" "<cmd>Trouble diagnostics toggle<CR>" { desc = "Diagnostics"; })
-        (normalKeymap "<leader>xX" "<cmd>Trouble diagnostics toggle filter.buf=0<CR>" { desc = "Buffer diagnostics"; })
+        (normalKeymap "<leader>xX" "<cmd>Trouble diagnostics toggle filter.buf=0<CR>" {
+          desc = "Buffer diagnostics";
+        })
         (normalKeymap "<leader>xs" "<cmd>Trouble symbols toggle focus=false<CR>" { desc = "Symbols"; })
-        (normalKeymap "<leader>xl" "<cmd>Trouble lsp toggle focus=false win.position=right<CR>" { desc = "LSP definitions"; })
+        (normalKeymap "<leader>xl" "<cmd>Trouble lsp toggle focus=false win.position=right<CR>" {
+          desc = "LSP definitions";
+        })
         (normalKeymap "<leader>xL" "<cmd>Trouble loclist toggle<CR>" { desc = "Location list"; })
         (normalKeymap "<leader>xq" "<cmd>Trouble qflist toggle<CR>" { desc = "Quickfix list"; })
         (normalKeymap "<leader>xt" "<cmd>Trouble todo toggle<CR>" { desc = "TODOs (Trouble)"; })
@@ -62,9 +67,12 @@ in
           '';
         } { desc = "Harpoon menu"; })
       ]
-      ++ map (i: normalKeymap "<C-${toString i}" {
-        __raw = ''function() require("harpoon"):list():select(${toString i}) end'';
-      } { desc = "Harpoon file ${toString i}"; }) (lib.range 1 5)
+      ++ map (
+        i:
+        normalKeymap "<C-${toString i}" {
+          __raw = ''function() require("harpoon"):list():select(${toString i}) end'';
+        } { desc = "Harpoon file ${toString i}"; }
+      ) (lib.range 1 5)
       ++ [
         (normalKeymap "<leader>R" { __raw = ''function() require("spectre").toggle() end''; } {
           desc = "Toggle Spectre";
@@ -375,25 +383,83 @@ in
               keys = { };
             };
             spec = [
-              { __unkeyed-1 = "<leader>a"; group = "AI"; }
-              { __unkeyed-1 = "<leader>b"; group = "buffer"; }
-              { __unkeyed-1 = "<leader>c"; group = "code"; }
-              { __unkeyed-1 = "<leader>e"; group = "explorer"; }
-              { __unkeyed-1 = "<leader>f"; group = "find/file"; }
-              { __unkeyed-1 = "<leader>g"; group = "git"; }
-              { __unkeyed-1 = "<leader>h"; group = "git hunks"; }
-              { __unkeyed-1 = "<leader>p"; group = "platformio"; mode = "n"; }
-              { __unkeyed-1 = "<leader>q"; group = "session"; }
-              { __unkeyed-1 = "<leader>r"; group = "run/debug"; }
-              { __unkeyed-1 = "<leader>R"; group = "search/replace"; }
-              { __unkeyed-1 = "<leader>s"; group = "split"; }
-              { __unkeyed-1 = "<leader>t"; group = "terminal/tabs"; }
-              { __unkeyed-1 = "<leader>u"; group = "ui/toggle"; }
-              { __unkeyed-1 = "<leader>x"; group = "trouble"; }
-              { __unkeyed-1 = "<leader><leader>"; group = "swap window"; }
-              { __unkeyed-1 = "["; group = "prev"; }
-              { __unkeyed-1 = "]"; group = "next"; }
-              { __unkeyed-1 = "g"; group = "goto"; }
+              {
+                __unkeyed-1 = "<leader>a";
+                group = "AI";
+              }
+              {
+                __unkeyed-1 = "<leader>b";
+                group = "buffer";
+              }
+              {
+                __unkeyed-1 = "<leader>c";
+                group = "code";
+              }
+              {
+                __unkeyed-1 = "<leader>e";
+                group = "explorer";
+              }
+              {
+                __unkeyed-1 = "<leader>f";
+                group = "find/file";
+              }
+              {
+                __unkeyed-1 = "<leader>g";
+                group = "git";
+              }
+              {
+                __unkeyed-1 = "<leader>h";
+                group = "git hunks";
+              }
+              {
+                __unkeyed-1 = "<leader>p";
+                group = "platformio";
+                mode = "n";
+              }
+              {
+                __unkeyed-1 = "<leader>q";
+                group = "session";
+              }
+              {
+                __unkeyed-1 = "<leader>r";
+                group = "run/debug";
+              }
+              {
+                __unkeyed-1 = "<leader>R";
+                group = "search/replace";
+              }
+              {
+                __unkeyed-1 = "<leader>s";
+                group = "split";
+              }
+              {
+                __unkeyed-1 = "<leader>t";
+                group = "terminal/tabs";
+              }
+              {
+                __unkeyed-1 = "<leader>u";
+                group = "ui/toggle";
+              }
+              {
+                __unkeyed-1 = "<leader>x";
+                group = "trouble";
+              }
+              {
+                __unkeyed-1 = "<leader><leader>";
+                group = "swap window";
+              }
+              {
+                __unkeyed-1 = "[";
+                group = "prev";
+              }
+              {
+                __unkeyed-1 = "]";
+                group = "next";
+              }
+              {
+                __unkeyed-1 = "g";
+                group = "goto";
+              }
             ];
           };
         };
@@ -455,7 +521,8 @@ in
                   "<C-j>".__raw = ''require("telescope.actions").move_selection_next'';
                   "<C-u>".__raw = ''require("telescope.actions").preview_scrolling_up'';
                   "<C-d>".__raw = ''require("telescope.actions").preview_scrolling_down'';
-                  "<C-q>".__raw = ''require("telescope.actions").send_to_qflist + require("telescope.actions").open_qflist'';
+                  "<C-q>".__raw =
+                    ''require("telescope.actions").send_to_qflist + require("telescope.actions").open_qflist'';
                   "<Esc>".__raw = ''require("telescope.actions").close'';
                 };
                 n = {
@@ -697,7 +764,6 @@ in
         _G.bt = function() require("snacks").debug.backtrace() end
         vim.print = _G.dd
 
-        -- treesitter-textobjects
         require("nvim-treesitter-textobjects").setup({
           select = {
             lookahead = true,

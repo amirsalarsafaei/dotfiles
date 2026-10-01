@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   cfg = config.custom.opencode;
 
@@ -123,7 +128,8 @@ let
   };
 
   dcpSettings = {
-    "$schema" = "https://raw.githubusercontent.com/Opencode-DCP/opencode-dynamic-context-pruning/master/dcp.schema.json";
+    "$schema" =
+      "https://raw.githubusercontent.com/Opencode-DCP/opencode-dynamic-context-pruning/master/dcp.schema.json";
     enabled = true;
     autoUpdate = false;
     debug = false;
@@ -143,8 +149,10 @@ in
   };
 
   config = lib.mkIf cfg.enableLocal {
-    home.packages = [ localOpencode ];
-    home.file.".config/local-opencode/opencode/opencode.json".text = builtins.toJSON localSettings;
-    home.file.".config/local-opencode/opencode/dcp.json".text = builtins.toJSON dcpSettings;
+    home = {
+      packages = [ localOpencode ];
+      file.".config/local-opencode/opencode/opencode.json".text = builtins.toJSON localSettings;
+      file.".config/local-opencode/opencode/dcp.json".text = builtins.toJSON dcpSettings;
+    };
   };
 }

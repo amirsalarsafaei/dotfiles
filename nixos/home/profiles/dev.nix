@@ -8,7 +8,7 @@
     ../modules/shell
     ../modules/neovim
     ../modules/dev-environment.nix
-    ../modules/scripts/user.nix # file-based user scripts (custom.userScripts)
+    ../modules/scripts/user.nix
     ../modules/packages/dev-core.nix
     ../modules/programs/development/core.nix
     ../modules/programs/development/claude-code.nix
@@ -19,13 +19,15 @@
 
   custom = {
     neovim.enable = true;
-    claudeCode.enable = true;
-    claudeCode.enablePersonal = config.custom.personal.enable;
-    claudeCode.enablePersonalDeepseek = config.custom.personal.enable;
-    claudeCode.enableCaveman = true;
-    claudeCode.planner.enable = true;
-    claudeCode.plugins.personal."clangd-lsp@claude-plugins-official" = true;
-    claudeCode.skillOverrides.nix-environment = "on";
+    claudeCode = {
+      enable = true;
+      enablePersonal = config.custom.personal.enable;
+      enablePersonalDeepseek = config.custom.personal.enable;
+      enableCaveman = true;
+      planner.enable = true;
+      plugins.personal."clangd-lsp@claude-plugins-official" = true;
+      skillOverrides.nix-environment = "on";
+    };
     ntfy.enable = config.custom.personal.enable;
 
     agentSkills = {
@@ -66,9 +68,6 @@
           structure = "symlink-tree";
         };
       };
-      # Codex consumes the flake-pinned Agent Skills copy. Claude gets the same
-      # pack through its upstream-recommended native plugin, configured in
-      # claude-code.nix, so descriptions remain visible for auto-triggering.
       sourceTargets.samber-go = [ "agents" ];
     };
   };

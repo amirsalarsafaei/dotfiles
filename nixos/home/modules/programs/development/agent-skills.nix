@@ -7,18 +7,12 @@
 let
   cfg = config.custom.agentSkills;
 
-  # Default Claude Code visibility for every skill we install. Lives on the
-  # claudeCode module; null disables the auto-default.
   claudeMode = config.custom.claudeCode.defaultSkillMode or null;
 
-  # Re-import the upstream discovery lib with *our* flake inputs so source
-  # `input = "..."` names resolve against this flake (the exposed
-  # `inputs.agent-skills.lib` is bound to the upstream flake's own inputs).
   agentLib = import (inputs.agent-skills.outPath + "/lib") {
     inherit lib inputs;
   };
 
-  # The same source set the config block below hands to programs.agent-skills.
   resolvedSources =
     lib.optionalAttrs (cfg.localPath != null) {
       local = {
@@ -31,10 +25,6 @@ let
 
   catalog = agentLib.discoverCatalog resolvedSources;
 
-  # Sources restricted to named targets are expressed as explicit skills,
-  # because agent-skills-nix applies agents allowlists only to explicit
-  # selections. This lets a source use its native plugin in Claude while the
-  # same flake-pinned skills remain available to generic agents such as Codex.
   targetRestrictedSkills = lib.mapAttrs' (
     id: skill:
     lib.nameValuePair id {
@@ -57,9 +47,6 @@ let
 
   unrestrictedSkills = lib.filter (id: !(builtins.hasAttr id targetRestrictedSkills)) cfg.skills;
 
-  # Every skill id agent-skills will actually install, computed exactly the
-  # way the upstream module does: discover catalog -> allowlist -> select.
-  # Skill ids equal Claude Code skill names here since no source sets idPrefix.
   installedSkillIds =
     let
       allowlist = agentLib.allowlistFor {
@@ -113,7 +100,7 @@ in
       example = lib.literalExpression ''
         {
           anthropic = {
-            input  = "anthropic-skills";   # name in flake.nix `inputs`
+            input = "anthropic-skills";
             subdir = "skills";
             idPrefix = "anthropic";
           };
@@ -182,8 +169,6 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # Default every installed skill to `claudeMode` in Claude Code. Per-key
-    # mkDefault lets explicit `custom.claudeCode.skillOverrides` entries win.
     custom.claudeCode.skillOverrides = lib.mkIf (claudeMode != null) (
       lib.genAttrs installedSkillIds (_: lib.mkDefault claudeMode)
     );
@@ -207,7 +192,7 @@ in
         explicit = targetRestrictedSkills;
       };
 
-      targets = cfg.targets;
+      inherit (cfg) targets;
     };
   };
 }

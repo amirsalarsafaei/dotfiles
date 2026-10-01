@@ -2,7 +2,7 @@
   disko.devices = {
     disk.main = {
       type = "disk";
-      device = "/dev/nvme0n1"; # confirm with lsblk on the live ISO
+      device = "/dev/nvme0n1";
       content = {
         type = "gpt";
         partitions = {
@@ -21,10 +21,10 @@
             content = {
               type = "luks";
               name = "cryptroot";
-              settings.allowDiscards = true; # good for SSD
+              settings.allowDiscards = true;
               content = {
                 type = "filesystem";
-                format = "ext4"; # or btrfs if you prefer subvolumes
+                format = "ext4";
                 mountpoint = "/";
               };
             };

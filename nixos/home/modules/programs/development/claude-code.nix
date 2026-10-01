@@ -227,7 +227,7 @@ let
       pkgs.gnused
     ];
     text = ''
-      export CLAUDE_SANDBOX_TARGET="${pkgs.claude-code}/bin/claude"
+      export CLAUDE_SANDBOX_TARGET="${lib.getExe' pkgs.claude-code "claude"}"
       export CLAUDE_SANDBOX_DENY=${lib.escapeShellArg (lib.concatStringsSep "\n" cfg.sandbox.denyPaths)}
       export CLAUDE_SANDBOX_ALLOW=${lib.escapeShellArg (lib.concatStringsSep "\n" cfg.sandbox.allowPaths)}
       export CLAUDE_SANDBOX_ENV_FILES=${lib.escapeShellArg (lib.concatStringsSep "\n" cfg.sandbox.envFiles)}
@@ -240,10 +240,7 @@ let
   };
 
   claudeBin =
-    if cfg.sandbox.enable then
-      "${claudeSandbox}/bin/claude-sandbox"
-    else
-      "${pkgs.claude-code}/bin/claude";
+    if cfg.sandbox.enable then lib.getExe claudeSandbox else lib.getExe' pkgs.claude-code "claude";
 
   sandboxParserText = lib.optionalString cfg.sandbox.enable (
     mkBoolFlagParser {
@@ -476,10 +473,10 @@ let
   secChromeMcpServers = {
     mcpServers = {
       chrome-devtools = {
-        command = "${chromeDevtoolsMcp}/bin/chrome-devtools-mcp";
+        command = lib.getExe chromeDevtoolsMcp;
         args = [
           "--executablePath"
-          "${pkgs.google-chrome}/bin/google-chrome-stable"
+          (lib.getExe' pkgs.google-chrome "google-chrome-stable")
           "--no-category-performance"
           "--no-usage-statistics"
         ];
@@ -490,7 +487,7 @@ let
   playwrightMcpServers = {
     mcpServers = {
       playwright = {
-        command = "${pkgs.playwright-mcp}/bin/playwright-mcp";
+        command = lib.getExe' pkgs.playwright-mcp "playwright-mcp";
         args = [ "--caps=network,storage" ];
         env = {
           PLAYWRIGHT_MCP_USER_DATA_DIR = "${config.home.homeDirectory}/.cache/playwright-mcp/chrome-profile";
@@ -506,7 +503,7 @@ let
   nixosMcpServers = {
     mcpServers = {
       nixos = {
-        command = "${pkgs.mcp-nixos}/bin/mcp-nixos";
+        command = lib.getExe' pkgs.mcp-nixos "mcp-nixos";
       };
     };
   };
@@ -645,7 +642,7 @@ let
     if [ "''${#_claude_plugin_flags[@]}" -gt 0 ]; then
       _claude_settings_overlay="{}"
       for _claude_pf in "''${_claude_plugin_flags[@]}"; do
-        _claude_settings_overlay=$(${pkgs.jq}/bin/jq -c \
+        _claude_settings_overlay=$(${lib.getExe' pkgs.jq "jq"} -c \
           --arg id "''${_claude_pf%=*}" --argjson val "''${_claude_pf##*=}" \
           '.enabledPlugins[$id] = $val' <<<"$_claude_settings_overlay")
       done
@@ -653,14 +650,14 @@ let
         _claude_settings_file="''${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
         _claude_known="{}"
         if [ -s "$_claude_settings_file" ]; then
-          _claude_known=$(${pkgs.jq}/bin/jq -c '.extraKnownMarketplaces // {}' \
+          _claude_known=$(${lib.getExe' pkgs.jq "jq"} -c '.extraKnownMarketplaces // {}' \
             "$_claude_settings_file" 2>/dev/null || printf '{}')
         fi
         for _claude_pm in "''${_claude_plugin_marketplaces[@]}"; do
-          _claude_known=$(${pkgs.jq}/bin/jq -c --argjson add "$_claude_pm" \
+          _claude_known=$(${lib.getExe' pkgs.jq "jq"} -c --argjson add "$_claude_pm" \
             '. + $add' <<<"$_claude_known")
         done
-        _claude_settings_overlay=$(${pkgs.jq}/bin/jq -c --argjson km "$_claude_known" \
+        _claude_settings_overlay=$(${lib.getExe' pkgs.jq "jq"} -c --argjson km "$_claude_known" \
           '.extraKnownMarketplaces = $km' <<<"$_claude_settings_overlay")
         unset _claude_settings_file _claude_known _claude_pm
       fi
@@ -668,15 +665,15 @@ let
         _claude_settings_file="''${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
         _claude_env="{}"
         if [ -s "$_claude_settings_file" ]; then
-          _claude_env=$(${pkgs.jq}/bin/jq -c '.env // {}' \
+          _claude_env=$(${lib.getExe' pkgs.jq "jq"} -c '.env // {}' \
             "$_claude_settings_file" 2>/dev/null || printf '{}')
         fi
         for _claude_pe in "''${_claude_plugin_env[@]}"; do
-          _claude_env=$(${pkgs.jq}/bin/jq -c \
+          _claude_env=$(${lib.getExe' pkgs.jq "jq"} -c \
             --arg k "''${_claude_pe%%=*}" --arg v "''${_claude_pe#*=}" \
             '.[$k] = $v' <<<"$_claude_env")
         done
-        _claude_settings_overlay=$(${pkgs.jq}/bin/jq -c --argjson env "$_claude_env" \
+        _claude_settings_overlay=$(${lib.getExe' pkgs.jq "jq"} -c --argjson env "$_claude_env" \
           '.env = $env' <<<"$_claude_settings_overlay")
         unset _claude_settings_file _claude_env _claude_pe
       fi
@@ -839,7 +836,7 @@ let
     ${pluginFlagsParserText}
     ${browserMcpParserText}
 
-    ${healClaudeState}/bin/heal-claude-json || true
+    ${lib.getExe healClaudeState} || true
     ${pluginSettingsArgText}
     ${browserMcpArgText}
     exec ${claudeBin} "''${_claude_extra_args[@]}" "$@"
@@ -966,7 +963,7 @@ let
       ${pluginFlagsParserText}
       ${browserMcpParserText}
       ${nixosMcpParserText}
-      ${healClaudeState}/bin/heal-claude-json || true
+      ${lib.getExe healClaudeState} || true
       ${pluginSettingsArgText}
       ${browserMcpArgText}
       ${nixosMcpArgText}
@@ -1131,7 +1128,7 @@ let
         export GLM_PRICES=${lib.escapeShellArg glmPricesJson}
       fi
       export GLM_BILLING_DAY="''${GLM_BILLING_DAY-${toString cfg.glmBillingDay}}"
-      exec ${pkgs.python3}/bin/python3 ${./usage-tracker.py} GLM "$@"
+      exec ${lib.getExe' pkgs.python3 "python3"} ${./usage-tracker.py} GLM "$@"
     '';
   };
 
@@ -1149,7 +1146,7 @@ let
         export DEEPSEEK_PEAK_WEEKDAYS=${lib.escapeShellArg cfg.deepseekPeakWeekdays}
       fi
       export DEEPSEEK_BILLING_DAY="''${DEEPSEEK_BILLING_DAY-${toString cfg.deepseekBillingDay}}"
-      exec ${pkgs.python3}/bin/python3 ${./usage-tracker.py} DEEPSEEK "$@"
+      exec ${lib.getExe' pkgs.python3 "python3"} ${./usage-tracker.py} DEEPSEEK "$@"
     '';
   };
 
@@ -1158,8 +1155,8 @@ let
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
       input=$(cat)
-      base=$(${claudeStatusLine}/bin/claude-statusline <<<"$input" 2>/dev/null || true)
-      seg=$(${glmUsage}/bin/glm-usage statusline 2>/dev/null || true)
+      base=$(${lib.getExe claudeStatusLine} <<<"$input" 2>/dev/null || true)
+      seg=$(${lib.getExe glmUsage} statusline 2>/dev/null || true)
       if [ -n "$seg" ] && [ -n "$base" ]; then
         printf '%s | %s\n' "$base" "$seg"
       elif [ -n "$base" ]; then
@@ -1175,8 +1172,8 @@ let
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
       input=$(cat)
-      base=$(${claudeStatusLine}/bin/claude-statusline <<<"$input" 2>/dev/null || true)
-      seg=$(${deepseekUsage}/bin/deepseek-usage statusline 2>/dev/null || true)
+      base=$(${lib.getExe claudeStatusLine} <<<"$input" 2>/dev/null || true)
+      seg=$(${lib.getExe deepseekUsage} statusline 2>/dev/null || true)
       if [ -n "$seg" ] && [ -n "$base" ]; then
         printf '%s | %s\n' "$base" "$seg"
       elif [ -n "$base" ]; then
@@ -1232,7 +1229,7 @@ let
       ${pluginFlagsParserText}
       ${browserMcpParserText}
       ${nixosMcpParserText}
-      ${healClaudeState}/bin/heal-claude-json || true
+      ${lib.getExe healClaudeState} || true
       ${pluginSettingsArgText}
       ${browserMcpArgText}
       ${nixosMcpArgText}
@@ -1260,7 +1257,7 @@ let
       ${commonParserText}
       ${pluginFlagsParserText}
       ${browserMcpParserText}
-      ${healClaudeState}/bin/heal-claude-json || true
+      ${lib.getExe healClaudeState} || true
       ${pluginSettingsArgText}
       ${browserMcpArgText}
       exec ${claudeBin} "''${_claude_extra_args[@]}" "$@"
@@ -1304,7 +1301,7 @@ let
       ${commonParserText}
       ${pluginFlagsParserText}
       ${browserMcpParserText}
-      ${healClaudeState}/bin/heal-claude-json || true
+      ${lib.getExe healClaudeState} || true
       ${pluginSettingsArgText}
       ${browserMcpArgText}
       exec ${claudeBin} --mcp-config "${localMcpConfigPath}" "''${_claude_extra_args[@]}" "$@"
@@ -1386,7 +1383,7 @@ let
     {
       statusLine = {
         type = "command";
-        command = "${claudeStatusLine}/bin/claude-statusline";
+        command = lib.getExe claudeStatusLine;
       };
     }
     // base
@@ -1468,9 +1465,9 @@ let
           {
             type = "command";
             command = ''
-              skill=$(${pkgs.jq}/bin/jq -er '.skill_name // empty' 2>/dev/null) || exit 0
+              skill=$(${lib.getExe' pkgs.jq "jq"} -er '.skill_name // empty' 2>/dev/null) || exit 0
               if [ -n "$skill" ]; then
-                ${devar}/bin/devar usage record skill "$skill" || true
+                ${lib.getExe' devar "devar"} usage record skill "$skill" || true
               fi
               exit 0
             '';
@@ -1581,7 +1578,7 @@ let
           hooks = [
             {
               type = "command";
-              command = "${claudeIpGuard}/bin/claude-ip-guard";
+              command = lib.getExe claudeIpGuard;
               timeout = 33;
             }
           ];
@@ -1592,7 +1589,7 @@ let
           hooks = [
             {
               type = "command";
-              command = "${claudeIpGuard}/bin/claude-ip-guard";
+              command = lib.getExe claudeIpGuard;
               timeout = 33;
             }
           ];
@@ -1605,7 +1602,7 @@ let
   glmSettings = workSettings // {
     statusLine = {
       type = "command";
-      command = "${glmStatusLine}/bin/glm-claude-statusline";
+      command = lib.getExe glmStatusLine;
     };
   };
 
@@ -1625,7 +1622,7 @@ let
     permissions = devarPermissions;
     statusLine = {
       type = "command";
-      command = "${deepseekStatusLine}/bin/deepseek-claude-statusline";
+      command = lib.getExe deepseekStatusLine;
     };
   };
 
@@ -1638,7 +1635,7 @@ let
     enabledPlugins = astGrepPlugin;
     statusLine = {
       type = "command";
-      command = "${deepseekStatusLine}/bin/deepseek-claude-statusline";
+      command = lib.getExe deepseekStatusLine;
     };
   };
 
@@ -1653,7 +1650,7 @@ let
           hooks = [
             {
               type = "command";
-              command = "${claudeIpGuard}/bin/claude-ip-guard";
+              command = lib.getExe claudeIpGuard;
               timeout = 33;
             }
           ];
@@ -1664,7 +1661,7 @@ let
           hooks = [
             {
               type = "command";
-              command = "${claudeIpGuard}/bin/claude-ip-guard";
+              command = lib.getExe claudeIpGuard;
               timeout = 33;
             }
           ];
@@ -1678,7 +1675,7 @@ let
     base:
     base
     // lib.optionalAttrs (cfg.skillOverrides != { }) {
-      skillOverrides = cfg.skillOverrides;
+      inherit (cfg) skillOverrides;
     };
 
   nixManagedNote = cfg.context.base;
@@ -1718,7 +1715,7 @@ let
   pickerCases = lib.concatStringsSep "\n" (
     map (
       v:
-      "          ${v.tag}) printf 'launching %s (%s)\\n' \"${v.name}\" \"${v.desc}\"; exec ${v.bin}/bin/${v.name} \"$@\" ;;"
+      "          ${v.tag}) printf 'launching %s (%s)\\n' \"${v.name}\" \"${v.desc}\"; exec ${lib.getExe' v.bin v.name} \"$@\" ;;"
     ) pickerVariants
   );
 
@@ -2246,50 +2243,62 @@ in
       ];
     })
     (lib.mkIf cfg.enable {
-      home.packages = [
-        claudePicker
-        gapClaude
-      ]
-      ++ lib.optional cfg.enableGlm glmClaude;
-      home.file.".config/gap-claude/settings.json".text = builtins.toJSON (
-        withOverrides (mkSettings "gap" "gap" gapSettings)
-      );
-      home.file.".config/gap-claude/CLAUDE.md".text = nixManagedNote;
+      home = {
+        packages = [
+          claudePicker
+          gapClaude
+        ]
+        ++ lib.optional cfg.enableGlm glmClaude;
+        file.".config/gap-claude/settings.json".text = builtins.toJSON (
+          withOverrides (mkSettings "gap" "gap" gapSettings)
+        );
+        file.".config/gap-claude/CLAUDE.md".text = nixManagedNote;
+      };
     })
     (lib.mkIf cfg.enableGlm {
-      home.packages = [ glmUsage ];
-      home.file.".config/glm-claude/settings.json".text = builtins.toJSON (
-        withOverrides (mkSettings "work" "glm" glmSettings)
-      );
-      home.file.".config/glm-claude/CLAUDE.md".text = nixManagedNote;
+      home = {
+        packages = [ glmUsage ];
+        file.".config/glm-claude/settings.json".text = builtins.toJSON (
+          withOverrides (mkSettings "work" "glm" glmSettings)
+        );
+        file.".config/glm-claude/CLAUDE.md".text = nixManagedNote;
+      };
     })
     (lib.mkIf cfg.enableDeepseek {
-      home.packages = [ deepseekClaude ];
-      home.file.".config/deepseek-claude/settings.json".text = builtins.toJSON (
-        withOverrides (mkSettings "work" "deepseek" deepseekSettings)
-      );
-      home.file.".config/deepseek-claude/CLAUDE.md".text = nixManagedNote;
+      home = {
+        packages = [ deepseekClaude ];
+        file.".config/deepseek-claude/settings.json".text = builtins.toJSON (
+          withOverrides (mkSettings "work" "deepseek" deepseekSettings)
+        );
+        file.".config/deepseek-claude/CLAUDE.md".text = nixManagedNote;
+      };
     })
     (lib.mkIf cfg.enableWorkDivarGlm {
-      home.packages = [ workDivarGlmClaude ];
-      home.file.".config/work-divar-glm-claude/settings.json".text = builtins.toJSON (
-        withOverrides (mkSettings "work" "workDivarGlm" workSettings)
-      );
-      home.file.".config/work-divar-glm-claude/CLAUDE.md".text = nixManagedNote;
+      home = {
+        packages = [ workDivarGlmClaude ];
+        file.".config/work-divar-glm-claude/settings.json".text = builtins.toJSON (
+          withOverrides (mkSettings "work" "workDivarGlm" workSettings)
+        );
+        file.".config/work-divar-glm-claude/CLAUDE.md".text = nixManagedNote;
+      };
     })
     (lib.mkIf cfg.enableWorkDivarDeepseek {
-      home.packages = [ workDivarDeepseekClaude ];
-      home.file.".config/work-divar-deepseek-claude/settings.json".text = builtins.toJSON (
-        withOverrides (mkSettings "work" "workDivarDeepseek" workSettings)
-      );
-      home.file.".config/work-divar-deepseek-claude/CLAUDE.md".text = nixManagedNote;
+      home = {
+        packages = [ workDivarDeepseekClaude ];
+        file.".config/work-divar-deepseek-claude/settings.json".text = builtins.toJSON (
+          withOverrides (mkSettings "work" "workDivarDeepseek" workSettings)
+        );
+        file.".config/work-divar-deepseek-claude/CLAUDE.md".text = nixManagedNote;
+      };
     })
     (lib.mkIf cfg.enableWork {
-      home.packages = [ claudeWork ];
-      home.file.".config/work-claude/settings.json".text = builtins.toJSON (
-        withOverrides (mkSettings "work" "work" workSettings)
-      );
-      home.file.".config/work-claude/CLAUDE.md".text = nixManagedNote;
+      home = {
+        packages = [ claudeWork ];
+        file.".config/work-claude/settings.json".text = builtins.toJSON (
+          withOverrides (mkSettings "work" "work" workSettings)
+        );
+        file.".config/work-claude/CLAUDE.md".text = nixManagedNote;
+      };
     })
     (lib.mkIf
       (
@@ -2361,28 +2370,36 @@ in
       home.file.${nixosMcpConfigRel}.text = builtins.toJSON nixosMcpServers;
     })
     (lib.mkIf cfg.enablePersonalDeepseek {
-      home.packages = [ personalDeepseekClaude ];
-      home.file.".config/personal-deepseek-claude/settings.json".text = builtins.toJSON (
-        withOverrides (mkSettings "personalDeepseek" "personalDeepseek" personalDeepseekSettings)
-      );
-      home.file.".config/personal-deepseek-claude/CLAUDE.md".text = nixManagedNote;
+      home = {
+        packages = [ personalDeepseekClaude ];
+        file.".config/personal-deepseek-claude/settings.json".text = builtins.toJSON (
+          withOverrides (mkSettings "personalDeepseek" "personalDeepseek" personalDeepseekSettings)
+        );
+        file.".config/personal-deepseek-claude/CLAUDE.md".text = nixManagedNote;
+      };
     })
     (lib.mkIf cfg.enableLocal {
-      home.packages = [ localClaude ];
-      home.file.".config/local-claude/settings.json".text = builtins.toJSON (
-        withOverrides (mkSettings "local" "local" localSettings)
-      );
-      home.file.".config/local-claude/CLAUDE.md".text =
-        nixManagedNote
-        + "Use mcp__exa__web_search_exa for web searches and mcp__exa__web_fetch_exa for webpage retrieval. The built-in WebSearch and WebFetch tools are unavailable with the local model.\n";
-      home.file.${localMcpConfigRel}.text = builtins.toJSON localMcpServers;
+      home = {
+        packages = [ localClaude ];
+        file = {
+          ".config/local-claude/settings.json".text = builtins.toJSON (
+            withOverrides (mkSettings "local" "local" localSettings)
+          );
+          ".config/local-claude/CLAUDE.md".text =
+            nixManagedNote
+            + "Use mcp__exa__web_search_exa for web searches and mcp__exa__web_fetch_exa for webpage retrieval. The built-in WebSearch and WebFetch tools are unavailable with the local model.\n";
+          ${localMcpConfigRel}.text = builtins.toJSON localMcpServers;
+        };
+      };
     })
     (lib.mkIf cfg.enablePersonal {
-      home.packages = [ personalClaude ];
-      home.file.".config/personal-claude/settings.json".text = builtins.toJSON (
-        withOverrides (mkSettings "personal" "personal" personalSettings)
-      );
-      home.file.".config/personal-claude/CLAUDE.md".text = nixManagedNote;
+      home = {
+        packages = [ personalClaude ];
+        file.".config/personal-claude/settings.json".text = builtins.toJSON (
+          withOverrides (mkSettings "personal" "personal" personalSettings)
+        );
+        file.".config/personal-claude/CLAUDE.md".text = nixManagedNote;
+      };
     })
     (lib.mkIf
       (

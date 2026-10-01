@@ -10,7 +10,6 @@ let
   t = theme.colors;
   s = theme.surfaces;
   a = theme.accents;
-  cmd = config.custom.keys.commands;
   quickshell = lib.getExe config.programs.quickshell.package;
   fingerprint = osConfig.services.fprintd.enable or false;
   compactOutput = osConfig.hyprland.compactOutput or null;

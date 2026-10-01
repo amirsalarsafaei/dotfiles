@@ -1,16 +1,18 @@
-{ homeDir
-, currentHostname
-, ...
+{
+  homeDir,
+  currentHostname,
+  ...
 }:
 {
   programs.git = {
     enable = true;
-    # Unity projects keep models, textures and audio in Git LFS.
     lfs.enable = true;
     settings = {
-      user.name = "Amirsalar Safaei";
-      user.email = "amirs.s.g.o@gmail.com";
-      user.signingkey = if (currentHostname == "g14") then "C4586B386C780CCC" else "A105BF23339D1DE6"; # if g14 host C4586B386C780CCC
+      user = {
+        name = "Amirsalar Safaei";
+        email = "amirs.s.g.o@gmail.com";
+        signingkey = if (currentHostname == "g14") then "C4586B386C780CCC" else "A105BF23339D1DE6";
+      };
       commit.gpgsign = true;
       tag.gpgsign = true;
       url."ssh://git@git.divar.cloud/".insteadOf = "https://git.divar.cloud/";
@@ -23,12 +25,10 @@
     ];
   };
 
-  # Syntax-highlighted, navigable git diffs. Wires itself in as git's pager
-  # and is picked up by lazygit too.
   programs.delta = {
     enable = true;
     options = {
-      navigate = true; # n / N to jump between files in the diff
+      navigate = true;
       line-numbers = true;
       hyperlinks = true;
       tabs = 2;
@@ -44,10 +44,6 @@
             [core]
                 excludesFile = "${homeDir}/.gitignore-work"
     '';
-    # shell.nix/flake.nix are local dev-shell scratch files under ~/divar; ignore
-    # them by default. To track one in a specific repo, add `!flake.nix` (or
-    # `!shell.nix`) to that repo's .git/info/exclude — that overrides
-    # core.excludesFile, so the opt-out is per-repo and stays uncommitted.
     ".gitignore-work".text = ''
       shell.nix
       flake.nix

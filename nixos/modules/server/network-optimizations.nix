@@ -40,13 +40,9 @@
     "net.ipv4.tcp_dsack" = 1;
     "net.ipv4.tcp_fack" = 1;
 
-    # Optional: Increase maximum orphan sockets to prevent dropping connections during high load
     "net.ipv4.tcp_max_orphans" = 32768;
   };
 
-  # These overrides only apply when the corresponding service is actually
-  # enabled on the host. Guarding with mkIf avoids dangling systemd unit
-  # definitions on hosts that don't enable them.
   systemd.services.xray = lib.mkIf config.services.xray.enable {
     serviceConfig = {
       LimitNOFILE = 1048576;

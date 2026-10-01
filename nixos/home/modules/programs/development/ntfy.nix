@@ -1,8 +1,3 @@
-# `ntfy` CLI for ntfy.amirsalarsafaei.com, plus the Claude Code Stop hook
-# that pings the "claude" topic when a session finishes. The access token is
-# read at runtime from a sops secret (see modules/sops.nix) when present, so
-# nothing sensitive ends up in the Nix store; hosts without sops just run the
-# CLI unauthenticated unless NTFY_TOKEN(_FILE) is set some other way.
 {
   pkgs,
   config,
@@ -12,9 +7,6 @@
 let
   cfg = config.custom.ntfy;
 
-  # `?` on `config` is safe here even on hosts where the sops module was
-  # never imported (franksalar) — it's a plain lazy attrset membership test,
-  # not an option-system lookup, so it never trips "option does not exist".
   sopsTokenFile =
     if (config ? sops) && ((config.sops.secrets or { }) ? "ntfy_token") then
       config.sops.secrets."ntfy_token".path

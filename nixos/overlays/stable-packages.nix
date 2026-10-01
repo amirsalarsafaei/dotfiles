@@ -1,4 +1,3 @@
-# Access to stable packages
 { nixpkgs-stable, system }:
 final: prev: {
   stable = import nixpkgs-stable {

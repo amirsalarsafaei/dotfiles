@@ -1,123 +1,119 @@
-{ pkgs
-, lib
-, config
-, currentHostname
-, ...
+{
+  pkgs,
+  lib,
+  config,
+  currentHostname,
+  ...
 }:
 let
   cfg = config.custom.userScripts;
 
-  # Source-tree dir holding committed script files. Every .sh/.bash/.zsh/.py
-  # here is auto-discovered into a bin — name = filename without extension,
-  # language by extension — with NO Nix edit. `add-script` drops a file here
-  # (and git-adds + rebuilds) so adding a command is one step.
   filesDir = ./files;
 
   extLang =
     ext:
-    if ext == "sh" || ext == "bash" then "bash"
-    else if ext == "zsh" then "zsh"
-    else if ext == "py" then "python3"
-    else null;
-
-  # Split "foo.tar.sh" -> { base = "foo.tar"; ext = "sh" } (last dot wins).
-  splitExt =
-    name:
-    let parts = lib.splitString "." name; in
-    if builtins.length parts > 1 then
-      { base = lib.concatStringsSep "." (lib.init parts); ext = lib.last parts; }
+    if ext == "sh" || ext == "bash" then
+      "bash"
+    else if ext == "zsh" then
+      "zsh"
+    else if ext == "py" then
+      "python3"
     else
       null;
 
-  discovered =
-    lib.pipe filesDir [
-      builtins.readDir
-      (lib.mapAttrsToList (n: _:
-        let parts = splitExt n; in
-        if parts != null && extLang parts.ext != null then
-          { name = parts.base; lang = extLang parts.ext; source = filesDir + "/${n}"; }
-        else
-          null))
-      (builtins.filter (x: x != null))
-    ];
+  splitExt =
+    name:
+    let
+      parts = lib.splitString "." name;
+    in
+    if builtins.length parts > 1 then
+      {
+        base = lib.concatStringsSep "." (lib.init parts);
+        ext = lib.last parts;
+      }
+    else
+      null;
 
-  # One committed file -> one bin.
-  #   bash    : pkgs.writeShellApplication — errexit/nounset/pipefail, shellcheck,
-  #             runtimeInputs on PATH (the navi-ask pattern, navi.nix:24).
-  #   zsh     : pkgs.writeTextFile with a zsh shebang. makeScriptWriter produces a
-  #             symlink-root package that breaks buildEnv, so build $out/bin/<name>
-  #             ourselves (mirrors writeShellApplication's structure).
-  #   python3 : writers.writePython3Bin, deps via `libraries`.
-  # Every writer prepends its own shebang, so the source file should omit one
-  # (a leftover shebang just becomes a harmless comment).
+  discovered = lib.pipe filesDir [
+    builtins.readDir
+    (lib.mapAttrsToList (
+      n: _:
+      let
+        parts = splitExt n;
+      in
+      if parts != null && extLang parts.ext != null then
+        {
+          name = parts.base;
+          lang = extLang parts.ext;
+          source = filesDir + "/${n}";
+        }
+      else
+        null
+    ))
+    (builtins.filter (x: x != null))
+  ];
+
   mkBin =
     name: spec:
     let
       lang = spec.lang or "bash";
       runtimeInputs = spec.runtimeInputs or [ ];
       text = builtins.readFile spec.source;
-      pathExport = lib.optionalString (runtimeInputs != [ ])
-        ''export PATH="${lib.makeBinPath runtimeInputs}''${PATH:+:$PATH}"'';
+      pathExport = lib.optionalString (
+        runtimeInputs != [ ]
+      ) ''export PATH="${lib.makeBinPath runtimeInputs}''${PATH:+:$PATH}"'';
     in
     if lang == "bash" then
       pkgs.writeShellApplication { inherit name runtimeInputs text; }
     else if lang == "zsh" then
-      pkgs.writeTextFile
-        {
-          inherit name;
-          executable = true;
-          destination = "/bin/${name}";
-          text = ''
-            #!${pkgs.zsh}/bin/zsh
-            ${pathExport}
-            ${text}
-          '';
-        }
+      pkgs.writeTextFile {
+        inherit name;
+        executable = true;
+        destination = "/bin/${name}";
+        text = ''
+          #!${pkgs.zsh}/bin/zsh
+          ${pathExport}
+          ${text}
+        '';
+      }
     else if lang == "python3" then
       pkgs.writers.writePython3Bin name { libraries = spec.libraries or [ ]; } text
     else
       throw "custom.userScripts.bins.${name}: unknown lang '${lang}' (use 'bash', 'zsh', or 'python3')";
 
-  # One committed file -> many bins (clutter grouping, Nix escape hatch). The
-  # file defines shell functions; each name in `commands` becomes a bin that
-  # sources the file then calls the function.
   mkGroupBins =
     group: spec:
     let
       lang = spec.lang or "bash";
       runtimeInputs = spec.runtimeInputs or [ ];
       libFile = pkgs.writeText "user-scripts-${group}.sh" (builtins.readFile spec.source);
-      pathExport = lib.optionalString (runtimeInputs != [ ])
-        ''export PATH="${lib.makeBinPath runtimeInputs}''${PATH:+:$PATH}"'';
+      pathExport = lib.optionalString (
+        runtimeInputs != [ ]
+      ) ''export PATH="${lib.makeBinPath runtimeInputs}''${PATH:+:$PATH}"'';
       mkOne =
         cmd:
         if lang == "bash" then
-          pkgs.writeShellApplication
-            {
-              name = cmd;
-              inherit runtimeInputs;
-              # Skip shellcheck: the wrapper calls a function defined in libFile,
-              # which shellcheck can't see. A non-null checkPhase replaces the
-              # shellcheck+dryRun default verbatim (trivial-builders/default.nix:347).
-              checkPhase = ":";
-              text = ''
-                source ${libFile}
-                ${cmd} "$@"
-              '';
-            }
+          pkgs.writeShellApplication {
+            name = cmd;
+            inherit runtimeInputs;
+            checkPhase = ":";
+            text = ''
+              source ${libFile}
+              ${cmd} "$@"
+            '';
+          }
         else if lang == "zsh" then
-          pkgs.writeTextFile
-            {
-              name = cmd;
-              executable = true;
-              destination = "/bin/${cmd}";
-              text = ''
-                #!${pkgs.zsh}/bin/zsh
-                ${pathExport}
-                source ${libFile}
-                ${cmd} "$@"
-              '';
-            }
+          pkgs.writeTextFile {
+            name = cmd;
+            executable = true;
+            destination = "/bin/${cmd}";
+            text = ''
+              #!${pkgs.zsh}/bin/zsh
+              ${pathExport}
+              source ${libFile}
+              ${cmd} "$@"
+            '';
+          }
         else
           throw "custom.userScripts.group.${group}: lang '${lang}' not supported (use 'bash' or 'zsh')";
     in
@@ -131,25 +127,20 @@ let
     if dups != [ ] then
       throw "custom.userScripts: duplicate script names in files/: ${lib.concatStringsSep ", " dups} (name = filename without extension)"
     else
-      map (d: mkBin d.name { source = d.source; lang = d.lang; }) discovered;
+      map (d: mkBin d.name { inherit (d) source lang; }) discovered;
 
   declaredBins = lib.mapAttrsToList mkBin cfg.bins;
   groupBins = lib.concatLists (lib.mapAttrsToList mkGroupBins cfg.group);
 
-  # `add-script <file>`: copies a script into files/, git-adds it, and rebuilds
-  # (unless --no-rebuild) so it's live — no Nix edit. @REPO_DIR@/@HOST@ are
-  # substituted from cfg.repoDir / currentHostname so the helper knows where the
-  # dotfiles live and which flake output to rebuild.
   addScript = pkgs.writeShellApplication {
     name = "add-script";
     runtimeInputs = [
       pkgs.git
       pkgs.coreutils
     ];
-    text = builtins.replaceStrings
-      [ "@REPO_DIR@" "@HOST@" ]
-      [ cfg.repoDir currentHostname ]
-      (builtins.readFile ./add-script.sh);
+    text = builtins.replaceStrings [ "@REPO_DIR@" "@HOST@" ] [ cfg.repoDir currentHostname ] (
+      builtins.readFile ./add-script.sh
+    );
   };
 in
 {
@@ -248,12 +239,6 @@ in
   };
 
   config = {
-    # add-script is always installed; the bin lists are empty until scripts are
-    # dropped in ./files/ (auto) or declared in bins/group (Nix escape hatch).
-    home.packages =
-      [ addScript ]
-      ++ discoveredBins
-      ++ declaredBins
-      ++ groupBins;
+    home.packages = [ addScript ] ++ discoveredBins ++ declaredBins ++ groupBins;
   };
 }

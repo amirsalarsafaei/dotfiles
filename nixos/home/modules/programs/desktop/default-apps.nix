@@ -87,38 +87,40 @@ in
     pkgs.gnumeric
   ];
 
-  xdg.desktopEntries.nvim-terminal = {
-    name = "Neovim";
-    genericName = "Text Editor";
-    exec = "${lib.getExe pkgs.ghostty} -e ${lib.getExe config.programs.nixvim.build.package} %F";
-    terminal = false;
-    noDisplay = true;
-    mimeType = textTypes;
-    categories = [
-      "Utility"
-      "TextEditor"
-    ];
-  };
+  xdg = {
+    desktopEntries.nvim-terminal = {
+      name = "Neovim";
+      genericName = "Text Editor";
+      exec = "${lib.getExe pkgs.ghostty} -e ${lib.getExe config.programs.nixvim.build.package} %F";
+      terminal = false;
+      noDisplay = true;
+      mimeType = textTypes;
+      categories = [
+        "Utility"
+        "TextEditor"
+      ];
+    };
 
-  xdg.configFile."Thunar/uca.xml".text = ''
-    <?xml version="1.0" encoding="UTF-8"?>
-    <actions>
-      <action>
-        <icon>utilities-terminal</icon>
-        <name>Open Terminal Here</name>
-        <unique-id>open-terminal-here</unique-id>
-        <command>${lib.getExe pkgs.ghostty} --working-directory=%f</command>
-        <description>Open Ghostty in this folder</description>
-        <patterns>*</patterns>
-        <startup-notify/>
-        <directories/>
-      </action>
-    </actions>
-  '';
+    configFile."Thunar/uca.xml".text = ''
+      <?xml version="1.0" encoding="UTF-8"?>
+      <actions>
+        <action>
+          <icon>utilities-terminal</icon>
+          <name>Open Terminal Here</name>
+          <unique-id>open-terminal-here</unique-id>
+          <command>${lib.getExe pkgs.ghostty} --working-directory=%f</command>
+          <description>Open Ghostty in this folder</description>
+          <patterns>*</patterns>
+          <startup-notify/>
+          <directories/>
+        </action>
+      </actions>
+    '';
 
-  xdg.mimeApps = {
-    enable = true;
-    associations.added = byType;
-    defaultApplications = byType;
+    mimeApps = {
+      enable = true;
+      associations.added = byType;
+      defaultApplications = byType;
+    };
   };
 }

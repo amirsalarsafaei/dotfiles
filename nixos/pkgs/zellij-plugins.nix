@@ -1,9 +1,3 @@
-# Zellij plugins not in nixpkgs (unlike vim-zellij-navigator/autolock, see
-# zelij.nix) but that ship a prebuilt release .wasm, so no rust/wasm32-wasip1
-# cross-build is needed — just fetch the
-# asset and wrap it the same way pkgs.zellijPlugins.wrapper does (pname +
-# version on the derivation, single-file $out), which is what home-manager's
-# programs.zellij.plugins module requires of every list entry.
 {
   lib,
   stdenvNoCC,
@@ -30,8 +24,6 @@ let
     };
 in
 {
-  # harpoon - ThePrimeagen's nvim harpoon, ported: pin panes to a list, jump
-  # straight back to one. https://github.com/Nacho114/harpoon
   harpoon = mkPlugin {
     pname = "harpoon";
     version = "0.3.0";
@@ -44,8 +36,6 @@ in
     };
   };
 
-  # tabula - renames each tab after the cwd (or git worktree) of its panes,
-  # replacing the default "Tab #1" naming. https://github.com/bezbac/zellij-tabula
   tabula = mkPlugin {
     pname = "zellij-tabula";
     version = "0.5.0";

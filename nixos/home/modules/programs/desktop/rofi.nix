@@ -53,8 +53,6 @@ in
 
   xdg.configFile."rofi/${theme.rofiThemeName}.rasi".text = ''
     * {
-      /* Kept translucent rather than opaque: hyprland.nix blurs the `rofi`
-         layer, so the launcher picks up the wallpaper behind it. */
       bg: ${s.ink}eb;
       surface: ${s.raised}e6;
       line: ${s.line};

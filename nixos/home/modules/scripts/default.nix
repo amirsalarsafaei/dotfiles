@@ -20,11 +20,6 @@ let
     esac
   '';
 
-  # AC-power-driven policy: plugged in -> assume desk/dual-monitor use, spare
-  # the OLED; unplugged -> assume laptop-only use, bring it back. Runs inside
-  # the user's own systemd session (started via `systemctl --user`, see the
-  # udev rule in the g14 host config) so it inherits the same PATH/env as a
-  # normal shell — no root/Wayland-socket plumbing needed.
   oledPowerSync = pkgs.writeShellScriptBin "oled-power-sync" ''
     #!/usr/bin/env bash
     set -euo pipefail
@@ -129,11 +124,6 @@ in
       fi
     '')
 
-    # td — capture a task into today's Obsidian daily note from the terminal.
-    #   td buy milk        -> appends "- [ ] buy milk ➕ <today>" to today's note
-    #   td                 -> lists today's open tasks
-    #   td -e              -> opens today's note in $EDITOR
-    # Format matches the obsidian-tasks plugin (➕ = created date).
     (writeShellScriptBin "td" ''
       #!/usr/bin/env bash
       set -euo pipefail
@@ -158,7 +148,6 @@ in
           ;;
         "")
           if [ -f "$note" ]; then
-            # Show today's open tasks, numbered.
             grep -nE '^\s*- \[ \]' "$note" || echo "No open tasks for $today."
           else
             echo "No daily note for $today yet. Add one with: td <task>"
@@ -173,9 +162,6 @@ in
       esac
     '')
 
-    # oled-toggle — dual-monitor mode: disable/re-enable the G14's internal
-    # OLED panel. Disabled monitors drop out of `hyprctl monitors -j`
-    # entirely, so presence there is the toggle state.
     (writeShellScriptBin "oled-toggle" ''
       #!/usr/bin/env bash
       set -euo pipefail
@@ -204,7 +190,6 @@ in
           ;;
       esac
 
-      # Find keyboard backlight device (works across different systems)
       kbd_dev=$(brightnessctl -l | grep -i kbd | head -1 | cut -d"'" -f2)
 
       if [ -z "$kbd_dev" ]; then

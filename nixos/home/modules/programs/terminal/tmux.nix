@@ -15,25 +15,20 @@ in
 
     extraConfig = ''
       setw -g xterm-keys on
-      set -s escape-time 10                     # faster command sequences
-      set -sg repeat-time 600                   # increase repeat timeout
+      set -s escape-time 10
+      set -sg repeat-time 600
       set -s focus-events on
       set -g default-terminal "tmux-256color"
       set -ag terminal-overrides ",xterm-256color:RGB,tmux-256color:RGB"
 
-      # OSC 52 clipboard passthrough - lets remote processes write to local clipboard
       set -g set-clipboard on
       set -ag terminal-features ",xterm-256color:clipboard,tmux-256color:clipboard"
       set -g allow-passthrough on
 
-      set -g prefix2 C-a                        # GNU-Screen compatible prefix
+      set -g prefix2 C-a
 
-      # ── Keybindings ─────────────────────────────────────
-      # Declared in home/modules/keys/registry.nix, rendered to tmux syntax
-      # from there, and listed by `keys` / `keys tmux`.
       ${config.custom.keys.rendered.tmux}
 
-      # ── Visual ──────────────────────────────────────────
       set -g status on
       set -g status-position top
       set -g status-justify left

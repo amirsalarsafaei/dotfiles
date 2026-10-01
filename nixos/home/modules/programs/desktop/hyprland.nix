@@ -386,7 +386,6 @@ let
             animation = fadeIn,      0
             animation = fadeSwitch,  0
             animation = fadeDim,     0
-            # Horizontal slide to match the left/right workspace swipe gesture
             animation = workspaces,  1, 6, slide
             animation = specialWorkspace, 1, 5, wind, slidevert
             animation = layersIn,    1, 4, drawer, fade
@@ -513,38 +512,18 @@ in
       $menu = rofi -show drun -run-command 'uwsm app -- {cmd}'
       $clipboard = clipboard-menu
 
-      # Force ssh to use the askpass program for the FIDO/-sk touch notifier
-      # even when stderr is a tty, so the "Touch your YubiKey" notification
-      # fires in terminals too (OpenSSH otherwise prints it inline and skips
-      # askpass). Scoped to the graphical session — a headless ssh-in still
-      # falls back to inline/terminal passphrase entry.
       env = SSH_ASKPASS_REQUIRE,force
 
-      # Monitor configuration
       monitor = ,preferred,auto,auto
       monitor = ${monitorConfig}
       exec-once = ${lib.getExe displayWatch}
       exec-once = ${lib.getExe spotifySpace} watch
 
-      # Fix pixelated XWayland apps on fractional monitor scale: by default
-      # Hyprland lets XWayland itself scale its output to match the
-      # compositor's fractional scale, and Xorg only knows blocky
-      # nearest-neighbor upsampling for that — hence the "pixelated" look
-      # (Java/Swing apps like burpsuite are XWayland-only and hit this
-      # hardest). force_zero_scaling keeps XWayland rendering at 1x/scale-1
-      # and lets Hyprland's own (smooth) compositor scaler do the upscale
-      # instead. Safe at integer scale too (no-op there). See
-      # hyprland.xwaylandDpi below for the matching per-host DPI hint.
       xwayland {
           force_zero_scaling = true
       }
 
       ${lib.optionalString (xwaylandDpi != null) ''
-        # Tell XWayland/X11 toolkits (GTK2, Qt, Java AWT's Linux DPI
-        # autodetection) the panel's real DPI now that force_zero_scaling
-        # stops them from picking it up off Hyprland's own output scale.
-        # Value is 96 * the host's fractional scale — see hosts/<host>
-        # hyprland.xwaylandDpi for how it was derived.
         exec-once = printf 'Xft.dpi: ${toString xwaylandDpi}\n' | ${pkgs.xrdb}/bin/xrdb -merge -
       ''}
 
@@ -609,9 +588,6 @@ in
           sensitivity = -0.5
       }
 
-      # Keybindings are declared once in home/modules/keys/registry.nix and
-      # rendered to hyprlang from there, so the Super+/ cheatsheet and this
-      # config can never disagree. Edit the registry, not this block.
       ${config.custom.keys.rendered.hyprland}
 
       workspace = special:spotify, gapsin:6, gapsout:36 64, bordersize:3

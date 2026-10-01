@@ -1,7 +1,8 @@
-{ lib
-, config
-, pkgs
-, ...
+{
+  lib,
+  config,
+  pkgs,
+  ...
 }:
 let
   cfg = config.custom.theme;
@@ -12,22 +13,22 @@ let
     scheme = "Slate";
     slug = "slate";
     author = "Amirsalar";
-    base00 = "08090c"; # background - deep charcoal
-    base01 = "17191e"; # lighter background (panels, sidebars)
-    base02 = "2b2f36"; # selection / hover background
-    base03 = "586069"; # comments, invisibles, muted text
-    base04 = "8b949e"; # dark foreground (inactive / placeholder)
-    base05 = "c9d1d9"; # default foreground
-    base06 = "d1d9e0"; # light foreground
-    base07 = "e6edf3"; # lightest foreground
-    base08 = "ff6b6b"; # red - errors, deletion
-    base09 = "ff8c42"; # orange - integers
-    base0A = "ffd93d"; # yellow - warnings
-    base0B = "6bcf7f"; # green - strings, success
-    base0C = "4fc3f7"; # cyan - support, regex
-    base0D = "5b9cf6"; # blue - functions, methods
-    base0E = "5b9cf6"; # blue (no purple) - keywords
-    base0F = "6e7681"; # gray - deprecated, special
+    base00 = "08090c";
+    base01 = "17191e";
+    base02 = "2b2f36";
+    base03 = "586069";
+    base04 = "8b949e";
+    base05 = "c9d1d9";
+    base06 = "d1d9e0";
+    base07 = "e6edf3";
+    base08 = "ff6b6b";
+    base09 = "ff8c42";
+    base0A = "ffd93d";
+    base0B = "6bcf7f";
+    base0C = "4fc3f7";
+    base0D = "5b9cf6";
+    base0E = "5b9cf6";
+    base0F = "6e7681";
   };
 
   colors = lib.mapAttrs (_: value: "#${value}") (
@@ -49,15 +50,16 @@ let
   };
 
   resolved = {
-    name = cfg.name;
-    polarity = cfg.polarity;
-    wallpaper = cfg.wallpaper;
+    inherit (cfg)
+      name
+      polarity
+      wallpaper
+      fonts
+      ;
     wallpaperDir = "${config.home.homeDirectory}/Pictures/wallpapers";
     rofiThemeName = "${cfg.name}-rofi";
-    fonts = cfg.fonts;
     scheme = base16Scheme;
-    colors = colors;
-    inherit surfaces accents;
+    inherit colors surfaces accents;
   };
 
   iconTheme = {
@@ -127,19 +129,8 @@ in
   config = {
     _module.args.themeLib = themeLib;
 
-    # Adopt the new home-manager default (gtk4 themes no longer inherit gtk.theme)
-    # and silence the 26.05 deprecation warning. mkForce because Stylix's GTK target
-    # (auto-enabled) also defines gtk4.theme as non-null; with the current Stylix↔
-    # home-manager version skew the two definitions collide ("defined both null and
-    # not null"). gtk4 ignores the theme *name* anyway (it's themed via CSS), so we
-    # explicitly keep it unset and let our null win.
     gtk.gtk4.theme = lib.mkForce null;
 
-    # gtk2 keeps knocking .gtkrc-2.0 out of its HM-managed symlink into a plain
-    # file (some app rewrites it), which then makes every later switch trip
-    # backupFileExtension's move-to-.backup step and fail if a stale .backup
-    # from a previous trip is still sitting there. gtk.gtk2.force skips the
-    # backup dance for this one file and just overwrites it.
     gtk.gtk2.force = true;
 
     home.pointerCursor.enable = true;
@@ -147,12 +138,10 @@ in
     stylix = {
       enable = true;
       autoEnable = true;
-      # Disable stylix's nixpkgs overlay injection at the home-manager level;
-      # home-manager.useGlobalPkgs = true means overlays must come from the system.
       overlays.enable = false;
       image = cfg.wallpaper;
-      polarity = cfg.polarity;
-      base16Scheme = base16Scheme;
+      inherit (cfg) polarity;
+      inherit base16Scheme;
 
       fonts = {
         sansSerif = {

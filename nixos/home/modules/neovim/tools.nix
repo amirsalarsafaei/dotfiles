@@ -163,7 +163,7 @@ in
         dap-python = lib.mkIf cfg.features.debug { enable = true; };
         dap-lldb = lib.mkIf cfg.features.debug {
           enable = true;
-          settings.codelldb_path = "${pkgs.vscode-extensions.vadimcn.vscode-lldb.adapter}/bin/codelldb";
+          settings.codelldb_path = lib.getExe' pkgs.vscode-extensions.vadimcn.vscode-lldb.adapter "codelldb";
         };
 
         neotest = lib.mkIf cfg.features.debug {
@@ -176,10 +176,6 @@ in
           };
         };
 
-        # https://github.com/coder/claudecode.nvim — talks to a running Claude
-        # Code session over its terminal protocol (selections, diffs, @-mentions)
-        # rather than shelling out a one-shot command. terminal_cmd defaults to
-        # "claude", which resolves to the claudePicker wrapper on $PATH.
         claudecode = lib.mkIf cfg.features.ai {
           enable = true;
           settings.diff_opts.auto_close_on_accept = true;
@@ -189,15 +185,21 @@ in
       keymaps = [
         (normalKeymap "<leader>W" "<cmd>SudaWrite<CR>" { desc = "Write file with sudo"; })
         (normalKeymap ",v" "<cmd>VenvSelect<CR>" { desc = "Select Python venv"; })
-        (normalKeymap "<leader>tt" "<cmd>ToggleTerm direction=horizontal<CR>" { desc = "Terminal horizontal"; })
-        (normalKeymap "<leader>tv" "<cmd>ToggleTerm direction=vertical size=80<CR>" { desc = "Terminal vertical"; })
+        (normalKeymap "<leader>tt" "<cmd>ToggleTerm direction=horizontal<CR>" {
+          desc = "Terminal horizontal";
+        })
+        (normalKeymap "<leader>tv" "<cmd>ToggleTerm direction=vertical size=80<CR>" {
+          desc = "Terminal vertical";
+        })
         (normalKeymap "<leader>tf" "<cmd>ToggleTerm direction=float<CR>" { desc = "Terminal float"; })
         (mkKeymap [ "n" "t" ] "<C-\\>" "<cmd>ToggleTerm<CR>" { desc = "Toggle terminal"; })
       ]
       ++ lib.optionals cfg.features.ai [
         (normalKeymap "<leader>ac" "<cmd>ClaudeCode<CR>" { desc = "Claude Code: toggle"; })
         (normalKeymap "<leader>af" "<cmd>ClaudeCodeFocus<CR>" { desc = "Claude Code: focus"; })
-        (mkKeymap [ "n" "v" ] "<leader>as" "<cmd>ClaudeCodeSend<CR>" { desc = "Claude Code: send selection"; })
+        (mkKeymap [ "n" "v" ] "<leader>as" "<cmd>ClaudeCodeSend<CR>" {
+          desc = "Claude Code: send selection";
+        })
         (normalKeymap "<leader>aa" "<cmd>ClaudeCodeDiffAccept<CR>" { desc = "Claude Code: accept diff"; })
         (normalKeymap "<leader>ad" "<cmd>ClaudeCodeDiffDeny<CR>" { desc = "Claude Code: reject diff"; })
       ]
@@ -315,7 +317,6 @@ in
         end
       ''
       + ''
-        -- nvim-base64
         do
           local ok, base64 = pcall(require, "nvim-base64")
           if ok then

@@ -1,5 +1,4 @@
 {
-  inputs,
   lib,
   pkgs,
   secrets,
@@ -11,13 +10,6 @@ let
   localMonitoring = config.custom.localMonitoring.enable;
   collectNvidiaMetrics =
     localMonitoring && hostname == "g14" && builtins.elem "nvidia" config.services.xserver.videoDrivers;
-  # OpenSSH invokes SSH_ASKPASS for more than passphrases. For FIDO/-sk keys it
-  # needs no passphrase at all — it needs a physical touch — and signals that by
-  # forking the askpass with SSH_ASKPASS_PROMPT=none, ignoring its output, and
-  # SIGTERM-ing it once the touch lands. lxqt-openssh-askpass ignores that mode,
-  # so the touch request was invisible while ssh silently blocked. This wrapper
-  # turns the "none" notifier into a persistent desktop notification and passes
-  # everything else (real passphrases, confirmations) through to the dialog.
   sshAskpassSkAware = pkgs.writeShellApplication {
     name = "ssh-askpass-sk-aware";
     runtimeInputs = [
@@ -29,8 +21,6 @@ let
       msg="''${1:-Touch your security key to continue}"
 
       if [ "''${SSH_ASKPASS_PROMPT:-}" = "none" ]; then
-        # Informational notifier (e.g. -sk touch): no input to collect. Show a
-        # sticky notification and stay alive until ssh terminates us.
         id="$(notify-send -p -u critical -a SSH -i auth-fingerprint-symbolic \
           -h string:x-canonical-private-synchronous:ssh-sk-touch \
           "Touch your YubiKey" "$msg")" || id=""
@@ -50,7 +40,6 @@ let
         while true; do sleep 86400 & wait $!; done
       fi
 
-      # Passphrase / confirmation prompt: the dialog you already like.
       exec lxqt-openssh-askpass "$@"
     '';
   };
@@ -134,31 +123,6 @@ in
       "/share/applications"
     ];
 
-    networking.hosts = {
-      # "216.239.38.120"= [
-      #    "google.com"
-      #    "www.google.com"
-      #    "mail.google.com"
-      #    "gmail.com"
-      #    "accounts.google.com"
-      #    "colab.research.google.com"
-      #    "ssl.gstatic.com"
-      #    "fonts.googleapis.com"
-      #    "lh3.googleusercontent.com"
-      #    "fonts.gstatic.com"
-      #    "www.gstatic.com"
-      #    "clients1.google.com"
-      #    "clients2.google.com"
-      #    "clients3.google.com"
-      #    "clients4.google.com"
-      #    "clients5.google.com"
-      #    "clients6.google.com"
-      #    "ogads-pa.clients6.google.com"
-      #    "play.google.com"
-      #    "workspace.google.com"
-      #   ];
-    };
-
     environment.etc.hosts.enable = false;
 
     systemd.services.local-hosts = {
@@ -188,9 +152,6 @@ in
       pathConfig.PathChanged = "/etc/hosts.local";
     };
 
-    # Pick only one of the below networking options.
-    # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
-    # networking.networkmanager.enable = true;  # Easiest to use and most distros use this by default.
     programs.openvpn3.enable = true;
 
     networking = {
@@ -229,19 +190,7 @@ in
         };
       };
     };
-    # Configure network proxy if necessary
-    # networking.proxy.default = "http://user:password@proxy:port/";
-    # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
-    # Select internationalisation properties. i18n.defaultLocale = "en_US.UTF-8";
-    # console = {
-    #   font = "Lat2-Terminus16";
-    #   keyMap = "us";
-    #   useXkbConfig = true; # use xkb.options in tty.
-    # };
-
-    # Enable the X11 windowing system.
     services.xserver.enable = true;
-    # Login manager lives in ./greeter.nix (greetd + tuigreet).
     services.resolved = {
       enable = true;
       settings.Resolve.FallbackDNS = [
@@ -265,8 +214,11 @@ in
       };
     };
 
-    services.xserver.xkb.layout = "us,ir";
-    services.xserver.xkb.options = "grp:alt_shift_toggle,caps:none";
+    services.xserver.xkb = {
+      layout = "us,ir";
+      options = "grp:alt_shift_toggle,caps:none";
+      variant = "";
+    };
 
     services.pipewire = {
       enable = true;
@@ -279,31 +231,29 @@ in
       enable = true;
       package = pkgs.postgresql_16;
       authentication = pkgs.lib.mkOverride 10 ''
-        #type database  DBuser  auth-method
         local all       all     trust
                 host  all      all     127.0.0.1/32   trust
                 host all       all     ::1/128        trust
       '';
     };
 
-    # Define a user account. Don't forget to set a password with 'passwd'.
     users.users.amirsalar = {
       isNormalUser = true;
       extraGroups = [
-        "wheel" # sudo access
-        "input" # input devices
-        "sudo" # sudo
-        "docker" # docker access
-        "video" # GPU/graphics access
-        "kvm" # KVM virtualization
-        "adbuser" # Android Debug Bridge
-        "audio" # audio device access
-        "networkmanager" # network configuration
-        "dialout" # serial port access (ttyS*, ttyUSB*, etc.)
-        "disk" # direct disk access
-        "render" # GPU rendering without root
-        "libvirt" # libvirt virtualization
-        "podman" # podman container access
+        "wheel"
+        "input"
+        "sudo"
+        "docker"
+        "video"
+        "kvm"
+        "adbuser"
+        "audio"
+        "networkmanager"
+        "dialout"
+        "disk"
+        "render"
+        "libvirt"
+        "podman"
       ];
       packages = with pkgs; [
         firefox
@@ -399,8 +349,6 @@ in
 
     xdg.portal = {
       enable = true;
-      # xdg-desktop-portal-hyprland is already added by programs.hyprland.portalPackage
-      # xdg-desktop-portal (base) is already added by xdg.portal.enable
       extraPortals = [
         pkgs.xdg-desktop-portal-gtk
       ];
@@ -422,15 +370,6 @@ in
     virtualisation.docker = {
       enable = true;
       daemon.settings = {
-        # 172.16.0.0/12 and 10.0.0.0/8 are Divar's corporate/VPN space (e.g.
-        # git.divar.cloud / rasad.divar.cloud live in 172.21.0.0/16) and
-        # 100.64.0.0/10 is Tailscale's CGNAT range — Docker's default pool
-        # algorithm walks 172.17.0.0/16..172.31.0.0/16 and previously handed a
-        # compose project 172.21.0.0/16, which shadowed routes to those hosts
-        # until the bridge was deleted by hand. 192.168.0.0/24, .10.0/24 and
-        # .20.0/24 are the home LAN, so bip and the compose pool use
-        # 192.168.143.0/24 and 192.168.144.0/20 instead — clear of the home
-        # network, Divar's corporate/VPN space, and Tailscale's CGNAT range.
         bip = "192.168.143.1/24";
         default-address-pools = [
           {
@@ -441,30 +380,19 @@ in
       };
     };
 
-    # Create a 16GB swapfile
     swapDevices = [
       {
         device = "/swapfile";
-        size = 16 * 1024; # 16GB
+        size = 16 * 1024;
       }
     ];
-
-    # Enable the X11 windowing system.
-    # You can disable this if you're only using the Wayland session.
 
     services.displayManager = {
       defaultSession = "hyprland-uwsm";
     };
 
-    # Configure keymap in X11
-    services.xserver.xkb = {
-      variant = "";
-    };
-
-    # Enable CUPS to print documents.
     services.printing.enable = true;
 
-    # Configure polkit for privilege escalation
     security.polkit = {
       enable = true;
       extraConfig = ''
@@ -485,28 +413,9 @@ in
       };
     };
 
-    # gnome-keyring still provides the Secret Service (libsecret / the portal
-    # Secret backend, see xdg.portal above) — but NOT the SSH agent. Its
-    # gcr-ssh-agent mishandles a verify-required FIDO/-sk key: it preloads every
-    # ~/.ssh/*.pub it finds (so `ssh-add -l` shows ~10 phantom keys) yet the
-    # wrapped ssh-agent rejects loading the verify-required SK key, so signing
-    # silently falls back to reading the key from disk. It also drives its own
-    # GCR pinentry instead of our sk-aware askpass, which is why the touch/PIN
-    # prompt was inconsistent. Hand SSH to OpenSSH's own agent below, which
-    # supports SK keys natively and caches the touch+PIN for the session.
-    # (gnome-keyring-daemon disables its SSH component by default since 1:46;
-    # this turns off the gcr-4 replacement that took over.)
     services.gnome.gcr-ssh-agent.enable = false;
 
     programs.ssh = {
-      # OpenSSH ssh-agent via a systemd user service. It owns SSH_AUTH_SOCK
-      # ($XDG_RUNTIME_DIR/ssh-agent) and — crucially — startAgent also exports
-      # SSH_ASKPASS into the *systemd user* environment, not just the login
-      # shell's /etc/set-environment. That is what makes the sk-aware askpass
-      # fire consistently across contexts (login shell, UWSM graphical session,
-      # systemd user services, and processes they spawn like an IDE's git or a
-      # build runner's `go mod download`) — the previous setup only set it for
-      # PAM/login shells, so detached tools picked the wrong askpass or hung.
       startAgent = true;
       askPassword = "${sshAskpassSkAware}/bin/ssh-askpass-sk-aware";
       extraConfig = ''
@@ -514,11 +423,6 @@ in
       '';
     };
 
-    # Make the sk-aware askpass the system-wide ssh-askpass too, under a stable
-    # name on PATH. Belt-and-suspenders for any process whose env lost
-    # SSH_ASKPASS entirely: OpenSSH then resolves "ssh-askpass" from PATH and
-    # still gets the -sk-aware wrapper instead of falling back to lxqt's plain
-    # dialog (which ignores the touch notifier) or blocking with no prompt.
     environment.systemPackages = [
       (pkgs.runCommand "ssh-askpass-default" { } ''
         mkdir -p "$out/bin"
@@ -663,13 +567,6 @@ in
       GOOGLE_API_KEY = secrets.google.apiKey;
     };
 
-    # YubiKey (5C NFC) is used here only for FIDO (-sk SSH) and CCID (GPG/PIV/OATH).
-    # Its OTP application — the one thing that makes the key enumerate as a USB
-    # HID *keyboard* (interface 0) — is disabled on-device, because that keyboard
-    # interface intermittently wedged the real keyboard until the key was unplugged.
-    # The OTP slots are empty, so nothing of ours is lost. This is key-resident
-    # state, not set by this flake; apply it once per key with:
-    #     ykman config usb --disable OTP      (reverse: ykman config usb --enable OTP)
     services.pcscd.enable = true;
 
     services.udev.packages = [ pkgs.yubikey-personalization ];

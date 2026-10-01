@@ -10,10 +10,6 @@
     ssh -fNT git@git.divar.cloud
   '';
 
-  # flagPluginsZshArgs is generated from custom.claudeCode.flagPlugins (see
-  # home/modules/programs/development/claude-code.nix) — every claude variant
-  # wrapper accepts those flags (e.g. --crit, --no-devar) to toggle a plugin
-  # for one launch, and this keeps completion in sync with zero extra edits.
   "_claude-common" = ''
     #compdef gap-claude local-claude
 

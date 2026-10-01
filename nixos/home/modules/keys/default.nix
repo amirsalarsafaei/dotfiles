@@ -1,20 +1,3 @@
-# One registry of keyboard shortcuts, two consumers: the apps' own configs and
-# a cheatsheet.
-#
-# The cheatsheet is a `keys` script built here, rendering registry.nix's rows
-# through fzf (or plain text, or rofi).
-#
-# Everything is derived, so `keys` can never disagree with the config that is
-# actually loaded:
-#
-#   registry.nix ──> lib.nix emitters ──> hyprland / tmux / zellij / ghostty
-#                └─> rows ─────────────> keys TUI (fzf), rofi (Super+/), plain text
-#
-# nvim is the exception, and deliberately so: its keymaps are already declared
-# with descriptions in nixvim, and it ships which-key. They are harvested from
-# programs.nixvim.keymaps below rather than restated here. (Keymaps a plugin
-# sets through its own options are not visible there — which-key shows those
-# in-editor.)
 {
   config,
   lib,
@@ -31,8 +14,6 @@ let
     cmd = cfg.commands;
   };
 
-  # Which apps to document on this host. A headless box has no hyprland
-  # bindings to show, and listing them would be a lie.
   enabled = {
     hyprland = config.wayland.windowManager.hyprland.enable or false;
     tmux = config.programs.tmux.enable or false;
@@ -45,12 +26,8 @@ let
 
   inherit (keysLib) rowsFor;
 
-  # tmux's copy-mode table is not reached through the prefix, so those rows get
-  # their own label instead of the prefix.
   tmuxCopyMode = lib.partition (b: (b.table or null) != null) registry.tmux.binds;
 
-  # nixvim's `desc` is optional and defaults to null, and an action can be raw
-  # lua rather than a string, so fall back in both cases.
   nvimDesc =
     km:
     let
@@ -58,8 +35,6 @@ let
     in
     if desc != null then
       desc
-    # Without a desc the action is all there is; drop the <cmd>…<cr> wrapper so
-    # the row reads as a command rather than as vim notation.
     else if lib.isString km.action then
       lib.removeSuffix "<CR>" (
         lib.removeSuffix "<cr>" (lib.removePrefix "<Cmd>" (lib.removePrefix "<cmd>" km.action))
@@ -74,18 +49,11 @@ let
     desc = nvimDesc km;
   }) config.programs.nixvim.keymaps;
 
-  # nixvim registers LSP keymaps through a separate option rather than the
-  # top-level keymaps list, so they are harvested here or they would be missing
-  # from the cheatsheet. `extra` is a keymap list like the top-level one; the
-  # other two are plain key -> action attrsets that nixvim prefixes with
-  # `vim.lsp.buf.` / `vim.diagnostic.`, which is stripped back off for display.
   nvimLspRows =
     let
       lsp = config.programs.nixvim.plugins.lsp.keymaps;
 
-      strip =
-        value:
-        lib.removePrefix "vim.lsp.buf." (lib.removePrefix "vim.diagnostic." value);
+      strip = value: lib.removePrefix "vim.lsp.buf." (lib.removePrefix "vim.diagnostic." value);
 
       fromAttrs =
         group: attrs:
@@ -105,13 +73,9 @@ let
       desc = km.options.desc or "(lua function)";
     }) lsp.extra;
 
-  # wlogout's power menu is modal and already declares label + keybind per
-  # button, so its rows are read off that layout rather than restated.
   wlogoutRows = map (button: {
     app = "wlogout";
     group = "Power menu";
-    # The menu itself opens on Super+Esc (see the hyprland section of the
-    # registry), and its keys only exist while it is up.
     keys = "Super+Esc then ${button.keybind}";
     desc = button.text or button.label;
   }) (lib.filter (button: button ? keybind) config.programs.wlogout.layout);
@@ -133,9 +97,6 @@ let
     )
     ++ lib.optionals enabled.zellij (
       let
-        # Every zellij mode is reached through the prefix, so each mode's rows
-        # carry the keys that get there — a row reads as the whole sequence to
-        # type, not as a bare letter.
         inherit (registry.zellij) prefix;
         inMode =
           via: binds:
@@ -165,13 +126,6 @@ let
     ++ lib.optionals enabled.zsh (rowsFor { app = "zsh"; } registry.zsh.docs)
     ++ lib.optionals enabled.nvim (nvimRows ++ nvimLspRows);
 
-  # Hoisted so the zellij render and the collision check share one copy of the
-  # section list rather than drifting apart. Zellij's own defaults are cleared
-  # (see keysLib.zellij.render), so these sections are the whole keymap: a mode
-  # with no section here has no keys at all, which is exactly what Locked mode
-  # wants — autolock switches into it precisely so that every key reaches the
-  # app underneath untouched, and there is deliberately no bind to leave it by
-  # hand (autolock switches back once the trigger process loses focus).
   zellijSections = [
     (keysLib.zellij.section {
       except = [
@@ -179,15 +133,6 @@ let
         "tmux"
       ];
       binds = registry.zellij.navigation ++ registry.zellij.prefixEnter;
-      note = ''
-        Seamless nvim <-> pane navigation. This is only half of the
-        mechanism: the plugin notices the focused pane is running nvim
-        and writes the key through to it. Moving between nvim's own
-        windows, and out into a neighbouring pane at the edge, is
-        smart-splits' job, wired up in home/modules/neovim/editor.nix.
-
-        The prefix lives in this block too, because it has to be
-        reachable from every mode except the one it opens.'';
     })
     (keysLib.zellij.section {
       except = [
@@ -242,8 +187,6 @@ let
     })
   ];
 
-  # Build-time collision checks (see lib.nix). Thrown here so a bad bind fails
-  # `home-manager build`/`switch` instead of double-firing at runtime.
   checkErrors =
     let
       dups =
@@ -280,7 +223,6 @@ let
     text = ''
       db="''${XDG_CONFIG_HOME:-$HOME/.config}/keys/keybindings.json"
 
-      # app filter -> tab-separated rows, in registry order.
       select_rows() {
         jq -r --arg app "''${1:-}" '
           .[]
@@ -290,9 +232,6 @@ let
         ' "$db"
       }
 
-      # Grouped by app and section, in the order the registry declares them.
-      # A section that is declared in two places (zellij's pane bindings come
-      # from three blocks) still prints under one heading.
       plain() {
         select_rows "''${1:-}" | gawk -F'\t' '
           {
@@ -331,8 +270,6 @@ let
           plain "''${2:-}"
           ;;
         -r | --rofi)
-          # rofi comes from the ambient PATH rather than runtimeInputs: only
-          # the graphical hosts have it, and only they bind Super+/.
           palette="''${XDG_CONFIG_HOME:-$HOME/.config}/theme/current.json"
           pick() { jq -r "$1 // empty" "$palette" 2>/dev/null || true; }
           select_rows "''${2:-}" \
@@ -436,8 +373,6 @@ in
         ghostty = keysLib.ghostty.render registry.ghostty.binds;
       };
 
-      # The rofi picker Super+/ opens. Declared here rather than in
-      # hyprland.nix so the binding and the viewer stay one thing.
       commands.keysRofi = "${lib.getExe keysScript} --rofi";
     };
 
@@ -445,16 +380,11 @@ in
       keysScript
     ]
     ++ lib.optional enabled.zellij (
-      # Kept as its own command because home/modules/navi-cheats/zellij.cheat
-      # calls it by name.
       pkgs.writeShellScriptBin "zellij-keys" ''
         exec ${lib.getExe keysScript} --plain zellij
       ''
     );
 
-    # Read by the `keys` script at runtime, which keeps the script itself
-    # independent of the registry's content (and free of a store-path cycle:
-    # a hyprland binding runs the very script that lists the bindings).
     xdg.configFile."keys/keybindings.json".source = rowsJson;
   };
 }

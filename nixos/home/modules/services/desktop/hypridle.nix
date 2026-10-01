@@ -11,8 +11,6 @@
       };
       listener = [
         {
-          # OLED burn-in guard: dim panel well before lock/dpms-off so the
-          # screen isn't sitting at full brightness for minutes of inactivity.
           timeout = 150;
           on-timeout = "brightnessctl -s set 10%";
           on-resume = "brightnessctl -r";
