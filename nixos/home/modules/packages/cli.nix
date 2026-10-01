@@ -1,39 +1,41 @@
 { pkgs, ... }:
-[
-  pkgs.fd
-  pkgs.bubblewrap
-  pkgs.ripgrep
-  pkgs.jq
-  pkgs.sqlite
-  pkgs.cockroachdb
-  pkgs.yq-go
-  pkgs.fzf
-  pkgs.coreutils-full
-  pkgs.ncdu
-  pkgs.zip
-  pkgs.p7zip
-  pkgs.gzip
-  pkgs.bzip2
-  pkgs.xz
-  pkgs.tree
-  pkgs.bat
-  pkgs.fastfetch
-  pkgs.acpi
-  pkgs.htop
-  pkgs.w3m
-  pkgs.television
-  pkgs.aichat
-  pkgs.jcal
-  pkgs.hyperfine
-  pkgs.valgrind
-  pkgs.minio-client
+{
+  home.packages = [
+    pkgs.fd
+    pkgs.bubblewrap
+    pkgs.ripgrep
+    pkgs.jq
+    pkgs.sqlite
+    pkgs.cockroachdb
+    pkgs.yq-go
+    pkgs.fzf
+    pkgs.coreutils-full
+    pkgs.ncdu
+    pkgs.zip
+    pkgs.p7zip
+    pkgs.gzip
+    pkgs.bzip2
+    pkgs.xz
+    pkgs.tree
+    pkgs.bat
+    pkgs.fastfetch
+    pkgs.acpi
+    pkgs.htop
+    pkgs.w3m
+    pkgs.television
+    pkgs.aichat
+    pkgs.jcal
+    pkgs.hyperfine
+    pkgs.valgrind
+    pkgs.minio-client
 
-  pkgs.btop
-  pkgs.dust
-  pkgs.duf
-  pkgs.procs
-  pkgs.jless
-  pkgs.sd
-  pkgs.doggo
-  pkgs.file
-]
+    pkgs.btop
+    pkgs.dust
+    pkgs.duf
+    pkgs.procs
+    pkgs.jless
+    pkgs.sd
+    pkgs.doggo
+    pkgs.file
+  ];
+}

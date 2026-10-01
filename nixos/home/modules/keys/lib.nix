@@ -410,9 +410,11 @@ let
     ];
   };
 
-  human = chord: lib.concatStringsSep "+" ((map (m: m.label) chord.mods) ++ [ chord.key.label ]);
+  joinChord =
+    sep: modF: keyF: chord:
+    lib.concatStringsSep sep (map modF chord.mods ++ [ (keyF chord.key) ]);
 
-  toList = x: if lib.isList x then x else [ x ];
+  human = joinChord "+" (m: m.label) (k: k.label);
 
   indent =
     pad: text:
@@ -644,9 +646,7 @@ let
     render = binds: withGroupHeaders "#" tmux.line binds;
   };
 
-  zellijChord =
-    chord:
-    lib.concatStringsSep " " ((map (modFor "zellij") chord.mods) ++ [ (keyFor "zellij" chord.key) ]);
+  zellijChord = joinChord " " (modFor "zellij") (keyFor "zellij");
 
   zellij = {
     bind =
@@ -658,8 +658,8 @@ let
       }:
       {
         app = "zellij";
-        on = toList on;
-        run = toList run;
+        on = lib.toList on;
+        run = lib.toList run;
         inherit desc group;
       };
 
@@ -721,9 +721,7 @@ let
         }'';
   };
 
-  ghosttyChord =
-    chord:
-    lib.concatStringsSep "+" ((map (modFor "ghostty") chord.mods) ++ [ (keyFor "ghostty" chord.key) ]);
+  ghosttyChord = joinChord "+" (modFor "ghostty") (keyFor "ghostty");
 
   ghostty = {
     bind =
@@ -749,8 +747,8 @@ let
   duplicatesIn =
     chordF: namespace: entries:
     let
-      flat = lib.concatMap (b: map chordF (toList b.on)) entries;
-      count = lib.foldl' (acc: c: acc // { ${c} = (acc.${c} or 0) + 1; }) { } flat;
+      flat = lib.concatMap (b: map chordF (lib.toList b.on)) entries;
+      count = lib.groupBy' (acc: _: acc + 1) 0 lib.id flat;
       dups = lib.filterAttrs (_: n: n > 1) count;
     in
     lib.mapAttrsToList (c: n: "${namespace}: '${c}' is bound ${toString n} times") dups;
@@ -791,7 +789,7 @@ let
               chord = zellijChord c;
               desc = b.desc or "?";
             }) (targetModes s)
-          ) (toList b.on)
+          ) (lib.toList b.on)
         ) s.binds
       ) sections;
 
@@ -832,7 +830,7 @@ let
         else if b ? unbind then
           null
         else
-          lib.concatMapStringsSep " / " human (toList b.on);
+          lib.concatMapStringsSep " / " human (lib.toList b.on);
       withPrefix = text: if prefix == null then text else "${prefix} ${text}";
     in
     map (b: {

@@ -1,7 +1,8 @@
-{ config
-, lib
-, pkgs
-, ...
+{
+  config,
+  lib,
+  pkgs,
+  ...
 }:
 let
   cfg = config.custom.neovim;
@@ -176,13 +177,13 @@ in
               {
                 mode = "n";
                 key = "[d";
-                action.__raw = ''function() vim.diagnostic.jump({ count = -1, float = true }) end'';
+                action.__raw = "function() vim.diagnostic.jump({ count = -1, float = true }) end";
                 options.desc = "Previous diagnostic";
               }
               {
                 mode = "n";
                 key = "]d";
-                action.__raw = ''function() vim.diagnostic.jump({ count = 1, float = true }) end'';
+                action.__raw = "function() vim.diagnostic.jump({ count = 1, float = true }) end";
                 options.desc = "Next diagnostic";
               }
               {

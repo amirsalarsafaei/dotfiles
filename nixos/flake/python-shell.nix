@@ -31,9 +31,9 @@ pkgs.mkShell {
     dev_venv="$dev_venv_root/${builtins.baseNameOf (toString python)}"
     mkdir -p "$dev_venv_root"
     (
-      ${pkgs.util-linux}/bin/flock 9
+      ${pkgs.lib.getExe' pkgs.util-linux "flock"} 9
       if [ ! -x "$dev_venv/bin/python" ]; then
-        ${pkgs.python3}/bin/python -m venv --without-pip "$dev_venv" || exit 1
+        ${pkgs.lib.getExe' pkgs.python3 "python"} -m venv --without-pip "$dev_venv" || exit 1
       fi
       printf '%s\n' ${pkgs.lib.escapeShellArg "import site; site.addsitedir(${builtins.toJSON "${python}/${pkgs.python3.sitePackages}"})"} \
         > "$dev_venv/${pkgs.python3.sitePackages}/nix-toolbox.pth"

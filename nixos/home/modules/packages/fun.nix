@@ -1,18 +1,25 @@
-{ pkgs, personal, ... }:
-pkgs.lib.optionals personal [
-  pkgs.fortune
-  pkgs.cowsay
-  pkgs.ponysay
-  pkgs.lolcat
-  pkgs.figlet
-  pkgs.toilet
-  pkgs.boxes
-  pkgs.cmatrix
-  pkgs.sl
-  pkgs.asciiquarium
-  pkgs.xcowsay
-  pkgs.cbonsai
-  pkgs.tty-clock
-  pkgs.pipes-rs
-  pkgs.oneko
-]
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
+{
+  home.packages = lib.optionals config.custom.personal.enable [
+    pkgs.fortune
+    pkgs.cowsay
+    pkgs.ponysay
+    pkgs.lolcat
+    pkgs.figlet
+    pkgs.toilet
+    pkgs.boxes
+    pkgs.cmatrix
+    pkgs.sl
+    pkgs.asciiquarium
+    pkgs.xcowsay
+    pkgs.cbonsai
+    pkgs.tty-clock
+    pkgs.pipes-rs
+    pkgs.oneko
+  ];
+}

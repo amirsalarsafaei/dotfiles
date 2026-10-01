@@ -8,6 +8,7 @@
   agent-skills,
   stylix,
   disko,
+  crit,
   ...
 }@inputs:
 let
@@ -27,16 +28,22 @@ let
     else
       builtins.trace "Warning: secrets.json not found, using empty secrets" { };
 
+  nixpkgsConfig = {
+    android_sdk.accept_license = true;
+    allowUnfree = true;
+  };
+
   commonNixpkgsConfig = system: {
-    config = {
-      android_sdk.accept_license = true;
-      allowUnfree = true;
-    };
-    overlays = import ../overlays { inherit nixpkgs-stable system; } ++ [
+    config = nixpkgsConfig;
+    overlays = import ../overlays { inherit nixpkgs-stable nixpkgsConfig; } ++ [
       claude-code.overlays.default
-      (final: prev: { crit = inputs.crit.packages.${system}.crit; })
+      (_: _: { crit = crit.packages.${system}.crit; })
     ];
   };
+
+  pkgsFor = lib.genAttrs (builtins.attrValues systems) (
+    system: import nixpkgs ({ inherit system; } // commonNixpkgsConfig system)
+  );
 
   homeProfileModules = {
     base = ../home/profiles/base.nix;
@@ -46,16 +53,16 @@ let
     full = ../home/profiles/full.nix;
   };
 
-  mkHomeImports =
-    hostConfig: map (name: homeProfileModules.${name}) (hostConfig.homeProfiles or [ "full" ]);
-
   nixosProfileModules = {
     base = ../hosts/profiles/base.nix;
     desktop = ../hosts/profiles/desktop.nix;
     server = ../hosts/profiles/server.nix;
   };
 
-  mkNixosImports =
+  homeImports =
+    hostConfig: map (name: homeProfileModules.${name}) (hostConfig.homeProfiles or [ "full" ]);
+
+  nixosImports =
     hostConfig:
     map (name: nixosProfileModules.${name}) (
       hostConfig.nixosProfiles or [
@@ -66,14 +73,19 @@ let
 
   allHosts = import ../hosts { inherit systems disko; };
 
-  normalizeUsers =
-    hostConfig:
-    hostConfig.users or (
-      if hostConfig ? username then
-        [ hostConfig.username ]
-      else
-        throw "Host configuration must have either 'users' or 'username' field"
-    );
+  sopsHomeModules =
+    useSops:
+    lib.optionals useSops [
+      sops-nix.homeManagerModules.sops
+      ../modules/sops.nix
+    ];
+
+  sopsNixosModules =
+    useSops:
+    lib.optionals useSops [
+      sops-nix.nixosModules.sops
+      ../modules/sops.nix
+    ];
 
   commonHomeModules = [
     agent-skills.homeManagerModules.default
@@ -82,24 +94,14 @@ let
   ];
 
   mkNixOS =
+    hostname:
     {
-      hostname,
       system,
       users,
       extraModules ? [ ],
       useSops ? true,
       ...
     }@hostConfig:
-    let
-      sopsNixosModules = lib.optionals useSops [
-        sops-nix.nixosModules.sops
-        ../modules/sops.nix
-      ];
-      sopsHomeSharedModules = lib.optionals useSops [
-        sops-nix.homeManagerModules.sops
-        ../modules/sops.nix
-      ];
-    in
     lib.nixosSystem {
       inherit system;
       specialArgs = {
@@ -110,12 +112,12 @@ let
           ;
       };
       modules =
-        sopsNixosModules
+        sopsNixosModules useSops
         ++ [
           stylix.nixosModules.stylix
           { nixpkgs = commonNixpkgsConfig system; }
         ]
-        ++ mkNixosImports hostConfig
+        ++ nixosImports hostConfig
         ++ [
           ../hosts/${hostname}/configuration.nix
           ../hosts/${hostname}/hardware-configuration.nix
@@ -126,17 +128,11 @@ let
               useUserPackages = true;
               backupFileExtension = "backup";
               extraSpecialArgs = {
-                inherit
-                  secrets
-                  inputs
-                  ;
+                inherit secrets inputs;
                 currentHostname = hostname;
-                currentSystem = system;
               };
-              sharedModules = sopsHomeSharedModules ++ commonHomeModules ++ mkHomeImports hostConfig;
-              users = lib.genAttrs users (username: {
-                _module.args.homeDir = "/home/${username}";
-              });
+              sharedModules = sopsHomeModules useSops ++ commonHomeModules ++ homeImports hostConfig;
+              users = lib.genAttrs users (_: { });
             };
           }
         ]
@@ -146,65 +142,38 @@ let
   mkHomeManager =
     {
       hostname,
-      system,
       username,
+      system,
       useSops ? true,
       ...
     }@hostConfig:
-    let
-      sopsHomeSharedModules = lib.optionals useSops [
-        sops-nix.homeManagerModules.sops
-        ../modules/sops.nix
-      ];
-    in
     home-manager.lib.homeManagerConfiguration {
-      pkgs = nixpkgs.legacyPackages.${system};
+      pkgs = pkgsFor.${system};
       extraSpecialArgs = {
         inherit secrets inputs;
-        currentSystem = system;
         currentHostname = hostname;
-        homeDir = "/home/${username}";
       };
       modules = [
-        { home.username = username; }
-        { nixpkgs = commonNixpkgsConfig system; }
-        { programs.home-manager.enable = true; }
+        {
+          home.username = username;
+          programs.home-manager.enable = true;
+        }
       ]
-      ++ sopsHomeSharedModules
+      ++ sopsHomeModules useSops
       ++ commonHomeModules
-      ++ mkHomeImports hostConfig;
+      ++ homeImports hostConfig;
     };
 
-  nixosHosts = lib.filterAttrs (_: hostConfig: hostConfig.type == "nixos") allHosts;
-  homeManagerHosts = lib.filterAttrs (_: hostConfig: hostConfig.type == "home-manager") allHosts;
-
-  standaloneHomeConfigs = lib.flatten (
-    lib.mapAttrsToList (
-      hostname: hostConfig:
-      let
-        users = normalizeUsers hostConfig;
-      in
-      map (
-        username:
-        lib.nameValuePair "${username}@${hostname}" (
-          mkHomeManager (hostConfig // { inherit hostname username; })
-        )
-      ) users
-    ) homeManagerHosts
-  );
-
+  hostsOfType = type: lib.filterAttrs (_: hostConfig: hostConfig.type == type) allHosts;
 in
 {
   packages.${systems.x86_64} = import ./packages.nix {
-    inherit inputs nixpkgs commonNixpkgsConfig;
-    system = systems.x86_64;
+    inherit inputs;
+    pkgs = pkgsFor.${systems.x86_64};
   };
 
-  devShells = lib.genAttrs (builtins.attrValues systems) (
-    system:
-    let
-      pkgs = import nixpkgs ({ inherit system; } // commonNixpkgsConfig system);
-    in
+  devShells = lib.mapAttrs (
+    system: pkgs:
     {
       rust = import ./rust-shell.nix { inherit pkgs; };
       python = import ./python-shell.nix { inherit pkgs; };
@@ -214,22 +183,21 @@ in
       };
     }
     // lib.optionalAttrs (system == systems.x86_64) {
-      default = import ./dev-shell.nix {
-        inherit nixpkgs commonNixpkgsConfig system;
-      };
+      default = import ./dev-shell.nix { inherit pkgs; };
     }
-  );
+  ) pkgsFor;
 
-  nixosConfigurations = lib.mapAttrs (
+  nixosConfigurations = lib.mapAttrs mkNixOS (hostsOfType "nixos");
+
+  homeConfigurations = lib.concatMapAttrs (
     hostname: hostConfig:
-    mkNixOS (
-      hostConfig
-      // {
-        inherit hostname;
-        users = normalizeUsers hostConfig;
-      }
+    lib.listToAttrs (
+      map (
+        username:
+        lib.nameValuePair "${username}@${hostname}" (
+          mkHomeManager (hostConfig // { inherit hostname username; })
+        )
+      ) hostConfig.users
     )
-  ) nixosHosts;
-
-  homeConfigurations = builtins.listToAttrs standaloneHomeConfigs;
+  ) (hostsOfType "home-manager");
 }

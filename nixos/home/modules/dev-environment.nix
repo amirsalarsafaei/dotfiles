@@ -5,19 +5,19 @@
   ...
 }:
 let
-  devLibs = with pkgs; [
-    openssl_3
-    zlib
+  devOutputs = map lib.getDev [
+    pkgs.openssl_3
+    pkgs.zlib
   ];
 in
 {
   nix.registry.dev.flake = inputs.self;
 
   home = {
-    packages = map (p: p.dev) devLibs;
+    packages = devOutputs;
 
     sessionVariables = {
-      PKG_CONFIG_PATH = lib.makeSearchPath "lib/pkgconfig" (map (p: p.dev) devLibs);
+      PKG_CONFIG_PATH = lib.makeSearchPath "lib/pkgconfig" devOutputs;
     };
 
     file.".config/clangd/config.yaml".text = ''
@@ -25,7 +25,7 @@ in
         Add:
           - "-I${pkgs.glibc.dev}/include"
           - "-I${pkgs.gcc}/include"
-        Compiler: ${pkgs.gcc}/bin/gcc
+        Compiler: ${lib.getExe' pkgs.gcc "gcc"}
     '';
   };
 }

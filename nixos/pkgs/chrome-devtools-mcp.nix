@@ -25,7 +25,7 @@ stdenv.mkDerivation (finalAttrs: {
     mkdir -p $out/lib/chrome-devtools-mcp $out/bin
     cp -r build LICENSE package.json $out/lib/chrome-devtools-mcp/
 
-    makeWrapper ${nodejs}/bin/node $out/bin/chrome-devtools-mcp \
+    makeWrapper ${lib.getExe nodejs} $out/bin/chrome-devtools-mcp \
       --add-flags $out/lib/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js
 
     runHook postInstall

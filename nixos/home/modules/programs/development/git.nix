@@ -1,8 +1,11 @@
 {
-  homeDir,
+  config,
   currentHostname,
   ...
 }:
+let
+  homeDir = config.home.homeDirectory;
+in
 {
   programs.git = {
     enable = true;
@@ -37,12 +40,12 @@
 
   home.file = {
     ".gitconfig-work".text = ''
-            [user]
-      					name = "Amirsalar Safaei"
-      					email = "amirsalar.safaei@divar.ir"
-                signingkey = "A3F4BB498206577A"
-            [core]
-                excludesFile = "${homeDir}/.gitignore-work"
+      [user]
+          name = "Amirsalar Safaei"
+          email = "amirsalar.safaei@divar.ir"
+          signingkey = "A3F4BB498206577A"
+      [core]
+          excludesFile = "${homeDir}/.gitignore-work"
     '';
     ".gitignore-work".text = ''
       shell.nix

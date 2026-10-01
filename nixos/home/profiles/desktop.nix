@@ -16,10 +16,10 @@
     ../modules/systemd
     ../modules/scripts
   ];
-  sops = {
-    secrets.ssh_config = lib.mkIf config.custom.personal.enable {
-      path = "${config.home.homeDirectory}/.ssh/config.d/sops";
-    };
+
+  sops.secrets.ssh_config = lib.mkIf config.custom.personal.enable {
+    path = "${config.home.homeDirectory}/.ssh/config.d/sops";
   };
+
   custom.dev.naviCheatsPath = "${../modules/navi-cheats}";
 }

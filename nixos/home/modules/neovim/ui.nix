@@ -1,7 +1,8 @@
-{ config
-, lib
-, pkgs
-, ...
+{
+  config,
+  lib,
+  pkgs,
+  ...
 }:
 let
   cfg = config.custom.neovim;
@@ -70,7 +71,7 @@ in
                 "progress"
                 "location"
               ];
-              lualine_z = [{ __raw = ''function() return " " .. os.date("%R") end''; }];
+              lualine_z = [ { __raw = ''function() return " " .. os.date("%R") end''; } ];
             };
             extensions = [
               "nvim-tree"

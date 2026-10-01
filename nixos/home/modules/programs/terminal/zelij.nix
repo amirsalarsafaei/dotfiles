@@ -185,7 +185,7 @@ in
                     tab_floating_indicator   "󰉈 "
                     tab_bell_indicator       "󰂞 "
 
-                    command_host_command  "${pkgs.nettools}/bin/hostname -s"
+                    command_host_command  "${lib.getExe' pkgs.nettools "hostname"} -s"
                     command_host_format   "{stdout}"
                     command_host_interval "3600"
 

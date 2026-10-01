@@ -1,4 +1,9 @@
-{ config, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   theme = config.custom.theme.resolved;
   t = theme.colors;
@@ -12,7 +17,7 @@ in
     theme = theme.rofiThemeName;
     settings = {
       font = "${theme.fonts.sans} 12";
-      terminal = "${pkgs.ghostty}/bin/ghostty";
+      terminal = lib.getExe pkgs.ghostty;
       modi = "run,drun,ssh,window,filebrowser";
       icon-theme = "Papirus-Dark";
       show-icons = true;

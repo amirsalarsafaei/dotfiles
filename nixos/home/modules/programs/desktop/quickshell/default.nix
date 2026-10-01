@@ -12,59 +12,40 @@ let
   a = theme.accents;
   quickshell = lib.getExe config.programs.quickshell.package;
   fingerprint = osConfig.services.fprintd.enable or false;
-  compactOutput = osConfig.hyprland.compactOutput or null;
+  compactOutput = lib.defaultTo "" (osConfig.hyprland.compactOutput or null);
   powerProfiles = osConfig.services.power-profiles-daemon.enable or false;
 
   hex = color: lib.removePrefix "#" color;
   argb = alpha: color: "#${alpha}${hex color}";
 
-  cavaConfig = pkgs.writeText "sidebar-cava.conf" ''
-    [general]
-    framerate = 40
-    bars = 32
-    autosens = 1
+  mkCavaConfig =
+    name: framerate: bars:
+    pkgs.writeText name ''
+      [general]
+      framerate = ${toString framerate}
+      bars = ${toString bars}
+      autosens = 1
 
-    [input]
-    method = pulse
-    source = auto
+      [input]
+      method = pulse
+      source = auto
 
-    [output]
-    method = raw
-    channels = mono
-    raw_target = /dev/stdout
-    data_format = ascii
-    ascii_max_range = 100
-    bar_delimiter = 59
-    frame_delimiter = 10
+      [output]
+      method = raw
+      channels = mono
+      raw_target = /dev/stdout
+      data_format = ascii
+      ascii_max_range = 100
+      bar_delimiter = 59
+      frame_delimiter = 10
 
-    [smoothing]
-    monstercat = 1
-    noise_reduction = 70
-  '';
+      [smoothing]
+      monstercat = 1
+      noise_reduction = 70
+    '';
 
-  cavaBarConfig = pkgs.writeText "bar-cava.conf" ''
-    [general]
-    framerate = 30
-    bars = 12
-    autosens = 1
-
-    [input]
-    method = pulse
-    source = auto
-
-    [output]
-    method = raw
-    channels = mono
-    raw_target = /dev/stdout
-    data_format = ascii
-    ascii_max_range = 100
-    bar_delimiter = 59
-    frame_delimiter = 10
-
-    [smoothing]
-    monstercat = 1
-    noise_reduction = 70
-  '';
+  cavaConfig = mkCavaConfig "sidebar-cava.conf" 40 32;
+  cavaBarConfig = mkCavaConfig "bar-cava.conf" 30 12;
 
   barProbe = pkgs.writeShellApplication {
     name = "bar-probe";
@@ -470,7 +451,7 @@ let
         readonly property string barProbe: "${lib.getExe barProbe}"
         readonly property string systemctl: "${lib.getExe' pkgs.systemd "systemctl"}"
         readonly property string swaync: "${lib.getExe' config.services.swaync.package "swaync-client"}"
-        readonly property string compactOutput: "${if compactOutput == null then "" else compactOutput}"
+        readonly property string compactOutput: "${compactOutput}"
         readonly property bool powerProfiles: ${lib.boolToString powerProfiles}
         readonly property string pamDir: "${pamDir}"
         readonly property bool fingerprint: ${lib.boolToString fingerprint}

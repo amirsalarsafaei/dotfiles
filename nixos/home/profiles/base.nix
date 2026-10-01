@@ -1,9 +1,4 @@
-{
-  config,
-  homeDir ? null,
-  lib,
-  ...
-}:
+{ config, lib, ... }:
 {
   imports = [
     ../modules/personal.nix
@@ -12,9 +7,7 @@
   ];
 
   home = {
-    homeDirectory = lib.mkDefault (
-      if homeDir != null then homeDir else "/home/${config.home.username}"
-    );
+    homeDirectory = lib.mkDefault "/home/${config.home.username}";
 
     stateVersion = "24.11";
 

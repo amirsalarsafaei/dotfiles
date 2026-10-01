@@ -1,7 +1,9 @@
 { pkgs, ... }:
-[
-  pkgs.nurl
-  pkgs.nix-init
-  pkgs.nix-search-tv
-  pkgs.nix-update
-]
+{
+  home.packages = [
+    pkgs.nurl
+    pkgs.nix-init
+    pkgs.nix-search-tv
+    pkgs.nix-update
+  ];
+}

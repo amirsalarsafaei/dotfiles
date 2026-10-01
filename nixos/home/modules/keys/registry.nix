@@ -53,7 +53,7 @@ let
 
   eachDirection =
     f:
-    lib.concatMap (name: [ (f directions.${name}) ]) [
+    map (name: f directions.${name}) [
       "h"
       "j"
       "k"
@@ -149,7 +149,7 @@ let
       inherit group;
     };
 in
-rec {
+{
   hyprland = {
     binds = [
       (keysLib.hypr.exec {

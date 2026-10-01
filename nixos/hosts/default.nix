@@ -3,10 +3,7 @@
   g14 = {
     system = systems.x86_64;
     type = "nixos";
-    users = [
-      "amirsalar"
-    ];
-    extraModules = [ ];
+    users = [ "amirsalar" ];
   };
 
   t14 = {

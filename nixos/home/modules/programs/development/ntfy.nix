@@ -7,11 +7,7 @@
 let
   cfg = config.custom.ntfy;
 
-  sopsTokenFile =
-    if (config ? sops) && ((config.sops.secrets or { }) ? "ntfy_token") then
-      config.sops.secrets."ntfy_token".path
-    else
-      null;
+  sopsTokenFile = config.sops.secrets.ntfy_token.path or "";
 
   ntfy = pkgs.writeShellApplication {
     name = "ntfy";
@@ -64,7 +60,7 @@ let
       server="''${NTFY_SERVER:-${cfg.server}}"
       topic="''${NTFY_TOPIC:-${cfg.defaultTopic}}"
       token="''${NTFY_TOKEN:-}"
-      token_file="''${NTFY_TOKEN_FILE:-${if sopsTokenFile == null then "" else sopsTokenFile}}"
+      token_file="''${NTFY_TOKEN_FILE:-${sopsTokenFile}}"
       title=""
       priority=""
       tags=""

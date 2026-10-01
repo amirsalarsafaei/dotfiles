@@ -1,4 +1,3 @@
-{ ... }:
 {
   programs.texlive.enable = true;
   programs.texlive.extraPackages = tpkgs: {

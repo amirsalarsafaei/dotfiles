@@ -1,10 +1,7 @@
-{ nixpkgs-stable, system }:
-final: prev: {
+{ nixpkgs-stable, nixpkgsConfig }:
+final: _: {
   stable = import nixpkgs-stable {
-    system = final.stdenv.hostPlatform.system or system;
-    config = {
-      android_sdk.accept_license = true;
-      allowUnfree = true;
-    };
+    inherit (final.stdenv.hostPlatform) system;
+    config = nixpkgsConfig;
   };
 }

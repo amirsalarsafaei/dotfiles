@@ -1,8 +1,9 @@
 { config, pkgs, ... }:
 let
-  t = config.custom.theme.resolved.colors;
-  s = config.custom.theme.resolved.surfaces;
-  a = config.custom.theme.resolved.accents;
+  theme = config.custom.theme.resolved;
+  t = theme.colors;
+  s = theme.surfaces;
+  a = theme.accents;
 in
 {
   programs.wlogout = {

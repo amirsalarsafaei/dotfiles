@@ -1,4 +1,9 @@
-{ pkgs, personal, ... }:
-pkgs.lib.optionals personal [
-  pkgs.hmcl
-]
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
+{
+  home.packages = lib.optional config.custom.personal.enable pkgs.hmcl;
+}

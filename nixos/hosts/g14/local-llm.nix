@@ -700,24 +700,26 @@ in
     };
   };
 
-  systemd.services.llama-swap = {
-    serviceConfig = {
-      ProcSubset = lib.mkForce "all";
+  systemd.services = {
+    llama-swap = {
+      serviceConfig = {
+        ProcSubset = lib.mkForce "all";
 
-      EnvironmentFile = lib.mkForce [ "-${currentModelEnv}" ];
+        EnvironmentFile = lib.mkForce [ "-${currentModelEnv}" ];
 
-      LimitMEMLOCK = "infinity";
+        LimitMEMLOCK = "infinity";
 
-      Nice = -5;
-      IOSchedulingClass = "realtime";
-      IOSchedulingPriority = 0;
+        Nice = -5;
+        IOSchedulingClass = "realtime";
+        IOSchedulingPriority = 0;
 
-      Environment = [ "CUDA_CACHE_DISABLE=1" ];
+        Environment = [ "CUDA_CACHE_DISABLE=1" ];
+      };
     };
-  };
 
-  systemd.services.litellm = {
-    after = [ "llama-swap.service" ];
-    wants = [ "llama-swap.service" ];
+    litellm = {
+      after = [ "llama-swap.service" ];
+      wants = [ "llama-swap.service" ];
+    };
   };
 }

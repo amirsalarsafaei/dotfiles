@@ -1,32 +1,39 @@
-{ pkgs, personal, ... }:
-[
-  pkgs.dhcpcd
-  pkgs.rustscan
-  pkgs.arp-scan
-  pkgs.nftables
-  pkgs.nethogs
-  pkgs.mtr
-  pkgs.xray
-  pkgs.v2ray
-  pkgs.tcpdump
-  pkgs.socat
-  pkgs.net-tools
-  pkgs.inetutils
-  pkgs.iperf3
-  pkgs.dnsutils
-  pkgs.ldns
-  pkgs.ipcalc
-  pkgs.nmap
-  pkgs.nload
-  pkgs.sing-box
-  pkgs.openfortivpn
-  pkgs.openconnect
-  pkgs.telepresence2
-  pkgs.ngrok
-  pkgs.iptables
-  pkgs.grpcurl
-  pkgs.wireguard-tools
-  pkgs.proxychains
-  pkgs.openvpn
-]
-++ pkgs.lib.optional personal pkgs.tailscale
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
+{
+  home.packages = [
+    pkgs.dhcpcd
+    pkgs.rustscan
+    pkgs.arp-scan
+    pkgs.nftables
+    pkgs.nethogs
+    pkgs.mtr
+    pkgs.xray
+    pkgs.v2ray
+    pkgs.tcpdump
+    pkgs.socat
+    pkgs.net-tools
+    pkgs.inetutils
+    pkgs.iperf3
+    pkgs.dnsutils
+    pkgs.ldns
+    pkgs.ipcalc
+    pkgs.nmap
+    pkgs.nload
+    pkgs.sing-box
+    pkgs.openfortivpn
+    pkgs.openconnect
+    pkgs.telepresence2
+    pkgs.ngrok
+    pkgs.iptables
+    pkgs.grpcurl
+    pkgs.wireguard-tools
+    pkgs.proxychains
+    pkgs.openvpn
+  ]
+  ++ lib.optional config.custom.personal.enable pkgs.tailscale;
+}

@@ -1,4 +1,11 @@
-{ pkgs, currentHostname, ... }:
-pkgs.lib.optionals (currentHostname == "g14") [
-  (pkgs.unityhub.override { extraLibs = ps: [ ps.ncurses ]; })
-]
+{
+  lib,
+  pkgs,
+  currentHostname,
+  ...
+}:
+{
+  home.packages = lib.optional (currentHostname == "g14") (
+    pkgs.unityhub.override { extraLibs = ps: [ ps.ncurses ]; }
+  );
+}

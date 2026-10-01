@@ -1,7 +1,8 @@
-{ config
-, lib
-, pkgs
-, ...
+{
+  config,
+  lib,
+  pkgs,
+  ...
 }:
 let
   cfg = config.custom.user;
@@ -103,19 +104,16 @@ in
   };
 
   config = {
-    assertions =
-      [
-        {
-          assertion = cfg.sshAuthorizedKeys != [ ];
-          message = "custom.user.sshAuthorizedKeys must contain at least one SSH public key.";
-        }
-      ]
-      ++ lib.mapAttrsToList
-        (name: user: {
-          assertion = user.sshAuthorizedKeys != [ ];
-          message = "custom.user.extraUsers.${name}.sshAuthorizedKeys must contain at least one SSH public key.";
-        })
-        cfg.extraUsers;
+    assertions = [
+      {
+        assertion = cfg.sshAuthorizedKeys != [ ];
+        message = "custom.user.sshAuthorizedKeys must contain at least one SSH public key.";
+      }
+    ]
+    ++ lib.mapAttrsToList (name: user: {
+      assertion = user.sshAuthorizedKeys != [ ];
+      message = "custom.user.extraUsers.${name}.sshAuthorizedKeys must contain at least one SSH public key.";
+    }) cfg.extraUsers;
 
     environment.systemPackages = plainUserPackageList;
 

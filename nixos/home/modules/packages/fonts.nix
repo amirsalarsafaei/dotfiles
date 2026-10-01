@@ -1,8 +1,10 @@
 { pkgs, ... }:
-[
-  pkgs.inter
-  pkgs.noto-fonts
-  pkgs.noto-fonts-color-emoji
-  pkgs.nerd-fonts.jetbrains-mono
-  pkgs.vazirmatn
-]
+{
+  home.packages = [
+    pkgs.inter
+    pkgs.noto-fonts
+    pkgs.noto-fonts-color-emoji
+    pkgs.nerd-fonts.jetbrains-mono
+    pkgs.vazirmatn
+  ];
+}

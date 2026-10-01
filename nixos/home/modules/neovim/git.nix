@@ -1,6 +1,7 @@
-{ config
-, lib
-, ...
+{
+  config,
+  lib,
+  ...
 }:
 let
   cfg = config.custom.neovim;
@@ -39,9 +40,15 @@ in
       keymaps = [
         (normalKeymap "<leader>gd" "<cmd>DiffviewOpen<CR>" { desc = "Diffview: working tree"; })
         (normalKeymap "<leader>gq" "<cmd>DiffviewClose<CR>" { desc = "Diffview: close"; })
-        (normalKeymap "<leader>gr" "<cmd>DiffviewOpen origin/HEAD...HEAD<CR>" { desc = "Diffview: review branch vs origin/HEAD"; })
-        (normalKeymap "<leader>gH" "<cmd>DiffviewFileHistory %<CR>" { desc = "Diffview: current file history"; })
-        (normalKeymap "<leader>gA" "<cmd>DiffviewFileHistory<CR>" { desc = "Diffview: branch/repo history"; })
+        (normalKeymap "<leader>gr" "<cmd>DiffviewOpen origin/HEAD...HEAD<CR>" {
+          desc = "Diffview: review branch vs origin/HEAD";
+        })
+        (normalKeymap "<leader>gH" "<cmd>DiffviewFileHistory %<CR>" {
+          desc = "Diffview: current file history";
+        })
+        (normalKeymap "<leader>gA" "<cmd>DiffviewFileHistory<CR>" {
+          desc = "Diffview: branch/repo history";
+        })
         (mkKeymap "v" "<leader>gl" ":GcLog<CR>" { desc = "Git log for selection"; })
 
         (normalKeymap "]h" {

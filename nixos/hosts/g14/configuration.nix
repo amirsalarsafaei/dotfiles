@@ -18,23 +18,23 @@ let
     . ${lib.escapeShellArg config.sops.secrets.mqtt-credentials.path}
     set +a
 
-    if [ ! -f "$prefs_file" ] || ! ${pkgs.gnugrep}/bin/grep -qx 'registered = true' "$prefs_file"; then
-      ${goHassAgent}/bin/go-hass-agent register --server="$HA_SERVER" --token="$HA_TOKEN"
+    if [ ! -f "$prefs_file" ] || ! ${lib.getExe pkgs.gnugrep} -qx 'registered = true' "$prefs_file"; then
+      ${lib.getExe goHassAgent} register --server="$HA_SERVER" --token="$HA_TOKEN"
     fi
 
-    ${goHassAgent}/bin/go-hass-agent config \
+    ${lib.getExe goHassAgent} config \
       --mqtt-enabled \
       --mqtt-server="tcp://${config.custom.homeNetwork.mqtt.host}:${toString config.custom.homeNetwork.mqtt.port}" \
       --mqtt-user="''${MQTT_USER:-}" \
       --mqtt-password="''${MQTT_PASS:-}" \
       --mqtt-topic-prefix="go-hass-agent"
 
-    exec ${goHassAgent}/bin/go-hass-agent run
+    exec ${lib.getExe goHassAgent} run
   '';
 
   rogControlCenterStart = pkgs.writeShellScript "rog-control-center-start" ''
     ${lib.getExe' pkgs.glib "gdbus"} wait --session --timeout 30 org.kde.StatusNotifierWatcher
-    exec ${pkgs.asusctl}/bin/rog-control-center
+    exec ${lib.getExe' pkgs.asusctl "rog-control-center"}
   '';
 
   nvidia = {
@@ -123,7 +123,6 @@ in
   home-manager.users.amirsalar = {
     custom = {
       claudeCode = {
-        enableWork = true;
         enableLocal = true;
         plugins.local."clangd-lsp@claude-plugins-official" = true;
       };
@@ -177,14 +176,18 @@ in
   systemd.services.supergfxd.path = [ pkgs.pciutils ];
 
   boot = {
-    loader.systemd-boot.enable = true;
-    loader.efi.canTouchEfiVariables = true;
-    loader.systemd-boot.extraEntries."arch.conf" = ''
-      title   Arch Linux
-      linux   /vmlinuz-linux
-      initrd  /initramfs-linux.img
-      options root=UUID=cf2d005d-e51b-45b2-a5eb-c4fcdc2d3c4c rw
-    '';
+    loader = {
+      systemd-boot = {
+        enable = true;
+        extraEntries."arch.conf" = ''
+          title   Arch Linux
+          linux   /vmlinuz-linux
+          initrd  /initramfs-linux.img
+          options root=UUID=cf2d005d-e51b-45b2-a5eb-c4fcdc2d3c4c rw
+        '';
+      };
+      efi.canTouchEfiVariables = true;
+    };
     kernelPackages = pkgs.linuxPackages_latest;
   };
 
@@ -192,10 +195,12 @@ in
     "amdgpu"
     "nvidia"
   ];
-  hardware.nvidia = nvidia;
-  hardware.graphics = {
-    enable = true;
-    enable32Bit = true;
+  hardware = {
+    inherit nvidia;
+    graphics = {
+      enable = true;
+      enable32Bit = true;
+    };
   };
 
   services.pulseaudio.enable = false;
@@ -209,19 +214,21 @@ in
     wireplumber.enable = true;
   };
 
-  programs.firefox.enable = true;
-  programs.steam = {
-    enable = true;
-    remotePlay.openFirewall = true;
-    dedicatedServer.openFirewall = true;
-    extraCompatPackages = with pkgs; [
-      proton-ge-bin
-    ];
-  };
-  programs.gamemode.enable = true;
-  programs.gamescope = {
-    enable = true;
-    capSysNice = true;
+  programs = {
+    firefox.enable = true;
+    steam = {
+      enable = true;
+      remotePlay.openFirewall = true;
+      dedicatedServer.openFirewall = true;
+      extraCompatPackages = with pkgs; [
+        proton-ge-bin
+      ];
+    };
+    gamemode.enable = true;
+    gamescope = {
+      enable = true;
+      capSysNice = true;
+    };
   };
 
   services.flatpak.enable = true;
@@ -282,8 +289,10 @@ in
       AQ_DRM_DEVICES = "/dev/dri/card2:/dev/dri/card1";
       WLR_DRM_DEVICES = "/dev/dri/card2:/dev/dri/card1";
     };
-    services.grafana.enable = lib.mkForce false;
-    services.prometheus.enable = lib.mkForce false;
+    services = {
+      grafana.enable = lib.mkForce false;
+      prometheus.enable = lib.mkForce false;
+    };
   };
 
   specialisation.low-power.configuration = {
@@ -292,11 +301,17 @@ in
     custom.powerProfile = "low-power";
 
     services.xserver.videoDrivers = lib.mkForce [ "amdgpu" ];
-    hardware.nvidia.prime.sync.enable = lib.mkForce false;
-    hardware.nvidia.prime.offload.enable = lib.mkForce false;
-    hardware.nvidia-container-toolkit.enable = lib.mkForce false;
-    boot.blacklistedKernelModules = blacklistNvidia;
-    boot.extraModprobeConfig = lib.concatMapStringsSep "\n" (m: "blacklist ${m}") blacklistNvidia;
+    hardware = {
+      nvidia.prime = {
+        sync.enable = lib.mkForce false;
+        offload.enable = lib.mkForce false;
+      };
+      nvidia-container-toolkit.enable = lib.mkForce false;
+    };
+    boot = {
+      blacklistedKernelModules = blacklistNvidia;
+      extraModprobeConfig = lib.concatMapStringsSep "\n" (m: "blacklist ${m}") blacklistNvidia;
+    };
 
     services.prometheus.exporters.nvidia-gpu.enable = lib.mkForce false;
 
@@ -306,7 +321,7 @@ in
   hardware.nvidia-container-toolkit.enable = true;
 
   services.udev.extraRules = ''
-    SUBSYSTEM=="power_supply", KERNEL=="ACAD", ACTION=="change", RUN+="${pkgs.systemd}/bin/systemctl --machine=amirsalar@ --user start oled-power-sync.service"
+    SUBSYSTEM=="power_supply", KERNEL=="ACAD", ACTION=="change", RUN+="${lib.getExe' pkgs.systemd "systemctl"} --machine=amirsalar@ --user start oled-power-sync.service"
   '';
 
   system.stateVersion = "25.05";

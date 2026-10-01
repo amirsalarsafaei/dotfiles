@@ -19,8 +19,8 @@ let
     dontUnpack = true;
     installPhase = ''
       mkdir -p $out/bin
-      ln -s ${dataPython}/bin/python $out/bin/python-data
-      ln -s ${dataPython}/bin/python3 $out/bin/python-data3
+      ln -s ${lib.getExe' dataPython "python"} $out/bin/python-data
+      ln -s ${lib.getExe' dataPython "python3"} $out/bin/python-data3
     '';
   };
 in
@@ -56,8 +56,8 @@ in
     serviceConfig = {
       Type = "oneshot";
       ExecStart = "${pkgs.writeShellScript "nix-cleanup" ''
-        ${pkgs.nix}/bin/nix-env --delete-generations 30d --profile /nix/var/nix/profiles/system
-        ${pkgs.nix}/bin/nix-collect-garbage --delete-older-than 30d
+        ${lib.getExe' pkgs.nix "nix-env"} --delete-generations 30d --profile /nix/var/nix/profiles/system
+        ${lib.getExe' pkgs.nix "nix-collect-garbage"} --delete-older-than 30d
       ''}";
     };
   };
@@ -72,7 +72,7 @@ in
   };
 
   security.wrappers.bwrap = {
-    source = "${pkgs.bubblewrap}/bin/bwrap";
+    source = lib.getExe pkgs.bubblewrap;
     owner = "root";
     group = "root";
     setuid = true;

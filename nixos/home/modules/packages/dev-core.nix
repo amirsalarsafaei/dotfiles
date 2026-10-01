@@ -1,54 +1,6 @@
+{ config, lib, ... }:
 {
-  pkgs,
-  config,
-  lib,
-  inputs,
-  ...
-}:
-let
-  packages = import ./lib.nix { inherit pkgs; };
-
-  cfg = config.custom.dev;
-
-  luaPackages = pkgs.lua.withPackages (
-    ps: with ps; [
-      luafilesystem
-      luasocket
-      penlight
-      busted
-      cjson
-      luarocks
-      basexx
-      dkjson
-    ]
-  );
-
-  python = pkgs.python312.withPackages (
-    ps: with ps; [
-      jupyter
-      jupyterlab
-      notebook
-      ipython
-      ipykernel
-      numpy
-      pandas
-      matplotlib
-      seaborn
-      scikit-learn
-      pyarrow
-    ]
-  );
-
-  categoryArgs = {
-    inherit
-      pkgs
-      inputs
-      luaPackages
-      python
-      ;
-  };
-
-  categories = [
+  imports = [
     ./dev.nix
     ./tooling.nix
     ./cli.nix
@@ -56,8 +8,7 @@ let
     ./infra.nix
     ./infra-security.nix
   ];
-in
-{
+
   options.custom.dev = {
     extraPackages = lib.mkOption {
       type = lib.types.listOf lib.types.package;
@@ -72,12 +23,5 @@ in
     };
   };
 
-  config = {
-    home.packages =
-      packages.concatCategories {
-        inherit categories;
-        args = categoryArgs;
-      }
-      ++ cfg.extraPackages;
-  };
+  config.home.packages = config.custom.dev.extraPackages;
 }

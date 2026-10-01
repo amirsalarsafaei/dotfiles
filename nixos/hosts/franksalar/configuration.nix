@@ -67,7 +67,7 @@
             MINIAPP_URL=https://diet.amirsalarsafaei.com
           '';
         in
-        "${pkgs.coreutils}/bin/install -m 0400 -o avosh-bot -g avosh-bot ${envFile} /etc/avosh-bot/.env";
+        "${lib.getExe' pkgs.coreutils "install"} -m 0400 -o avosh-bot -g avosh-bot ${envFile} /etc/avosh-bot/.env";
     };
   };
 
@@ -91,38 +91,40 @@
     }
   ];
 
-  boot.loader.grub = {
-    enable = true;
-    efiSupport = true;
-    efiInstallAsRemovable = true;
+  boot = {
+    loader.grub = {
+      enable = true;
+      efiSupport = true;
+      efiInstallAsRemovable = true;
+    };
+
+    kernelModules = [
+      "virtio_pci"
+      "virtio_blk"
+      "virtio_net"
+      "virtio_scsi"
+      "virtio_balloon"
+      "virtio_console"
+
+      "9p"
+      "9pnet_virtio"
+    ];
+
+    initrd.availableKernelModules = [
+      "ata_piix"
+      "uhci_hcd"
+      "virtio_pci"
+      "virtio_scsi"
+      "sd_mod"
+      "sr_mod"
+      "virtio_blk"
+    ];
   };
 
-  boot.kernelModules = [
-    "virtio_pci"
-    "virtio_blk"
-    "virtio_net"
-    "virtio_scsi"
-    "virtio_balloon"
-    "virtio_console"
-
-    "9p"
-    "9pnet_virtio"
-  ];
-
-  boot.initrd.availableKernelModules = [
-    "ata_piix"
-    "uhci_hcd"
-    "virtio_pci"
-    "virtio_scsi"
-    "sd_mod"
-    "sr_mod"
-    "virtio_blk"
-  ];
-
-  networking.networkmanager.enable = false;
   services.qemuGuest.enable = true;
 
   networking = {
+    networkmanager.enable = false;
     useDHCP = false;
     interfaces.ens3 = {
       ipv4.addresses = [
@@ -152,9 +154,8 @@
       "8.8.8.8"
       "1.1.1.1"
     ];
+    domain = "";
   };
-
-  networking.domain = "";
 
   custom.user = {
     name = "amirsalar";

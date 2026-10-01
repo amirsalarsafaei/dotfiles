@@ -1150,38 +1150,39 @@ let
     '';
   };
 
-  glmStatusLine = pkgs.writeShellApplication {
+  mkUsageStatusLine =
+    {
+      name,
+      usageBin,
+      label,
+    }:
+    pkgs.writeShellApplication {
+      inherit name;
+      runtimeInputs = [ pkgs.coreutils ];
+      text = ''
+        input=$(cat)
+        base=$(${lib.getExe claudeStatusLine} <<<"$input" 2>/dev/null || true)
+        seg=$(${lib.getExe usageBin} statusline 2>/dev/null || true)
+        if [ -n "$seg" ] && [ -n "$base" ]; then
+          printf '%s | %s\n' "$base" "$seg"
+        elif [ -n "$base" ]; then
+          printf '%s\n' "$base"
+        else
+          printf '${label}\n'
+        fi
+      '';
+    };
+
+  glmStatusLine = mkUsageStatusLine {
     name = "glm-claude-statusline";
-    runtimeInputs = [ pkgs.coreutils ];
-    text = ''
-      input=$(cat)
-      base=$(${lib.getExe claudeStatusLine} <<<"$input" 2>/dev/null || true)
-      seg=$(${lib.getExe glmUsage} statusline 2>/dev/null || true)
-      if [ -n "$seg" ] && [ -n "$base" ]; then
-        printf '%s | %s\n' "$base" "$seg"
-      elif [ -n "$base" ]; then
-        printf '%s\n' "$base"
-      else
-        printf 'glm\n'
-      fi
-    '';
+    usageBin = glmUsage;
+    label = "glm";
   };
 
-  deepseekStatusLine = pkgs.writeShellApplication {
+  deepseekStatusLine = mkUsageStatusLine {
     name = "deepseek-claude-statusline";
-    runtimeInputs = [ pkgs.coreutils ];
-    text = ''
-      input=$(cat)
-      base=$(${lib.getExe claudeStatusLine} <<<"$input" 2>/dev/null || true)
-      seg=$(${lib.getExe deepseekUsage} statusline 2>/dev/null || true)
-      if [ -n "$seg" ] && [ -n "$base" ]; then
-        printf '%s | %s\n' "$base" "$seg"
-      elif [ -n "$base" ]; then
-        printf '%s\n' "$base"
-      else
-        printf 'deepseek\n'
-      fi
-    '';
+    usageBin = deepseekUsage;
+    label = "deepseek";
   };
 
   divarPathGuardText = ''
@@ -1322,7 +1323,14 @@ let
     "rust-analyzer-lsp@claude-plugins-official" = true;
   };
 
-  pluginType = with lib.types; attrsOf bool;
+  pluginType = lib.types.attrsOf lib.types.bool;
+
+  skillVisibilityModes = [
+    "on"
+    "user-invocable-only"
+    "name-only"
+    "off"
+  ];
 
   zellijAttentionHooks =
     let
@@ -1545,6 +1553,19 @@ let
 
   obsidianVaultPath = "${config.home.homeDirectory}/Documents/amirsalar-vault";
 
+  claudeIpGuardHooks =
+    let
+      hook = {
+        type = "command";
+        command = lib.getExe claudeIpGuard;
+        timeout = 33;
+      };
+    in
+    {
+      SessionStart = [ { hooks = [ hook ]; } ];
+      UserPromptSubmit = [ { hooks = [ hook ]; } ];
+    };
+
   workSettings = {
     permissions = {
       allow = [
@@ -1572,31 +1593,7 @@ let
     theme = "dark";
     outputStyle = "concise";
     skipAutoPermissionPrompt = true;
-    hooks = {
-      SessionStart = [
-        {
-          hooks = [
-            {
-              type = "command";
-              command = lib.getExe claudeIpGuard;
-              timeout = 33;
-            }
-          ];
-        }
-      ];
-      UserPromptSubmit = [
-        {
-          hooks = [
-            {
-              type = "command";
-              command = lib.getExe claudeIpGuard;
-              timeout = 33;
-            }
-          ];
-        }
-      ];
-    }
-    // devarSkillUsageHooks;
+    hooks = claudeIpGuardHooks // devarSkillUsageHooks;
   };
 
   glmSettings = workSettings // {
@@ -1644,31 +1641,7 @@ let
     extraKnownMarketplaces = devarMarketplace // astGrepMarketplace;
     enabledPlugins = devarPlugin // astGrepPlugin;
     permissions = devarPermissions;
-    hooks = {
-      SessionStart = [
-        {
-          hooks = [
-            {
-              type = "command";
-              command = lib.getExe claudeIpGuard;
-              timeout = 33;
-            }
-          ];
-        }
-      ];
-      UserPromptSubmit = [
-        {
-          hooks = [
-            {
-              type = "command";
-              command = lib.getExe claudeIpGuard;
-              timeout = 33;
-            }
-          ];
-        }
-      ];
-    }
-    // devarSkillUsageHooks;
+    hooks = claudeIpGuardHooks // devarSkillUsageHooks;
   };
 
   withOverrides =
@@ -1679,6 +1652,11 @@ let
     };
 
   nixManagedNote = cfg.context.base;
+
+  mkVariantHomeFile = dir: variant: name: base: {
+    "${dir}/settings.json".text = builtins.toJSON (withOverrides (mkSettings variant name base));
+    "${dir}/CLAUDE.md".text = nixManagedNote;
+  };
 
   pickerEntry = tag: name: desc: bin: {
     inherit
@@ -2169,14 +2147,7 @@ in
     };
 
     defaultSkillMode = lib.mkOption {
-      type =
-        with lib.types;
-        nullOr (enum [
-          "on"
-          "user-invocable-only"
-          "name-only"
-          "off"
-        ]);
+      type = lib.types.nullOr (lib.types.enum skillVisibilityModes);
       default = "user-invocable-only";
       description = ''
         Default visibility applied to every skill installed via
@@ -2190,14 +2161,7 @@ in
     };
 
     skillOverrides = lib.mkOption {
-      type =
-        with lib.types;
-        attrsOf (enum [
-          "on"
-          "user-invocable-only"
-          "name-only"
-          "off"
-        ]);
+      type = lib.types.attrsOf (lib.types.enum skillVisibilityModes);
       default = { };
       example = lib.literalExpression ''
         {
@@ -2249,55 +2213,39 @@ in
           gapClaude
         ]
         ++ lib.optional cfg.enableGlm glmClaude;
-        file.".config/gap-claude/settings.json".text = builtins.toJSON (
-          withOverrides (mkSettings "gap" "gap" gapSettings)
-        );
-        file.".config/gap-claude/CLAUDE.md".text = nixManagedNote;
+        file = mkVariantHomeFile ".config/gap-claude" "gap" "gap" gapSettings;
       };
     })
     (lib.mkIf cfg.enableGlm {
       home = {
         packages = [ glmUsage ];
-        file.".config/glm-claude/settings.json".text = builtins.toJSON (
-          withOverrides (mkSettings "work" "glm" glmSettings)
-        );
-        file.".config/glm-claude/CLAUDE.md".text = nixManagedNote;
+        file = mkVariantHomeFile ".config/glm-claude" "work" "glm" glmSettings;
       };
     })
     (lib.mkIf cfg.enableDeepseek {
       home = {
         packages = [ deepseekClaude ];
-        file.".config/deepseek-claude/settings.json".text = builtins.toJSON (
-          withOverrides (mkSettings "work" "deepseek" deepseekSettings)
-        );
-        file.".config/deepseek-claude/CLAUDE.md".text = nixManagedNote;
+        file = mkVariantHomeFile ".config/deepseek-claude" "work" "deepseek" deepseekSettings;
       };
     })
     (lib.mkIf cfg.enableWorkDivarGlm {
       home = {
         packages = [ workDivarGlmClaude ];
-        file.".config/work-divar-glm-claude/settings.json".text = builtins.toJSON (
-          withOverrides (mkSettings "work" "workDivarGlm" workSettings)
-        );
-        file.".config/work-divar-glm-claude/CLAUDE.md".text = nixManagedNote;
+        file = mkVariantHomeFile ".config/work-divar-glm-claude" "work" "workDivarGlm" workSettings;
       };
     })
     (lib.mkIf cfg.enableWorkDivarDeepseek {
       home = {
         packages = [ workDivarDeepseekClaude ];
-        file.".config/work-divar-deepseek-claude/settings.json".text = builtins.toJSON (
-          withOverrides (mkSettings "work" "workDivarDeepseek" workSettings)
-        );
-        file.".config/work-divar-deepseek-claude/CLAUDE.md".text = nixManagedNote;
+        file =
+          mkVariantHomeFile ".config/work-divar-deepseek-claude" "work" "workDivarDeepseek"
+            workSettings;
       };
     })
     (lib.mkIf cfg.enableWork {
       home = {
         packages = [ claudeWork ];
-        file.".config/work-claude/settings.json".text = builtins.toJSON (
-          withOverrides (mkSettings "work" "work" workSettings)
-        );
-        file.".config/work-claude/CLAUDE.md".text = nixManagedNote;
+        file = mkVariantHomeFile ".config/work-claude" "work" "work" workSettings;
       };
     })
     (lib.mkIf
@@ -2372,10 +2320,9 @@ in
     (lib.mkIf cfg.enablePersonalDeepseek {
       home = {
         packages = [ personalDeepseekClaude ];
-        file.".config/personal-deepseek-claude/settings.json".text = builtins.toJSON (
-          withOverrides (mkSettings "personalDeepseek" "personalDeepseek" personalDeepseekSettings)
-        );
-        file.".config/personal-deepseek-claude/CLAUDE.md".text = nixManagedNote;
+        file =
+          mkVariantHomeFile ".config/personal-deepseek-claude" "personalDeepseek" "personalDeepseek"
+            personalDeepseekSettings;
       };
     })
     (lib.mkIf cfg.enableLocal {
@@ -2395,10 +2342,7 @@ in
     (lib.mkIf cfg.enablePersonal {
       home = {
         packages = [ personalClaude ];
-        file.".config/personal-claude/settings.json".text = builtins.toJSON (
-          withOverrides (mkSettings "personal" "personal" personalSettings)
-        );
-        file.".config/personal-claude/CLAUDE.md".text = nixManagedNote;
+        file = mkVariantHomeFile ".config/personal-claude" "personal" "personal" personalSettings;
       };
     })
     (lib.mkIf

@@ -15,8 +15,10 @@
 
   isLaptop = true;
   isWork = true;
-  custom.dynamicPowerProfiles = true;
-  custom.powerProfile = "performance";
+  custom = {
+    dynamicPowerProfiles = true;
+    powerProfile = "performance";
+  };
 
   hyprland.xwaylandDpi = 144;
 

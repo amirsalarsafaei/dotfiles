@@ -8,9 +8,10 @@
 }:
 let
   monitorConfig = osConfig.hyprland.monitorConfig or ",preferred,auto,auto";
-  t = config.custom.theme.resolved.colors;
-  s = config.custom.theme.resolved.surfaces;
-  a = config.custom.theme.resolved.accents;
+  theme = config.custom.theme.resolved;
+  t = theme.colors;
+  s = theme.surfaces;
+  a = theme.accents;
   isLowPower = config.custom.powerProfile == "low-power";
   xwaylandDpi = osConfig.hyprland.xwaylandDpi or null;
   compactOutput = osConfig.hyprland.compactOutput or null;
@@ -524,7 +525,7 @@ in
       }
 
       ${lib.optionalString (xwaylandDpi != null) ''
-        exec-once = printf 'Xft.dpi: ${toString xwaylandDpi}\n' | ${pkgs.xrdb}/bin/xrdb -merge -
+        exec-once = printf 'Xft.dpi: ${toString xwaylandDpi}\n' | ${lib.getExe pkgs.xrdb} -merge -
       ''}
 
       general {

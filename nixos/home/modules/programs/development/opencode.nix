@@ -15,6 +15,17 @@ let
   localOpencodeStateDir = "${config.home.homeDirectory}/.local/state/local-opencode";
   localOpencodeCacheDir = "${config.home.homeDirectory}/.cache/local-opencode";
 
+  localAgentPermission = {
+    lsp = "allow";
+    webfetch = "allow";
+    websearch = "allow";
+  };
+
+  fastAgentDefaults = {
+    model = "local/${localModelFast}";
+    temperature = 0.2;
+  };
+
   localOpencode = pkgs.writeShellApplication {
     name = "local-opencode";
     runtimeInputs = [ pkgs.opencode ];
@@ -95,28 +106,14 @@ let
     agent = {
       build = {
         model = "local/${localModel}";
-        permission = {
-          lsp = "allow";
-          webfetch = "allow";
-          websearch = "allow";
-        };
+        permission = localAgentPermission;
       };
       plan = {
         model = "local/${localModel}";
-        permission = {
-          lsp = "allow";
-          webfetch = "allow";
-          websearch = "allow";
-        };
+        permission = localAgentPermission;
       };
-      title = {
-        model = "local/${localModelFast}";
-        temperature = 0.2;
-      };
-      summary = {
-        model = "local/${localModelFast}";
-        temperature = 0.2;
-      };
+      title = fastAgentDefaults;
+      summary = fastAgentDefaults;
       compaction = {
         model = "local/${localModel}";
       };

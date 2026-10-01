@@ -41,7 +41,7 @@ let
     line = themeLib.mix colors.base01 colors.base02 40;
   };
 
-  accents = rec {
+  accents = {
     primary = themeLib.mix colors.base05 colors.base02 35;
     secondary = themeLib.mix (themeLib.mix colors.base0D colors.base0C 50) colors.base02 30;
     heat = themeLib.mix colors.base09 colors.base02 25;

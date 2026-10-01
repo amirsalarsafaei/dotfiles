@@ -1,10 +1,5 @@
-{
-  nixpkgs,
-  system,
-  commonNixpkgsConfig,
-}:
+{ pkgs }:
 let
-  pkgs = import nixpkgs ({ inherit system; } // commonNixpkgsConfig system);
   cudaPackages = pkgs.cudaPackages_12_9;
 in
 (pkgs.mkShell.override { stdenv = cudaPackages.backendStdenv; }) {
@@ -20,7 +15,7 @@ in
 
   shellHook = ''
     if [[ $- == *i* && -z "''${ZSH_VERSION:-}" ]]; then
-      exec ${pkgs.zsh}/bin/zsh
+      exec ${pkgs.lib.getExe pkgs.zsh}
     fi
   '';
 }

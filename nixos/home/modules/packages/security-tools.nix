@@ -1,20 +1,24 @@
-{ pkgs, currentHostname, ... }:
+{
+  lib,
+  pkgs,
+  currentHostname,
+  ...
+}:
 let
-  burpsuiteJavaUiScale = if currentHostname == "t14" then "1.5" else null;
-  burpsuiteWrapped =
-    if burpsuiteJavaUiScale == null then
-      pkgs.burpsuite
-    else
+  burpsuite =
+    if currentHostname == "t14" then
       pkgs.symlinkJoin {
         name = "burpsuite-wrapped";
         paths = [ pkgs.burpsuite ];
         nativeBuildInputs = [ pkgs.makeWrapper ];
         postBuild = ''
           rm "$out/bin/burpsuite"
-          makeWrapper "${pkgs.burpsuite}/bin/burpsuite" "$out/bin/burpsuite" \
-            --set _JAVA_OPTIONS "-Dsun.java2d.uiScale=${burpsuiteJavaUiScale}"
+          makeWrapper "${lib.getExe pkgs.burpsuite}" "$out/bin/burpsuite" \
+            --set _JAVA_OPTIONS "-Dsun.java2d.uiScale=1.5"
         '';
-      };
+      }
+    else
+      pkgs.burpsuite;
 
   yubikeyTotp = pkgs.writeShellApplication {
     name = "yubikey-totp";
@@ -56,12 +60,14 @@ let
     '';
   };
 in
-[
-  pkgs.yubikey-manager
-  pkgs.yubioath-flutter
-  yubikeyTotp
-  pkgs.totp-cli
-  (pkgs.pass.withExtensions (exts: [ exts.pass-otp ]))
-  burpsuiteWrapped
-  pkgs.age
-]
+{
+  home.packages = [
+    pkgs.yubikey-manager
+    pkgs.yubioath-flutter
+    yubikeyTotp
+    pkgs.totp-cli
+    (pkgs.pass.withExtensions (exts: [ exts.pass-otp ]))
+    burpsuite
+    pkgs.age
+  ];
+}

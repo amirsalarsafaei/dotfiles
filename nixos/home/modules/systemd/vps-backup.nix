@@ -1,6 +1,5 @@
 {
   config,
-  homeDir,
   lib,
   pkgs,
   ...
@@ -12,7 +11,7 @@ lib.mkIf config.custom.personal.enable {
     Service = {
       Type = "oneshot";
       ExecStart = "${pkgs.writeShellScript "backup-vps" ''
-        export BACKUP_DIR="${homeDir}/backups"
+        export BACKUP_DIR="${config.home.homeDirectory}/backups"
         mkdir -p "$BACKUP_DIR"
 
         ssh finRoot "pg_dump -U amirsalarsafaeicom amirsalarsafaeicom" \

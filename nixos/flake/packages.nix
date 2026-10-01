@@ -1,11 +1,5 @@
-{
-  inputs,
-  nixpkgs,
-  system,
-  commonNixpkgsConfig,
-}:
+{ inputs, pkgs }:
 let
-  pkgs = import nixpkgs ({ inherit system; } // commonNixpkgsConfig system);
   zellijExtraPlugins = pkgs.callPackage ../pkgs/zellij-plugins.nix { };
   neovimPlugins = pkgs.callPackage ../pkgs/neovim-plugins.nix { };
   tmuxExtraPlugins = pkgs.callPackage ../pkgs/tmux-plugins.nix { };

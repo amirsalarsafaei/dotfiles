@@ -146,7 +146,7 @@ in
       background = [
         {
           monitor = "";
-          path = toString theme.wallpaper;
+          path = "${theme.wallpaper}";
           color = hex s.ink "ff";
           blur_passes = 3;
           blur_size = 7;

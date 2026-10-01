@@ -13,7 +13,7 @@ let
     stdenvNoCC.mkDerivation {
       pname = "iran-v2ray-rules-${name}";
       version = "unstable";
-      name = "${file}";
+      name = file;
       src = fetchurl {
         url = "https://raw.githubusercontent.com/Chocolate4U/Iran-v2ray-rules/release/${file}";
         inherit hash;

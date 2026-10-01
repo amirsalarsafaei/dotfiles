@@ -69,10 +69,12 @@ in
     }
 
     (lib.mkIf isLowPower {
-      services.grafana.enable = lib.mkForce false;
-      services.prometheus.enable = lib.mkForce false;
-      services.ollama.enable = lib.mkForce false;
-      services.open-webui.enable = lib.mkForce false;
+      services = {
+        grafana.enable = lib.mkForce false;
+        prometheus.enable = lib.mkForce false;
+        ollama.enable = lib.mkForce false;
+        open-webui.enable = lib.mkForce false;
+      };
     })
 
     (lib.mkIf config.isLaptop {

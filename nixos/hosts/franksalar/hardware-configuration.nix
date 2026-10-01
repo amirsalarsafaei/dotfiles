@@ -28,9 +28,5 @@
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
 
-  # `fileSystems` for "/" and "/boot" are provided by `./disko-config.nix`
-  # via the disko NixOS module — declaring them here would conflict.
-  # `swapDevices` is set in `./configuration.nix`.
-
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
 }

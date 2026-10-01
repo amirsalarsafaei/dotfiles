@@ -1,4 +1,3 @@
-{ ... }:
 {
   programs.agent-skills = {
     enable = true;

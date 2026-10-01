@@ -1,25 +1,18 @@
 {
-  config,
-  inputs,
-  pkgs,
-  currentHostname,
-  currentSystem,
-  ...
-}:
-let
-  packages = import ./lib.nix { inherit pkgs; };
-in
-{
-  home.packages = packages.concatCategories {
-    categories = packages.allCategories;
-    args = {
-      inherit
-        inputs
-        currentHostname
-        currentSystem
-        pkgs
-        ;
-      personal = config.custom.personal.enable;
-    };
-  };
+  imports = [
+    ./terminals.nix
+    ./fun.nix
+    ./network.nix
+    ./desktop.nix
+    ./wayland-tools.nix
+    ./security-tools.nix
+    ./fonts.nix
+    ./system.nix
+    ./hardware.nix
+    ./media.nix
+    ./platform.nix
+    ./host.nix
+    ./games.nix
+    ./gamedev.nix
+  ];
 }
