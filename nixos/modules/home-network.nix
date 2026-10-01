@@ -286,6 +286,27 @@ in
 
     environment.systemPackages = [ atHomeBin ] ++ lib.optional mqtt.enable pkgs.mosquitto;
 
+    home-manager.sharedModules = [
+      {
+        programs.zsh.initContent = ''
+          _athome_load() {
+            if [[ -r /run/at-home/env ]]; then
+              if [[ -n "''${AT_HOME_VARS-}" ]]; then
+                for _v in ''${=AT_HOME_VARS}; do unset "$_v"; done
+              fi
+              unset AT_HOME AT_HOME_STATE AT_HOME_SSID AT_HOME_IFACE AT_HOME_VARS
+              set -a
+              source /run/at-home/env
+              set +a
+            fi
+          }
+          _athome_load
+          autoload -Uz add-zsh-hook
+          add-zsh-hook precmd _athome_load
+        '';
+      }
+    ];
+
     networking.networkmanager.dispatcherScripts = [
       {
         type = "basic";

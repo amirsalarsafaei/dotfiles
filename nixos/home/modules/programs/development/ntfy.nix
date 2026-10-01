@@ -249,11 +249,7 @@ let
 in
 {
   options.custom.ntfy = {
-    enable = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Install the `ntfy` CLI and allow the Claude Code notification hook.";
-    };
+    enable = lib.mkEnableOption "the `ntfy` CLI and its Claude Code notification hook";
 
     server = lib.mkOption {
       type = lib.types.str;

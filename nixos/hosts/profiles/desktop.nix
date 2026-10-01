@@ -123,54 +123,16 @@ in
   imports = [
     ./greeter.nix
     ../../modules/home-network.nix
+    ../../modules/personal.nix
     ../../modules/power-profile.nix
   ];
 
   config = {
 
-    custom.homeNetwork = {
-      ssids = [
-        "Amir"
-        "Amir-5G-VIP"
-        "Amir-2G-VIP"
-        "Amir-5G"
-        "Amir-2G"
-      ];
-      mqtt = {
-        host = "mq.amirpi.top";
-        # NodePort fixed in home-apps/mosquitto/values.yaml (service.mqttNodePort).
-        port = 31883;
-      };
-      envVars = {
-        DOCKER_REGISTRY = "docker.amirpi.top";
-        NPM_CONFIG_REGISTRY = "https://repos.amirpi.top/repository/npm-proxy/";
-        GOPROXY = "https://repos.amirpi.top/repository/go-proxy/,direct";
-        GONOSUMDB = "gitea.amirpi.top/*";
-        GONOSUMCHECK = "gitea.amirpi.top/*";
-        GOPRIVATE = "gitea.amirpi.top/*";
-      };
-    };
-
     environment.pathsToLink = [
       "/share/xdg-desktop-portal"
       "/share/applications"
     ];
-
-    services.tailscale = lib.mkIf (!config.isWork) {
-      enable = true;
-      extraDaemonFlags = [ "--no-logs-no-support" ];
-      extraUpFlags = [
-        "--login-server"
-        secrets.tailscale.loginServer
-        "--hostname"
-        hostname
-        "--accept-routes"
-      ];
-    };
-
-    systemd.services.tailscaled-autoconnect = lib.mkIf (!config.isWork) {
-      serviceConfig.TimeoutStartSec = "5s";
-    };
 
     networking.hosts = {
       # "216.239.38.120"= [
@@ -710,10 +672,7 @@ in
     #     ykman config usb --disable OTP      (reverse: ykman config usb --enable OTP)
     services.pcscd.enable = true;
 
-    services.udev.packages = [
-      pkgs.yubikey-personalization
-    ]
-    ++ lib.optional (!config.isWork) pkgs.platformio-core.udev;
+    services.udev.packages = [ pkgs.yubikey-personalization ];
 
   };
 }

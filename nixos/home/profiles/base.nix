@@ -6,6 +6,7 @@
 }:
 {
   imports = [
+    ../modules/personal.nix
     ../modules/power-profile.nix
     # The keybinding registry: every app's shortcuts, plus the `keys`
     # cheatsheet built from them. Base, not desktop, because it also covers

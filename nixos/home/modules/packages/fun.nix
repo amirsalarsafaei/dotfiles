@@ -1,9 +1,5 @@
-{
-  pkgs,
-  isWork ? false,
-  ...
-}:
-pkgs.lib.optionals (!isWork) [
+{ pkgs, personal, ... }:
+pkgs.lib.optionals personal [
   pkgs.fortune
   pkgs.cowsay
   pkgs.ponysay

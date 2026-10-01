@@ -1,8 +1,4 @@
-{
-  pkgs,
-  isWork ? false,
-  ...
-}:
+{ pkgs, personal, ... }:
 [
   pkgs.dhcpcd
   pkgs.rustscan
@@ -34,4 +30,4 @@
   pkgs.proxychains
   pkgs.openvpn
 ]
-++ pkgs.lib.optional (!isWork) pkgs.tailscale
+++ pkgs.lib.optional personal pkgs.tailscale

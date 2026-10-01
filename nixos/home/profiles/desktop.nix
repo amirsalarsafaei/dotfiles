@@ -17,7 +17,7 @@
     ../modules/scripts
   ];
   sops = {
-    secrets.ssh_config = {
+    secrets.ssh_config = lib.mkIf config.custom.personal.enable {
       path = "${config.home.homeDirectory}/.ssh/config.d/sops";
     };
   };

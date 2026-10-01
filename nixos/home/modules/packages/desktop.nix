@@ -1,8 +1,4 @@
-{
-  pkgs,
-  isWork ? false,
-  ...
-}:
+{ pkgs, personal, ... }:
 [
   pkgs.vlc
   pkgs.texstudio
@@ -17,7 +13,7 @@
   pkgs.xournalpp
   pkgs.masterpdfeditor
 ]
-++ pkgs.lib.optionals (!isWork) [
+++ pkgs.lib.optionals personal [
   pkgs.telegram-desktop
   pkgs.spotify-player
   pkgs.syncthing

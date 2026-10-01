@@ -1,17 +1,11 @@
 {
+  config,
   homeDir,
   lib,
-  osConfig,
   pkgs,
   ...
 }:
-lib.mkIf (!(osConfig.isWork or false)) {
-  ######################################################################
-  # Systemd Service: "vps-dbbackup.service"                             #
-  # This service will SSH into "vps" (as configured in your ~/.ssh/config),
-  # run pg_dump there (database name = amirsalarsafaeicom, user = amirsalarsafaeicom),
-  # compress it, and store the backup SQL in /root/backups inside this machine. #
-  ######################################################################
+lib.mkIf config.custom.personal.enable {
   systemd.user.services."vps-dbbackup" = {
     Unit.Description = "Backup the VPS Postgres Database to local system";
     Install.WantedBy = [ "multi-user.target" ];
@@ -27,14 +21,10 @@ lib.mkIf (!(osConfig.isWork or false)) {
     };
   };
 
-  ###########################################################################
-  # Systemd Timer: "vps-dbbackup.timer"                                     #
-  # Runs the "vps-dbbackup.service" on a schedule (daily, in this example). #
-  ###########################################################################
   systemd.user.timers."vps-dbbackup" = {
     Unit.Description = "Periodic daily backup of VPS DB";
     Install.WantedBy = [ "timers.target" ];
-    Timer.OnCalendar = "daily"; # Runs once per day
-    Timer.Persistent = true; # Catch up missed runs if machine was off
+    Timer.OnCalendar = "daily";
+    Timer.Persistent = true;
   };
 }

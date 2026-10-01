@@ -1,7 +1,6 @@
 {
   config,
   inputs,
-  lib,
   ...
 }:
 {
@@ -21,12 +20,13 @@
   custom = {
     neovim.enable = true;
     claudeCode.enable = true;
-    claudeCode.enablePersonal = lib.mkDefault true;
-    claudeCode.enablePersonalDeepseek = lib.mkDefault true;
+    claudeCode.enablePersonal = config.custom.personal.enable;
+    claudeCode.enablePersonalDeepseek = config.custom.personal.enable;
     claudeCode.enableCaveman = true;
     claudeCode.planner.enable = true;
     claudeCode.plugins.personal."clangd-lsp@claude-plugins-official" = true;
     claudeCode.skillOverrides.nix-environment = "on";
+    ntfy.enable = config.custom.personal.enable;
 
     agentSkills = {
       enable = true;
@@ -46,17 +46,17 @@
           structure = "symlink-tree";
         };
         local-claude = {
-          enable = lib.mkDefault true;
+          enable = config.custom.claudeCode.enableLocal;
           dest = "${config.home.homeDirectory}/.config/local-claude/skills";
           structure = "symlink-tree";
         };
         personal-claude = {
-          enable = lib.mkDefault true;
+          enable = config.custom.claudeCode.enablePersonal;
           dest = "${config.home.homeDirectory}/.config/personal-claude/skills";
           structure = "symlink-tree";
         };
         personal-deepseek-claude = {
-          enable = lib.mkDefault true;
+          enable = config.custom.claudeCode.enablePersonalDeepseek;
           dest = "${config.home.homeDirectory}/.config/personal-deepseek-claude/skills";
           structure = "symlink-tree";
         };
