@@ -186,6 +186,9 @@ hyprtasking shows a 3x3 grid of workspaces:
 - **Right-click** a workspace to go to it (`select_button = 0x111`).
 - **Left-drag** a window to move it to another workspace (`drag_button = 0x110`).
 - **Press the key on its label** (`1`–`9`) to jump from the keyboard.
+- **Super+Ctrl+H/J/K/L** slides to the neighbouring grid workspace, with or
+  without the overview open: the keyboard twin of the five-finger swipe
+  (`move_fingers = 5`). The four-finger swipe is the twin of Super+Tab.
 - **Super+Tab again** closes the overview.
 
 ### Multiple monitors

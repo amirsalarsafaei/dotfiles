@@ -326,6 +326,15 @@ in
         flavor = "repeat";
       }
     )
+    ++ eachDirection (
+      d:
+      keysLib.hypr.bind {
+        on = on.superCtrl d.key;
+        dsp = ''function() hl.plugin.hyprtasking.move("${d.word}") end'';
+        desc = "Slide to the workspace ${d.word} in the overview grid";
+        group = "Workspaces";
+      }
+    )
     ++
       lib.concatMap
         (n: [
