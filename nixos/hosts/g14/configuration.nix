@@ -82,8 +82,6 @@ let
     mesa
     libva-utils
 
-    networkmanager-fortisslvpn
-
     kdePackages.qtmultimedia
     esptool
     protonup-qt

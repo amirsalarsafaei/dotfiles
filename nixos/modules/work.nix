@@ -39,6 +39,7 @@ lib.mkIf config.isWork {
         packages = [
           devarCli
           workCodex
+          pkgs.openfortivpn
         ];
 
         file.".config/amp/plugins/devar-usage.ts".text = ''
@@ -78,6 +79,8 @@ lib.mkIf config.isWork {
           fi
         '';
       };
+
+      programs.zsh.shellAliases.vpn = "pidof openfortivpn || sudo cat ~/totp-pass | totp-cli generate divar vpn | sudo openfortivpn";
 
       custom = {
         claudeCode = {
