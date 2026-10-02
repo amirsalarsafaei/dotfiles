@@ -2,6 +2,7 @@
 import QtQuick
 import QtQuick.Effects
 import QtQuick.Layouts
+import QtQuick.Shapes
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -12,6 +13,79 @@ import Quickshell.Services.Pam
 
 ShellRoot {
     id: root
+
+    component InkHalo: Item {
+        id: halo
+
+        property real strength: 0.5
+
+        Shape {
+            x: (halo.width - halo.height) / 2
+            width: halo.height
+            height: halo.height
+
+            transform: Scale {
+                origin.x: halo.height / 2
+                origin.y: halo.height / 2
+                xScale: halo.width / Math.max(1, halo.height)
+            }
+
+            ShapePath {
+                strokeWidth: -1
+                strokeColor: "transparent"
+                startX: 0
+                startY: 0
+
+                fillGradient: RadialGradient {
+                    centerX: halo.height / 2
+                    centerY: halo.height / 2
+                    centerRadius: halo.height / 2
+                    focalX: halo.height / 2
+                    focalY: halo.height / 2
+
+                    GradientStop {
+                        position: 0
+                        color: Theme.alpha(Theme.ink, halo.strength)
+                    }
+
+                    GradientStop {
+                        position: 0.4
+                        color: Theme.alpha(Theme.ink, halo.strength * 0.78)
+                    }
+
+                    GradientStop {
+                        position: 0.72
+                        color: Theme.alpha(Theme.ink, halo.strength * 0.28)
+                    }
+
+                    GradientStop {
+                        position: 1
+                        color: Theme.alpha(Theme.ink, 0)
+                    }
+                }
+
+                PathLine {
+                    x: halo.height
+                    y: 0
+                }
+
+                PathLine {
+                    x: halo.height
+                    y: halo.height
+                }
+
+                PathLine {
+                    x: 0
+                    y: halo.height
+                }
+
+                PathLine {
+                    x: 0
+                    y: 0
+                }
+            }
+        }
+    }
 
     property string buffer: ""
     property bool queued: false
@@ -633,6 +707,15 @@ ShellRoot {
                         strong: Qt.tint(Theme.alpha(Theme.fgBright, 0.96), Theme.alpha(Theme.primary, 0.22))
                         soft: Theme.alpha(Theme.fg, 0.6)
                     }
+                }
+
+                InkHalo {
+                    x: hero.x - Math.round(150 * stage.unit)
+                    y: hero.y - Math.round(100 * stage.unit)
+                    width: hero.width + Math.round(300 * stage.unit)
+                    height: hero.height + Math.round(200 * stage.unit)
+                    opacity: stage.rise(0)
+                    strength: 0.42
                 }
 
                 Column {

@@ -76,6 +76,7 @@ Item {
 
                 Rectangle {
                     anchors.centerIn: parent
+                    anchors.verticalCenterOffset: hover.pressed ? 1 : 0
                     width: root.dot
                     height: root.dot
                     radius: height / 2
@@ -85,6 +86,14 @@ Item {
                     Behavior on color {
                         ColorAnimation {
                             duration: 180
+                        }
+                    }
+
+                    Behavior on anchors.verticalCenterOffset {
+                        NumberAnimation {
+                            duration: hover.pressed ? 70 : Theme.quick
+                            easing.type: Easing.BezierSpline
+                            easing.bezierCurve: hover.pressed ? Theme.exit : Theme.enter
                         }
                     }
                 }

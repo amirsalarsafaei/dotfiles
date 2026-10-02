@@ -19,6 +19,7 @@ Rectangle {
     property int weight: Font.Medium
     property bool hoverable: true
     property int pad: bar ? bar.pad : 9
+    property real pressOffset: mouse.pressed ? 1 : 0
     readonly property bool hovered: mouse.containsMouse
     readonly property real frame: pad * 2 + (icon.length > 0 ? glyph.implicitWidth + (bar ? bar.gap : 6) : 0)
 
@@ -47,10 +48,19 @@ Rectangle {
         }
     }
 
+    Behavior on pressOffset {
+        NumberAnimation {
+            duration: mouse.pressed ? 70 : Theme.quick
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: mouse.pressed ? Theme.exit : Theme.enter
+        }
+    }
+
     Row {
         id: row
 
         anchors.centerIn: parent
+        anchors.verticalCenterOffset: chip.pressOffset
         spacing: chip.icon.length > 0 && chip.text.length > 0 ? (chip.bar ? chip.bar.gap : 6) : 0
 
         Odometer {

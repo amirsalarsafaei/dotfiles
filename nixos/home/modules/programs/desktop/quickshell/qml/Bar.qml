@@ -1022,8 +1022,17 @@ PanelWindow {
 
                         IconImage {
                             anchors.centerIn: parent
+                            anchors.verticalCenterOffset: trayMouse.pressed ? 1 : 0
                             implicitSize: panel.iconSize + 2
                             source: trayItem.modelData.icon
+
+                            Behavior on anchors.verticalCenterOffset {
+                                NumberAnimation {
+                                    duration: trayMouse.pressed ? 70 : Theme.quick
+                                    easing.type: Easing.BezierSpline
+                                    easing.bezierCurve: trayMouse.pressed ? Theme.exit : Theme.enter
+                                }
+                            }
                         }
 
                         MouseArea {
@@ -1072,6 +1081,7 @@ PanelWindow {
 
         x: Math.round(Math.max(gapStart, Math.min(gapEnd - span, crowded ? (panel.width - span) / 2 : fullStart)))
         visible: gapEnd - gapStart >= clockChip.implicitWidth + panel.chrome
+        progress: (clock.date.getHours() * 60 + clock.date.getMinutes()) / 1440
         spacing: 0
         order: 1
 

@@ -338,23 +338,66 @@ let
 
   focusMode = pkgs.writeShellApplication {
     name = "focus-mode";
-    runtimeInputs = [ pkgs.coreutils ];
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.libnotify
+    ];
     text = ''
       state="''${XDG_RUNTIME_DIR:-/tmp}/hypr-focus-mode"
-      if [ -e "$state" ]; then
-        rm -f "$state"
+
+      normal() {
         hyprctl reload >/dev/null
         ${lib.getExe displayLid} sync
         ${config.custom.keys.commands.barShow}
-      else
-        touch "$state"
+        rm -f "$state"
+        notify-send \
+          -a Hyprland \
+          -h string:x-canonical-private-synchronous:hypr-focus-mode \
+          "Focus mode off" \
+          "Corners, spacing, and the bar are back"
+      }
+
+      focused() {
         hyprctl --batch "eval hl.config({ general = { gaps_in = 0, gaps_out = 0 }, decoration = { rounding = 0 } })${
           lib.optionalString (
             compactOutput != null
           ) "; eval hl.workspace_rule({ workspace = 'm[${compactOutput}]', gaps_in = 0, gaps_out = 0 })"
         }" >/dev/null
+        touch "$state"
         ${config.custom.keys.commands.barHide}
-      fi
+        notify-send \
+          -a Hyprland \
+          -h string:x-canonical-private-synchronous:hypr-focus-mode \
+          "Focus mode on" \
+          "Edge-to-edge windows · press Super+Shift+G to restore the desktop"
+      }
+
+      case "''${1:-toggle}" in
+        on)
+          focused
+          ;;
+        off)
+          normal
+          ;;
+        toggle)
+          if [ -e "$state" ]; then
+            normal
+          else
+            focused
+          fi
+          ;;
+        status)
+          if [ -e "$state" ]; then
+            echo enabled
+          else
+            echo disabled
+          fi
+          ;;
+        *)
+          echo "usage: focus-mode [on|off|toggle|status]" >&2
+          exit 2
+          ;;
+      esac
     '';
   };
 

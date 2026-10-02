@@ -11,6 +11,79 @@ import Quickshell.Services.Mpris
 PanelWindow {
     id: wall
 
+    component InkHalo: Item {
+        id: halo
+
+        property real strength: 0.5
+
+        Shape {
+            x: (halo.width - halo.height) / 2
+            width: halo.height
+            height: halo.height
+
+            transform: Scale {
+                origin.x: halo.height / 2
+                origin.y: halo.height / 2
+                xScale: halo.width / Math.max(1, halo.height)
+            }
+
+            ShapePath {
+                strokeWidth: -1
+                strokeColor: "transparent"
+                startX: 0
+                startY: 0
+
+                fillGradient: RadialGradient {
+                    centerX: halo.height / 2
+                    centerY: halo.height / 2
+                    centerRadius: halo.height / 2
+                    focalX: halo.height / 2
+                    focalY: halo.height / 2
+
+                    GradientStop {
+                        position: 0
+                        color: Theme.alpha(Theme.ink, halo.strength)
+                    }
+
+                    GradientStop {
+                        position: 0.4
+                        color: Theme.alpha(Theme.ink, halo.strength * 0.78)
+                    }
+
+                    GradientStop {
+                        position: 0.72
+                        color: Theme.alpha(Theme.ink, halo.strength * 0.28)
+                    }
+
+                    GradientStop {
+                        position: 1
+                        color: Theme.alpha(Theme.ink, 0)
+                    }
+                }
+
+                PathLine {
+                    x: halo.height
+                    y: 0
+                }
+
+                PathLine {
+                    x: halo.height
+                    y: halo.height
+                }
+
+                PathLine {
+                    x: 0
+                    y: halo.height
+                }
+
+                PathLine {
+                    x: 0
+                    y: 0
+                }
+            }
+        }
+    }
+
     property bool overlay: false
     readonly property date now: clock.date
     readonly property var monitor: Hyprland.monitorFor(wall.screen)
@@ -37,7 +110,13 @@ PanelWindow {
     readonly property string cacheHome: String(Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache"))
     property var quip: ({})
     property string quipShown: ""
-    readonly property string quipText: typeof quip.text === "string" ? quip.text.trim() : ""
+    readonly property string quipText: {
+        const generated = Number(quip.generated ?? 0) * 1000;
+        const today = Qt.formatDateTime(now, "yyyy-MM-dd");
+        if (typeof quip.text !== "string" || quip.date !== today || now.getTime() - generated > 4 * 3600 * 1000)
+            return "";
+        return quip.text.trim();
+    }
     readonly property var player: {
         const players = Mpris.players.values;
         return players.find(p => p.isPlaying) ?? players[0] ?? null;
@@ -280,7 +359,7 @@ PanelWindow {
         property color shoal: Theme.cyan
         property var earth: earthTexture
         property real twilight: Math.exp(-Math.pow((wall.skyHour - 18.2) / 0.9, 2)) + Math.exp(-Math.pow((wall.skyHour - 6.6) / 0.9, 2))
-        property vector2d earthRes:wall.hd ? Qt.vector2d(16384, 2912) : Qt.vector2d(8192, 1456)
+        property vector2d earthRes: wall.hd ? Qt.vector2d(16384, 2912) : Qt.vector2d(8192, 1456)
         property var moonMap: moonTexture
         property var milkyWay: milkyWayTexture
         property var art: artTexture
@@ -663,6 +742,15 @@ PanelWindow {
         height: quoteColumn.implicitHeight
         opacity: 0
         visible: opacity > 0
+        layer.enabled: visible
+        layer.effect: MultiEffect {
+            shadowEnabled: true
+            shadowColor: Theme.alpha(Theme.ink, 0.9)
+            shadowBlur: 1
+            shadowHorizontalOffset: 0
+            shadowVerticalOffset: 1
+            blurMax: 20
+        }
 
         transform: Translate {
             y: quote.lift
@@ -734,82 +822,17 @@ PanelWindow {
         }
     }
 
-    Shape {
+    InkHalo {
         id: scrim
 
         readonly property real rx: clockBlock.width / 2 + 240
         readonly property real ry: clockBlock.height / 2 + 150
 
-        x: Math.round(clockBlock.x + clockBlock.width / 2 - ry)
+        x: Math.round(clockBlock.x + clockBlock.width / 2 - rx)
         y: Math.round(clockBlock.y + clockBlock.height / 2 - ry)
-        width: ry * 2
+        width: rx * 2
         height: ry * 2
-
-        transform: Scale {
-            origin.x: scrim.ry
-            origin.y: scrim.ry
-            xScale: scrim.rx / scrim.ry
-        }
-
-        ShapePath {
-            strokeWidth: -1
-            strokeColor: "transparent"
-            startX: 0
-            startY: 0
-
-            fillGradient: RadialGradient {
-                centerX: scrim.ry
-                centerY: scrim.ry
-                centerRadius: scrim.ry
-                focalX: scrim.ry
-                focalY: scrim.ry
-
-                GradientStop {
-                    position: 0
-                    color: Theme.alpha(Theme.ink, 0.55)
-                }
-
-                GradientStop {
-                    position: 0.35
-                    color: Theme.alpha(Theme.ink, 0.45)
-                }
-
-                GradientStop {
-                    position: 0.65
-                    color: Theme.alpha(Theme.ink, 0.2)
-                }
-
-                GradientStop {
-                    position: 0.85
-                    color: Theme.alpha(Theme.ink, 0.06)
-                }
-
-                GradientStop {
-                    position: 1
-                    color: Theme.alpha(Theme.ink, 0)
-                }
-            }
-
-            PathLine {
-                x: scrim.width
-                y: 0
-            }
-
-            PathLine {
-                x: scrim.width
-                y: scrim.height
-            }
-
-            PathLine {
-                x: 0
-                y: scrim.height
-            }
-
-            PathLine {
-                x: 0
-                y: 0
-            }
-        }
+        strength: 0.55
     }
 
     Column {

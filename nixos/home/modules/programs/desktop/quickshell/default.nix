@@ -164,7 +164,9 @@ let
           user_active hyprsunset.service && night=1
           caffeine=0
           user_active caffeine.service && caffeine=1
-          echo "$wifi $bluetooth $dnd $night $caffeine"
+          focus=0
+          ${config.custom.keys.commands.focusMode} status 2>/dev/null | grep -qx enabled && focus=1
+          echo "$wifi $bluetooth $dnd $night $caffeine $focus"
           ;;
         info)
           jdate '+%d %B %Y' 2>/dev/null || echo
@@ -220,6 +222,9 @@ let
             notify-send -t 2000 "Caffeine" "Screen stays awake"
           fi
           ;;
+        focus)
+          ${config.custom.keys.commands.focusMode}
+          ;;
         lock)
           loginctl lock-session
           ;;
@@ -236,7 +241,7 @@ let
           systemctl poweroff
           ;;
         *)
-          echo "usage: sidebar-action <states|info|brightness N|caps|wifi|bluetooth|dnd|night|caffeine|lock|suspend|logout|reboot|poweroff>" >&2
+          echo "usage: sidebar-action <states|info|brightness N|caps|wifi|bluetooth|dnd|night|caffeine|focus|lock|suspend|logout|reboot|poweroff>" >&2
           exit 2
           ;;
       esac

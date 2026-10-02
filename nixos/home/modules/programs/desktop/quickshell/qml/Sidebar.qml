@@ -74,7 +74,8 @@ PanelWindow {
             bluetooth: false,
             dnd: false,
             night: false,
-            caffeine: false
+            caffeine: false,
+            focus: false
         })
     property real brightness: -1
     readonly property bool compact: (win.screen?.height ?? 1080) < 900
@@ -142,14 +143,15 @@ PanelWindow {
         stdout: StdioCollector {
             onStreamFinished: {
                 const f = this.text.trim().split(" ").map(v => v === "1");
-                if (f.length < 5)
+                if (f.length < 6)
                     return;
                 win.toggles = {
                     wifi: f[0],
                     bluetooth: f[1],
                     dnd: f[2],
                     night: f[3],
-                    caffeine: f[4]
+                    caffeine: f[4],
+                    focus: f[5]
                 };
             }
         }
@@ -621,6 +623,26 @@ PanelWindow {
                             active: win.toggles.caffeine
                             accent: Theme.warm
                             onClicked: win.run(["caffeine"])
+                        }
+
+                        Toggle {
+                            implicitHeight: win.compact ? 48 : 62
+                            icon: "󰈈"
+                            label: "Focus"
+                            active: win.toggles.focus
+                            onClicked: win.run(["focus"])
+                        }
+
+                        Toggle {
+                            implicitHeight: win.compact ? 48 : 62
+                            icon: win.source?.audio?.muted ? "󰍭" : "󰍬"
+                            label: "Mic mute"
+                            active: win.source?.audio?.muted ?? false
+                            accent: Theme.warm
+                            onClicked: {
+                                if (win.source?.audio)
+                                    win.source.audio.muted = !win.source.audio.muted;
+                            }
                         }
 
                         Toggle {

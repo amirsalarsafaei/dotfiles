@@ -209,18 +209,30 @@ vec4 moonLayer(vec2 p, float aspect) {
     float cover = smoothstep(1.0, -1.0, edgePx);
     float lit = 0.5 - 0.5 * cos(TAU * moonPhase);
     float outside = max(edgePx, 0.0);
-    vec3 halo = vec3(0.62, 0.76, 0.96) * (exp(-outside / 26.0) * 0.07 + exp(-outside / 90.0) * 0.025) * lit;
+    float haloLight = pow(lit, 1.35);
+    vec3 halo = vec3(0.68, 0.78, 0.94) * (exp(-outside / 18.0) * 0.055 + exp(-outside / 82.0) * 0.018) * haloLight;
     if (cover <= 0.0) {
         return vec4(halo, 0.0);
     }
     vec3 n = vec3(m.x, -m.y, sqrt(max(0.0, 1.0 - d * d)));
     vec3 light = normalize(vec3(sin(TAU * moonPhase), 0.12, -cos(TAU * moonPhase)));
-    float shade = smoothstep(-0.04, 0.18, dot(n, light));
     vec2 moonUv = vec2(atan(n.x, n.z) / TAU + 0.5, 0.5 - asin(clamp(n.y, -1.0, 1.0)) / PI);
     float moonLod = max(0.0, log2(512.0 / (2.0 * r * resolution.y)));
-    float albedo = textureLod(moonMap, moonUv, moonLod).r * 1.1 * (0.8 + 0.2 * n.z);
-    float earthshine = (1.0 - shade) * (1.0 - lit) * 0.07;
-    vec3 lunar = vec3(0.80, 0.86, 0.93) * albedo * shade * 0.62 + vec3(0.55, 0.7, 0.95) * albedo * earthshine + vec3(0.018, 0.022, 0.03);
+    vec2 moonTexel = exp2(moonLod) * vec2(1.0 / 1024.0, 1.0 / 512.0);
+    float raw = textureLod(moonMap, moonUv, moonLod).r;
+    float east = textureLod(moonMap, moonUv + vec2(moonTexel.x, 0.0), moonLod).r;
+    float west = textureLod(moonMap, moonUv - vec2(moonTexel.x, 0.0), moonLod).r;
+    float north = textureLod(moonMap, moonUv - vec2(0.0, moonTexel.y), moonLod).r;
+    float south = textureLod(moonMap, moonUv + vec2(0.0, moonTexel.y), moonLod).r;
+    vec3 roughNormal = normalize(n + vec3((west - east) * 0.9, (north - south) * 0.9, 0.0));
+    float incidence = dot(roughNormal, light);
+    float shade = smoothstep(-0.018, 0.055, incidence);
+    float albedo = pow(clamp(raw * 1.12, 0.0, 1.0), 0.9) * (0.72 + 0.28 * sqrt(max(n.z, 0.0)));
+    float opposition = pow(lit, 10.0) * pow(max(dot(n, light), 0.0), 5.0) * 0.12;
+    float earthshine = (1.0 - shade) * (1.0 - lit) * (0.055 + 0.025 * n.z);
+    vec3 lunar = vec3(0.84, 0.86, 0.88) * albedo * shade * (0.54 + opposition)
+               + vec3(0.38, 0.48, 0.63) * albedo * earthshine
+               + vec3(0.012, 0.014, 0.019);
     return vec4(lunar + halo, cover);
 }
 
@@ -248,9 +260,14 @@ float satellite(vec2 p, float aspect) {
     float lane = hash(vec2(slot, 9.2)) < 0.5 ? 0.0 : 1.0;
     vec2 a = vec2(mix(-0.05, 1.05, lane) * aspect, 0.08 + 0.2 * hash(vec2(slot, 2.3)));
     vec2 b = vec2(mix(1.05, -0.05, lane) * aspect, 0.18 + 0.25 * hash(vec2(slot, 6.1)));
+    vec2 route = normalize(b - a);
     vec2 d = (p - mix(a, b, t)) * resolution.y;
+    float behind = dot(d, -route);
+    float across = dot(d, vec2(-route.y, route.x));
     float blink = 0.35 + 0.65 * step(0.9, fract(time * 0.8));
-    return exp(-dot(d, d) / 1.6) * blink * smoothstep(0.0, 0.08, t) * smoothstep(1.0, 0.92, t);
+    float point = exp(-dot(d, d) / 1.6) * blink;
+    float trace = smoothstep(0.0, 5.0, behind) * exp(-behind / 80.0) * exp(-across * across / 0.7) * 0.12;
+    return (point + trace) * smoothstep(0.0, 0.08, t) * smoothstep(1.0, 0.92, t);
 }
 
 void main() {
@@ -361,6 +378,13 @@ void main() {
                         + rimA.rgb * exp(-h / 700.0) * 0.05;
         color += atmosphere * limbLight * glow;
         color += rimB.rgb * exp(-pow((h - 24.0) / 7.0, 2.0)) * 0.07 * night * (0.4 + 0.6 * limbLight) * glow;
+
+        if (detail > 0.001) {
+            float airglow = exp(-pow((h - 105.0) / 34.0, 2.0))
+                          + exp(-pow((h - 205.0) / 62.0, 2.0)) * 0.35;
+            vec3 airglowTint = mix(rimB.rgb, vec3(0.3, 0.68, 0.72), 0.45);
+            color += airglowTint * airglow * night * (0.3 + 0.7 * (1.0 - facing)) * 0.025 * glow * detail;
+        }
 
         if (detail > 0.001 && h < 600.0) {
             float angle = atan(offset.x, -offset.y);
@@ -513,13 +537,19 @@ void main() {
         float d = length(s);
         vec3 warm = mix(vec3(1.0, 0.97, 0.93), vec3(1.0, 0.82, 0.64), twilight);
         float tail = 0.14 / (1.0 + d * d / 5000.0) + exp(-d / 150.0) * 0.08;
-        color += (warm * tail + mix(warm, rimB.rgb, 0.45) * exp(-d / 380.0) * 0.05) * sunVis;
+        float hazeDistance = length(vec2(s.x * mix(1.0, 0.58, twilight), s.y));
+        float horizonAureole = exp(-hazeDistance / 260.0) * 0.045 * twilight;
+        color += (warm * (tail + horizonAureole) + mix(warm, rimB.rgb, 0.45) * exp(-d / 380.0) * 0.05) * sunVis;
         if (d < 650.0) {
             float size = 11.0;
             float mu = sqrt(max(0.0, 1.0 - d * d / (size * size)));
-            float disc = smoothstep(size + 1.0, size - 1.0, d) * (0.75 + 0.25 * mu);
+            float disc = smoothstep(size + 1.0, size - 1.0, d) * (0.42 + 0.58 * pow(mu, 0.55));
             float beyond = max(d - size, 0.0);
-            float halo = exp(-beyond / 4.5) * 1.3 + exp(-beyond / 14.0) * 0.5 + exp(-d / 42.0) * 0.16;
+            float coronaAngle = atan(s.y, s.x);
+            float coronaShape = 0.78 + 0.13 * sin(coronaAngle * 7.0 + 0.8) + 0.09 * sin(coronaAngle * 13.0 - 1.1);
+            float halo = exp(-beyond / 3.8) * 1.15
+                       + exp(-beyond / 15.0) * 0.42
+                       + exp(-d / 48.0) * 0.17 * coronaShape;
             float reach = 48.0 + 30.0 * daylight;
             float spikes = 0.0;
             for (int i = 0; i < 6; i++) {
@@ -531,8 +561,8 @@ void main() {
                 float major = 1.0 - float(i % 2) * 0.72;
                 spikes += major * exp(-across * across / (width * width)) * exp(-along / (reach * (0.45 + 0.55 * major)));
             }
-            spikes *= 0.36 * smoothstep(650.0, 320.0, d);
-            color += warm * (disc * 2.4 + halo + spikes * (1.0 - 0.85 * coverage)) * sunVis;
+            spikes *= 0.27 * smoothstep(650.0, 320.0, d);
+            color += warm * (disc * 2.25 + halo + spikes * (1.0 - 0.85 * coverage)) * sunVis;
         }
     }
 
