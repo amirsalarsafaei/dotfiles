@@ -92,11 +92,18 @@ Item {
     }
 
     Timer {
-        interval: hw.interval
+        property int primed: 0
+
+        interval: primed < 2 ? 2000 : hw.interval
         repeat: true
         running: hw.running && hw.probed
         triggeredOnStart: true
-        onTriggered: hw.poll()
+        onRunningChanged: primed = 0
+        onTriggered: {
+            if (primed < 2)
+                primed++;
+            hw.poll();
+        }
     }
 
     FileView {

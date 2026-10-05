@@ -219,9 +219,8 @@ PanelWindow {
 
     function settle(key: string, sample: real, band: int): void {
         const first = !(key in levels);
-        const level = first ? sample : levels[key] + 0.4 * (sample - levels[key]);
-        levels[key] = level;
-        const shown = Math.round(level);
+        levels[key] = sample;
+        const shown = Math.round(sample);
         if (first || Math.abs(shown - stats[key]) >= band)
             stats = Object.assign({}, stats, {
                 [key]: shown
@@ -357,20 +356,32 @@ PanelWindow {
     }
 
     Timer {
-        interval: 5000 * Perf.pollScale
+        property int primed: 0
+
+        interval: primed < 2 ? 2000 : 60000 * Perf.pollScale
         repeat: true
         running: panel.live
         triggeredOnStart: true
+        onRunningChanged: primed = 0
         onTriggered: {
+            if (primed < 2)
+                primed++;
             statFile.reload();
             memFile.reload();
             loadFile.reload();
-            netFile.reload();
             if (panel.thermalPath.length > 0)
                 tempFile.reload();
             if (panel.gpuPath.length > 0)
                 gpuFile.reload();
         }
+    }
+
+    Timer {
+        interval: 5000 * Perf.pollScale
+        repeat: true
+        running: panel.live
+        triggeredOnStart: true
+        onTriggered: netFile.reload()
     }
 
     FileView {

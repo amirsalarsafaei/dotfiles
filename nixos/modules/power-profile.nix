@@ -3,6 +3,16 @@ let
   cfg = config.custom.powerProfile;
   isLowPower = cfg == "low-power";
   isPerformance = cfg == "performance";
+  batteryProfile = config.custom.batteryPowerProfile;
+  acProfile =
+    {
+      normal = "balanced";
+      low-power = "power-saver";
+      performance = "performance";
+    }
+    .${cfg};
+  selectsProfile =
+    config.isLaptop && config.custom.dynamicPowerProfiles && (isPerformance || batteryProfile != null);
 
   acSettings = {
     CPU_SCALING_GOVERNOR = "performance";
@@ -51,7 +61,8 @@ in
       laptops to the AC-power TLP tunings (performance governor/EPP,
       boost on, performance platform profile) even on battery, or, with
       dynamicPowerProfiles, selects the power-profiles-daemon
-      "performance" profile at boot.
+      "performance" profile at boot, or on AC power only when
+      batteryPowerProfile is set.
     '';
   };
 
@@ -59,6 +70,24 @@ in
     type = lib.types.bool;
     default = false;
     description = "Use power-profiles-daemon instead of automatic TLP AC/battery profiles.";
+  };
+
+  options.custom.batteryPowerProfile = lib.mkOption {
+    type = lib.types.nullOr (
+      lib.types.enum [
+        "power-saver"
+        "balanced"
+        "performance"
+      ]
+    );
+    default = null;
+    description = ''
+      power-profiles-daemon profile selected at boot on battery and
+      whenever a laptop with dynamicPowerProfiles unplugs. Plugging in
+      selects the profile matching powerProfile again. A manual choice
+      holds until the next power source change. null leaves the profile
+      alone on power source changes.
+    '';
   };
 
   config = lib.mkMerge [
@@ -85,17 +114,35 @@ in
       };
     })
 
-    (lib.mkIf (config.isLaptop && config.custom.dynamicPowerProfiles && isPerformance) {
+    (lib.mkIf selectsProfile {
       systemd.services.power-profile-default = {
-        description = "Select the power-profiles-daemon performance profile";
+        description = "Select the power-profiles-daemon profile for the power source";
         after = [ "power-profiles-daemon.service" ];
         requires = [ "power-profiles-daemon.service" ];
         wantedBy = [ "multi-user.target" ];
-        serviceConfig = {
-          Type = "oneshot";
-          ExecStart = "${lib.getExe' config.services.power-profiles-daemon.package "powerprofilesctl"} set performance";
-        };
+        serviceConfig.Type = "oneshot";
+        script = ''
+          profile=${acProfile}
+          ${lib.optionalString (batteryProfile != null) ''
+            profile=${batteryProfile}
+            for supply in /sys/class/power_supply/*; do
+              read -r type < "$supply/type" || continue
+              if [ "$type" != Mains ]; then
+                continue
+              fi
+              read -r online < "$supply/online" || continue
+              if [ "$online" = 1 ]; then
+                profile=${acProfile}
+              fi
+            done
+          ''}
+          exec ${lib.getExe' config.services.power-profiles-daemon.package "powerprofilesctl"} set "$profile"
+        '';
       };
+
+      services.udev.extraRules = lib.mkIf (batteryProfile != null) ''
+        SUBSYSTEM=="power_supply", ACTION=="change", ATTR{type}=="Mains", RUN+="${lib.getExe' config.systemd.package "systemctl"} --no-block restart power-profile-default.service"
+      '';
     })
   ];
 }

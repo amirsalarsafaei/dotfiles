@@ -13,7 +13,7 @@ Singleton {
     readonly property bool saver: PowerProfiles.profile === PowerProfile.PowerSaver
     readonly property bool eco: mode === "eco" || (mode === "auto" && (onBattery || saver))
     readonly property bool away: idle.isIdle
-    readonly property int frameInterval: eco ? 100 : 33
+    readonly property int frames: eco ? 6 : 2
     readonly property int pollScale: eco ? 2 : 1
     readonly property var windowEvents: ["openwindow", "closewindow", "movewindow", "movewindowv2", "changefloatingmode", "fullscreen", "workspace", "workspacev2", "focusedmon", "focusedmonv2"]
 

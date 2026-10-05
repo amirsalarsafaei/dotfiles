@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Effects
 import QtQuick.Shapes
+import Quickshell
 
 Item {
     id: board
@@ -261,6 +262,7 @@ Item {
     property real flare: 0
     property real alarm: 0
     property real lyrics: 0
+    property date now: new Date()
 
     readonly property real sunPath: 0.32
     readonly property real daylight: 0.5
@@ -269,8 +271,7 @@ Item {
     readonly property real level: ticker.level
     readonly property real swell: ticker.swell
     readonly property real artMix: cover.mix
-    readonly property bool ready: dieImage.status === Image.Ready
-    property real reveal: ready ? 1 : 0
+    property real reveal: 0
     property real pan: -0.035 * ((workspace - 1) % 10)
     readonly property real target: -0.035 * ((workspace - 1) % 10)
     readonly property real aspect: width / Math.max(1, height)
@@ -364,6 +365,10 @@ Item {
             ]
         };
     }
+    readonly property var dash: {
+        const t = lifted(layout.io, layout.heights[3]);
+        return [t[0] + 0.0105, t[1] + 0.014, t[2] - 0.0105, t[3] - 0.07];
+    }
     readonly property var pumpTop: lifted(layout.pump, layout.heights[0])
     readonly property var lcd: inset(pumpTop, 0.022)
     readonly property real slotPitch: (layout.dimm[2] - layout.dimm[0] - 0.04) / 3
@@ -376,7 +381,7 @@ Item {
             cy: vy(layout.gpu[1]) + radius,
             radius: radius,
             home: ux(0.42) + target * height,
-            margin: 0
+            left: ux(layout.gpu[0] + 0.03) + target * height
         };
     }
     readonly property real lyricsWidth: Math.round(stage.width * 0.88)
@@ -392,54 +397,6 @@ Item {
     readonly property real quoteWidth: Math.max(240, (layout.x + target - 0.07 * aspect - 0.1) * height)
     readonly property var status: [hw.info.kernel ? "linux " + hw.info.kernel : "", hw.info.generation ? "gen " + hw.info.generation : "", hw.uptime > 0 ? "up " + duration(hw.uptime) : ""]
 
-    readonly property var dies: ({
-            intel: {
-                source: "textures/die-intel.jpg",
-                size: [1920, 884],
-                p: [[388, 60, 570, 325], [573, 60, 755, 325], [758, 60, 940, 325], [944, 60, 1127, 325], [388, 612, 570, 876], [573, 612, 755, 876], [758, 612, 940, 876], [944, 612, 1127, 876]],
-                e: [[1130, 130, 1232, 232], [1265, 130, 1368, 232], [1130, 232, 1232, 335], [1265, 232, 1368, 335], [1372, 130, 1475, 232], [1508, 130, 1615, 232], [1372, 232, 1475, 335], [1508, 232, 1615, 335], [1130, 598, 1232, 700], [1265, 598, 1368, 700], [1130, 700, 1232, 805], [1265, 700, 1368, 805], [1372, 598, 1475, 700], [1508, 598, 1615, 700], [1372, 700, 1475, 805], [1508, 700, 1615, 805]],
-                gpu: [1615, 60, 1910, 862]
-            },
-            amd: {
-                source: "textures/die-amd.jpg",
-                size: [1920, 1781],
-                p: [[995, 480, 1210, 830], [1210, 480, 1420, 830], [1420, 480, 1635, 830], [1635, 480, 1845, 830], [995, 1260, 1210, 1610], [1210, 1260, 1420, 1610], [1420, 1260, 1635, 1610], [1635, 1260, 1845, 1610]],
-                e: [],
-                gpu: [470, 740, 980, 1250]
-            }
-        })
-    readonly property var die: dies[hw.vendor]
-    readonly property var cores: {
-        const groups = [];
-        const seen = {};
-        for (const thread of hw.threads) {
-            const key = thread.kind + ":" + thread.core;
-            if (seen[key] === undefined) {
-                seen[key] = groups.length;
-                groups.push({
-                    kind: thread.kind === "e" ? "e" : "p",
-                    cpus: []
-                });
-            }
-            groups[seen[key]].cpus.push(thread.cpu);
-        }
-        const counters = {
-            p: 0,
-            e: 0
-        };
-        const tiles = [];
-        for (const group of groups) {
-            const pool = die[group.kind].length > 0 ? group.kind : "p";
-            const index = counters[pool]++;
-            tiles.push({
-                kind: group.kind,
-                name: group.kind.toUpperCase() + (tiles.filter(tile => tile.kind === group.kind).length),
-                cpus: group.cpus,
-                box: die[pool][index % die[pool].length]
-            });
-        }
-        return tiles;
-    }
     property vector4d fanTurns: Qt.vector4d(0, 0.19, 0.41, 0.08)
     property real fanTurn: 0.3
     property real fanSpin: 0
@@ -447,7 +404,9 @@ Item {
     property real fanKick: 0
     property real lastTime: 0
     property real rayAt: -100
-    readonly property real ray: time - rayAt < 2.6 ? (time - rayAt) / 2.6 : -1
+    property int eccStick: 0
+    property real eccAt: 0.5
+    readonly property real ray: time - rayAt < 4 ? (time - rayAt) / 4 : -1
     property var shownLoads: []
     property vector4d shownLoad: Qt.vector4d(0, 0, 0, 0)
     property vector4d shownTraffic: Qt.vector4d(0, 0, 0, 0)
@@ -459,7 +418,7 @@ Item {
     property point sparkAt: Qt.point(0, 0)
     property string flip: ""
 
-    readonly property real tick: ticker.interval / 1000
+    readonly property real tick: ticker.step
     readonly property real pitch: 2 * Math.PI / 11
     readonly property real fanTarget: (hw.gpu < 8 ? 0 : 1.5 + 10 * hw.gpu / 100) + fanKick
     readonly property real smear: 0.5 * fanSpeed * tick
@@ -469,7 +428,6 @@ Item {
     readonly property real music: Math.min(1, level * 1.3)
     readonly property real phases: hw.plugged ? 0.25 + 0.75 * hw.cpu / 100 : Math.min(1, hw.watts / 18)
     readonly property real glow: Math.max(flare, boost)
-    readonly property real cached: hw.memTotal > 0 ? Math.min(1 - hw.mem / 100, hw.memCached / hw.memTotal) : 0
     readonly property var digits: {
         if (post.length > 0)
             return [post[0] >> 4, post[0] & 15, 0];
@@ -531,12 +489,6 @@ Item {
         return Math.floor(minutes / 1440) + "d " + Math.floor(minutes % 1440 / 60) + "h";
     }
 
-    function mean(cpus: var): real {
-        if (cpus.length === 0)
-            return 0;
-        return cpus.reduce((sum, cpu) => sum + (shownLoads[cpu] ?? 0), 0) / cpus.length;
-    }
-
     function approach(from: real, to: real, k: real, snap: real): real {
         const next = from + (to - from) * k;
         return Math.abs(to - next) < snap ? to : next;
@@ -564,8 +516,9 @@ Item {
     function cosmic(): void {
         if (ray >= 0)
             return;
-        if (flip === "")
-            flip = "ecc  ·  1-bit flip corrected  ·  0x" + Math.floor(Math.random() * 0xFFFFFFF).toString(16).padStart(7, "0");
+        eccStick = Math.floor(Math.random() * 4);
+        eccAt = 0.08 + Math.random() * Math.max(0.12, shownLoad.z - 0.12);
+        flip = "ecc 1-bit fixed  0x" + Math.floor(Math.random() * 0xFFFFFFF).toString(16).padStart(7, "0");
         rayAt = time;
     }
 
@@ -616,6 +569,7 @@ Item {
             flip = "";
     }
 
+    Component.onCompleted: reveal = 1
     onWidthChanged: rebake.restart()
     onHeightChanged: rebake.restart()
     onMoodAChanged: rebake.restart()
@@ -640,18 +594,24 @@ Item {
         id: hw
 
         running: board.running && board.reveal > 0
-        interval: Perf.eco ? 4000 : 2000
+        interval: Perf.eco ? 120000 : 60000
     }
 
     Ticker {
         id: ticker
 
-        running: board.running && board.ready
-        interval: Perf.eco ? 125 : 66
+        running: board.running && board.reveal > 0
+        frames: Perf.eco ? 5 : 4
     }
 
     Cover {
         id: cover
+    }
+
+    Timer {
+        interval: 30000
+        running: board.page !== 0
+        onTriggered: board.page = 0
     }
 
     Timer {
@@ -739,6 +699,7 @@ Item {
             property vector4d atx: board.v4(spec.atx)
             property vector4d gpu: board.v4(spec.gpu)
             property vector4d io: board.v4(spec.io)
+            property vector4d dash: board.v4(board.dash)
             property vector4d ssd: board.v4(spec.ssd)
             property vector4d eps: board.v4(spec.eps)
             property vector4d qcode: board.v4(spec.qcode)
@@ -839,38 +800,28 @@ Item {
             }
         }
 
-        Repeater {
-            model: 4
+        ShaderEffect {
+            readonly property var face: board.lifted([board.layout.dimm[0] + 0.007, board.layout.dimm[1] + 0.012, board.layout.dimm[0] + 0.033, board.layout.dimm[3] - 0.012], board.layout.heights[1])
+            readonly property var strip: [face[0] + 0.0075, face[1] + 0.012, face[2] - 0.0075, face[3] - 0.012]
+            readonly property var box: [strip[0] - 0.005, strip[1] - 0.005, strip[2] + 3 * board.slotPitch + 0.005, strip[3] + 0.005]
+            readonly property real used: board.shownLoad.z
+            property real pitch: board.slotPitch
+            property real fine: 1 / Math.max(1, board.layout.w * board.height * Screen.devicePixelRatio)
+            property real time: board.time
+            property real level: used
+            property real pace: 0.16 + 0.5 * board.shownLoad.x
+            property vector4d bar: board.v4(strip)
+            property vector4d area: board.v4(box)
+            property vector4d hit: Qt.vector4d(board.eccStick, board.eccAt, Math.max(0, board.ray), board.ray >= 0 ? 1 : 0)
+            property color tone: used > 0.92 ? Theme.danger : used > 0.8 ? Theme.warm : Qt.tint(Theme.cyan, Theme.alpha(board.accent, 0.25))
+            property color deep: Qt.tint(Theme.blue, Theme.alpha(board.accent, 0.3))
+            property color flash: board.flash
 
-            Item {
-                id: stick
-
-                required property int index
-                readonly property real sx: board.layout.dimm[0] + index * board.slotPitch
-                readonly property var face: board.lifted([sx + 0.007, board.layout.dimm[1] + 0.012, sx + 0.033, board.layout.dimm[3] - 0.012], board.layout.heights[1])
-                readonly property var bar: [face[0] + 0.0075, face[1] + 0.012, face[2] - 0.0075, face[3] - 0.012]
-                readonly property real segment: (bar[3] - bar[1]) / 8
-
-                Repeater {
-                    model: 8
-
-                    Rectangle {
-                        required property int index
-                        readonly property int slot: stick.index * 8 + index
-                        readonly property bool used: slot + 0.5 < hw.mem / 100 * 32
-                        readonly property bool cache: !used && slot + 0.5 < (hw.mem / 100 + board.cached) * 32
-
-                        x: board.ux(stick.bar[0])
-                        y: board.vy(stick.bar[1] + index * stick.segment + 0.0012)
-                        width: board.span(stick.bar[2] - stick.bar[0])
-                        height: board.span(stick.segment - 0.0024)
-                        radius: Math.min(width, height) / 3
-                        color: used ? Theme.alpha(Qt.tint(Theme.cyan, Theme.alpha(board.accent, 0.2)), 0.85) : cache ? Theme.alpha(Theme.blue, 0.6) : "transparent"
-                        border.width: used || cache ? 1 : 0
-                        border.color: Theme.alpha(board.flash, 0.35)
-                    }
-                }
-            }
+            x: board.ux(box[0])
+            y: board.vy(box[1])
+            width: board.span(box[2] - box[0])
+            height: board.span(box[3] - box[1])
+            fragmentShader: Qt.resolvedUrl("shaders/dimms.frag.qsb")
         }
 
         Item {
@@ -1099,7 +1050,8 @@ Item {
             property real streak: board.streak
             property real glow: 0.25 + 0.6 * board.shownLoad.y
             property real last: board.fanTurn
-            property vector4d area: Qt.vector4d(spec[0], spec[1] - 1.02 * spec[3], spec[0] + 5 * spec[2], spec[1] + 1.02 * spec[3])
+            property real speed: Math.min(1, board.fanSpeed / 8)
+            property vector4d area: Qt.vector4d(spec[0], spec[1] - 1.13 * spec[3], spec[0] + 5 * spec[2], spec[1] + 1.13 * spec[3])
             property vector4d fan: board.v4(spec)
             property vector4d turns: board.fanTurns
             property color ink: board.ink
@@ -1109,57 +1061,13 @@ Item {
             property color disc: Qt.rgba(0.08, 0.095, 0.14, 0.7)
             property color hub: Qt.tint(Theme.cyan, Theme.alpha(board.accent, 0.4))
             property color arc: Theme.alpha(board.flash, 0.4)
+            property color ring: Qt.tint(board.moodB, Theme.alpha(board.accent, 0.4))
 
             x: board.ux(area.x)
             y: board.vy(area.y)
             width: board.span(area.z - area.x)
             height: board.span(area.w - area.y)
             fragmentShader: Qt.resolvedUrl("shaders/fans.frag.qsb")
-        }
-
-        Item {
-            readonly property real sx: board.layout.dimm[0] + 2 * board.slotPitch
-            readonly property var hit: [sx + 0.02, board.layout.dimm[1] + 0.37 * (board.layout.dimm[3] - board.layout.dimm[1]) - board.lift * board.layout.heights[1]]
-            readonly property real k: Math.min(1, board.ray / 0.35)
-
-            visible: board.ray >= 0
-            x: board.ux(hit[0])
-            y: board.vy(hit[1])
-
-            Rectangle {
-                readonly property real reach: board.span(0.32)
-
-                x: -reach * (1 - parent.k) - width
-                y: -height / 2
-                width: board.span(0.25)
-                height: Math.max(2, board.span(0.0024))
-                radius: height / 2
-                visible: board.ray < 0.36
-                transformOrigin: Item.Right
-                rotation: Math.atan2(0.55, 0.9) * 180 / Math.PI
-
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-
-                    GradientStop {
-                        position: 0
-                        color: Theme.alpha(Theme.blue, 0)
-                    }
-
-                    GradientStop {
-                        position: 1
-                        color: board.flash
-                    }
-                }
-            }
-
-            Star {
-                readonly property real burst: Math.max(0, Math.min(1, (board.ray - 0.34) / 0.04)) * (1 - Math.max(0, Math.min(1, (board.ray - 0.38) / 0.62)))
-
-                size: board.span(0.09) * (0.6 + 0.6 * burst)
-                tone: Theme.cyan
-                opacity: burst
-            }
         }
 
         Star {
@@ -1181,10 +1089,10 @@ Item {
             readonly property real corner: board.span(0.03)
             readonly property real header: Math.round(height * 0.15)
             readonly property real footer: Math.round(height * 0.11)
-            readonly property real strip: board.page === 0 ? Math.round(height * 0.16) : height - screen.header - screen.footer - 8
-            readonly property real body: height - screen.header - screen.footer - screen.strip - 10
-            readonly property real dieWidth: Math.min(width * 0.92, screen.body * (board.die.size[0] / board.die.size[1]))
-            readonly property real dieHeight: screen.dieWidth * board.die.size[1] / board.die.size[0]
+            readonly property real strip: height - screen.header - screen.footer - 8
+            readonly property real body: height - screen.header - screen.footer - 10
+            readonly property real dieWidth: Math.min(width * 0.94, screen.body * chip.aspect)
+            readonly property real dieHeight: Math.round(screen.dieWidth / chip.aspect)
 
             Rectangle {
                 anchors.fill: parent
@@ -1213,83 +1121,23 @@ Item {
                         }
                     }
 
-                    Image {
-                        id: dieImage
+                    Die {
+                        id: chip
 
                         anchors.fill: parent
-                        source: Qt.resolvedUrl(board.die.source)
-                        asynchronous: true
-                        mipmap: true
-                        smooth: true
-                        sourceSize.width: 2048
-                    }
-
-                    Rectangle {
-                        anchors.fill: parent
-                        color: Theme.alpha(Theme.ink, 0.35)
-                    }
-
-                    Repeater {
-                        model: board.cores
-
-                        Item {
-                            id: tile
-
-                            required property var modelData
-                            readonly property real load: board.mean(modelData.cpus)
-                            readonly property var box: modelData.box
-
-                            x: box[0] / board.die.size[0] * dieView.width
-                            y: box[1] / board.die.size[1] * dieView.height
-                            width: (box[2] - box[0]) / board.die.size[0] * dieView.width
-                            height: (box[3] - box[1]) / board.die.size[1] * dieView.height
-
-                            Rectangle {
-                                anchors.fill: parent
-                                anchors.margins: 1
-                                radius: 2
-                                color: Theme.alpha(tile.load > 0.85 ? Theme.heat : Theme.cyan, 0.06 + 0.5 * tile.load)
-                                border.width: 1.5
-                                border.color: Theme.alpha(tile.load > 0.85 ? Theme.heat : Theme.cyan, 0.3 + 0.7 * tile.load)
-                            }
-
-                            Text {
-                                x: 3
-                                y: 2
-                                text: tile.modelData.name
-                                visible: tile.width > 18
-                                color: Theme.alpha(Theme.fgBright, 0.5 + 0.5 * tile.load)
-                                font.family: Theme.mono
-                                font.pixelSize: Math.max(7, Math.min(10, tile.height * 0.18))
-                                font.weight: Font.Bold
-                            }
-                        }
-                    }
-
-                    Rectangle {
-                        readonly property var box: board.die.gpu
-
-                        x: box[0] / board.die.size[0] * dieView.width + 1
-                        y: box[1] / board.die.size[1] * dieView.height + 1
-                        width: (box[2] - box[0]) / board.die.size[0] * dieView.width - 2
-                        height: (box[3] - box[1]) / board.die.size[1] * dieView.height - 2
-                        radius: 2
-                        color: Theme.alpha(Theme.blue, 0.03 + 0.35 * hw.gpu / 100)
-                        border.width: 1
-                        border.color: Theme.alpha(Theme.blue, 0.2 + 0.5 * hw.gpu / 100)
-                    }
-
-                    Rectangle {
-                        anchors.fill: parent
-                        color: "transparent"
-                        border.width: 1
-                        border.color: Theme.alpha(Theme.muted, 0.25)
+                        threads: hw.threads
+                        loads: board.shownLoads
+                        vendor: hw.vendor
+                        model: hw.info.model ?? ""
+                        gpu: board.shownLoad.y
+                        accent: board.accent
                     }
                 }
 
                 Row {
                     id: threadsView
 
+                    visible: board.page === 1
                     anchors.horizontalCenter: parent.horizontalCenter
                     y: screen.height - screen.footer - screen.strip
                     height: screen.strip
@@ -1382,6 +1230,7 @@ Item {
 
                 Rectangle {
                     anchors.fill: parent
+                    radius: screen.corner
                     color: Theme.alpha(Theme.ink, 0.45 * board.lyrics)
                 }
             }
@@ -1395,7 +1244,7 @@ Item {
                     y: Math.round(screen.header * 0.32)
                     width: screen.width * 0.6
                     elide: Text.ElideRight
-                    text: (hw.info.model ?? "cpu") + "  ·  " + hw.threads.length + "T"
+                    text: String(hw.info.model ?? "cpu").replace(/^\d+th Gen Intel Core /, "").replace(/^AMD /, "").replace(/ w\/ .*$/, "").replace(/^Ryzen (AI )?\d+ /, "") + "  ·  " + chip.plan.summary
                     color: Theme.alpha(Theme.muted, 0.9)
                     font.family: Theme.mono
                     font.pixelSize: 10
@@ -1500,6 +1349,33 @@ Item {
             }
         }
 
+        Shroud {
+            x: board.ux(board.dash[0])
+            y: board.vy(board.dash[1])
+            width: board.span(board.dash[2] - board.dash[0])
+            height: board.span(board.dash[3] - board.dash[1])
+            corner: board.span(0.006)
+            now: board.now
+            accent: Qt.tint(Theme.cyan, Theme.alpha(board.accent, 0.35))
+        }
+
+        Column {
+            x: board.ux(board.dash[0])
+            y: board.vy(board.dash[3] + 0.0205)
+            spacing: 1
+
+            Silk {
+                text: hw.info.wifi ?? "wlan"
+                at: 0.5
+            }
+
+            Readout {
+                text: "↓ " + board.rate(hw.rx) + "  ↑ " + board.rate(hw.tx)
+                clock: board.time
+                live: ticker.running
+            }
+        }
+
         Rectangle {
             id: screenMask
 
@@ -1548,7 +1424,7 @@ Item {
         Silk {
             x: board.ux(board.layout.vrmL[0] + 0.004)
             y: board.vy(board.layout.vrmL[3] + 0.024)
-            text: "vcore  ·  " + Math.round(board.phases * 8) + " phase"
+            text: "vcore · " + Math.round(board.phases * 8) + "ph"
         }
 
         Readout {
@@ -1569,19 +1445,13 @@ Item {
             }
 
             Readout {
-                text: hw.memUsed.toFixed(1) + "/" + Math.round(hw.memTotal) + "g  cache " + hw.memCached.toFixed(1) + (hw.swapUsed > 0.5 ? "  swap " + hw.swapUsed.toFixed(1) : "")
-                color: Theme.alpha(Theme.fg, 0.72)
+                readonly property bool fixing: board.ray >= 0.04 && board.ray < 0.9 && board.flip !== ""
+
+                text: fixing ? board.flip : hw.memUsed.toFixed(1) + " / " + Math.round(hw.memTotal) + "g" + (hw.swapUsed > 0.5 ? "  swap " + hw.swapUsed.toFixed(1) : "")
+                color: fixing ? Theme.alpha(Theme.cyan, 0.95) : Theme.alpha(Theme.fg, 0.72)
                 clock: board.time
                 live: ticker.running
             }
-        }
-
-        Silk {
-            x: board.ux(board.layout.dimm[0]) - width - 12
-            y: board.vy(board.layout.dimm[3]) + 22
-            text: board.flip
-            color: Theme.alpha(Theme.cyan, 0.9)
-            opacity: board.ray > 0.36 ? Math.min(1, (board.ray - 0.36) * 8) * (1 - Math.max(0, (board.ray - 0.75) / 0.25)) : 0
         }
 
         Row {
@@ -1648,30 +1518,6 @@ Item {
         }
 
         Callout {
-            readonly property real port: board.layout.io[1] + 0.035 + 2 * (board.layout.io[3] - board.layout.io[1] - 0.08) / 5
-
-            ax: board.ux(board.layout.io[0] - 0.034)
-            ay: board.vy(port + 0.03 - board.lift * 0.07)
-            reach: board.span(0.06)
-            title: hw.info.wifi ?? "wlan"
-            value: "↓ " + board.rate(hw.rx) + "  ↑ " + board.rate(hw.tx)
-            clock: board.time
-            live: ticker.running
-        }
-
-        Callout {
-            readonly property real port: board.layout.io[1] + 0.035 + 4 * (board.layout.io[3] - board.layout.io[1] - 0.08) / 5
-
-            ax: board.ux(board.layout.io[0] - 0.034)
-            ay: board.vy(port + 0.025 - board.lift * 0.07)
-            reach: board.span(0.06)
-            title: "hd audio"
-            value: Media.playing ? "playing" : "idle"
-            clock: board.time
-            live: ticker.running
-        }
-
-        Callout {
             ax: board.ux(0.03) - board.span(0.011)
             ay: board.vy(0.03)
             reach: board.span(0.06)
@@ -1693,6 +1539,8 @@ Item {
             let hit = "";
             if (inside(board.hull(spec.pump, spec.heights[0])))
                 hit = "pump";
+            else if (inside(board.hull(spec.io, spec.heights[3])))
+                hit = "agenda";
             else if (inside(spec.gpu))
                 hit = "gpu";
             else if (inside(board.hull(spec.dimm, spec.heights[1])))
@@ -1723,6 +1571,8 @@ Item {
                 board.cosmic();
             else if (hit.name === "cmos" || hit.name === "power")
                 board.boot();
+            else if (hit.name === "agenda")
+                Quickshell.execDetached(["agenda-os", "show"]);
             if (hit.name === "")
                 return;
             board.sparkle(hit.u, hit.v);

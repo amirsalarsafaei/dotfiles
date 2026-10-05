@@ -17,6 +17,7 @@ layout(std140, binding = 0) uniform buf {
     vec4 atx;
     vec4 gpu;
     vec4 io;
+    vec4 dash;
     vec4 ssd;
     vec4 eps;
     vec4 qcode;
@@ -622,26 +623,24 @@ void main() {
         }
         if (rect(b, hull(io, heights.w), 0.012) < lw) {
             vec4 t = lifted(io, heights.w);
-            vec2 l = b - t.xy;
-            float cut = l.y - 0.32 - l.x * 1.1;
-            vec3 upper = celRect(mix(SHELL, METAL, 0.45), b, t, 0.012, 0.006);
-            vec3 lower = celRect(SHELL, b, t, 0.012, 0.006);
-            vec3 top = mix(lower, upper, fill(cut));
-            float slit = fill(abs(fract(l.y / 0.012) - 0.5) * 0.012 - 0.0016) * step(0.025, l.x) * step(l.x, t.z - t.x - 0.03) * step(t.w - t.y - 0.12, l.y) * step(l.y, t.w - t.y - 0.025);
-            top = mix(top, SHELL * DEEP * 0.6, slit);
-            top = mix(top, LINE, 0.55 * fill(abs(cut + 0.05) - 0.3 * lw) * fill(cut + 0.05));
-            top = mix(top, LINE, 0.55 * fill(abs(cut + 0.1) - 0.3 * lw) * fill(cut + 0.1));
-            top = mix(top, LINE, fill(abs(cut) - 0.4 * lw));
-            float led = fill(abs(cut - 0.006) - 0.0018) * step(0.012, l.x) * step(l.x, t.z - t.x - 0.012);
+            vec3 shell = mix(SHELL, METAL, 0.3);
+            vec3 top = celRect(shell, b, t, 0.012, 0.006);
+            vec4 bezel = inset(dash, -0.0045);
+            float dBezel = rect(b, bezel, 0.009);
+            float dScreen = rect(b, dash, 0.006);
+            top = mix(top, top * SHADOW, fill(rect(b - vec2(0.002, 0.0015), bezel, 0.009)) * (1.0 - fill(dBezel)));
+            top = mix(top, celRect(SHELL * 0.82, b, bezel, 0.009, 0.003), fill(dBezel));
+            top = mix(top, LINE, fill(abs(dBezel) - 0.4 * lw));
+            top = mix(top, GLASS, fill(dScreen));
+            top = mix(top, LINE, stroke(dScreen, 0.6 * lw));
+            float ledY = bezel.w + 0.008;
+            float led = fill(abs(b.y - ledY) - 0.0012) * step(bezel.x + 0.004, b.x) * step(b.x, bezel.z - 0.004);
             top = mix(top, accent * 0.8 + 0.1 * HILITE, led);
-            top += accent * 0.1 * glowOf(abs(cut - 0.006), 0.012) * (1.0 - led) * fill(rect(b, t, 0.012));
-            top = mix(top, HILITE, 0.3 * glint(b, t, -0.62, 0.012) * fill(cut));
-            vec4 plate = vec4(t.x + 0.02, t.y + 0.035, t.z - 0.016, t.y + 0.09);
-            top = mix(top, mix(GLASS, SHELL, 0.5), fill(rect(b, plate, 0.003)));
-            top = mix(top, LINE, stroke(rect(b, plate, 0.003), 0.6 * lw));
-            top = mix(top, accent * 0.7, fill(abs(b.y - plate.w + 0.008) - 0.0012) * step(plate.x + 0.008, b.x) * step(b.x, plate.x + 0.04));
-            top = mix(top, SILK * 0.35, fill(abs(b.y - plate.y - 0.014) - 0.002) * step(plate.x + 0.008, b.x) * step(b.x, plate.z - 0.03));
-            color = block(color, b, io, 0.012, heights.w, top, wall(mix(SHELL, METAL, 0.3), b, io, heights.w), 0.6);
+            top += accent * 0.08 * glowOf(abs(b.y - ledY), 0.005) * (1.0 - led) * (1.0 - fill(dBezel)) * fill(rect(b, t, 0.012));
+            float slit = fill(abs(fract((b.x - t.x) / 0.0065) - 0.5) * 0.0065 - 0.0013) * step(t.x + 0.014, b.x) * step(b.x, t.z - 0.014) * step(t.w - 0.017, b.y) * step(b.y, t.w - 0.007);
+            top = mix(top, shell * DEEP * 0.55, slit);
+            top = mix(top, HILITE, 0.22 * glint(b, t, -0.62, 0.012) * (1.0 - fill(dBezel)));
+            color = block(color, b, io, 0.012, heights.w, top, wall(shell, b, io, heights.w), 0.6);
         }
     }
 
@@ -681,14 +680,22 @@ void main() {
         if (rect(b, hull(module, z), 0.002) > lw)
             continue;
         vec4 t = lifted(module, z);
-        vec3 top = celRect(METAL * 0.75, b, t, 0.002, 0.004);
+        vec3 spreader = vec3(0.1, 0.11, 0.145);
+        vec3 top = celRect(spreader, b, t, 0.002, 0.004);
         vec4 bar = vec4(t.x + 0.0075, t.y + 0.012, t.z - 0.0075, t.w - 0.012);
+        vec4 channel = inset(bar, -0.0017);
+        float rail = max(fill(rect(b, vec4(t.x, t.y, channel.x - 0.0008, t.w), 0.002)), fill(rect(b, vec4(channel.z + 0.0008, t.y, t.z, t.w), 0.002)));
+        vec3 alu = celRect(METAL * 1.12, b, t, 0.002, 0.003);
+        alu = mix(alu, alu * SHADE, 0.45 * step(0.5, fract((b.y - t.y) / 0.008)));
+        top = mix(top, alu, rail);
+        top = mix(top, spreader * DEEP * 0.55, fill(rect(b, channel, 0.003)));
+        top = mix(top, LINE, stroke(rect(b, channel, 0.003), 0.5 * lw));
         top = mix(top, GLASS, fill(rect(b, bar, 0.002)));
-        top = mix(top, LINE, stroke(rect(b, bar, 0.002), 0.6 * lw));
-        top = mix(top, HILITE, 0.25 * glint(b, t, -0.7, 0.006) * (1.0 - fill(rect(b, bar, 0.002))));
-        vec3 side = wall(METAL * 0.75, b, module, z);
-        vec4 label = vec4(module.x + 0.003, module.w - lift * z + 0.006, module.z - 0.003, module.w - 0.008);
-        side = mix(side, mix(SILK, accent, 0.25) * 0.55, fill(rect(b, label, 0.001)) * 0.8);
+        top = mix(top, HILITE, 0.28 * glint(b, t, -0.7, 0.006) * (1.0 - fill(rect(b, channel, 0.003))));
+        vec3 side = wall(spreader, b, module, z);
+        vec4 label = vec4(module.x + 0.004, module.w - lift * z + 0.008, module.z - 0.004, module.w - 0.01);
+        side = mix(side, SILK * 0.42, fill(rect(b, label, 0.001)) * 0.8);
+        side = mix(side, LINE, 0.6 * fill(abs(b.y - 0.5 * (label.y + label.w)) - 0.0006) * fill(rect(b, inset(label, 0.003), 0.0)));
         color = block(color, b, module, 0.002, z, top, side, 0.5);
     }
 
@@ -822,6 +829,9 @@ void main() {
             float rim = rr - R * 1.04;
             c = mix(c, vec3(0.06, 0.07, 0.09), fill(rim));
             c = mix(c, LINE, fill(abs(rim) - 0.4 * lw));
+            float diffuser = abs(rr - R * 1.08) - 0.0032;
+            c = mix(c, mix(GLASS, cyan.rgb, 0.06), fill(diffuser));
+            c = mix(c, LINE, fill(abs(diffuser) - 0.35 * lw));
             vec3 gap = vec3(0.02, 0.024, 0.036);
             c = mix(c, gap, fill(rr - R));
             for (int s = 0; s < 4; s++) {

@@ -10,5 +10,3 @@
   - Blue, terrain: NASA Blue Marble Next Generation, July 2004, 21600×10800 (https://visibleearth.nasa.gov/collection/1484/blue-marble), public domain. Luma masked to land by color.
 - `moon.jpg`: Solar System Scope 8k Moon (https://www.solarsystemscope.com/textures/), CC BY 4.0. Greyscale, resized to 1024×512.
 - `milky-way.jpg`: NASA/Goddard Scientific Visualization Studio, Deep Star Maps 2020 (https://svs.gsfc.nasa.gov/4851), public domain. Galactic-plane band, log tone-mapped to greyscale.
-- `die-intel.jpg`: Fritzchens Fritz, "Intel@intel7(10nmESF)@RaptorLake@RPL(8P+16E)@i9-13900K@ES DSCx06 poly@5xDIC Lambda" (https://commons.wikimedia.org/wiki/User:Fritzchens_Fritz), CC0. Graded to the board palette and cropped to the die, 2560 wide; shown on the motherboard scene's pump LCD for Intel CPUs.
-- `die-amd.jpg`: Fritzchens Fritz, "AMD@7nm@Zen3@Cezanne@Ryzen 5 5600G" die shot (https://commons.wikimedia.org/wiki/User:Fritzchens_Fritz), CC0. Same grading, 2048 wide; shown for AMD CPUs.

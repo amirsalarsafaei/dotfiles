@@ -398,7 +398,7 @@ PanelWindow {
         readonly property real bubble: Math.round(220 * Math.max(0.85, unit))
         readonly property real margin: Math.max(150 * unit, bubble / 2 + 16 * unit)
         readonly property real reachRight: Math.asin(Math.max(0, Math.min(0.5, (wall.width - margin - home) / radius)))
-        readonly property real reachLeft: Math.asin(Math.max(0, Math.min(0.5, (home - margin) / radius)))
+        readonly property real reachLeft: Math.asin(Math.max(0, Math.min(0.5, (home - Math.max(margin, (scene.ground.left ?? 0) + 8 * pixel)) / radius)))
         readonly property real slim: Math.round(0.75 * bubble)
         readonly property real gap: Math.round(10 * Math.max(0.85, unit))
         readonly property real edge: Math.round(16 * Math.max(0.85, unit))
@@ -419,8 +419,9 @@ PanelWindow {
                         span += list[i].realm === list[i - 1].realm ? 1 : 1.6;
                     offsets.push(span);
                 }
-                const step = span > 0 ? Math.min(spacing, 2 * Math.min(reachLeft, reachRight) / span) : spacing;
-                list.forEach((agent, i) => result[agent.id] = (offsets[i] - span / 2) * step);
+                const step = span > 0 ? Math.min(spacing, (reachLeft + reachRight) / span) : spacing;
+                const center = Math.min(reachRight - span * step / 2, Math.max(span * step / 2 - reachLeft, 0));
+                list.forEach((agent, i) => result[agent.id] = center + (offsets[i] - span / 2) * step);
                 return result;
             }
             const left = list.filter(agent => agent.realm === "work");

@@ -84,6 +84,7 @@ Item {
             running: scene.running
             interactive: scene.interactive
             workspace: scene.workspace
+            now: scene.now
             flare: scene.flare
             alarm: scene.alarm
             lyrics: scene.lyrics

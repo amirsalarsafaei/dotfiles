@@ -18,6 +18,7 @@
   custom = {
     dynamicPowerProfiles = true;
     powerProfile = "performance";
+    batteryPowerProfile = "power-saver";
   };
 
   hyprland.xwaylandDpi = 144;

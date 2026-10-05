@@ -164,8 +164,13 @@ let
         kind=""
         case "$performance" in *" $n "*) kind=p ;; esac
         case "$efficient" in *" $n "*) kind=e ;; esac
-        echo "$n $(cat "$dir/topology/core_id" 2>/dev/null || echo "$n") $kind"
-      done | jq -Rn '[inputs | split(" ") | {cpu: (.[0] | tonumber), core: (.[1] | tonumber), kind: (.[2] // "")}] | sort_by(.cpu)')
+        echo "$n $(cat "$dir/topology/core_id" 2>/dev/null || echo "$n") $(cat "$dir/cache/index2/id" 2>/dev/null || echo -1) $(cat "$dir/cache/index2/size" 2>/dev/null || echo 0K) $(cat "$dir/cache/index3/id" 2>/dev/null || echo 0) $(cat "$dir/cache/index3/size" 2>/dev/null || echo 0K) $(cat "$dir/cpufreq/cpuinfo_max_freq" 2>/dev/null || echo 0) $kind"
+      done | jq -Rn '
+        def kb: rtrimstr("K") | tonumber? // 0;
+        [inputs | split(" ") | {cpu: (.[0] | tonumber), core: (.[1] | tonumber), l2: (.[2] | tonumber), l2kb: (.[3] | kb), l3: (.[4] | tonumber), l3kb: (.[5] | kb), khz: (.[6] | tonumber? // 0), kind: (.[7] // "")}]
+        | (map(.khz) | max // 0) as $top
+        | map(.kind = (if .kind != "" then .kind elif $top > 0 and .khz > 0 and .khz < 0.85 * $top then "e" else "p" end) | del(.khz))
+        | sort_by(.cpu)')
 
       fan=""
       fanHw=$(hwmon thinkpad asus dell_smm applesmc nct6775 nct6687 it87)

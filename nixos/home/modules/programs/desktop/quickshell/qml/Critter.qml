@@ -188,6 +188,27 @@ Item {
         const look = wave(0.23, 0.4) + 0.7 * wave(0.61, 2);
         return look > 1.25 ? p / 2 : look < -1.25 ? -p / 2 : 0;
     }
+    readonly property real flap: {
+        if (ouch > 0)
+            return 24 * Math.sin(ouch * 30) * (1 - ouch);
+        if (cheer > 0)
+            return 18 * Math.sin(cheer * 19);
+        if (status === "error")
+            return -6;
+        if (status === "done")
+            return -12 + 2 * wave(1.1, 0);
+        if (walking)
+            return 10 * wave(9, 0.6);
+        if (status === "working")
+            return 12 * wave(7.2, 0);
+        if (status === "asking")
+            return 14 * wave(4.8, 0);
+        if (status === "planning")
+            return 8 * wave(1.2, 1.2);
+        if (dancing)
+            return 16 * groove * wave(3.1, 0);
+        return 5 * wave(1.3, 0.8);
+    }
     property real cheeks: happy ? 0.95 : realm === "personal" ? 0.7 : 0.45
     readonly property var whip: {
         const keys = [
@@ -631,6 +652,30 @@ Item {
                 origin.y: pose.height
                 yScale: pose.squash
                 xScale: 2 - pose.squash
+            }
+
+            Item {
+                visible: critter.breed === "deepseek"
+                x: -5 * critter.p
+                y: 1.5 * critter.p
+                width: 6.5 * critter.p
+                height: 4 * critter.p
+                rotation: visible ? critter.flap : 0
+                transformOrigin: Item.BottomRight
+
+                Repeater {
+                    model: [[0, 0, 2, 1], [6, 0, 2, 1], [0, 1, 3, 1], [5, 1, 3, 1], [1, 2, 6, 1], [2, 3, 4, 1], [3, 3, 2, 4], [4, 6, 9, 2]]
+
+                    Pixel {
+                        required property var modelData
+
+                        x: modelData[0] * critter.p / 2
+                        y: modelData[1] * critter.p / 2
+                        width: modelData[2] * critter.p / 2
+                        height: modelData[3] * critter.p / 2
+                        color: critter.body
+                    }
+                }
             }
 
             Repeater {
