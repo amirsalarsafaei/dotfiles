@@ -17,7 +17,7 @@ let
     autoCommitMessage = "vault backup: {{date}}";
     commitMessageScript = "";
     commitDateFormat = "YYYY-MM-DD HH:mm:ss";
-    autoSaveInterval = 10;
+    autoSaveInterval = 1;
     autoPushInterval = 10;
     autoPullInterval = 10;
     autoPullOnBoot = true;

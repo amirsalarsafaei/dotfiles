@@ -5,17 +5,63 @@
   ...
 }:
 let
+  scenes = import ../../home/modules/programs/desktop/quickshell/scenes.nix;
+
+  sceneSession = pkgs.writeShellApplication {
+    name = "hyprland-scene";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.jq
+    ];
+    text = ''
+      scene=$1
+      shift
+      state="''${XDG_STATE_HOME:-$HOME/.local/state}"
+      prefs="$state/${scenes.prefsFile}"
+      current='{}'
+      if [ -s "$prefs" ] && jq -e 'type == "object"' "$prefs" >/dev/null 2>&1; then
+        current=$(cat "$prefs")
+      fi
+      if mkdir -p "$state" && jq --arg scene "$scene" '.scene = $scene' <<<"$current" >"$prefs.tmp"; then
+        mv "$prefs.tmp" "$prefs" || true
+      fi
+      exec "$@"
+    '';
+  };
+
+  sceneEntries = lib.concatMapStrings (scene: ''
+    {
+      echo "[Desktop Entry]"
+      echo "Name=Hyprland · ${scene}"
+      echo "Comment=Hyprland with the ${scene} desktop scene"
+      echo "Exec=${lib.getExe sceneSession} ${scene} $uwsm"
+      echo "DesktopNames=Hyprland"
+      echo "Type=Application"
+    } >"$out/share/wayland-sessions/hyprland-${scene}.desktop"
+  '') scenes.names;
+
   filteredSessions = pkgs.runCommand "greeter-sessions" { } ''
     src=${config.services.displayManager.sessionData.desktops}
+    uwsm=""
+    if [ -e "$src/share/wayland-sessions/hyprland-uwsm.desktop" ]; then
+      uwsm=$(sed -n 's/^Exec=//p' "$src/share/wayland-sessions/hyprland-uwsm.desktop" | head -n 1)
+    fi
     for dir in wayland-sessions xsessions; do
       [ -d "$src/share/$dir" ] || continue
       mkdir -p "$out/share/$dir"
       for f in "$src/share/$dir"/*.desktop; do
         [ -e "$f" ] || continue
-        [ "$(basename "$f")" = "hyprland.desktop" ] && continue
+        case "$(basename "$f")" in
+          hyprland.desktop) continue ;;
+          hyprland-uwsm.desktop) [ -n "$uwsm" ] && continue ;;
+        esac
         ln -s "$f" "$out/share/$dir/"
       done
     done
+    if [ -n "$uwsm" ]; then
+      mkdir -p "$out/share/wayland-sessions"
+      ${sceneEntries}
+    fi
   '';
   sessions = "${filteredSessions}/share/wayland-sessions:${filteredSessions}/share/xsessions";
 

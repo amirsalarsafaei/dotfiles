@@ -6,7 +6,6 @@ import Quickshell.Widgets
 import Quickshell.Hyprland
 import Quickshell.Networking
 import Quickshell.Bluetooth
-import Quickshell.Services.Mpris
 import Quickshell.Services.Pipewire
 import Quickshell.Services.SystemTray
 import Quickshell.Services.UPower
@@ -20,12 +19,13 @@ PanelWindow {
     signal agentsRequested
 
     readonly property bool compact: Sys.compactOutput.length > 0 && screen?.name === Sys.compactOutput
+    readonly property bool tech: Prefs.scene === "motherboard"
     readonly property int fontSize: compact ? 11 : 12
     readonly property int iconSize: compact ? 13 : 14
     readonly property int barHeight: compact ? 28 : 34
     readonly property int marginTop: compact ? 4 : 6
     readonly property int marginSide: compact ? 6 : 12
-    readonly property int islandRadius: compact ? 11 : 14
+    readonly property int islandRadius: tech ? (compact ? 3 : 4) : compact ? 11 : 14
     readonly property int pad: compact ? 7 : 9
     readonly property int gap: compact ? 4 : 6
     readonly property int chipHeight: barHeight - (compact ? 6 : 8)
@@ -53,10 +53,7 @@ PanelWindow {
     readonly property bool buried: monitor?.activeWorkspace?.hasFullscreen ?? false
     readonly property bool live: shown && !buried
 
-    readonly property var player: {
-        const players = Mpris.players.values;
-        return players.find(p => p.isPlaying) ?? players[0] ?? null;
-    }
+    readonly property var player: Media.player
     readonly property var sink: Pipewire.defaultAudioSink
     readonly property var links: Pipewire.linkGroups.values
     readonly property var micApps: appsFrom(links.filter(g => g.source && g.target && g.source.type === PwNodeType.AudioSource && g.target.isStream))
@@ -101,6 +98,7 @@ PanelWindow {
             inhibited: false
         })
     property var airpods: ({})
+    property var work: null
 
     function esc(value: string): string {
         return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
@@ -348,6 +346,8 @@ PanelWindow {
 
         function onRawEvent(event: var): void {
             if (event.name === "activelayout") {
+                if (event.data.startsWith("hl-virtual-keyboard"))
+                    return;
                 const comma = event.data.indexOf(",");
                 panel.layout = panel.layoutCode(comma >= 0 ? event.data.slice(comma + 1) : event.data);
             } else if (event.name === "submap") {
@@ -461,7 +461,7 @@ PanelWindow {
                 const name = line.slice(0, colon).trim();
                 if (name === "lo")
                     continue;
-                if (/^(tun|tap|ppp)\d+$|^wg/.test(name)) {
+                if (/^(tun|tap|ppp|wt)\d+$|^wg/.test(name)) {
                     tunnels.push(name);
                     continue;
                 }
@@ -618,6 +618,21 @@ PanelWindow {
         onLoadFailed: panel.airpods = {}
     }
 
+    FileView {
+        path: Sys.workNetDir.length > 0 ? Quickshell.env("XDG_RUNTIME_DIR") + "/" + Sys.workNetDir + "/status.json" : ""
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                panel.work = JSON.parse(text()) ?? null;
+            } catch (error) {
+                panel.work = null;
+            }
+        }
+        onLoadFailed: panel.work = null
+    }
+
     component Island: Rectangle {
         id: island
 
@@ -640,18 +655,18 @@ PanelWindow {
         width: span
         radius: panel.islandRadius
         color: "transparent"
-        border.color: Theme.alpha(Theme.line, 0.95)
+        border.color: panel.tech ? Qt.tint(Theme.line, Theme.alpha(Theme.cyan, 0.35)) : Theme.alpha(Theme.line, 0.95)
         border.width: 1
 
         gradient: Gradient {
             GradientStop {
                 position: 0
-                color: Theme.alpha(Qt.tint(Theme.ink, Theme.alpha(Theme.fg, 0.05)), 0.8)
+                color: panel.tech ? Theme.alpha(Qt.tint(Theme.ink, Theme.alpha(Theme.blue, 0.12)), 0.92) : Theme.alpha(Qt.tint(Theme.ink, Theme.alpha(Theme.fg, 0.05)), 0.8)
             }
 
             GradientStop {
                 position: 1
-                color: Theme.alpha(Theme.ink, 0.7)
+                color: panel.tech ? Theme.alpha(Qt.tint(Theme.ink, Theme.alpha(Theme.blue, 0.05)), 0.88) : Theme.alpha(Theme.ink, 0.7)
             }
         }
 
@@ -663,6 +678,66 @@ PanelWindow {
         }
 
         Rectangle {
+            visible: panel.tech
+            anchors.fill: parent
+            anchors.margins: 2
+            radius: Math.max(0, island.radius - 2)
+            color: "transparent"
+            border.width: 1
+            border.color: Theme.alpha(Theme.cyan, 0.14)
+        }
+
+        Rectangle {
+            visible: panel.tech
+            x: 3
+            y: 3
+            width: 2
+            height: 2
+            radius: 1
+            color: Theme.alpha(Theme.muted, 0.7)
+        }
+
+        Rectangle {
+            visible: panel.tech
+            x: island.radius + 4
+            width: Math.round(island.width * 0.3)
+            height: 1
+            color: Theme.alpha(Theme.cyan, 0.5)
+
+            Rectangle {
+                x: parent.width - 2
+                y: -1.5
+                width: 4
+                height: 4
+                radius: 2
+                color: Theme.ink
+                border.width: 1
+                border.color: Theme.alpha(Theme.cyan, 0.7)
+            }
+        }
+
+        Rectangle {
+            visible: panel.tech
+            x: island.width - island.radius - 4 - width
+            y: island.height - 1
+            width: Math.round(island.width * 0.18)
+            height: 1
+            color: Theme.alpha(Theme.blue, 0.45)
+
+            Rectangle {
+                x: -2
+                y: -1.5
+                width: 4
+                height: 4
+                radius: 2
+                color: Theme.ink
+                border.width: 1
+                border.color: Theme.alpha(Theme.blue, 0.65)
+            }
+        }
+
+        Rectangle {
+            visible: !panel.tech
             anchors.top: parent.top
             anchors.topMargin: 1
             anchors.horizontalCenter: parent.horizontalCenter
@@ -721,7 +796,7 @@ PanelWindow {
             width: tail - head
             height: 2
             radius: 1
-            color: Theme.blue
+            color: panel.tech ? Theme.cyan : Theme.blue
 
             onTargetChanged: {
                 if (!target) {
@@ -1017,7 +1092,7 @@ PanelWindow {
 
                         width: panel.chipHeight
                         height: panel.chipHeight
-                        radius: height / 2
+                        radius: panel.tech ? 3 : height / 2
                         color: modelData.status === Status.NeedsAttention ? Theme.alpha(Theme.danger, 0.25) : "transparent"
 
                         IconImage {
@@ -1179,12 +1254,56 @@ PanelWindow {
 
         Chip {
             bar: panel
-            visible: panel.tunnels.length > 0
+            visible: panel.work === null && panel.tunnels.length > 0
             icon: "\u{f0582}"
             iconColor: Theme.fg
             text: panel.compact ? "" : "VPN"
             tooltip: "<b>VPN</b>  " + panel.esc(panel.tunnels.join(", ")) + "\nclick: dashboard"
             onClicked: panel.sidebarRequested()
+        }
+
+        Chip {
+            readonly property var vpn: panel.work ? panel.work.vpn ?? null : null
+            readonly property var mesh: panel.work ? panel.work.netbird ?? null : null
+            readonly property string profile: vpn ? String(vpn.profile ?? "") : ""
+            readonly property string vpnState: !vpn ? "off" : vpn.state === "connected" && panel.tunnels.indexOf(vpn.device) < 0 ? "off" : String(vpn.state)
+            readonly property bool vpnAlert: vpnState === "attention" || vpnState === "dropped"
+            readonly property bool vpnLive: vpnState === "connected" || vpnState === "connecting" || vpnState === "paused"
+            readonly property string meshState: !mesh ? "Down" : mesh.state === "Connected" && panel.tunnels.indexOf(mesh.iface) < 0 ? "Idle" : String(mesh.state)
+            readonly property bool meshAlert: ["NeedsLogin", "SessionExpired", "LoginFailed"].indexOf(meshState) >= 0
+            readonly property bool meshUp: meshState === "Connected"
+            readonly property var terminal: [Sys.uwsm, "app", "--", Sys.terminal, "--wait-after-command=true", "-e"]
+
+            bar: panel
+            visible: panel.work !== null
+            icon: "\u{f0582}"
+            iconColor: vpnAlert ? Theme.heat : vpnState === "connected" ? Theme.fg : vpnLive ? Theme.muted : Theme.faint
+            text: panel.compact ? "" : vpnState === "off" || profile.length === 0 ? "off" : profile
+            textColor: vpnAlert ? Theme.heat : vpnState === "connected" ? Theme.fg : Theme.muted
+            badge: meshUp ? "\u{f0318}" : meshAlert || meshState === "Down" || meshState === "Idle" ? "\u{f0319}" : "\u{f031a}"
+            badgeColor: meshAlert ? Theme.heat : meshUp ? Theme.muted : Theme.faint
+            fill: vpnAlert || meshAlert ? Theme.alpha(Theme.heat, 0.14) : "transparent"
+            tooltip: {
+                const labels = {
+                    connected: "connected",
+                    connecting: "connecting",
+                    paused: "paused",
+                    attention: "needs authentication",
+                    dropped: "dropped"
+                };
+                const vpnParts = vpnState === "off" ? ["off"] : [profile, labels[vpnState] ?? vpnState];
+                if (vpnState === "connected")
+                    vpnParts.push(vpn.device, vpn.ip, panel.duration(clock.date.getTime() / 1000 - Number(vpn.since)));
+                const meshParts = [meshAlert ? "needs login" : meshState];
+                if (meshUp)
+                    meshParts.push(mesh.ip, mesh.peers + "/" + mesh.total + " peers");
+                const join = parts => panel.esc(parts.filter(part => part && String(part).length > 0).join(" · "));
+                const click = vpnLive ? "disconnect" : profile.length > 0 ? "connect " + profile : "connect";
+                const right = meshUp ? "NetBird down" : meshAlert ? "NetBird login" : "NetBird up";
+                return "<b>Work VPN</b>  " + join(vpnParts) + "\n<b>NetBird</b>  " + join(meshParts) + "\nclick: " + click + " · right-click: " + right;
+            }
+            onClicked: panel.run(vpnLive ? ["work-vpn", "down"] : terminal.concat(["work-vpn"], profile.length > 0 ? [profile, "up"] : ["up"]))
+            onRightClicked: panel.run(meshUp ? ["netbird", "down"] : terminal.concat(["netbird", "up"]))
         }
 
         Chip {
@@ -1320,7 +1439,7 @@ PanelWindow {
             anchors.verticalCenter: parent.verticalCenter
             width: hardware.implicitWidth + 4
             height: panel.chipHeight
-            radius: height / 2
+            radius: panel.tech ? 3 : height / 2
             color: Theme.alpha(Theme.ink, 0.55)
             border.color: Theme.line
             border.width: 1

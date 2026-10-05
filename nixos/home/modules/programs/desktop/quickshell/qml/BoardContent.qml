@@ -3,7 +3,6 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import Quickshell.Widgets
-import Quickshell.Services.Mpris
 
 Item {
     id: content
@@ -37,10 +36,7 @@ Item {
         return name.length > 0 ? name.charAt(0).toUpperCase() + name.slice(1) : "";
     }
     readonly property string cacheHome: String(Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache"))
-    readonly property var player: {
-        const players = Mpris.players.values;
-        return players.find(p => p.isPlaying) ?? players[0] ?? null;
-    }
+    readonly property var player: Media.player
 
     property var quip: ({})
 

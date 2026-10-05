@@ -24,11 +24,51 @@ Item {
     property real lash: 0
     property real shake: 0
     property real ouch: 0
+    property real love: 0
+    property real cheer: 0
+    property string was: ""
+    property bool music: false
+    property real level: 0
 
     signal activated
 
     component Pixel: Rectangle {
         antialiasing: true
+    }
+
+    component Note: Item {
+        id: tune
+
+        property real size: 4
+        property color tint: "white"
+
+        width: 1.5 * size
+        height: 2.2 * size
+
+        Rectangle {
+            y: 1.45 * tune.size
+            width: 0.95 * tune.size
+            height: 0.75 * tune.size
+            radius: height / 2
+            color: tune.tint
+            antialiasing: true
+        }
+
+        Rectangle {
+            x: 0.65 * tune.size
+            width: 0.3 * tune.size
+            height: 1.85 * tune.size
+            color: tune.tint
+            antialiasing: true
+        }
+
+        Rectangle {
+            x: 0.65 * tune.size
+            width: 0.85 * tune.size
+            height: 0.35 * tune.size
+            color: tune.tint
+            antialiasing: true
+        }
     }
 
     component Shadow: Shape {
@@ -124,14 +164,31 @@ Item {
     readonly property bool blink: status !== "done" && status !== "error" && (t / 4.3 - Math.floor(t / 4.3)) < 0.04
     readonly property string realm: agent?.realm ?? ""
     readonly property bool openable: (agent?.session ?? "") !== "" && (agent?.pane ?? "") !== ""
-    readonly property bool armUp: status === "asking" || ouch > 0
+    readonly property bool armUp: status === "asking" || ouch > 0 || cheer > 0
     readonly property bool alert: status === "asking" || status === "error"
     readonly property bool idle: status === "done" || status === "ready"
-    readonly property color label: status === "ready" ? Theme.muted : tint
+    readonly property color label: tint
     readonly property int helpers: Math.min(3, agent?.agents ?? 0)
     readonly property real sunlight: Math.min(1, Math.max(twilight, daylight * 1.5))
     readonly property real lean: Math.max(-1, Math.min(1, (0.85 * sunPath - 0.5 - angle) / 0.6)) * sunlight
     readonly property real stretch: 1.9 * Math.abs(lean) * (1 + 0.5 * twilight)
+    readonly property string breed: agent?.breed ?? "claude"
+    readonly property bool vibing: realm === "personal" && music && ouch === 0 && (status === "ready" || status === "done")
+    readonly property bool dancing: vibing && status === "ready" && !walking
+    readonly property bool petted: spriteMouse.containsMouse
+    readonly property bool happy: ouch === 0 && status !== "error" && (petted || dancing || cheer > 0)
+    readonly property real groove: Math.min(1, 0.5 + level)
+    readonly property color blush: Qt.tint(Theme.fgBright, Theme.alpha(Theme.danger, 0.6))
+    readonly property color gear: Qt.tint(Theme.faint, Theme.alpha(Theme.blue, 0.55))
+    readonly property color leather: Qt.tint(Theme.faint, Theme.alpha(Theme.heat, 0.5))
+    readonly property color note: Theme.mood.active ? Qt.tint(Theme.cyan, Theme.alpha(Theme.primary, 0.45)) : Theme.cyan
+    readonly property real glance: {
+        if (status !== "ready" || happy)
+            return 0;
+        const look = wave(0.23, 0.4) + 0.7 * wave(0.61, 2);
+        return look > 1.25 ? p / 2 : look < -1.25 ? -p / 2 : 0;
+    }
+    property real cheeks: happy ? 0.95 : realm === "personal" ? 0.7 : 0.45
     readonly property var whip: {
         const keys = [
             {
@@ -202,8 +259,66 @@ Item {
 
     z: lash > 0 ? 20 : hovered ? 10 : 0
 
-    onStatusChanged: jump.restart()
-    Component.onCompleted: arrive.start()
+    onStatusChanged: {
+        jump.restart();
+        if ((was === "working" || was === "planning") && idle)
+            hooray.restart();
+        was = status;
+    }
+    onPettedChanged: {
+        if (!petted || pet.running || lashing.running)
+            return;
+        pet.restart();
+        if (!flinch.running)
+            jump.restart();
+    }
+    Component.onCompleted: {
+        was = status;
+        arrive.start();
+    }
+
+    Behavior on cheeks {
+        NumberAnimation {
+            duration: Theme.brisk
+        }
+    }
+
+    SequentialAnimation {
+        id: hooray
+
+        NumberAnimation {
+            target: critter
+            property: "cheer"
+            from: 0
+            to: 1
+            duration: 1400
+        }
+
+        PropertyAction {
+            target: critter
+            property: "cheer"
+            value: 0
+        }
+    }
+
+    SequentialAnimation {
+        id: pet
+
+        NumberAnimation {
+            target: critter
+            property: "love"
+            from: 0
+            to: 1
+            duration: 1100
+            easing.type: Easing.OutQuad
+        }
+
+        PropertyAction {
+            target: critter
+            property: "love"
+            value: 0
+        }
+    }
 
     Behavior on angle {
         NumberAnimation {
@@ -496,10 +611,13 @@ Item {
                     return -critter.snap(Math.abs(critter.wave(3.6, 0)));
                 if (critter.status === "asking")
                     return -critter.snap(Math.abs(critter.wave(2.4, 0)) * 0.5);
+                if (critter.dancing)
+                    return -critter.snap(Math.abs(critter.wave(6.2, 0)) * critter.groove);
                 return 0;
             }
             readonly property real squash: critter.ouch > 0 ? 1 - 0.22 * Math.max(0, 1 - critter.ouch * 8) : critter.status === "done" ? 0.9 + 0.025 * critter.wave(1.1, 0) : critter.status === "ready" ? 1 + 0.025 * critter.wave(1.3, 0) : 1
-            readonly property real sway: critter.ouch > 0 ? 9 * Math.sin(critter.ouch * 30) * (1 - critter.ouch) : critter.status === "planning" ? 5 * critter.wave(1.2, 0) : critter.status === "asking" ? 3 * critter.wave(2.4, 1) : critter.status === "error" ? -8 : 0
+            readonly property real sway: critter.ouch > 0 ? 9 * Math.sin(critter.ouch * 30) * (1 - critter.ouch) : critter.status === "planning" ? 5 * critter.wave(1.2, 0) : critter.status === "asking" ? 3 * critter.wave(2.4, 1) : critter.status === "error" ? -8 : critter.dancing ? 6 * critter.groove * critter.wave(3.1, 0) : critter.vibing ? 2 * critter.wave(1.55, 0) : 0
+            readonly property int beat: critter.dancing ? (critter.wave(3.1, 0) > 0 ? 1 : -1) : 0
 
             x: (13 + critter.shake) * critter.p
             y: 13 * critter.p + pose.bob - critter.hop * 2 * critter.p + (1 - critter.rise) * 6 * critter.p
@@ -531,20 +649,20 @@ Item {
             }
 
             Pixel {
-                visible: critter.ouch > 0
+                visible: critter.ouch > 0 || critter.cheer > 0
                 x: 0
                 y: -1 * critter.p
                 width: critter.p
                 height: 3 * critter.p
                 color: critter.body
-                rotation: -(20 + 15 * Math.sin(critter.ouch * 28))
+                rotation: critter.ouch > 0 ? -(20 + 15 * Math.sin(critter.ouch * 28)) : -(24 + 14 * Math.sin(critter.cheer * 19))
                 transformOrigin: Item.Bottom
             }
 
             Pixel {
-                visible: critter.ouch === 0
+                visible: critter.ouch === 0 && critter.cheer === 0
                 x: 0
-                y: 2 * critter.p + (critter.status === "working" && critter.wave(11, 0) > 0 ? -critter.p : 0)
+                y: 2 * critter.p - ((critter.status === "working" && critter.wave(11, 0) > 0) || pose.beat > 0 ? critter.p : 0)
                 width: critter.p
                 height: 2 * critter.p
                 color: critter.body
@@ -553,7 +671,7 @@ Item {
             Pixel {
                 visible: !critter.armUp
                 x: 9 * critter.p
-                y: 2 * critter.p + (critter.status === "working" && critter.wave(11, 0) <= 0 ? -critter.p : 0)
+                y: 2 * critter.p - ((critter.status === "working" && critter.wave(11, 0) <= 0) || pose.beat < 0 ? critter.p : 0)
                 width: critter.p
                 height: 2 * critter.p
                 color: critter.body
@@ -566,7 +684,7 @@ Item {
                 width: critter.p
                 height: 3 * critter.p
                 color: critter.body
-                rotation: critter.ouch > 0 ? 20 + 15 * Math.sin(critter.ouch * 28 + 1) : 22 * critter.wave(5, 0)
+                rotation: critter.ouch > 0 ? 20 + 15 * Math.sin(critter.ouch * 28 + 1) : critter.cheer > 0 ? 24 + 14 * Math.sin(critter.cheer * 19 + Math.PI) : 22 * critter.wave(5, 0)
                 transformOrigin: Item.Bottom
             }
 
@@ -585,9 +703,11 @@ Item {
 
                     required property int modelData
 
-                    readonly property real dx: critter.status === "planning" ? critter.snap(Math.round(critter.wave(0.7, 0)) * 0.5) : 0
+                    readonly property real dx: critter.status === "planning" ? critter.snap(Math.round(critter.wave(0.7, 0)) * 0.5) : critter.glance
                     readonly property real dy: critter.status === "planning" ? -critter.p / 2 : critter.status === "working" ? critter.p / 2 : 0
+                    readonly property bool open: critter.status !== "error" && critter.ouch === 0 && !critter.happy
                     readonly property bool closed: critter.status === "done" || critter.blink
+                    readonly property real shine: Math.max(1, Math.round(0.4 * critter.p))
 
                     x: modelData * critter.p + dx
                     y: critter.p + dy
@@ -595,11 +715,35 @@ Item {
                     height: 2 * critter.p
 
                     Pixel {
-                        visible: critter.status !== "error" && critter.ouch === 0
+                        visible: eye.open
                         y: eye.closed ? critter.p * 1.25 : 0
                         width: critter.p
                         height: eye.closed ? critter.p / 2 : 2 * critter.p
                         color: Theme.ink
+                    }
+
+                    Rectangle {
+                        visible: eye.open && !eye.closed
+                        x: critter.p - eye.shine
+                        y: Math.round(0.25 * critter.p)
+                        width: eye.shine
+                        height: eye.shine
+                        color: Theme.alpha(Theme.fgBright, 0.9)
+                    }
+
+                    Repeater {
+                        model: critter.happy ? [-45, 45] : []
+
+                        Pixel {
+                            required property int modelData
+
+                            x: (modelData < 0 ? 0.175 : 0.825) * critter.p - width / 2
+                            y: 1.1 * critter.p - height / 2
+                            width: 0.95 * critter.p
+                            height: 0.4 * critter.p
+                            rotation: modelData
+                            color: Theme.ink
+                        }
                     }
 
                     Repeater {
@@ -641,9 +785,39 @@ Item {
                 opacity: Math.sin(critter.ouch * Math.PI)
             }
 
+            Repeater {
+                model: critter.ouch === 0 && critter.status !== "error" ? [1.5, 7.5] : []
+
+                Pixel {
+                    required property real modelData
+
+                    x: modelData * critter.p
+                    y: 3.2 * critter.p
+                    width: critter.p
+                    height: 0.55 * critter.p
+                    radius: height / 2
+                    color: critter.blush
+                    opacity: critter.cheeks
+                }
+            }
+
             Item {
                 visible: critter.realm === "work"
                 anchors.fill: parent
+
+                Repeater {
+                    model: [[4.6, 3.75, 0.8, 0.45], [4.5, 4.2, 1, 0.8], [4.7, 5, 0.6, 0.45]]
+
+                    Pixel {
+                        required property var modelData
+
+                        x: modelData[0] * critter.p
+                        y: modelData[1] * critter.p
+                        width: modelData[2] * critter.p
+                        height: modelData[3] * critter.p
+                        color: critter.gear
+                    }
+                }
 
                 Rectangle {
                     x: 10.5 * critter.p
@@ -652,7 +826,7 @@ Item {
                     height: 1.3 * critter.p
                     radius: 0.3 * critter.p
                     color: "transparent"
-                    border.color: Theme.faint
+                    border.color: critter.leather
                     border.width: 0.35 * critter.p
                     antialiasing: true
                 }
@@ -662,7 +836,7 @@ Item {
                     y: 4.9 * critter.p
                     width: 3.2 * critter.p
                     height: 2.1 * critter.p
-                    color: Theme.faint
+                    color: critter.leather
                 }
 
                 Pixel {
@@ -679,44 +853,123 @@ Item {
                 anchors.fill: parent
 
                 Pixel {
-                    x: 1.5 * critter.p
-                    y: -0.9 * critter.p
-                    width: 7 * critter.p
+                    x: 2.3 * critter.p
+                    y: -1.3 * critter.p
+                    width: 5.4 * critter.p
                     height: 0.6 * critter.p
-                    color: Theme.faint
+                    color: critter.gear
                 }
 
                 Repeater {
-                    model: [1, 8.4]
+                    model: [1.2, 7.6]
 
                     Pixel {
                         required property real modelData
 
                         x: modelData * critter.p
-                        y: -0.6 * critter.p
-                        width: 0.6 * critter.p
-                        height: 1.4 * critter.p
-                        color: Theme.faint
+                        y: -0.9 * critter.p
+                        width: 1.2 * critter.p
+                        height: 0.6 * critter.p
+                        color: critter.gear
                     }
                 }
 
                 Repeater {
-                    model: [0.5, 8.3]
+                    model: [0.75, 8.65]
 
                     Pixel {
                         required property real modelData
 
                         x: modelData * critter.p
-                        y: 0.6 * critter.p
-                        width: 1.2 * critter.p
-                        height: 1.8 * critter.p
-                        color: Theme.faint
+                        y: -0.5 * critter.p
+                        width: 0.6 * critter.p
+                        height: critter.p
+                        color: critter.gear
+                    }
+                }
+
+                Repeater {
+                    model: [-0.15, 8.55]
+
+                    Pixel {
+                        required property real modelData
+
+                        x: modelData * critter.p
+                        y: 0.4 * critter.p
+                        width: 1.6 * critter.p
+                        height: 2.3 * critter.p
+                        radius: 0.45 * critter.p
+                        color: critter.gear
+
+                        Rectangle {
+                            visible: critter.music
+                            x: (parent.x < 0 ? 0.25 : 0.9) * critter.p
+                            y: 0.8 * critter.p
+                            width: Math.max(1, Math.round(0.45 * critter.p))
+                            height: width
+                            radius: width / 2
+                            color: critter.note
+                        }
                     }
                 }
             }
 
+            Item {
+                visible: critter.breed === "glm"
+                x: 5 * critter.p
+                rotation: visible ? -0.5 * pose.sway + 16 * critter.hop * critter.wave(17, 0) + (critter.walking ? 7 * critter.wave(9, 0.8) : 3 * critter.wave(1.3, 0.4)) : 0
+
+                Pixel {
+                    x: -0.25 * critter.p
+                    y: -1.9 * critter.p
+                    width: 0.5 * critter.p
+                    height: 1.9 * critter.p
+                    color: critter.body
+                }
+
+                Rectangle {
+                    visible: !critter.idle
+                    x: -1.15 * critter.p
+                    y: -3.55 * critter.p
+                    width: 2.3 * critter.p
+                    height: width
+                    radius: width / 2
+                    color: Theme.alpha(critter.accent, 0.25)
+                }
+
+                Pixel {
+                    x: -0.65 * critter.p
+                    y: -3.05 * critter.p
+                    width: 1.3 * critter.p
+                    height: width
+                    radius: width / 2
+                    color: critter.accent
+                }
+            }
+
             Repeater {
-                model: critter.status === "working" ? [0, 1, 2] : []
+                model: critter.breed === "deepseek" && critter.idle && critter.ouch === 0 ? 5 : 0
+
+                Pixel {
+                    required property int index
+
+                    readonly property real u: critter.cycle(critter.status === "done" ? 0.11 : 0.17, 0.3) / 0.26
+                    readonly property real side: index - 2
+                    readonly property real peak: (3.6 - 0.7 * Math.abs(side)) * (critter.status === "done" ? 0.55 : 1)
+
+                    visible: u < 1
+                    x: (5 + 1.5 * side * u) * critter.p - width / 2
+                    y: -(0.4 + 4 * peak * u * (1 - u)) * critter.p - height / 2
+                    width: (0.8 - 0.1 * Math.abs(side)) * critter.p
+                    height: width
+                    radius: width / 2
+                    color: side === 0 ? Qt.tint(Theme.cyan, Theme.alpha(Theme.fgBright, 0.35)) : Theme.cyan
+                    opacity: u < 0.12 ? u / 0.12 : 1 - u * u * u
+                }
+            }
+
+            Repeater {
+                model: critter.status === "working" ? (critter.breed === "glm" ? [0, 2] : [0, 1, 2]) : []
 
                 Pixel {
                     required property int modelData
@@ -727,6 +980,7 @@ Item {
                     y: -(1 + phase * 4) * critter.p
                     width: critter.p * 0.75
                     height: critter.p * 0.75
+                    radius: critter.breed === "deepseek" ? width / 2 : 0
                     color: critter.accent
                     opacity: Math.sin(phase * Math.PI) * 0.9
                 }
@@ -750,7 +1004,7 @@ Item {
 
             Text {
                 visible: critter.status === "asking" || critter.status === "error"
-                x: 4 * critter.p
+                x: (critter.breed === "glm" ? 1.2 : 4) * critter.p
                 y: -5 * critter.p + (critter.status === "asking" ? critter.snap(critter.wave(2.2, 0) * 0.5) : 0)
                 text: critter.status === "error" ? "!" : "?"
                 color: critter.accent
@@ -760,7 +1014,7 @@ Item {
             }
 
             Repeater {
-                model: critter.status === "done" && critter.ouch === 0 ? [0, 1] : []
+                model: critter.status === "done" && critter.ouch === 0 ? (critter.vibing ? [0] : [0, 1]) : []
 
                 Text {
                     required property int modelData
@@ -775,6 +1029,46 @@ Item {
                     font.family: Theme.mono
                     font.bold: true
                     font.pixelSize: (2 + phase * 1.2) * critter.p
+                }
+            }
+
+            Repeater {
+                model: critter.vibing ? (critter.status === "done" ? [0] : [0, 1]) : []
+
+                Note {
+                    required property int modelData
+
+                    readonly property real phase: critter.cycle(critter.status === "done" ? 0.28 : 0.42, modelData * 0.5)
+
+                    size: critter.p
+                    tint: critter.note
+                    x: (modelData === 0 ? -1.4 - 1.8 * phase : 9.8 + 1.8 * phase) * critter.p
+                    y: -(1 + 3.2 * phase) * critter.p
+                    rotation: (modelData === 0 ? -14 : 14) * phase
+                    opacity: Math.sin(phase * Math.PI) * 0.9
+                }
+            }
+
+            Item {
+                visible: critter.love > 0
+                x: 8.4 * critter.p
+                y: -(1.6 + 2.6 * critter.love) * critter.p
+                opacity: Math.sin(critter.love * Math.PI)
+                scale: 0.6 + 0.4 * Math.min(1, critter.love * 4)
+
+                Repeater {
+                    model: [[1, 0, 1], [3, 0, 1], [0, 1, 5], [1, 2, 3], [2, 3, 1]]
+
+                    Pixel {
+                        required property var modelData
+
+                        x: modelData[0] * 0.55 * critter.p
+                        y: modelData[1] * 0.55 * critter.p
+                        width: modelData[2] * 0.55 * critter.p
+                        height: 0.55 * critter.p
+                        antialiasing: false
+                        color: critter.blush
+                    }
                 }
             }
         }
@@ -810,7 +1104,7 @@ Item {
         visible: opacity > 0
         scale: bubbleMouse.pressed ? Theme.pressScale : 1
         transformOrigin: Item.Bottom
-        layer.enabled: true
+        layer.enabled: visible
         layer.effect: MultiEffect {
             shadowEnabled: true
             shadowColor: Theme.alpha(Theme.ink, 0.7)
@@ -870,7 +1164,7 @@ Item {
             height: content.implicitHeight + 14
             radius: 10
             color: Qt.tint(Theme.ink, Theme.alpha(critter.tint, critter.idle ? 0.03 : 0.09))
-            border.color: critter.hovered ? Theme.alpha(critter.accent, 0.6) : critter.alert ? Theme.alpha(critter.accent, 0.42) : critter.idle ? Theme.line : Theme.alpha(critter.accent, 0.24)
+            border.color: critter.hovered ? Theme.alpha(critter.accent, 0.6) : critter.alert ? Theme.alpha(critter.accent, 0.42) : critter.idle ? Theme.alpha(critter.accent, 0.18) : Theme.alpha(critter.accent, 0.24)
             border.width: 1
 
             Behavior on border.color {
@@ -972,7 +1266,7 @@ Item {
                         visible: critter.realm !== ""
                         anchors.verticalCenter: parent.verticalCenter
                         text: critter.realm === "work" ? "" : ""
-                        color: Theme.alpha(Theme.muted, 0.85)
+                        color: Qt.tint(Theme.alpha(Theme.muted, 0.85), Theme.alpha(critter.accent, 0.45))
                         font.family: Theme.mono
                         font.pixelSize: 10
                     }
@@ -1008,7 +1302,7 @@ Item {
                         visible: text !== ""
                         anchors.baseline: word.baseline
                         text: critter.status === "ready" ? "" : critter.ago(critter.agent?.since ?? 0).toUpperCase()
-                        color: Theme.alpha(Theme.muted, 0.8)
+                        color: Qt.tint(Theme.alpha(Theme.muted, 0.8), Theme.alpha(critter.accent, 0.45))
                         font.family: Theme.mono
                         font.pixelSize: 9
                         font.letterSpacing: 1.2

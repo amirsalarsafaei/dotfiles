@@ -5,8 +5,6 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
-import Quickshell.Services.Pipewire
-import Quickshell.Services.Mpris
 
 PanelWindow {
     id: wall
@@ -88,25 +86,22 @@ PanelWindow {
     readonly property date now: clock.date
     readonly property var monitor: Hyprland.monitorFor(wall.screen)
     readonly property bool exposed: !overlay && !Perf.covered(monitor?.activeWorkspace ?? null) && !Perf.veiled(monitor)
-    readonly property bool alive: wall.visible && exposed
+    readonly property bool alive: wall.visible && exposed && !Perf.away
     readonly property bool hd: (monitor?.height ?? 0) > 1600
 
-    property bool dusk: false
-    property real duskMix: dusk ? 1 : 0
+    property string sky: "now"
+    property string skyShown: "now"
+    property real skyFrom: 0
+    property real skyTo: 0
+    property real skyMix: 1
     readonly property real hour: now.getHours() + now.getMinutes() / 60
-    readonly property real realSun: Math.max(0, Math.sin(Math.PI * (hour - 6) / 13))
-    property real flipHour: 18.4
-    readonly property real skyHour: hour + (flipHour - hour) * duskMix
-    readonly property real sun: Math.max(0, Math.sin(Math.PI * (skyHour - 6) / 13))
+    readonly property real skyTarget: skyShown === "now" ? hour + 24 * Math.floor((skyFrom - hour) / 24) : skyTo
+    readonly property real skyAt: skyFrom + (skyTarget - skyFrom) * skyMix
+    readonly property real skyHour: skyAt - 24 * Math.floor(skyAt / 24)
+
+    signal skyRequested(string mode)
     readonly property int workspace: monitor?.activeWorkspace?.id ?? 1
     readonly property var jalali: Jalali.of(now)
-    readonly property real moonPhase: {
-        const synodic = 29.530588853;
-        const days = (now.getTime() - Date.UTC(2000, 0, 6, 18, 14)) / 86400000;
-        return (((days % synodic) + synodic) % synodic) / synodic;
-    }
-    readonly property real moonLit: 0.5 - 0.5 * Math.cos(2 * Math.PI * moonPhase)
-    readonly property string moonName: ["new moon", "waxing crescent", "first quarter", "waxing gibbous", "full moon", "waning gibbous", "last quarter", "waning crescent"][Math.round(moonPhase * 8) % 8]
     readonly property string cacheHome: String(Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache"))
     property var quip: ({})
     property string quipShown: ""
@@ -117,14 +112,9 @@ PanelWindow {
             return "";
         return quip.text.trim();
     }
-    readonly property var player: {
-        const players = Mpris.players.values;
-        return players.find(p => p.isPlaying) ?? players[0] ?? null;
-    }
-    readonly property string artWanted: Prefs.albumArt && player !== null && player.isPlaying ? (player.trackArtUrl ?? "") : ""
-    property real artMix: 0
+    readonly property var player: Media.player
     readonly property bool lyricsShown: Prefs.floatingLyrics && !overlay && floating.synced
-    readonly property string caption: player ? (player.trackTitle + (player.trackArtist ? "  ·  " + player.trackArtist : "")) : ""
+    readonly property string caption: Media.caption
     property string captionShown: ""
     readonly property string greeting: hour < 5 ? "Still up" : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : hour < 21 ? "Good evening" : "Good night"
 
@@ -148,33 +138,17 @@ PanelWindow {
         if (alive)
             Agents.refresh();
     }
-    onDuskChanged: {
-        if (dusk)
-            flipHour = realSun < 0.3 ? 13 : 18.4;
-    }
-    onArtWantedChanged: {
-        artReveal.stop();
-        artSwap.restart();
-    }
-
-    SequentialAnimation {
-        id: artSwap
-
-        NumberAnimation {
-            target: wall
-            property: "artMix"
-            to: 0
-            duration: 900
-            easing.type: Easing.InOutSine
-        }
-
-        ScriptAction {
-            script: {
-                artTexture.source = wall.artWanted;
-                if (wall.artWanted !== "" && artTexture.status === Image.Ready)
-                    artReveal.restart();
-            }
-        }
+    onSkyChanged: {
+        const current = skyAt;
+        const goal = sky === "dusk" ? 18.4 : sky === "night" ? 23.2 : 13;
+        const target = sky === "now" ? hour + 24 * Math.floor((current - hour) / 24) : goal + 24 * Math.ceil((current - goal) / 24);
+        skyFlip.stop();
+        skyFlip.duration = Math.min(12000, 5000 + 550 * Math.abs(target - current));
+        skyFrom = current;
+        skyTo = target;
+        skyShown = sky;
+        skyMix = 0;
+        skyFlip.start();
     }
 
     SequentialAnimation {
@@ -202,35 +176,19 @@ PanelWindow {
     }
 
     NumberAnimation {
-        id: artReveal
+        id: skyFlip
 
         target: wall
-        property: "artMix"
+        property: "skyMix"
+        from: 0
         to: 1
-        duration: 2600
-        easing.type: Easing.InOutSine
-    }
-
-    Behavior on duskMix {
-        NumberAnimation {
-            duration: 6000
-            easing.type: Easing.InOutSine
-        }
+        easing.type: Easing.BezierSpline
+        easing.bezierCurve: [0.45, 0, 0.15, 1, 1, 1]
     }
 
     SystemClock {
         id: clock
         precision: SystemClock.Minutes
-    }
-
-    PwObjectTracker {
-        objects: Pipewire.defaultAudioSink ? [Pipewire.defaultAudioSink] : []
-    }
-
-    PwNodePeakMonitor {
-        id: peaks
-        node: Pipewire.defaultAudioSink
-        enabled: wall.alive && !Perf.eco
     }
 
     FileView {
@@ -284,158 +242,32 @@ PanelWindow {
         }
     }
 
-    Image {
-        id: earthTexture
-
-        source: Qt.resolvedUrl(wall.hd ? "textures/earth-16k.jpg" : "textures/earth.jpg")
-        visible: false
-        mipmap: true
-        smooth: true
-    }
-
-    Image {
-        id: moonTexture
-
-        source: Qt.resolvedUrl("textures/moon.jpg")
-        visible: false
-        mipmap: true
-        smooth: true
-    }
-
-    Image {
-        id: milkyWayTexture
-
-        source: Qt.resolvedUrl("textures/milky-way.jpg")
-        visible: false
-        smooth: true
-    }
-
-    Image {
-        id: artTexture
-
-        visible: false
-        asynchronous: true
-        mipmap: true
-        smooth: true
-        sourceSize: Qt.size(512, 512)
-        onStatusChanged: {
-            if (status === Image.Ready && wall.artWanted !== "" && !artSwap.running)
-                artReveal.restart();
-        }
-    }
-
-    ShaderEffect {
+    Scene {
         id: scene
 
         anchors.fill: parent
-
-        property real time: 0
-        property real detail: Perf.eco ? 0 : 1
-        property real level: 0
-        property real swell: 0
-        property real daylight: wall.sun
-        property real sunPath: {
-            const theta = 0.85 * Math.min(1, Math.max(0, (wall.skyHour - 6) / 13)) - 0.5;
-            const reach = 1.45 + 0.22 * wall.sun;
-            const shift = 0.45 * scene.pan;
-            const half = Math.max(0.28, lyricsFloat.width / 2 / Math.max(1, wall.height)) + 0.08;
-            const lo = Math.asin(Math.max(-1, Math.min(1, (-half - shift) / reach)));
-            const hi = Math.asin(Math.max(-1, Math.min(1, (half - shift) / reach)));
-            const aside = theta <= lo || theta >= hi ? theta : theta < (lo + hi) / 2 ? lo : hi;
-            return (theta + (aside - theta) * lyricsFloat.reveal + 0.5) / 0.85;
-        }
-        property real moonPhase: wall.moonPhase
-
-        property real pan: -0.035 * ((wall.workspace - 1) % 10)
-        property real horizon: 0.58 - 0.06 * wall.sun
-        property real glow: 0.6 + 0.4 * wall.sun
-        property real stars: 1 - Math.min(1, wall.sun * 3)
-        property vector2d resolution: Qt.vector2d(width, height)
-        property color sky: Qt.tint(Theme.ink, Theme.alpha(Theme.blue, 0.04 + 0.06 * wall.sun))
-        property color surface: Qt.darker(Theme.ink, 1.1)
-        property color rimA: Theme.mood.active ? Qt.tint(Theme.blue, Theme.alpha(Theme.primary, 0.45)) : Theme.blue
-        property color rimB: Theme.mood.active ? Qt.tint(Theme.cyan, Theme.alpha(Theme.secondary, 0.45)) : Theme.cyan
-        property color ocean: Theme.blue
-        property color shoal: Theme.cyan
-        property var earth: earthTexture
-        property real twilight: Math.exp(-Math.pow((wall.skyHour - 18.2) / 0.9, 2)) + Math.exp(-Math.pow((wall.skyHour - 6.6) / 0.9, 2))
-        property vector2d earthRes: wall.hd ? Qt.vector2d(16384, 2912) : Qt.vector2d(8192, 1456)
-        property var moonMap: moonTexture
-        property var milkyWay: milkyWayTexture
-        property var art: artTexture
-        property real artMix: wall.artMix
-
-        Behavior on pan {
-            NumberAnimation {
-                duration: 700
-                easing.type: Easing.OutCubic
-            }
-        }
-
-        Behavior on sunPath {
-            SmoothedAnimation {
-                velocity: 0.35
-            }
-        }
-
-        Behavior on detail {
-            NumberAnimation {
-                duration: 900
-                easing.type: Easing.InOutQuad
-            }
-        }
-
-        Behavior on rimA {
-            ColorAnimation {
-                duration: 1200
-                easing.type: Easing.InOutQuad
-            }
-        }
-
-        Behavior on rimB {
-            ColorAnimation {
-                duration: 1200
-                easing.type: Easing.InOutQuad
-            }
-        }
-
-        fragmentShader: Qt.resolvedUrl("shaders/horizon.frag.qsb")
-
-        Timer {
-            property real last: Date.now()
-
-            interval: Perf.frameInterval
-            repeat: true
-            running: wall.alive
-            onRunningChanged: {
-                last = Date.now();
-                if (!running) {
-                    scene.level = 0;
-                    scene.swell = 0;
-                }
-            }
-            onTriggered: {
-                const current = Date.now();
-                const delta = Math.min(0.25, (current - last) / 1000);
-                scene.time += delta;
-                last = current;
-                const target = peaks.enabled ? Math.min(1, peaks.peak * 1.4) : 0;
-                const next = target > scene.level ? scene.level + (target - scene.level) * 0.5 : scene.level * 0.82;
-                scene.level = next < 0.01 ? 0 : next;
-                scene.swell += (scene.level - scene.swell) * (1 - Math.exp(-delta / 2.5));
-            }
-        }
+        running: wall.alive
+        hd: wall.hd
+        interactive: true
+        flipping: skyFlip.running
+        workspace: wall.workspace
+        now: wall.now
+        hour: wall.hour
+        skyHour: wall.skyHour
+        sky: wall.sky
+        lyrics: lyricsFloat.enter
+        onSkyRequested: mode => wall.skyRequested(mode)
     }
 
     Item {
         id: lyricsFloat
 
         property real enter: wall.lyricsShown ? 1 : 0
-        readonly property real reveal: Math.max(enter, wall.artMix)
+        readonly property real reveal: Math.max(enter, scene.artMix)
 
-        x: Math.round(wall.width * 0.6 + scene.pan * 0.55 * wall.height - width / 2)
-        y: Math.round((scene.horizon - 0.56 * 0.28) * wall.height - height / 2)
-        width: Math.min(680, wall.width * 0.34)
+        x: Math.round(scene.stage.x + scene.stage.width / 2 - width / 2)
+        y: Math.round(scene.stage.y + scene.stage.height / 2 - height / 2)
+        width: scene.lyricsWidth
         height: lyricsColumn.implicitHeight
         visible: reveal > 0.001
         layer.enabled: visible
@@ -535,11 +367,11 @@ PanelWindow {
                 enabled: wall.lyricsShown
                 player: wall.player
                 running: wall.alive && Prefs.floatingLyrics && !wall.overlay
-                rows: 5
-                rowHeight: 46
-                pixelSize: 22
-                lift: 6
-                fade: 0.26
+                rows: scene.lyricsStyle.rows
+                rowHeight: scene.lyricsStyle.rowHeight
+                pixelSize: scene.lyricsStyle.pixelSize
+                lift: scene.lyricsStyle.lift
+                fade: scene.lyricsStyle.fade
                 settle: Theme.ambient
                 settleCurve: Theme.drift
                 weight: Font.Light
@@ -558,10 +390,11 @@ PanelWindow {
         id: colony
 
         readonly property real unit: wall.height / 1440
-        readonly property real radius: 1.4 * wall.height
-        readonly property real cx: wall.width * 0.6 + scene.pan * wall.height
-        readonly property real cy: (scene.horizon + 1.4) * wall.height
-        readonly property real home: wall.width * 0.6 - 0.035 * ((wall.workspace - 1) % 10) * wall.height
+        readonly property real size: unit * scene.critterScale
+        readonly property real radius: scene.ground.radius
+        readonly property real cx: scene.ground.cx
+        readonly property real cy: scene.ground.cy
+        readonly property real home: scene.ground.home
         readonly property real bubble: Math.round(220 * Math.max(0.85, unit))
         readonly property real margin: Math.max(150 * unit, bubble / 2 + 16 * unit)
         readonly property real reachRight: Math.asin(Math.max(0, Math.min(0.5, (wall.width - margin - home) / radius)))
@@ -569,11 +402,11 @@ PanelWindow {
         readonly property real slim: Math.round(0.75 * bubble)
         readonly property real gap: Math.round(10 * Math.max(0.85, unit))
         readonly property real edge: Math.round(16 * Math.max(0.85, unit))
-        readonly property real pixel: Math.max(3, Math.round(5 * unit))
+        readonly property real pixel: Math.max(3, Math.round(5 * size))
         readonly property real lift: 12 * pixel + 6 * unit
         readonly property real spacing: Math.max(200 * unit, bubble + gap) / radius
         readonly property real clearing: (lyricsFloat.width / 2 + 110 * unit) / radius
-        readonly property bool parted: wall.lyricsShown || wall.artMix > 0.02
+        readonly property bool parted: scene.parts && (wall.lyricsShown || scene.artMix > 0.02)
         readonly property int count: Agents.ids.length
         readonly property var slots: {
             const list = Agents.list;
@@ -720,8 +553,10 @@ PanelWindow {
                 hushed: !(modelData in colony.bubbles)
                 x: colony.cx + colony.radius * Math.sin(angle)
                 y: colony.cy - colony.radius * Math.cos(angle)
-                unit: colony.unit
+                unit: colony.size
                 time: scene.time
+                music: wall.player?.isPlaying ?? false
+                level: scene.swell
                 now: wall.now
                 sunPath: scene.sunPath
                 twilight: scene.twilight
@@ -738,7 +573,7 @@ PanelWindow {
 
         x: Math.round(wall.width * 0.07)
         y: Math.round(wall.height * 0.2)
-        width: Math.min(640, wall.width * 0.4)
+        width: scene.quoteWidth
         height: quoteColumn.implicitHeight
         opacity: 0
         visible: opacity > 0
@@ -925,7 +760,7 @@ PanelWindow {
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: [Sys.host, "ws " + wall.workspace, Perf.eco ? "eco" : "", wall.dusk ? (wall.flipHour < 16 ? "day" : "dusk") : "", wall.sun > 0.01 ? "sun " + Math.round(wall.sun * 100) + "%" : "", wall.moonName + " " + Math.round(wall.moonLit * 100) + "%"].filter(s => s !== "").join("  ·  ").toUpperCase()
+                text: [Sys.host, "ws " + wall.workspace, Perf.eco ? "eco" : "", !scene.board && wall.sky !== "now" ? wall.sky : ""].concat(scene.status).filter(s => s !== "").join("  ·  ").toUpperCase()
                 color: Theme.alpha(Theme.fg, 0.74)
                 font.family: Theme.mono
                 font.pixelSize: 12

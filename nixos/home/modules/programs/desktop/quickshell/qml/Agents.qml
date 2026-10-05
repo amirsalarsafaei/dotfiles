@@ -69,7 +69,7 @@ Singleton {
     }
 
     function tint(status: string): color {
-        return status === "working" ? Theme.blue : status === "planning" ? Theme.cyan : status === "asking" ? Theme.heat : status === "error" ? Theme.danger : status === "done" ? Theme.muted : Theme.faint;
+        return status === "working" ? Theme.blue : status === "planning" ? Theme.cyan : status === "asking" ? Theme.heat : status === "error" ? Theme.danger : status === "done" ? Qt.tint(Theme.blue, Theme.alpha(Theme.danger, 0.35)) : Theme.good;
     }
 
     function ago(ms: real, now: real): string {
@@ -102,6 +102,7 @@ Singleton {
         const status = s.state === "error" ? "error" : s.state === "waiting" ? "asking" : s.state === "working" ? (s.mode === "plan" ? "planning" : "working") : s.verb === "done" ? "done" : "ready";
         const activity = [s.verb ?? "", s.object ?? ""].filter(part => part !== "").join(" ");
         const name = clean(s.title ?? "") || clean(pane?.title ?? "") || s.project || "claude";
+        const variant = String(s.variant ?? "");
         return {
             id: id,
             name: name === "Claude Code" ? (s.project || name) : name,
@@ -109,7 +110,8 @@ Singleton {
             activity: status === "done" || status === "ready" ? "" : activity,
             todo: s.todo ?? null,
             project: s.project ?? "",
-            variant: s.variant ?? "",
+            variant: variant,
+            breed: variant.includes("deepseek") ? "deepseek" : variant.includes("glm") ? "glm" : "claude",
             realm: agents.realmOf(s),
             since: s.since ?? s.at ?? 0,
             started: s.started ?? 0,

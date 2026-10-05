@@ -101,9 +101,8 @@
   };
 
   services.fprintd.enable = true;
-
-  services.netbird.enable = true;
-  users.users.amirsalar.extraGroups = [ "netbird-wt0" ];
+  systemd.services.fprintd.serviceConfig.TimeoutStopSec = "5s";
+  powerManagement.resumeCommands = "${pkgs.systemd}/bin/systemctl --no-block try-restart fprintd.service";
 
   virtualisation.docker.enableOnBoot = false;
   custom.localMonitoring.enable = false;
@@ -132,8 +131,6 @@
     powertop
     linuxPackages_latest.cpupower
     linuxPackages_latest.turbostat
-    netbird
-    netbird-ui
   ];
 
   system.stateVersion = "25.11";

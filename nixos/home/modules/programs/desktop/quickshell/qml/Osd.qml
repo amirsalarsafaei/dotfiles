@@ -105,7 +105,7 @@ Scope {
         target: Hyprland
 
         function onRawEvent(event: var): void {
-            if (event.name !== "activelayout")
+            if (event.name !== "activelayout" || event.data.startsWith("hl-virtual-keyboard"))
                 return;
             const comma = event.data.indexOf(",");
             const name = comma >= 0 ? event.data.slice(comma + 1) : event.data;

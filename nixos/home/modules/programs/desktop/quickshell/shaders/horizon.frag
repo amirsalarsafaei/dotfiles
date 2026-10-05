@@ -27,6 +27,8 @@ layout(std140, binding = 0) uniform buf {
     float twilight;
     vec4 ocean;
     vec4 shoal;
+    float spin;
+    vec4 wish;
 };
 
 layout(binding = 1) uniform sampler2D earth;
@@ -184,6 +186,14 @@ vec3 starLayer(vec2 pixel, float cell, float chance, float size, float seed, flo
     return tint * light * (0.25 + 0.75 * magnitude) * twinkle;
 }
 
+float streak(vec2 p, vec2 start, vec2 dir, float t, float scale) {
+    vec2 rel = p - (start + dir * t * 0.32);
+    float behind = dot(rel, -dir);
+    float across = dot(rel, vec2(-dir.y, dir.x)) * scale;
+    float trail = step(0.0, behind) * exp(-behind / 0.045) + exp(-dot(rel, rel) * scale * scale / 6.0);
+    return trail * exp(-across * across / 0.7) * sin(3.14159 * t);
+}
+
 float meteor(vec2 p, float aspect, float scale) {
     float slot = floor(time / 11.0);
     float t = (time - slot * 11.0) / 1.1;
@@ -192,12 +202,7 @@ float meteor(vec2 p, float aspect, float scale) {
     }
     vec2 start = vec2((0.15 + 0.7 * hash(vec2(slot, 1.3))) * aspect, 0.04 + 0.22 * hash(vec2(slot, 8.1)));
     float heading = hash(vec2(slot, 5.9)) < 0.5 ? -1.0 : 1.0;
-    vec2 dir = normalize(vec2(heading, 0.42));
-    vec2 rel = p - (start + dir * t * 0.32);
-    float behind = dot(rel, -dir);
-    float across = dot(rel, vec2(-dir.y, dir.x)) * scale;
-    float trail = step(0.0, behind) * exp(-behind / 0.045) + exp(-dot(rel, rel) * scale * scale / 6.0);
-    return trail * exp(-across * across / 0.7) * sin(3.14159 * t);
+    return streak(p, start, normalize(vec2(heading, 0.42)), t, scale);
 }
 
 vec4 moonLayer(vec2 p, float aspect) {
@@ -306,7 +311,7 @@ void main() {
     vec3 n = vec3(local.x, -local.y, sqrt(max(0.0, 1.0 - dot(local, local))));
     float tilt = 0.3;
     vec3 globe = vec3(n.x, cos(tilt) * n.y - sin(tilt) * n.z, sin(tilt) * n.y + cos(tilt) * n.z);
-    float lon = atan(globe.x, globe.z) + 0.89 - time * 0.0012 - pan * 0.25;
+    float lon = atan(globe.x, globe.z) + 0.89 - time * 0.0012 - pan * 0.25 + spin;
     float lat = asin(clamp(globe.y, -1.0, 1.0));
     float band = (0.5 - lat / PI - 182.0 / 4096.0) * 4096.0 / 1456.0;
     vec2 earthUv = vec2(fract(lon / TAU + 0.5), clamp(band, 0.0, 1.0));
@@ -343,6 +348,9 @@ void main() {
         if (detail > 0.001) {
             color += vec3(0.8, 0.92, 1.0) * meteor(p, aspect, scale) * 0.7 * night * skyFade * detail;
             color += vec3(0.85, 0.93, 1.0) * satellite(p, aspect) * 0.8 * mix(0.35, 1.0, night) * skyFade * detail;
+        }
+        if (wish.z > 0.0 && wish.z < 1.0) {
+            color += vec3(0.86, 0.94, 1.0) * streak(p, wish.xy, normalize(vec2(wish.w, 0.42)), wish.z, scale) * skyFade;
         }
 
         if (artMix > 0.001) {
@@ -386,7 +394,7 @@ void main() {
             color += airglowTint * airglow * night * (0.3 + 0.7 * (1.0 - facing)) * 0.025 * glow * detail;
         }
 
-        if (detail > 0.001 && h < 600.0) {
+        if (detail > 0.001 && night > 0.0 && h < 600.0) {
             float angle = atan(offset.x, -offset.y);
             float fold = fbm(vec2(angle * 9.0 + time * 0.004, time * 0.003), 2) - 0.5;
             float a = angle + fold * 0.035 + h * 0.00012 * fold;
@@ -403,7 +411,7 @@ void main() {
         }
 
         if (sunVis > 0.001) {
-            vec2 sunPos = center + vec2(sunDir.x, -sunDir.y) * (radius + 0.05 + 0.22 * daylight);
+            vec2 sunPos = center + vec2(sunDir.x, -sunDir.y) * (radius + 0.012 + 0.14 * pow(daylight, 1.5));
             float d = length(p - sunPos) * scale;
             vec3 warm = mix(vec3(1.0, 0.97, 0.92), vec3(1.0, 0.84, 0.68), twilight);
             float wash = exp(-d / 520.0) * 0.12 * twilight;
@@ -420,19 +428,16 @@ void main() {
         float magnify = clamp(1.0 - footprint, 0.0, 1.0);
         vec4 surfaceMap = earthSample(earthUv, gradX, gradY, earthSize);
         vec2 cloudUv = vec2(fract(earthUv.x + time * 0.00012), earthUv.y);
-        float lightSpread = max(1.0, 1.75 / max(footprint, 1e-4));
-        float lights = textureGrad(earth, earthUv, gradX * lightSpread, gradY * lightSpread).r;
         float terrain = surfaceMap.b;
         float cloudRaw = earthSample(cloudUv, gradX, gradY, earthSize).g;
-        vec2 cloudCell = cloudUv * earthSize * 2.0;
-        float cloudGrain = noiseWrap(cloudCell, earthSize.x * 2.0) * 0.6 + noiseWrap(cloudCell * 2.0 + 5.3, earthSize.x * 4.0) * 0.4;
-        cloudRaw += (cloudGrain - 0.5) * 0.22 * magnify * smoothstep(0.02, 0.3, cloudRaw) * smoothstep(1.0, 0.6, cloudRaw);
+        if (magnify > 0.0 && cloudRaw > 0.02 && cloudRaw < 1.0) {
+            vec2 cloudCell = cloudUv * earthSize * 2.0;
+            float cloudGrain = noiseWrap(cloudCell, earthSize.x * 2.0) * 0.6 + noiseWrap(cloudCell * 2.0 + 5.3, earthSize.x * 4.0) * 0.4;
+            cloudRaw += (cloudGrain - 0.5) * 0.22 * magnify * smoothstep(0.02, 0.3, cloudRaw) * smoothstep(1.0, 0.6, cloudRaw);
+        }
         float cloud = smoothstep(0.12, 0.85, cloudRaw);
         float land = smoothstep(0.015, 0.07, terrain);
-        vec2 texel = max(vec2(footprint), vec2(1.0)) / earthSize;
-        float heightEast = textureGrad(earth, vec2(fract(earthUv.x + texel.x), earthUv.y), gradX, gradY).b - terrain;
-        float heightNorth = textureGrad(earth, vec2(earthUv.x, clamp(earthUv.y - texel.y, 0.0, 1.0)), gradX, gradY).b - terrain;
-        float grain = noiseWrap(earthUv * earthSize * 3.0, earthSize.x * 3.0);
+        float grain = magnify > 0.0 && land > 0.0 ? noiseWrap(earthUv * earthSize * 3.0, earthSize.x * 3.0) : 0.5;
         float relief = smoothstep(0.05, 0.9, terrain + (grain - 0.5) * 0.08 * magnify * land);
 
         float lambert = dot(n, sun);
@@ -442,12 +447,21 @@ void main() {
         vec3 northG = vec3(-sin(globeLat) * sin(globeLon), cos(globeLat), -sin(globeLat) * cos(globeLon));
         vec3 east = vec3(eastG.x, cos(tilt) * eastG.y + sin(tilt) * eastG.z, -sin(tilt) * eastG.y + cos(tilt) * eastG.z);
         vec3 north = vec3(northG.x, cos(tilt) * northG.y + sin(tilt) * northG.z, -sin(tilt) * northG.y + cos(tilt) * northG.z);
-        float bump = clamp(-2.2 * (heightEast * dot(sun, east) + heightNorth * dot(sun, north)), -0.45, 0.45);
         float day = smoothstep(-0.02, 0.3, lambert) * sunVis;
+        float bump = 0.0;
+        if (land > 0.0 && day > 0.0) {
+            vec2 texel = max(vec2(footprint), vec2(1.0)) / earthSize;
+            float heightEast = textureGrad(earth, vec2(fract(earthUv.x + texel.x), earthUv.y), gradX, gradY).b - terrain;
+            float heightNorth = textureGrad(earth, vec2(earthUv.x, clamp(earthUv.y - texel.y, 0.0, 1.0)), gradX, gradY).b - terrain;
+            bump = clamp(-2.2 * (heightEast * dot(sun, east) + heightNorth * dot(sun, north)), -0.45, 0.45);
+        }
         float fresnel = pow(1.0 - n.z, 4.0);
 
-        vec2 shadowUv = vec2(fract(cloudUv.x - sun.x * 0.006), clamp(cloudUv.y + sun.y * 0.006, 0.0, 1.0));
-        float shadow = smoothstep(0.2, 0.85, textureGrad(earth, shadowUv, gradX, gradY).g) * (1.0 - cloud) * day;
+        float shadow = 0.0;
+        if (day > 0.0 && cloud < 1.0) {
+            vec2 shadowUv = vec2(fract(cloudUv.x - sun.x * 0.006), clamp(cloudUv.y + sun.y * 0.006, 0.0, 1.0));
+            shadow = smoothstep(0.2, 0.85, textureGrad(earth, shadowUv, gradX, gradY).g) * (1.0 - cloud) * day;
+        }
 
         vec4 coarse = textureGrad(earth, earthUv, gradX * 6.0, gradY * 6.0);
         float sea = 1.0 - land;
@@ -505,11 +519,14 @@ void main() {
         color += mix(rimA.rgb, rimB.rgb, fresnel) * dusk * (0.035 + 0.12 * fresnel) * glow;
         color += vec3(1.0, 0.78, 0.6) * dusk * 0.06 * twilight;
 
-        float bloom = coarse.r;
-        float core = smoothstep(0.0, 0.7, lights) * (0.35 + 0.65 * lights);
-        float spill = smoothstep(0.05, 0.5, bloom);
         float veil = (1.0 - 0.8 * cloud) * (1.0 - day) * (0.3 + 0.9 * night);
-        color += (vec3(0.86, 0.94, 1.0) * core * 0.65 + rimB.rgb * spill * 0.16) * veil;
+        if (veil > 0.0) {
+            float lightSpread = max(1.0, 1.75 / max(footprint, 1e-4));
+            float lights = textureGrad(earth, earthUv, gradX * lightSpread, gradY * lightSpread).r;
+            float core = smoothstep(0.0, 0.7, lights) * (0.35 + 0.65 * lights);
+            float spill = smoothstep(0.05, 0.5, coarse.r);
+            color += (vec3(0.86, 0.94, 1.0) * core * 0.65 + rimB.rgb * spill * 0.16) * veil;
+        }
         if (detail > 0.001) {
             color += vec3(0.78, 0.9, 1.0) * lightning(local, cloud, (1.0 - day) * night) * 0.9 * detail;
         }
@@ -532,7 +549,7 @@ void main() {
     color += vec3(0.86, 0.95, 1.0) * (glint + streak) * (0.25 + 0.75 * daylight) * (1.0 - 0.75 * sunVis) * glow;
 
     if (sunVis > 0.001) {
-        vec2 sunPos = center + vec2(sunDir.x, -sunDir.y) * (radius + 0.05 + 0.22 * daylight);
+        vec2 sunPos = center + vec2(sunDir.x, -sunDir.y) * (radius + 0.012 + 0.14 * pow(daylight, 1.5));
         vec2 s = (p - sunPos) * scale;
         float d = length(s);
         vec3 warm = mix(vec3(1.0, 0.97, 0.93), vec3(1.0, 0.82, 0.64), twilight);
@@ -541,7 +558,7 @@ void main() {
         float horizonAureole = exp(-hazeDistance / 260.0) * 0.045 * twilight;
         color += (warm * (tail + horizonAureole) + mix(warm, rimB.rgb, 0.45) * exp(-d / 380.0) * 0.05) * sunVis;
         if (d < 650.0) {
-            float size = 11.0;
+            float size = 13.0;
             float mu = sqrt(max(0.0, 1.0 - d * d / (size * size)));
             float disc = smoothstep(size + 1.0, size - 1.0, d) * (0.42 + 0.58 * pow(mu, 0.55));
             float beyond = max(d - size, 0.0);

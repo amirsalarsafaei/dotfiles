@@ -124,6 +124,12 @@ in
         desc = "App launcher";
         group = "Session";
       })
+      (keysLib.hypr.exec {
+        on = on.superShift K.space;
+        cmd = cmd.windows;
+        desc = "Search open windows and jump to one";
+        group = "Session";
+      })
       (keysLib.hypr.bind {
         on = on.super K.tab;
         dsp = ''function() hl.plugin.hyprtasking.toggle("cursor") end'';
@@ -176,12 +182,6 @@ in
         on = on.superShift K.b;
         cmd = cmd.barToggle;
         desc = "Show or hide the bar";
-        group = "Session";
-      })
-      (keysLib.hypr.exec {
-        on = on.super K.u;
-        cmd = cmd.skyToggle;
-        desc = "Wallpaper: flip the sky (dusk by day, midday by night), or back to the real sky";
         group = "Session";
       })
       (keysLib.hypr.exec {

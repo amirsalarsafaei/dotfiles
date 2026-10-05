@@ -6,9 +6,11 @@ Rectangle {
     property var bar: null
     property string icon: ""
     property string text: ""
+    property string badge: ""
     property string tooltip: ""
     property color iconColor: Theme.muted
     property color textColor: Theme.fg
+    property color badgeColor: Theme.muted
     property color fill: "transparent"
     property real maxTextWidth: 10000
     property real fixedTextWidth: -1
@@ -32,7 +34,7 @@ Rectangle {
 
     implicitHeight: bar ? bar.chipHeight : 26
     implicitWidth: row.implicitWidth + pad * 2
-    radius: height / 2
+    radius: bar && bar.tech ? 3 : height / 2
     color: fill
 
     Behavior on color {
@@ -61,7 +63,7 @@ Rectangle {
 
         anchors.centerIn: parent
         anchors.verticalCenterOffset: chip.pressOffset
-        spacing: chip.icon.length > 0 && chip.text.length > 0 ? (chip.bar ? chip.bar.gap : 6) : 0
+        spacing: [chip.icon, chip.text, chip.badge].filter(part => part.length > 0).length > 1 ? (chip.bar ? chip.bar.gap : 6) : 0
 
         Odometer {
             id: glyph
@@ -211,6 +213,22 @@ Rectangle {
                 font.family: Theme.fontFor(text, Theme.mono)
                 font.pixelSize: chip.bar ? chip.bar.fontSize : 12
                 font.weight: chip.weight
+            }
+        }
+
+        Label {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: chip.badge.length > 0
+            text: chip.badge
+            textFormat: Text.PlainText
+            color: chip.badgeColor
+            font.family: Theme.mono
+            font.pixelSize: chip.bar ? chip.bar.iconSize : 14
+
+            Behavior on color {
+                ColorAnimation {
+                    duration: 160
+                }
             }
         }
     }

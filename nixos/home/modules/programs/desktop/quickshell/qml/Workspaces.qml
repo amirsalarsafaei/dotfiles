@@ -79,7 +79,7 @@ Item {
                     anchors.verticalCenterOffset: hover.pressed ? 1 : 0
                     width: root.dot
                     height: root.dot
-                    radius: height / 2
+                    radius: root.bar.tech ? 1 : height / 2
                     visible: !(blob.visible && root.covers(slot))
                     color: slot.urgent ? Theme.danger : Theme.alpha(Theme.fg, hover.containsMouse ? 0.9 : (slot.occupied ? 0.5 : 0.22))
 
@@ -128,7 +128,7 @@ Item {
         width: tail - head
         height: Math.round(root.bar.chipHeight * 0.62 * (1 - 0.22 * stretch))
         anchors.verticalCenter: parent.verticalCenter
-        radius: height / 2
+        radius: root.bar.tech ? 2 : height / 2
         color: urgent ? Theme.danger : "transparent"
         border.width: occupied || urgent ? 0 : 1
         border.color: Theme.alpha(Theme.fg, 0.55)

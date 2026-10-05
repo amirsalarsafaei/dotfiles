@@ -36,6 +36,8 @@ done <<<"${CLAUDE_SANDBOX_ALLOW:-}"
 args=(
   --die-with-parent
   --unsetenv SSH_AUTH_SOCK
+  --setenv NIXOS_XDG_OPEN_USE_PORTAL 1
+  --setenv BROWSER xdg-open
   --unshare-pid
   --unshare-ipc
   --unshare-uts

@@ -4,7 +4,6 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Widgets
-import Quickshell.Services.Mpris
 import Quickshell.Services.Pipewire
 
 PanelWindow {
@@ -83,10 +82,7 @@ PanelWindow {
     property string jalali: ""
     property string uptime: ""
 
-    readonly property var player: {
-        const players = Mpris.players.values;
-        return players.find(p => p.isPlaying) ?? players[0] ?? null;
-    }
+    readonly property var player: Media.player
     readonly property var sink: Pipewire.defaultAudioSink
 
     function run(args: var): void {
@@ -659,6 +655,14 @@ PanelWindow {
                             label: "Sky lyrics"
                             active: Prefs.floatingLyrics
                             onClicked: Prefs.floatingLyrics = !Prefs.floatingLyrics
+                        }
+
+                        Toggle {
+                            implicitHeight: win.compact ? 48 : 62
+                            icon: "󰘚"
+                            label: "Circuit"
+                            active: Prefs.scene === "motherboard"
+                            onClicked: Prefs.chosenScene = Prefs.scene === "motherboard" ? "planet" : "motherboard"
                         }
                     }
                 }

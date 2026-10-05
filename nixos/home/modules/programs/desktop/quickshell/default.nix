@@ -14,6 +14,12 @@ let
   fingerprint = osConfig.services.fprintd.enable or false;
   compactOutput = lib.defaultTo "" (osConfig.hyprland.compactOutput or null);
   powerProfiles = osConfig.services.power-profiles-daemon.enable or false;
+  idleTimeouts = map (listener: listener.timeout) (
+    lib.optionals config.services.hypridle.enable (config.services.hypridle.settings.listener or [ ])
+  );
+  idleTimeout =
+    if idleTimeouts == [ ] then 300 else lib.foldl' lib.min (lib.head idleTimeouts) idleTimeouts;
+  scenes = import ./scenes.nix;
 
   hex = color: lib.removePrefix "#" color;
   argb = alpha: color: "#${alpha}${hex color}";
@@ -47,6 +53,63 @@ let
   cavaConfig = mkCavaConfig "sidebar-cava.conf" 40 32;
   cavaBarConfig = mkCavaConfig "bar-cava.conf" 30 12;
 
+  hwDiscover = ''
+    hwmon() {
+      for hw in /sys/class/hwmon/hwmon*; do
+        case " $* " in
+          *" $(cat "$hw/name" 2>/dev/null || true) "*)
+            echo "$hw"
+            return
+            ;;
+        esac
+      done
+    }
+
+    thermal() {
+      local hw zone
+      hw=$(hwmon coretemp k10temp zenpower)
+      if [ -n "$hw" ] && [ -r "$hw/temp1_input" ]; then
+        echo "$hw/temp1_input"
+        return
+      fi
+      for zone in /sys/class/thermal/thermal_zone*; do
+        if [ "$(cat "$zone/type" 2>/dev/null || true)" = x86_pkg_temp ]; then
+          echo "$zone/temp"
+          return
+        fi
+      done
+      if [ -r /sys/class/thermal/thermal_zone0/temp ]; then
+        echo /sys/class/thermal/thermal_zone0/temp
+      fi
+    }
+
+    gpu_card() {
+      local card
+      for card in /sys/class/drm/card[0-9]; do
+        if [ -r "$card/device/gpu_busy_percent" ] || [ -r "$card/gt/gt0/rc6_residency_ms" ] || [ -r "$card/device/tile0/gt0/gtidle/idle_residency_ms" ]; then
+          echo "$card"
+          return
+        fi
+      done
+    }
+
+    gpu_counter() {
+      local card idle
+      card=$(gpu_card)
+      [ -n "$card" ] || return 0
+      if [ -r "$card/device/gpu_busy_percent" ]; then
+        echo "busy $card/device/gpu_busy_percent"
+        return
+      fi
+      for idle in "$card/gt/gt0/rc6_residency_ms" "$card/device/tile0/gt0/gtidle/idle_residency_ms"; do
+        if [ -r "$idle" ]; then
+          echo "idle $idle"
+          return
+        fi
+      done
+    }
+  '';
+
   barProbe = pkgs.writeShellApplication {
     name = "bar-probe";
     runtimeInputs = [
@@ -54,47 +117,138 @@ let
       pkgs.jq
     ];
     text = ''
-      thermal=""
-      for hw in /sys/class/hwmon/hwmon*; do
-        name=$(cat "$hw/name" 2>/dev/null || true)
-        case "$name" in
-          coretemp | k10temp | zenpower)
-            if [ -r "$hw/temp1_input" ]; then
-              thermal="$hw/temp1_input"
-              break
-            fi
-            ;;
-        esac
+      ${hwDiscover}
+      printf "%s\n" "$(thermal)"
+      ${lib.getExe' pkgs.hyprland "hyprctl"} devices -j 2>/dev/null \
+        | jq -r '([.keyboards[] | select(.main)][0] // .keyboards[0] // {}).active_keymap // ""' \
+        || echo
+      printf "%s\n" "$(gpu_counter)"
+    '';
+  };
+
+  hwProbe = pkgs.writeShellApplication {
+    name = "hw-probe";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.gawk
+      pkgs.gnused
+      pkgs.jq
+    ];
+    text = ''
+      ${hwDiscover}
+      expand() {
+        local part
+        local IFS=,
+        for part in $1; do
+          case "$part" in
+            *-*) seq "''${part%-*}" "''${part#*-}" ;;
+            ?*) echo "$part" ;;
+          esac
+        done
+      }
+
+      read_first() {
+        local file
+        for file in "$@"; do
+          if [ -r "$file" ]; then
+            tr -s ' ' < "$file" | sed 's/ *$//'
+            return
+          fi
+        done
+      }
+
+      performance=" $(expand "$(cat /sys/devices/cpu_core/cpus 2>/dev/null || true)" | tr '\n' ' ') "
+      efficient=" $(expand "$(cat /sys/devices/cpu_atom/cpus 2>/dev/null || true)" | tr '\n' ' ') "
+      threads=$(for dir in /sys/devices/system/cpu/cpu[0-9]*; do
+        n=''${dir##*cpu}
+        kind=""
+        case "$performance" in *" $n "*) kind=p ;; esac
+        case "$efficient" in *" $n "*) kind=e ;; esac
+        echo "$n $(cat "$dir/topology/core_id" 2>/dev/null || echo "$n") $kind"
+      done | jq -Rn '[inputs | split(" ") | {cpu: (.[0] | tonumber), core: (.[1] | tonumber), kind: (.[2] // "")}] | sort_by(.cpu)')
+
+      fan=""
+      fanHw=$(hwmon thinkpad asus dell_smm applesmc nct6775 nct6687 it87)
+      for candidate in "$fanHw"/fan1_input /sys/class/hwmon/hwmon*/fan1_input; do
+        if [ -r "$candidate" ]; then
+          fan=$candidate
+          break
+        fi
       done
-      if [ -z "$thermal" ]; then
-        for zone in /sys/class/thermal/thermal_zone*; do
-          if [ "$(cat "$zone/type" 2>/dev/null || true)" = x86_pkg_temp ]; then
-            thermal="$zone/temp"
+
+      nvme=$(hwmon nvme)
+      card=$(gpu_card)
+      gpuClock=""
+      for candidate in "$card/gt_act_freq_mhz" "$card/gt/gt0/rps_act_freq_mhz"; do
+        if [ -n "$card" ] && [ -r "$candidate" ]; then
+          gpuClock="mhz $candidate"
+          break
+        fi
+      done
+      if [ -z "$gpuClock" ] && [ -n "$card" ]; then
+        for candidate in "$card"/device/hwmon/hwmon*/freq1_input; do
+          if [ -r "$candidate" ]; then
+            gpuClock="hz $candidate"
             break
           fi
         done
       fi
-      if [ -z "$thermal" ] && [ -r /sys/class/thermal/thermal_zone0/temp ]; then
-        thermal=/sys/class/thermal/thermal_zone0/temp
+      driver=""
+      pci=""
+      if [ -n "$card" ]; then
+        driver=$(awk -F= '$1 == "DRIVER" { print $2 }' "$card/device/uevent" 2>/dev/null || true)
+        pci=$(awk -F= '$1 == "PCI_ID" { print tolower($2) }' "$card/device/uevent" 2>/dev/null || true)
       fi
-      echo "$thermal"
-      ${lib.getExe' pkgs.hyprland "hyprctl"} devices -j 2>/dev/null \
-        | jq -r '([.keyboards[] | select(.main)][0] // .keyboards[0] // {}).active_keymap // ""' \
-        || echo
-      gpu=""
-      for card in /sys/class/drm/card[0-9]; do
-        if [ -r "$card/device/gpu_busy_percent" ]; then
-          gpu="busy $card/device/gpu_busy_percent"
+
+      battery=""
+      ac=""
+      for supply in /sys/class/power_supply/*; do
+        case "$(cat "$supply/type" 2>/dev/null || true)" in
+          Battery) [ -z "$battery" ] && [ -r "$supply/capacity" ] && battery=$supply ;;
+          Mains) [ -z "$ac" ] && ac=$supply ;;
+        esac
+      done
+
+      disk=""
+      for block in /sys/block/nvme* /sys/block/sd* /sys/block/vd* /sys/block/mmcblk*; do
+        if [ -e "$block/device" ]; then
+          disk=''${block##*/}
           break
         fi
-        for idle in "$card/gt/gt0/rc6_residency_ms" "$card/device/tile0/gt0/gtidle/idle_residency_ms"; do
-          if [ -r "$idle" ]; then
-            gpu="idle $idle"
-            break 2
-          fi
-        done
       done
-      echo "$gpu"
+
+      wifi=""
+      for net in /sys/class/net/*; do
+        if [ -d "$net/wireless" ]; then
+          wifi=''${net##*/}
+          break
+        fi
+      done
+
+      generation=$(readlink /nix/var/nix/profiles/system 2>/dev/null | sed -n 's/^system-\([0-9]*\)-link$/\1/p' || true)
+
+      jq -n \
+        --arg vendor "$(awk -F': ' '/^vendor_id/ { print $2; exit }' /proc/cpuinfo)" \
+        --arg model "$(awk -F': ' '/^model name/ { print $2; exit }' /proc/cpuinfo | sed 's/([^)]*)//g; s/ CPU / /; s/  */ /g')" \
+        --argjson threads "$threads" \
+        --arg temp "$(thermal)" \
+        --arg fan "$fan" \
+        --arg nvme "''${nvme:+$nvme/temp1_input}" \
+        --arg gpu "$(gpu_counter)" \
+        --arg gpuClock "$gpuClock" \
+        --arg driver "$driver" \
+        --arg pci "$pci" \
+        --arg battery "$battery" \
+        --arg ac "$ac" \
+        --arg disk "$disk" \
+        --arg diskModel "$(read_first "/sys/block/$disk/device/model")" \
+        --arg wifi "$wifi" \
+        --arg board "$(read_first /sys/class/dmi/id/product_version /sys/class/dmi/id/board_name)" \
+        --arg boardVendor "$(read_first /sys/class/dmi/id/board_vendor)" \
+        --arg bios "$(read_first /sys/class/dmi/id/bios_version)" \
+        --arg kernel "$(uname -r)" \
+        --arg generation "$generation" \
+        '$ARGS.named'
     '';
   };
 
@@ -454,10 +608,12 @@ let
         readonly property string cavaConfig: "${cavaConfig}"
         readonly property string cavaBarConfig: "${cavaBarConfig}"
         readonly property string barProbe: "${lib.getExe barProbe}"
+        readonly property string hwProbe: "${lib.getExe hwProbe}"
         readonly property string systemctl: "${lib.getExe' pkgs.systemd "systemctl"}"
         readonly property string swaync: "${lib.getExe' config.services.swaync.package "swaync-client"}"
         readonly property string compactOutput: "${compactOutput}"
         readonly property bool powerProfiles: ${lib.boolToString powerProfiles}
+        readonly property int idleTimeout: ${toString idleTimeout}
         readonly property string pamDir: "${pamDir}"
         readonly property bool fingerprint: ${lib.boolToString fingerprint}
         readonly property string wallpaper: "${theme.wallpaper}"
@@ -467,10 +623,14 @@ let
         readonly property string agentsDir: "${config.custom.claudeCode.agentStatus.dir}"
         readonly property string agents: "${lib.getExe agents}"
         readonly property string airpodsDir: "${config.custom.airpods.stateDir}"
+        readonly property string workNetDir: "${lib.optionalString config.custom.work.enable config.custom.work.networkStateDir}"
         readonly property string uwsm: "${lib.getExe (osConfig.programs.uwsm.package or pkgs.uwsm)}"
         readonly property string terminal: "${lib.getExe config.programs.ghostty.package}"
         readonly property string user: "${config.home.username}"
         readonly property string host: "${osConfig.networking.hostName or "nixos"}"
+        readonly property var scenes: ${builtins.toJSON scenes.names}
+        readonly property string scene: "${config.custom.desktop.scene}"
+        readonly property string prefsFile: "${scenes.prefsFile}"
     }
   '';
 
@@ -582,34 +742,41 @@ let
   };
 in
 {
-  programs.quickshell = {
-    enable = true;
-    configs.shell = shellConfig;
-    activeConfig = "shell";
-    systemd.enable = true;
+  options.custom.desktop.scene = lib.mkOption {
+    type = lib.types.enum scenes.names;
+    default = "planet";
+    description = "Default live wallpaper and lock-screen scene. The sidebar, IPC and the login session picker override it at runtime.";
   };
 
-  systemd.user.services.quickshell = {
-    Unit = {
-      PartOf = [ config.programs.quickshell.systemd.target ];
-      ConditionEnvironment = "WAYLAND_DISPLAY";
-      X-Restart-Triggers = [ "${shellConfig}" ];
+  config = {
+    programs.quickshell = {
+      enable = true;
+      configs.shell = shellConfig;
+      activeConfig = "shell";
+      systemd.enable = true;
     };
-    Service.RestartSec = 2;
-  };
 
-  custom.claudeCode.agentStatus.enable = true;
+    systemd.user.services.quickshell = {
+      Unit = {
+        PartOf = [ config.programs.quickshell.systemd.target ];
+        ConditionEnvironment = "WAYLAND_DISPLAY";
+        X-Restart-Triggers = [ "${shellConfig}" ];
+      };
+      Service.RestartSec = 2;
+    };
 
-  custom.keys.commands = {
-    barToggle = "${quickshell} -c shell ipc call bar toggle";
-    barShow = "${quickshell} -c shell ipc call bar show";
-    barHide = "${quickshell} -c shell ipc call bar hide";
-    perfCycle = "${quickshell} -c shell ipc call perf cycle";
-    skyToggle = "${quickshell} -c shell ipc call sky toggle";
-    lyricsToggle = "${quickshell} -c shell ipc call lyrics toggle";
-    sidebarToggle = "${quickshell} -c shell ipc call sidebar toggle";
-    widgetsToggle = "${quickshell} -c shell ipc call widgets toggle";
-    agentsPick = lib.getExe agentsPick;
-    lockScreen = lib.getExe lockScreen;
+    custom.claudeCode.agentStatus.enable = true;
+
+    custom.keys.commands = {
+      barToggle = "${quickshell} -c shell ipc call bar toggle";
+      barShow = "${quickshell} -c shell ipc call bar show";
+      barHide = "${quickshell} -c shell ipc call bar hide";
+      perfCycle = "${quickshell} -c shell ipc call perf cycle";
+      lyricsToggle = "${quickshell} -c shell ipc call lyrics toggle";
+      sidebarToggle = "${quickshell} -c shell ipc call sidebar toggle";
+      widgetsToggle = "${quickshell} -c shell ipc call widgets toggle";
+      agentsPick = lib.getExe agentsPick;
+      lockScreen = lib.getExe lockScreen;
+    };
   };
 }

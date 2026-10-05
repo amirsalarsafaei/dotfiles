@@ -1,6 +1,7 @@
 {
   config,
   inputs,
+  lib,
   ...
 }:
 {
@@ -28,7 +29,7 @@
       plugins.personal."clangd-lsp@claude-plugins-official" = true;
       skillOverrides.nix-environment = "on";
     };
-    ntfy.enable = config.custom.personal.enable;
+    ntfy.enable = lib.mkDefault config.custom.personal.enable;
 
     agentSkills = {
       enable = true;

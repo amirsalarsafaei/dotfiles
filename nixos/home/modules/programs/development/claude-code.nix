@@ -274,40 +274,57 @@ let
   ipGuardText = ''
     country=""
 
-    ip_info=$(curl -sfL --connect-timeout 3 --max-time 10 \
-      https://api.country.is/ 2>/dev/null) || ip_info=""
-    if [ -n "$ip_info" ]; then
-      country=$(printf '%s' "$ip_info" | jq -er \
-        '.country | strings | ascii_upcase | select(test("^[A-Z]{2}$"))' \
-        2>/dev/null) || country=""
-    fi
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
 
-    if [ -z "$country" ]; then
-      ip_info=$(curl -sfL --connect-timeout 3 --max-time 10 \
-        https://www.cloudflare.com/cdn-cgi/trace 2>/dev/null) || ip_info=""
-      if [ -n "$ip_info" ]; then
-        while IFS='=' read -r key value; do
-          if [ "$key" = "loc" ]; then
-            country="''${value^^}"
-            break
-          fi
-        done <<<"$ip_info"
-        case "$country" in
-          [A-Z][A-Z]) ;;
-          *) country="" ;;
-        esac
-      fi
-    fi
+    parse_country() {
+      case $1 in
+        ci)
+          jq -er '.country | strings | ascii_upcase | select(test("^[A-Z]{2}$"))' "$tmp/ci" 2>/dev/null
+          ;;
+        cf)
+          [[ -r $tmp/cf ]] || return 1
+          while IFS='=' read -r key value; do
+            if [ "$key" = loc ] && [[ $value == [A-Z][A-Z] ]]; then
+              printf '%s\n' "$value"
+              return 0
+            fi
+          done <"$tmp/cf"
+          return 1
+          ;;
+        iw)
+          jq -er 'select(.success == true) | .country_code | strings | ascii_upcase | select(test("^[A-Z]{2}$"))' "$tmp/iw" 2>/dev/null
+          ;;
+      esac
+    }
 
-    if [ -z "$country" ]; then
-      ip_info=$(curl -sfL --connect-timeout 3 --max-time 10 \
-        https://ipwho.is/ 2>/dev/null) || ip_info=""
-      if [ -n "$ip_info" ]; then
-        country=$(printf '%s' "$ip_info" | jq -er \
-          'select(.success == true) | .country_code | strings | ascii_upcase | select(test("^[A-Z]{2}$"))' \
-          2>/dev/null) || country=""
-      fi
-    fi
+    fetch() {
+      curl -sfL --connect-timeout 3 --max-time 10 "$1" -o "$2" 2>/dev/null
+    }
+
+    fetch https://api.country.is/ "$tmp/ci" &
+    p1=$!
+    fetch https://www.cloudflare.com/cdn-cgi/trace "$tmp/cf" &
+    p2=$!
+    fetch https://ipwho.is/ "$tmp/iw" &
+    p3=$!
+
+    for _ in 1 2 3; do
+      pid=""
+      wait -n -p pid || true
+      [ -n "$pid" ] || break
+      case $pid in
+        "$p1") provider=ci ;;
+        "$p2") provider=cf ;;
+        "$p3") provider=iw ;;
+        *) continue ;;
+      esac
+      country=$(parse_country "$provider") || country=""
+      [ -n "$country" ] && break
+    done
+
+    kill "$p1" "$p2" "$p3" 2>/dev/null || true
+    wait 2>/dev/null || true
 
     if [ -z "$country" ]; then
       printf 'claude: country lookup failed across all providers; refusing to launch (fail-closed Iran guard)\n' >&2
@@ -451,6 +468,17 @@ let
   chromeDevtoolsMcp = pkgs.callPackage ../../../../pkgs/chrome-devtools-mcp.nix { };
   googleChrome = lib.getExe' pkgs.google-chrome "google-chrome-stable";
 
+  hostChrome = pkgs.writeShellApplication {
+    name = "claude-host-chrome";
+    text = ''
+      exec ${lib.getExe' pkgs.glib "gdbus"} call --session \
+        --dest org.freedesktop.portal.Desktop \
+        --object-path /org/freedesktop/portal/desktop \
+        --method org.freedesktop.portal.OpenURI.OpenURI \
+        --timeout 5 "" "''${!#}" "{}"
+    '';
+  };
+
   browserMcpDirRel = ".config/claude-browser-mcp";
   secChromeMcpConfigRel = "${browserMcpDirRel}/chrome-devtools.json";
   secChromeMcpConfigPath = "${config.home.homeDirectory}/${secChromeMcpConfigRel}";
@@ -468,7 +496,7 @@ let
           "--browser"
           "chrome"
           "--executable-path"
-          googleChrome
+          (lib.getExe hostChrome)
         ];
         env.PLAYWRIGHT_MCP_USER_DATA_DIR = "${config.home.homeDirectory}/.config/google-chrome";
       };
@@ -585,13 +613,18 @@ let
     flag = "--planner";
     plugin = "claude-obsidian@agricidaniel-claude-obsidian";
     enable = true;
-    desc = "enable the Obsidian vault plugin and own-calendar MCP for this launch";
+    desc = "enable the Obsidian vault plugin, own-calendar MCP and planner connectors for this launch";
     marketplace = obsidianMarketplace;
     env = {
       CLAUDE_OBSIDIAN_VAULT = obsidianVaultPath;
     };
     inherit (cfg.planner) mcpConfigs;
+    gatedTools = map (
+      n: "mcp__claude_ai_${lib.replaceStrings [ " " ] [ "_" ] n}"
+    ) cfg.planner.connectors;
   };
+
+  gatedFlagPlugins = lib.filter (p: (p.gatedTools or [ ]) != [ ]) flagPlugins;
 
   flagPluginsZshArgs = lib.concatMapStringsSep " " (p: "'${p.flag}[${p.desc}]'") (
     flagPlugins ++ lib.optional cfg.enableDevar devarSecurityFlag
@@ -610,6 +643,7 @@ let
         ${lib.concatMapStringsSep "\n" (c: "_claude_plugin_mcp+=(${lib.escapeShellArg c})") (
           p.mcpConfigs or [ ]
         )}
+        ${lib.optionalString (p ? gatedTools) "_claude_plugin_ungated+=(${lib.escapeShellArg p.flag})"}
       '';
       levelArm = p: ''
         ${p.flag}=*)
@@ -646,6 +680,7 @@ let
       _claude_plugin_marketplaces=()
       _claude_plugin_env=()
       _claude_plugin_mcp=()
+      _claude_plugin_ungated=()
       _claude_flag_rest=()
       while [ "$#" -gt 0 ]; do
         case "$1" in
@@ -706,7 +741,13 @@ let
     for _claude_pc in "''${_claude_plugin_mcp[@]}"; do
       _claude_extra_args+=(--mcp-config "$_claude_pc")
     done
+    ${lib.concatMapStrings (p: ''
+      if [[ " ''${_claude_plugin_ungated[*]} " != *" ${p.flag} "* ]]; then
+        _claude_extra_args+=(${lib.escapeShellArg "--disallowedTools=${lib.concatStringsSep "," p.gatedTools}"})
+      fi
+    '') gatedFlagPlugins}
     unset _claude_plugin_flags _claude_plugin_marketplaces _claude_plugin_env _claude_plugin_mcp _claude_pc
+    unset _claude_plugin_ungated
   ''
   + lib.optionalString cfg.enableDevar ''
     if [ "$_claude_devar_security" -eq 0 ]; then
@@ -1872,8 +1913,10 @@ in
         plugin (github.com/AgriciDaniel/claude-obsidian) with
         CLAUDE_OBSIDIAN_VAULT pointed at ~/Documents/amirsalar-vault, and
         attaches every `planner.mcpConfigs` entry, such as the agenda module's
-        own-calendar Google Calendar MCP server. Nothing loads without the
-        flag, so an unflagged launch pays no context for either. Adopt the
+        own-calendar Google Calendar MCP server, and unhides the
+        `planner.connectors` claude.ai connectors such as Trello. Nothing
+        loads without the flag, so an unflagged launch pays no context for
+        any of them. Adopt the
         vault once with /claude-obsidian:wiki from a --planner launch
       '';
 
@@ -1883,6 +1926,19 @@ in
         description = ''
           MCP config files a --planner launch passes as `--mcp-config`.
           Feature modules that serve a planner MCP server append theirs.
+        '';
+      };
+
+      connectors = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ "Trello" ];
+        description = ''
+          claude.ai connector names, as shown in claude.ai settings, that
+          belong to the planner. They are account-level, so every variant
+          logged in to claude.ai loads them; a launch without --planner
+          passes `--disallowedTools mcp__claude_ai_<name>`, which hides every
+          tool of the connector, its authenticate tool included. Variants on
+          API keys never see claude.ai connectors.
         '';
       };
     };
@@ -1944,6 +2000,8 @@ in
             If the passphrase is not cached, pinentry prompts the user.
           - gh, glab, kubectl, aws and docker find no credentials.
           - PID, IPC and UTS namespaces are private, so host processes are invisible.
+          - xdg-open and $BROWSER hand URLs and files to the desktop portal, which opens them in the
+            host session with the user's real browser profile.
         '';
         description = ''
           Appended to CLAUDE.md only for sandboxed launches. The sandbox
@@ -2412,6 +2470,10 @@ in
           ${chromeMcpConfigRel}.text = builtins.toJSON chromeMcpServers;
           ${secChromeMcpConfigRel}.text = builtins.toJSON secChromeMcpServers;
           ${playwrightMcpConfigRel}.text = builtins.toJSON playwrightMcpServers;
+        };
+        xdg.mimeApps = {
+          associations.added."x-scheme-handler/chrome-extension" = "google-chrome.desktop";
+          defaultApplications."x-scheme-handler/chrome-extension" = "google-chrome.desktop";
         };
       }
     )

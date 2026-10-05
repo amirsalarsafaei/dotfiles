@@ -313,7 +313,10 @@ in
 
     programs.nix-ld.enable = true;
     programs.dconf.enable = true;
-    programs.thunar.enable = true;
+    programs.thunar = {
+      enable = true;
+      plugins = [ pkgs.thunar-archive-plugin ];
+    };
     services.gvfs.enable = true;
     services.tumbler.enable = true;
     services.upower.enable = true;
@@ -351,6 +354,7 @@ in
 
     services.acpid.enable = true;
     xdg.autostart.enable = true;
+    systemd.user.settings.Manager.DefaultTimeoutStopSec = "10s";
 
     xdg.portal = {
       enable = true;

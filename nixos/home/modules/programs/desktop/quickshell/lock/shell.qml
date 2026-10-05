@@ -8,7 +8,6 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Widgets
 import Quickshell.Hyprland
-import Quickshell.Services.Mpris
 import Quickshell.Services.Pam
 
 ShellRoot {
@@ -132,10 +131,8 @@ ShellRoot {
     readonly property real hour: clock.date.getHours() + clock.date.getMinutes() / 60
     readonly property string greeting: (hour < 5 ? "still up" : hour < 12 ? "good morning" : hour < 17 ? "good afternoon" : hour < 21 ? "good evening" : "good night") + (user.length > 0 ? ", " + user : "")
     readonly property var jalali: Jalali.of(clock.date)
-    readonly property var player: {
-        const players = Mpris.players.values;
-        return players.find(p => p.isPlaying) ?? players[0] ?? null;
-    }
+    readonly property var player: Media.player
+    readonly property var moon: Lunar.of(clock.date)
     readonly property string quipText: {
         const generated = Number(quip.generated ?? 0) * 1000;
         const today = Qt.formatDateTime(clock.date, "yyyy-MM-dd");
@@ -564,7 +561,7 @@ ShellRoot {
         target: Hyprland
 
         function onRawEvent(event): void {
-            if (event.name !== "activelayout")
+            if (event.name !== "activelayout" || event.data.startsWith("hl-virtual-keyboard"))
                 return;
             const data = event.data;
             root.layout = data.slice(data.indexOf(",") + 1);
@@ -599,7 +596,7 @@ ShellRoot {
                 onTriggered: surface.waiting = false
             }
 
-            Sky {
+            Scene {
                 id: sky
 
                 anchors.fill: parent
@@ -611,7 +608,6 @@ ShellRoot {
                 flare: Math.max(root.flare, root.warmth)
                 alarm: root.alarm
                 lyrics: lyricsFloat.enter
-                lyricsWidth: lyricsFloat.width
             }
 
             Item {
@@ -668,9 +664,9 @@ ShellRoot {
                     readonly property bool shown: Prefs.floatingLyrics && skyLyrics.synced
                     property real enter: shown ? 1 : 0
 
-                    x: Math.round(surface.width * 0.6 + sky.pan * 0.55 * surface.height - width / 2)
-                    y: Math.round((sky.horizon - 0.56 * 0.28) * surface.height - height / 2 + (1 - enter) * 18)
-                    width: Math.min(680, surface.width * 0.34)
+                    x: Math.round(sky.stage.x + sky.stage.width / 2 - width / 2)
+                    y: Math.round(sky.stage.y + sky.stage.height / 2 - height / 2 + (1 - enter) * 18)
+                    width: sky.lyricsWidth
                     height: skyLyrics.implicitHeight
                     opacity: enter * stage.rise(6)
                     visible: opacity > 0.001
@@ -1103,8 +1099,8 @@ ShellRoot {
                         Repeater {
                             model: root.hud.concat([
                                 {
-                                    icon: ["󰽤", "󰽧", "󰽡", "󰽨", "󰽢", "󰽦", "󰽣", "󰽥"][Math.round(sky.moonPhase * 8) % 8],
-                                    text: Math.round(sky.moonLit * 100) + "%",
+                                    icon: ["󰽤", "󰽧", "󰽡", "󰽨", "󰽢", "󰽦", "󰽣", "󰽥"][Math.round(root.moon.phase * 8) % 8],
+                                    text: Math.round(root.moon.lit * 100) + "%",
                                     tone: Theme.alpha(Theme.fgBright, 0.8),
                                     color: Theme.alpha(Theme.fg, 0.9)
                                 }

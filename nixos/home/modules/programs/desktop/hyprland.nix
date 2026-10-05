@@ -177,14 +177,14 @@ let
       workspaceSplit
     ];
     text = ''
-      display-lid sync
-      workspace-split home
+      display-lid sync || true
+      workspace-split home || true
       socat -u UNIX-CONNECT:"$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock" - \
         | while IFS= read -r event; do
             case "$event" in
               monitoradded\>\>*|monitorremoved\>\>*|configreloaded\>\>*)
-                display-lid sync
-                workspace-split home
+                display-lid sync || true
+                workspace-split home || true
                 ;;
             esac
           done
@@ -576,6 +576,7 @@ in
   custom.keys.commands = {
     terminal = "uwsm app -- ghostty";
     menu = "rofi -show drun -run-command 'uwsm app -- {cmd}'";
+    windows = "rofi -show window -run-command 'uwsm app -- {cmd}'";
     clipboard = "clipboard-menu";
     focusMode = lib.getExe focusMode;
     spotifySpace = lib.getExe spotifySpace;

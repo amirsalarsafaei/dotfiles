@@ -12,7 +12,7 @@ ShellRoot {
     property string sidebarPage: "home"
     property bool boardOpen: false
     property bool barShown: true
-    property bool dusk: false
+    property string sky: "now"
     property string screenName: ""
 
     function pickScreen(): void {
@@ -40,7 +40,8 @@ ShellRoot {
             required property var modelData
             screen: modelData
             overlay: root.boardOpen && root.screenName === modelData.name
-            dusk: root.dusk
+            sky: root.sky
+            onSkyRequested: mode => root.sky = mode
         }
     }
 
@@ -183,20 +184,53 @@ ShellRoot {
         target: "sky"
 
         function toggle(): string {
-            root.dusk = !root.dusk;
-            return root.dusk ? "dusk" : "now";
+            const now = new Date();
+            const daytime = Math.sin(Math.PI * (now.getHours() + now.getMinutes() / 60 - 6) / 13) >= 0.3;
+            root.sky = root.sky !== "now" ? "now" : daytime ? "dusk" : "day";
+            return root.sky;
         }
 
         function dusk(): void {
-            root.dusk = true;
+            root.sky = "dusk";
+        }
+
+        function night(): void {
+            root.sky = "night";
+        }
+
+        function day(): void {
+            root.sky = "day";
         }
 
         function now(): void {
-            root.dusk = false;
+            root.sky = "now";
         }
 
         function status(): string {
-            return root.dusk ? "dusk" : "now";
+            return root.sky;
+        }
+    }
+
+    IpcHandler {
+        target: "scene"
+
+        function toggle(): string {
+            Prefs.cycleScene();
+            return Prefs.scene;
+        }
+
+        function set(name: string): string {
+            if (Prefs.scenes.includes(name) || name === "")
+                Prefs.chosenScene = name;
+            return Prefs.scene;
+        }
+
+        function status(): string {
+            return Prefs.scene;
+        }
+
+        function list(): string {
+            return Prefs.scenes.join(" ");
         }
     }
 
