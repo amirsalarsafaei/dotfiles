@@ -1385,7 +1385,6 @@ let
   localModelFast = "qwen3.6-apex-nothink";
 
   defaultPlugins = {
-    "cc-skills-golang@samber" = true;
     "gopls-lsp@claude-plugins-official" = true;
     "pyright-lsp@claude-plugins-official" = true;
     "typescript-lsp@claude-plugins-official" = true;
@@ -1466,7 +1465,7 @@ let
       plugins = cfg.plugins.default // cfg.plugins.${variant};
       cavemanMode = cfg.cavemanMode.${name};
       caveman = cfg.enableCaveman && cavemanMode != null;
-      marketplaces = samberMarketplace // lib.optionalAttrs caveman cavemanMarketplace;
+      marketplaces = lib.optionalAttrs caveman cavemanMarketplace;
       env = {
         CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN = "1";
       }
@@ -1578,34 +1577,6 @@ let
       inherit repo;
     };
   };
-
-  samberMarketplace = {
-    samber = {
-      source = {
-        source = "directory";
-        path = "${samberMarketplaceDir}";
-      };
-    };
-  };
-
-  samberMarketplaceDir = pkgs.runCommand "samber-claude-marketplace" { } ''
-    mkdir -p $out/.claude-plugin
-    cp -r ${inputs.samber-go-skills} $out/cc-skills-golang
-    cp ${
-      pkgs.writeText "samber-marketplace.json" (
-        builtins.toJSON {
-          name = "samber";
-          owner.name = "Samuel Berthe";
-          plugins = [
-            {
-              name = "cc-skills-golang";
-              source = "./cc-skills-golang";
-            }
-          ];
-        }
-      )
-    } $out/.claude-plugin/marketplace.json
-  '';
 
   cavemanLevels = [
     "off"

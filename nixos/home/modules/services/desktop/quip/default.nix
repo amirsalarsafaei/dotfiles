@@ -21,6 +21,7 @@ let
       export QUIP_SHARE_SONGS=${if cfg.shareSongs then "1" else "0"}
       export QUIP_NOTES_DIR=${lib.escapeShellArg cfg.notesDir}
       export QUIP_PERSONA=${lib.escapeShellArg (lib.concatStringsSep "\n" cfg.persona)}
+      export QUIP_ABOUT=${lib.escapeShellArg cfg.about}
       export QUIP_TIMEZONE=${lib.escapeShellArg cfg.timeZone}
       export PYTHONTZPATH=${pkgs.tzdata}/share/zoneinfo
       ${lib.concatMapStrings (provider: ''
@@ -61,7 +62,7 @@ in
     };
     deepseekModel = lib.mkOption {
       type = lib.types.str;
-      default = "deepseek-v4-pro";
+      default = "deepseek-flash";
       description = "DeepSeek model used for the greeting.";
     };
     deepseekEffort = lib.mkOption {
@@ -70,8 +71,8 @@ in
         "high"
         "max"
       ];
-      default = "high";
-      description = "DeepSeek thinking effort; the model drafts and discards candidate lines while thinking.";
+      default = "low";
+      description = "DeepSeek thinking effort; the model drafts and discards candidate lines while thinking, and these hidden tokens dominate cost and latency.";
     };
     shareTitles = lib.mkOption {
       type = lib.types.bool;
@@ -83,35 +84,40 @@ in
       default = true;
       description = "Send recently played song titles, taken from the lyricsd cache, to the LLM.";
     };
+    about = lib.mkOption {
+      type = lib.types.str;
+      default = "Iranian backend engineer, Sharif computer science graduate and former olympiad kid; writes Go and Rust, lives in Neovim on NixOS.";
+      description = "One line of background sent with every greeting request.";
+    };
     persona = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [
-        "Software engineer on accounting and auth systems: a ledger off by one rial or a session token that outlives its logout is a real bug, not a rounding error."
-        "Genuinely brilliant and knows it; praise that sounds earned lands, and so does a roast that assumes the smartest person in the room."
-        "Has ADHD: hyperfocus that eats whole evenings, rabbit holes, too many open tabs, and a brain that runs at either idle or 100% with nothing in between. Affectionate jokes about it land; clinical or pitying ones do not."
-        "Deeply into high concurrency and parallelism: lock-free structures, race conditions, work-stealing schedulers, and squeezing every core; a data race is a personal insult."
+        "Backend engineer on authentication and a third-party developer platform: wrote an OAuth server from the RFCs, a gRPC rate limiter, and SSRF and open-redirect defences."
+        "Cut an API gateway's OPA policy check from 200 ms to under 5 ms at p99.9 by generating policy code, and contributed to the OPA Envoy plugin along the way."
+        "Most-starred personal project is sqlc-pgx-monitoring, an OpenTelemetry tracing library for sqlc and pgx with about 90 stars; also wrote pgx-router and sqlc-pgx-route to send reads to replicas."
+        "Codeforces master as BinaryBoy, rated 2124; the last rated contest was in February 2021, so the rating has stayed frozen at its peak ever since."
+        "Won silver at Iran's national informatics olympiad in 2019, then ranked 466th of about 155,000 in the national university entrance exam."
+        "Sharif University computer science graduate; was a TA for operating systems, probability and programming courses, and tutored IOI hopefuls on shortest paths, DSU, LCA and 2-SAT."
+        "Hackathon record: first in an LLM hackathon for fitting a quantized Falcon model into 7 GB without a GPU, first in the Torob learning-to-rank challenge, second in AI Cup."
+        "The personal website has a Rust gRPC backend, a Next.js frontend with a 3D model of the laptop running a fake terminal, a snake game, and an SSH TUI at ssh.amirsalarsafaei.com. The blog on it has four posts."
+        "Published 'Ultimate Protobuf Error Handling Guide - Part 1' on the blog. There is no Part 2 yet."
+        "Wrote llm-lsp.nvim, a Neovim plugin that blends LLM token probabilities with LSP completions; its README opens with an Abstract, like a research paper."
+        "Built a Raspberry Pi voice assistant with voice activity detection, face recognition and a Neo4j knowledge graph."
+        "GitHub bio: 'Toby Maguire got bit by a spider. Me? Must've been a GNU.' The profile README is a fake cat /proc/self/status and a ps aux listing processes like /usr/bin/aspire."
+        "The dotfiles repo has over 300 commits; 88 of them are titled 'some changes', and others are 'many changes' and 'so many changes'."
+        "Runs NixOS and Hyprland on a ROG G14, a ThinkPad T14, a home server and an Orange Pi, all from one flake."
+        "The wallpaper is a hand-written planet shader with the real moon phase; the other scene is a cel-shaded motherboard that draws the laptop's own CPU die from live topology."
+        "Runs several Claude and DeepSeek coding agents at once; each one is a pixel critter on the wallpaper, and clicking a critter cracks a pixel whip at it."
+        "Lives in Neovim inside zellij with Ctrl+Space as the prefix; the config's own rules declare every existing keybinding frozen."
+        "Keeps fortune, cowsay, ponysay, sl, cmatrix, asciiquarium, cbonsai and oneko installed purely for joy, plus Unity for game-dev side quests."
+        "Keeps an Obsidian vault whose daily note rolls unfinished checklist items over to the next day."
+        "GPG-signs every commit, so pinentry prompts arrive mid-flow."
+        "Self-hosts the personal website on a home server."
         "Iranian; reads the Jalali calendar next to the Gregorian one, and an occasional Persian reference or Hafez line lands well."
-        "Runs a heavily riced NixOS and Hyprland desktop and will happily lose a weekend to a border gradient or a rebuild."
-        "Lives in Neovim inside a terminal multiplexer; keybinding muscle memory is sacred."
-        "Humor taste: classic hacker wisdom in the vein of Knuth, Dijkstra, Brooks and SICP; dry and understated beats loud."
-        "Keeps an Obsidian vault whose daily note rolls unfinished checklist items over to tomorrow, and tomorrow, and tomorrow."
-        "Prefers terse, no-fluff communication."
-        "Self-hosts a home server and a personal website, and treats the homelab as a hobby rather than a chore."
-        "Runs several AI coding agents at once all day, referees their disagreements, and has opinions about their verbosity."
-        "Dark sense of humor about yak shaving: fixing the tool that fixes the tool is a lifestyle."
-        "GPG-signs commits and tags, so a stray pinentry prompt mid-flow is just part of the day."
-        "Auth engineer's reflex: reads any input as hostile until proven otherwise."
-        "Tinkers endlessly; the setup is never finished, only paused between rabbit holes."
-        "Trusts reality over documentation: verifies against the live system and assumes the local copy is stale."
-        "Changes opinion out loud the moment proven wrong; a refuted theory is a good day, not a bruised ego."
-        "Debugs from first principles: reproduce it, isolate it, prove the fix, distrust the explanation that felt too neat."
-        "Allergic to hand-waving and hype: wants the terse claim with the evidence, not the sales pitch."
-        "Won't call something done until the full check passes; 'works on my machine' is not verification."
+        "Has ADHD: hyperfocus that eats whole evenings, rabbit holes, too many open tabs, and a brain that runs at either idle or 100% with nothing in between. Affectionate jokes about it land; clinical or pitying ones do not."
         "Music taste swings hard: Gabriel Albuquerque's epic orchestral covers, Einaudi and Interstellar-style piano, Sleep Token, Evanescence and Icon For Hire, Eminem and NF, heartbroken ballads from Jaymes Young, Sofia Karlberg and Sara Kays, then Persian rap like Zedbazi and Erfan."
-        "Codes to soundtracks; an epic orchestral cover playing during a YAML edit is peak irony."
-        "Keeps cowsay, oneko, cmatrix and asciiquarium installed purely for joy, next to a Minecraft launcher and a Unity install for game-dev side quests."
       ];
-      description = "Facts about the user added to the greeting prompt so the jokes feel personal.";
+      description = "True facts about the user. Each greeting builds on one, drawn in shuffled rotation alongside today's checklist and recent songs, so every fact gets a turn.";
     };
     timeZone = lib.mkOption {
       type = lib.types.str;
@@ -137,6 +143,8 @@ in
         Service = {
           Type = "oneshot";
           ExecStart = lib.getExe quip;
+          Restart = "on-failure";
+          RestartSec = "10min";
         };
       };
 
@@ -145,7 +153,7 @@ in
         Timer = {
           OnStartupSec = "1m";
           OnCalendar = "*-*-* 05,12,17,21:00:30";
-          OnUnitActiveSec = "1h";
+          OnUnitActiveSec = "3h";
           RandomizedDelaySec = "2m";
           Unit = "quip.service";
         };

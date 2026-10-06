@@ -70,7 +70,11 @@ in
         airpods-tui = {
           Unit = {
             Description = "AirPods TUI daemon";
-            After = [ "bluetooth.target" ];
+            After = [
+              "bluetooth.target"
+              "graphical-session.target"
+            ];
+            PartOf = [ "graphical-session.target" ];
             Upholds = [ "airpods-status.service" ];
           };
           Service = {
@@ -78,7 +82,7 @@ in
             Restart = "on-failure";
             RestartSec = 5;
           };
-          Install.WantedBy = [ "default.target" ];
+          Install.WantedBy = [ "graphical-session.target" ];
         };
 
         airpods-status = {

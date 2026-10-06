@@ -133,13 +133,7 @@ ShellRoot {
     readonly property var jalali: Jalali.of(clock.date)
     readonly property var player: Media.player
     readonly property var moon: Lunar.of(clock.date)
-    readonly property string quipText: {
-        const generated = Number(quip.generated ?? 0) * 1000;
-        const today = Qt.formatDateTime(clock.date, "yyyy-MM-dd");
-        if (typeof quip.text !== "string" || quip.date !== today || clock.date.getTime() - generated > 4 * 3600 * 1000)
-            return "";
-        return quip.text.trim();
-    }
+    readonly property string quipText: typeof quip.text === "string" ? quip.text.trim() : ""
     readonly property var upcoming: (agenda.events ?? []).filter(event => eventState(event) !== "past").slice(0, 3)
     readonly property int tasksDue: (agenda.tasks ?? []).length
     readonly property var hud: {

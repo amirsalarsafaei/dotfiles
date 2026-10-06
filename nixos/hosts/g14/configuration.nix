@@ -134,10 +134,7 @@ in
         Unit = {
           Description = "Go Hass Agent";
           PartOf = [ "graphical-session.target" ];
-          After = [
-            "network-online.target"
-            "graphical-session.target"
-          ];
+          After = [ "graphical-session.target" ];
         };
         Service = {
           ExecStart = "${goHassAgentStart}";

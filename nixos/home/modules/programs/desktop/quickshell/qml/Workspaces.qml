@@ -79,7 +79,7 @@ Item {
                     anchors.verticalCenterOffset: hover.pressed ? 1 : 0
                     width: root.dot
                     height: root.dot
-                    radius: root.bar.tech ? 1 : height / 2
+                    radius: root.bar.tech ? 2 : height / 2
                     visible: !(blob.visible && root.covers(slot))
                     color: slot.urgent ? Theme.danger : Theme.alpha(Theme.fg, hover.containsMouse ? 0.9 : (slot.occupied ? 0.5 : 0.22))
 
@@ -128,13 +128,23 @@ Item {
         width: tail - head
         height: Math.round(root.bar.chipHeight * 0.62 * (1 - 0.22 * stretch))
         anchors.verticalCenter: parent.verticalCenter
-        radius: root.bar.tech ? 2 : height / 2
-        color: urgent ? Theme.danger : "transparent"
-        border.width: occupied || urgent ? 0 : 1
-        border.color: Theme.alpha(Theme.fg, 0.55)
-        gradient: occupied && !urgent ? blobGradient : null
+        radius: root.bar.tech ? Math.min(5, height / 2) : height / 2
+        color: urgent ? Theme.danger : root.bar.tech && occupied ? Theme.cyan : "transparent"
+        border.width: occupied || urgent ? 0 : root.bar.tech ? root.bar.stroke : 1
+        border.color: root.bar.tech ? Theme.cyan : Theme.alpha(Theme.fg, 0.55)
+        gradient: occupied && !urgent && !root.bar.tech ? blobGradient : null
 
         Component.onCompleted: ready = true
+
+        Rectangle {
+            visible: root.bar.tech && (blob.occupied || blob.urgent)
+            z: -1
+            y: 2
+            width: blob.width
+            height: blob.height
+            radius: blob.radius
+            color: Qt.tint(Theme.ink, Theme.alpha(blob.urgent ? Theme.danger : Theme.cyan, 0.45))
+        }
 
         Connections {
             target: root
@@ -186,7 +196,7 @@ Item {
             anchors.centerIn: parent
             visible: blob.stretch < 0.15
             text: root.current ? root.local(root.current.id) : ""
-            color: blob.occupied ? Theme.ink : Theme.fg
+            color: blob.occupied ? Theme.ink : root.bar.tech && !blob.urgent ? Theme.cyan : Theme.fg
             font.family: Theme.mono
             font.pixelSize: Math.round(root.bar.fontSize * 0.85)
             font.weight: Font.Bold

@@ -27,7 +27,7 @@
 
   systemd.services.rapl-power-limit = {
     description = "Raise the package power limit on AC in the performance profile";
-    wantedBy = [ "multi-user.target" ];
+    wantedBy = [ "graphical.target" ];
     after = [ "power-profiles-daemon.service" ];
     path = [ pkgs.coreutils ];
     serviceConfig = {

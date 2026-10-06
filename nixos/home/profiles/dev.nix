@@ -4,6 +4,45 @@
   lib,
   ...
 }:
+let
+  samberGoSkills = [
+    "golang-benchmark"
+    "golang-cli"
+    "golang-code-style"
+    "golang-concurrency"
+    "golang-context"
+    "golang-continuous-integration"
+    "golang-data-structures"
+    "golang-database"
+    "golang-dependency-injection"
+    "golang-dependency-management"
+    "golang-design-patterns"
+    "golang-documentation"
+    "golang-error-handling"
+    "golang-gopls"
+    "golang-grpc"
+    "golang-how-to"
+    "golang-lint"
+    "golang-modernize"
+    "golang-naming"
+    "golang-observability"
+    "golang-performance"
+    "golang-pkg-go-dev"
+    "golang-popular-libraries"
+    "golang-project-layout"
+    "golang-refactoring"
+    "golang-safety"
+    "golang-samber-slog"
+    "golang-security"
+    "golang-spf13-cobra"
+    "golang-spf13-viper"
+    "golang-stay-updated"
+    "golang-stretchr-testify"
+    "golang-structs-interfaces"
+    "golang-testing"
+    "golang-troubleshooting"
+  ];
+in
 {
   imports = [
     ../modules/shell
@@ -27,7 +66,10 @@
       enableCaveman = true;
       planner.enable = true;
       plugins.personal."clangd-lsp@claude-plugins-official" = true;
-      skillOverrides.nix-environment = "on";
+      skillOverrides = lib.genAttrs samberGoSkills (_: "name-only") // {
+        nix-environment = "on";
+        golang-how-to = "on";
+      };
     };
     ntfy.enable = lib.mkDefault config.custom.personal.enable;
 
@@ -40,7 +82,7 @@
           subdir = "skills";
         };
       };
-      skills = [ "nix-environment" ];
+      skills = [ "nix-environment" ] ++ samberGoSkills;
       targets = {
         agents.enable = true;
         gap-claude = {
@@ -69,7 +111,6 @@
           structure = "symlink-tree";
         };
       };
-      sourceTargets.samber-go = [ "agents" ];
     };
   };
 }

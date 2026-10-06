@@ -1,3 +1,4 @@
+import http.client
 import json
 import os
 import random
@@ -17,14 +18,15 @@ HOME = Path.home()
 CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME", HOME / ".cache")) / "quip"
 CURRENT_FILE = CACHE_DIR / "current.json"
 HISTORY_FILE = CACHE_DIR / "history.json"
+DECK_FILE = CACHE_DIR / "deck.json"
 LYRICS_CACHE_DIR = Path(os.environ.get("QUIP_LYRICS_CACHE_DIR", CACHE_DIR.parent / "lyrics"))
 AGENDA_FILE = Path(os.environ.get("XDG_CACHE_HOME", HOME / ".cache")) / "agenda-os/today.json"
 NOTES_DIR = Path(os.environ.get("QUIP_NOTES_DIR", HOME / "Documents/amirsalar-vault/daily notes"))
 NAME = os.environ.get("QUIP_NAME") or os.environ.get("USER", "").capitalize()
 PROVIDERS = os.environ.get("QUIP_PROVIDERS", "anthropic deepseek").split()
 ANTHROPIC_MODEL = os.environ.get("QUIP_ANTHROPIC_MODEL", "claude-opus-5")
-DEEPSEEK_MODEL = os.environ.get("QUIP_DEEPSEEK_MODEL", "deepseek-v4-pro")
-DEEPSEEK_EFFORT = os.environ.get("QUIP_DEEPSEEK_EFFORT", "high")
+DEEPSEEK_MODEL = os.environ.get("QUIP_DEEPSEEK_MODEL", "deepseek-flash")
+DEEPSEEK_EFFORT = os.environ.get("QUIP_DEEPSEEK_EFFORT", "low")
 KEY_FILES = {
     "anthropic": os.environ.get("QUIP_ANTHROPIC_KEY_FILE"),
     "deepseek": os.environ.get("QUIP_DEEPSEEK_KEY_FILE"),
@@ -33,13 +35,17 @@ SHARE_TITLES = os.environ.get("QUIP_SHARE_TITLES") == "1"
 SHARE_SONGS = os.environ.get("QUIP_SHARE_SONGS", "1") == "1"
 TIMEZONE = os.environ.get("QUIP_TIMEZONE")
 PERSONA = [line.strip() for line in os.environ.get("QUIP_PERSONA", "").splitlines() if line.strip()]
-MIN_AGE = int(os.environ.get("QUIP_MIN_AGE", "3600"))
+ABOUT = os.environ.get("QUIP_ABOUT", "").strip()
+MIN_AGE = int(os.environ.get("QUIP_MIN_AGE", "10800"))
 MAX_LENGTH = 110
 HISTORY_SIZE = 60
-PROMPT_HISTORY = 25
-RECENT_SONGS = 15
-PERSONA_SAMPLE = 5
+PROMPT_HISTORY = 12
+RECENT_SONGS = 8
 REQUEST_TIMEOUT = 180
+ATTEMPTS = 2
+RETRY_DELAY = 20
+TODAY_CARD = "@today"
+SONGS_CARD = "@songs"
 
 OPEN_TASK = re.compile(r"^\s*-\s+\[ \]\s+(\S.*)$")
 DONE_TASK = re.compile(r"^\s*-\s+\[[xX]\]\s+\S")
@@ -48,25 +54,29 @@ SONG_NOISE = [
     re.compile(r"\s*[(\[][^)\]]*[)\]]"),
 ]
 
-SYSTEM = f"""You write the one line that greets {NAME} on the lock screen and dashboard, in place of a generic "Good afternoon, {NAME}". It stays on screen for one to four hours.
+SYSTEM = f"""You write the one line that greets {NAME} on the lock screen and wallpaper, in place of a generic "Good afternoon, {NAME}". It stays up for hours, sometimes a day, so it must still be true tomorrow.
 
-The goal is a line {NAME} laughs at out loud or screenshots for a friend. Most attempts fail in the same few ways, so work like a comedy writer: draft at least eight candidates in different formats, cut every one that matches a failure below, and output the single funniest survivor.
+The goal is a line {NAME} laughs at out loud or screenshots for a friend. Work like a comedy writer: draft several candidates in different formats, cut every one that matches a failure below, and output the funniest survivor.
+
+Each request gives one angle: a single true fact about {NAME}, or a snapshot of today's checklist or music. Build the joke on that angle alone.
 
 What lands:
-- One concrete, recognisable observation about {NAME}'s habits, taken from the facts or context given, with the twist in the last few words.
-- Exaggerating a stated habit is fine; inventing people, events, numbers from the day, or belongings is not.
+- One concrete, recognisable observation drawn from the angle, with the twist in the last few words.
+- Exaggerating the fact is fine; inventing people, events, numbers, habits, opinions or personality traits is not. The facts given are all that is known about {NAME}.
+- A roast or an earned brag; teasing and quiet respect both work.
 - Address {NAME} as "you" or by name.
 - Plain words that read instantly. If the joke needs decoding, it has failed.
-- Deadpan and understatement over cleverness. Short beats long.
-- Formats to mix: a plain deadpan sentence, a git commit subject, a Nix or compiler warning, a man page line, a changelog entry, a fortune(6) one-liner, a remixed Persian proverb or Hafez line in English. A technical format works only when the content inside it is itself funny and true to {NAME}.
+- Deadpan and understatement in the dry spirit of Knuth, Dijkstra and Brooks. Short beats long.
+- Formats to mix: a plain deadpan sentence, a git commit subject, a Nix or compiler warning, a man page line, a changelog entry, a fortune(6) one-liner, a remixed Persian proverb or Hafez line in English. A technical format works only when its content is itself funny and true to {NAME}.
 
 What fails, and must be cut:
-- Metaphor mash-ups that glue two unrelated facts together, especially "X is just Y", "X is a Y you can Z" or "X is not Y, it is Z". A border gradient is not a race condition.
-- Fortune-cookie lines that sound deep and mean nothing, and any background fact restated as wisdom.
+- Gluing the angle to an unrelated topic, and metaphor mash-ups such as "X is just Y" or "X is not Y, it is Z".
+- Fortune-cookie lines that sound deep and mean nothing, and reciting the fact back.
 - Lines built on "Somewhere...", "Your X has more/fewer Y than Z", or "even your X needs a Y".
 - First person, questions, motivational sincerity, meanness, puns that only work in the model's head, explaining the joke.
 - Anything that could greet any engineer.
-- Transient state: the clock time, a song playing right now, a meeting in progress, minutes until an event. Never joke that something is empty, missing or unwritten; signals not listed are simply unknown.
+- Anything that goes stale within the day: tonight, this morning, the clock, a song playing right now, a meeting in progress, minutes until an event.
+- Claiming something is empty, missing or unwritten unless the angle says so.
 - The joke, target or sentence shape of any recently shown line. Never start with the weekday.
 
 The quality bar, for calibration only; never reuse these lines or their jokes:
@@ -172,22 +182,30 @@ def songs_context():
     return [f"Songs {NAME} played recently, newest first: " + "; ".join(recent)]
 
 
-def build_prompt(now, history):
-    context = [
-        f"It is {now.strftime('%A')} {part_of_day(now.hour)}.",
-        *agenda_context(now),
-        *note_context(now),
-        *songs_context(),
-    ]
-    prompt = "Context:\n" + "\n".join(f"- {line}" for line in context)
-    if PERSONA:
-        facts = random.sample(PERSONA, min(PERSONA_SAMPLE, len(PERSONA)))
-        prompt += (
-            f"\n\nFacts about {NAME}. Build the joke on one of them or on the context, never on two unrelated facts glued together, and never recite a fact:\n"
-            + "\n".join(f"- {line}" for line in facts)
-        )
+def angle(card, now):
+    if card == TODAY_CARD:
+        context = [*agenda_context(now), *note_context(now)]
+        return [f"It is {now.strftime('%A')}.", *context] if context else []
+    if card == SONGS_CARD:
+        return songs_context()
+    return [card]
+
+
+def pick_angle(now, deck):
+    cards = [*PERSONA, TODAY_CARD, SONGS_CARD]
+    for candidates in ([card for card in deck if card in cards], random.sample(cards, len(cards))):
+        for index, card in enumerate(candidates):
+            lines = angle(card, now)
+            if lines:
+                return lines, candidates[index + 1 :]
+    return [], []
+
+
+def build_prompt(lines, history):
+    prompt = f"Background on {NAME}, not the topic: {ABOUT}\n\n" if ABOUT else ""
+    prompt += "Angle:\n" + "\n".join(f"- {line}" for line in lines or [f"{NAME} is at the computer."])
     if history:
-        prompt += "\n\nLines shown recently; do not reuse their joke, target or sentence shape:\n" + "\n".join(
+        prompt += "\n\nRecent lines; do not reuse their joke, target or shape:\n" + "\n".join(
             f"- {line}" for line in history
         )
     return prompt
@@ -228,7 +246,7 @@ def ask_deepseek(key, prompt):
             ],
             "thinking": {"type": "enabled"},
             "reasoning_effort": DEEPSEEK_EFFORT,
-            "max_tokens": 16000,
+            "max_tokens": 8000,
         }
     ).encode()
     request = urllib.request.Request(
@@ -261,15 +279,26 @@ def generate(prompt):
         if not key or not ask:
             print(f"quip: {provider} skipped: no readable key at {KEY_FILES.get(provider)}", file=sys.stderr)
             continue
-        try:
-            text = ask(key, prompt)
-        except (anthropic.APIError, urllib.error.URLError, OSError, KeyError, IndexError, ValueError) as error:
-            print(f"quip: {provider} failed: {error}", file=sys.stderr)
-            continue
-        line = clean(text)
-        if line:
-            return provider, line
-        print(f"quip: {provider} reply rejected: {text!r}", file=sys.stderr)
+        for attempt in range(ATTEMPTS):
+            if attempt:
+                time.sleep(RETRY_DELAY)
+            try:
+                text = ask(key, prompt)
+            except (
+                anthropic.APIError,
+                http.client.HTTPException,
+                urllib.error.URLError,
+                OSError,
+                KeyError,
+                IndexError,
+                ValueError,
+            ) as error:
+                print(f"quip: {provider} failed: {error!r}", file=sys.stderr)
+                continue
+            line = clean(text)
+            if line:
+                return provider, line
+            print(f"quip: {provider} reply rejected: {text!r}", file=sys.stderr)
     return None, None
 
 
@@ -283,9 +312,12 @@ def main():
     history = read_json(HISTORY_FILE, [])
     if not isinstance(history, list):
         history = []
-    provider, line = generate(build_prompt(now, history[-PROMPT_HISTORY:]))
+    deck = read_json(DECK_FILE, [])
+    lines, deck = pick_angle(now, deck if isinstance(deck, list) else [])
+    provider, line = generate(build_prompt(lines, history[-PROMPT_HISTORY:]))
     if not line:
         return 1
+    write_json(DECK_FILE, deck)
     write_json(
         CURRENT_FILE,
         {

@@ -105,13 +105,8 @@ PanelWindow {
     readonly property string cacheHome: String(Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache"))
     property var quip: ({})
     property string quipShown: ""
-    readonly property string quipText: {
-        const generated = Number(quip.generated ?? 0) * 1000;
-        const today = Qt.formatDateTime(now, "yyyy-MM-dd");
-        if (typeof quip.text !== "string" || quip.date !== today || now.getTime() - generated > 4 * 3600 * 1000)
-            return "";
-        return quip.text.trim();
-    }
+    readonly property string quipText: typeof quip.text === "string" ? quip.text.trim() : ""
+    readonly property bool quipFresh: quip.date === Qt.formatDateTime(now, "yyyy-MM-dd") && now.getTime() - Number(quip.generated ?? 0) * 1000 < 4 * 3600 * 1000
     readonly property var player: Media.player
     readonly property bool lyricsShown: Prefs.floatingLyrics && !overlay && floating.synced
     readonly property string caption: Media.caption
@@ -648,7 +643,7 @@ PanelWindow {
 
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: (typeof wall.quip.part === "string" && wall.quip.part.length > 0 ? "quip  ·  " + wall.quip.part : "quip").toUpperCase()
+                    text: (wall.quipFresh && typeof wall.quip.part === "string" && wall.quip.part.length > 0 ? "quip  ·  " + wall.quip.part : "quip").toUpperCase()
                     color: Theme.alpha(Theme.muted, 0.55)
                     font.family: Theme.mono
                     font.pixelSize: 10

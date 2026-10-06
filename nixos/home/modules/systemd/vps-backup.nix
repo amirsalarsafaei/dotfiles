@@ -7,7 +7,6 @@
 lib.mkIf config.custom.personal.enable {
   systemd.user.services."vps-dbbackup" = {
     Unit.Description = "Backup the VPS Postgres Database to local system";
-    Install.WantedBy = [ "multi-user.target" ];
     Service = {
       Type = "oneshot";
       ExecStart = "${pkgs.writeShellScript "backup-vps" ''

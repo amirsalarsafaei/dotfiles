@@ -40,13 +40,7 @@ Item {
 
     property var quip: ({})
 
-    readonly property string quipText: {
-        const generated = Number(quip.generated ?? 0) * 1000;
-        const today = Qt.formatDateTime(clock.date, "yyyy-MM-dd");
-        if (!quip.text || quip.date !== today || clock.date.getTime() - generated > 4 * 3600 * 1000)
-            return "";
-        return quip.text;
-    }
+    readonly property string quipText: typeof quip.text === "string" ? quip.text.trim() : ""
 
     function greeting(): string {
         const hour = clock.date.getHours();

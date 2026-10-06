@@ -128,35 +128,47 @@ in
 
     timers = {
       agenda-refresh = {
-        Unit.Description = "Refresh today's agenda every three minutes";
+        Unit = {
+          Description = "Refresh today's agenda every three minutes";
+          After = [ "graphical-session.target" ];
+          PartOf = [ "graphical-session.target" ];
+        };
         Timer = {
-          OnStartupSec = "45s";
+          OnActiveSec = "45s";
           OnUnitActiveSec = "3m";
           AccuracySec = "30s";
           Unit = "agenda-refresh.service";
         };
-        Install.WantedBy = [ "timers.target" ];
+        Install.WantedBy = [ "graphical-session.target" ];
       };
 
       agenda-remind = {
-        Unit.Description = "Check for upcoming agenda events every minute";
+        Unit = {
+          Description = "Check for upcoming agenda events every minute";
+          After = [ "graphical-session.target" ];
+          PartOf = [ "graphical-session.target" ];
+        };
         Timer = {
           OnCalendar = "minutely";
           AccuracySec = "5s";
           Unit = "agenda-remind.service";
         };
-        Install.WantedBy = [ "timers.target" ];
+        Install.WantedBy = [ "graphical-session.target" ];
       };
 
       agenda-day = {
-        Unit.Description = "Show today's agenda after login and each morning";
+        Unit = {
+          Description = "Show today's agenda after login and each morning";
+          After = [ "graphical-session.target" ];
+          PartOf = [ "graphical-session.target" ];
+        };
         Timer = {
-          OnStartupSec = "2m";
+          OnActiveSec = "2m";
           OnCalendar = "*-*-* 08:30:00";
           Persistent = true;
           Unit = "agenda-day.service";
         };
-        Install.WantedBy = [ "timers.target" ];
+        Install.WantedBy = [ "graphical-session.target" ];
       };
     };
   };

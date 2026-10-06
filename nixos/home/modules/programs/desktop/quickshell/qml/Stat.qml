@@ -20,7 +20,7 @@ Rectangle {
 
     implicitHeight: bar ? bar.chipHeight : 26
     implicitWidth: row.implicitWidth + (bar ? bar.gap : 6) * 2
-    radius: bar && bar.tech ? 3 : height / 2
+    radius: bar && bar.tech ? bar.partRadius : height / 2
     color: Theme.alpha(Theme.danger, level >= 3 ? 0.16 : 0)
 
     Behavior on color {

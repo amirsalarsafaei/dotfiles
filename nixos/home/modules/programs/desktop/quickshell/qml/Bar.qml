@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Shapes
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -25,7 +26,16 @@ PanelWindow {
     readonly property int barHeight: compact ? 28 : 34
     readonly property int marginTop: compact ? 4 : 6
     readonly property int marginSide: compact ? 6 : 12
-    readonly property int islandRadius: tech ? (compact ? 3 : 4) : compact ? 11 : 14
+    readonly property int islandRadius: tech ? (compact ? 8 : 10) : compact ? 11 : 14
+    readonly property int partRadius: compact ? 6 : 7
+    readonly property int lead: tech ? (compact ? 4 : 5) : 0
+    readonly property int drop: tech ? 2 : 0
+    readonly property real stroke: 2
+    readonly property int rule: tech ? 3 : 1
+    readonly property color shell: Qt.tint(Theme.ink, Theme.alpha(Qt.tint(Theme.faint, Theme.alpha(Theme.blue, 0.25)), 0.32))
+    readonly property color face: Qt.tint(Theme.ink, Theme.alpha(Theme.blue, 0.58))
+    readonly property color outline: Theme.ink
+    readonly property color well: Qt.tint(Theme.ink, Theme.alpha(Theme.blue, 0.06))
     readonly property int pad: compact ? 7 : 9
     readonly property int gap: compact ? 4 : 6
     readonly property int chipHeight: barHeight - (compact ? 6 : 8)
@@ -266,10 +276,11 @@ PanelWindow {
         right: true
     }
 
-    implicitHeight: barHeight + marginTop
+    implicitHeight: barHeight + marginTop + lead + drop
     color: "transparent"
     visible: shown
-    exclusionMode: ExclusionMode.Auto
+    exclusionMode: ExclusionMode.Normal
+    exclusiveZone: barHeight + marginTop
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "panel"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
@@ -651,6 +662,7 @@ PanelWindow {
         property alias spacing: islandRow.spacing
         property int order: 0
         property real progress: -1
+        property bool glass: false
         readonly property real span: islandRow.implicitWidth + panel.chrome
 
         function owns(item: Item): bool {
@@ -665,19 +677,22 @@ PanelWindow {
         height: panel.barHeight
         width: span
         radius: panel.islandRadius
-        color: "transparent"
-        border.color: panel.tech ? Qt.tint(Theme.line, Theme.alpha(Theme.cyan, 0.35)) : Theme.alpha(Theme.line, 0.95)
-        border.width: 1
+        color: panel.tech ? panel.shell : "transparent"
+        border.color: panel.tech ? panel.outline : Theme.alpha(Theme.line, 0.95)
+        border.width: panel.tech ? panel.stroke : 1
+        gradient: panel.tech ? null : sheen
 
-        gradient: Gradient {
+        Gradient {
+            id: sheen
+
             GradientStop {
                 position: 0
-                color: panel.tech ? Theme.alpha(Qt.tint(Theme.ink, Theme.alpha(Theme.blue, 0.12)), 0.92) : Theme.alpha(Qt.tint(Theme.ink, Theme.alpha(Theme.fg, 0.05)), 0.8)
+                color: Theme.alpha(Qt.tint(Theme.ink, Theme.alpha(Theme.fg, 0.05)), 0.8)
             }
 
             GradientStop {
                 position: 1
-                color: panel.tech ? Theme.alpha(Qt.tint(Theme.ink, Theme.alpha(Theme.blue, 0.05)), 0.88) : Theme.alpha(Theme.ink, 0.7)
+                color: Theme.alpha(Theme.ink, 0.7)
             }
         }
 
@@ -690,60 +705,83 @@ PanelWindow {
 
         Rectangle {
             visible: panel.tech
-            anchors.fill: parent
-            anchors.margins: 2
-            radius: Math.max(0, island.radius - 2)
-            color: "transparent"
-            border.width: 1
-            border.color: Theme.alpha(Theme.cyan, 0.14)
+            z: -2
+            x: panel.drop
+            y: island.radius + panel.drop
+            width: island.width
+            height: island.height - island.radius + panel.lead
+            radius: island.radius
+            color: Theme.alpha(Theme.ink, 0.55)
         }
 
         Rectangle {
             visible: panel.tech
-            x: 3
-            y: 3
-            width: 2
-            height: 2
-            radius: 1
-            color: Theme.alpha(Theme.muted, 0.7)
+            z: -1
+            y: island.radius
+            width: island.width
+            height: island.height - island.radius + panel.lead
+            radius: island.radius
+            color: panel.face
+            border.width: 1.5
+            border.color: panel.outline
         }
 
         Rectangle {
             visible: panel.tech
-            x: island.radius + 4
-            width: Math.round(island.width * 0.3)
+            x: island.radius
+            y: panel.stroke
+            width: island.width - island.radius * 2
             height: 1
-            color: Theme.alpha(Theme.cyan, 0.5)
+            color: Theme.alpha(Theme.fgBright, 0.13)
+        }
+
+        Row {
+            visible: panel.tech
+            x: Math.round(island.radius * 0.6)
+            y: panel.stroke + 2
+            spacing: 2
 
             Rectangle {
-                x: parent.width - 2
-                y: -1.5
-                width: 4
-                height: 4
-                radius: 2
-                color: Theme.ink
-                border.width: 1
-                border.color: Theme.alpha(Theme.cyan, 0.7)
+                width: 7
+                height: 2
+                radius: 1
+                color: Theme.alpha(Theme.fgBright, 0.32)
+            }
+
+            Rectangle {
+                width: 2
+                height: 2
+                radius: 1
+                color: Theme.alpha(Theme.fgBright, 0.32)
             }
         }
 
         Rectangle {
             visible: panel.tech
-            x: island.width - island.radius - 4 - width
-            y: island.height - 1
-            width: Math.round(island.width * 0.18)
-            height: 1
-            color: Theme.alpha(Theme.blue, 0.45)
+            x: island.width - panel.stroke - 1
+            y: island.radius
+            width: 1
+            height: island.height - island.radius * 2
+            color: Theme.alpha(Theme.cyan, 0.5)
+        }
+
+        Rectangle {
+            visible: panel.tech && island.glass
+            x: 2
+            y: 2
+            width: island.width - 4
+            height: island.height - 4
+            radius: island.radius - 2
+            color: panel.outline
 
             Rectangle {
-                x: -2
-                y: -1.5
-                width: 4
-                height: 4
-                radius: 2
-                color: Theme.ink
+                y: 2
+                width: parent.width
+                height: parent.height - 2
+                radius: parent.radius
+                color: panel.well
                 border.width: 1
-                border.color: Theme.alpha(Theme.blue, 0.65)
+                border.color: Theme.alpha(Theme.cyan, 0.16)
             }
         }
 
@@ -850,7 +888,7 @@ PanelWindow {
         Rectangle {
             visible: island.progress >= 0
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: 1
+            anchors.bottomMargin: panel.tech ? 3 : 1
             x: island.radius
             width: Math.max(0, (island.width - island.radius * 2) * Math.min(1, island.progress))
             height: 2
@@ -875,9 +913,81 @@ PanelWindow {
 
     component Separator: Rectangle {
         anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-        width: 1
-        height: Math.round(panel.chipHeight * 0.5)
-        color: Theme.alpha(Theme.line, 1)
+        width: panel.rule
+        height: panel.tech ? panel.rule : Math.round(panel.chipHeight * 0.5)
+        radius: panel.tech ? 1.5 : 0
+        color: panel.tech ? Theme.faint : Theme.alpha(Theme.line, 1)
+    }
+
+    component Via: Rectangle {
+        property color tone: Theme.cyan
+
+        width: 7
+        height: 7
+        radius: 3.5
+        color: Theme.ink
+        border.width: panel.stroke
+        border.color: tone
+    }
+
+    component Bus: Shape {
+        id: bus
+
+        property real from: 0
+        property real to: 0
+        property bool active: true
+        readonly property int mid: Math.round(height / 2)
+        readonly property int jog: panel.compact ? 5 : 6
+        readonly property bool routed: width >= 40
+        readonly property var path: {
+            const y = mid - (routed ? jog / 2 : 0);
+            if (!routed)
+                return [Qt.point(0, y), Qt.point(width, y)];
+            const a = Math.round(width / 2 - jog / 2);
+            return [Qt.point(0, y), Qt.point(a, y), Qt.point(a + jog, y + jog), Qt.point(width, y + jog)];
+        }
+
+        x: from
+        y: panel.marginTop
+        width: Math.max(0, to - from)
+        height: panel.barHeight
+        visible: panel.tech && active && width >= 12
+        preferredRendererType: Shape.CurveRenderer
+
+        ShapePath {
+            strokeColor: panel.outline
+            strokeWidth: 5
+            fillColor: "transparent"
+            capStyle: ShapePath.FlatCap
+            joinStyle: ShapePath.RoundJoin
+
+            PathPolyline {
+                path: bus.path
+            }
+        }
+
+        ShapePath {
+            strokeColor: Theme.alpha(Theme.cyan, 0.7)
+            strokeWidth: 2
+            fillColor: "transparent"
+            capStyle: ShapePath.FlatCap
+            joinStyle: ShapePath.RoundJoin
+
+            PathPolyline {
+                path: bus.path
+            }
+        }
+
+        Via {
+            x: 2
+            y: Math.round(bus.path[0].y - height / 2)
+        }
+
+        Via {
+            x: bus.width - width - 2
+            y: Math.round(bus.path[bus.path.length - 1].y - height / 2)
+            tone: Theme.blue
+        }
     }
 
     Timer {
@@ -1103,7 +1213,7 @@ PanelWindow {
 
                         width: panel.chipHeight
                         height: panel.chipHeight
-                        radius: panel.tech ? 3 : height / 2
+                        radius: panel.tech ? panel.partRadius : height / 2
                         color: modelData.status === Status.NeedsAttention ? Theme.alpha(Theme.danger, 0.25) : "transparent"
 
                         IconImage {
@@ -1161,8 +1271,8 @@ PanelWindow {
 
         readonly property real gapStart: leftIsland.x + leftIsland.span + panel.gap * 2
         readonly property real gapEnd: rightIsland.x - panel.gap * 2
-        readonly property real fullWidth: jalaliChip.implicitWidth + clockChip.implicitWidth + gregorianChip.implicitWidth + 2 + panel.chrome
-        readonly property real fullStart: (panel.width - clockChip.implicitWidth - panel.chrome) / 2 - jalaliChip.implicitWidth - 1
+        readonly property real fullWidth: jalaliChip.implicitWidth + clockChip.implicitWidth + gregorianChip.implicitWidth + panel.rule * 2 + panel.chrome
+        readonly property real fullStart: (panel.width - clockChip.implicitWidth - panel.chrome) / 2 - jalaliChip.implicitWidth - panel.rule
         readonly property bool crowded: fullStart < gapStart || fullStart + fullWidth > gapEnd
 
         x: Math.round(Math.max(gapStart, Math.min(gapEnd - span, crowded ? (panel.width - span) / 2 : fullStart)))
@@ -1170,6 +1280,7 @@ PanelWindow {
         progress: (clock.date.getHours() * 60 + clock.date.getMinutes()) / 1440
         spacing: 0
         order: 1
+        glass: true
 
         Chip {
             id: jalaliChip
@@ -1450,10 +1561,21 @@ PanelWindow {
             anchors.verticalCenter: parent.verticalCenter
             width: hardware.implicitWidth + 4
             height: panel.chipHeight
-            radius: panel.tech ? 3 : height / 2
-            color: Theme.alpha(Theme.ink, 0.55)
+            radius: panel.tech ? panel.partRadius : height / 2
+            color: panel.tech ? panel.outline : Theme.alpha(Theme.ink, 0.55)
             border.color: Theme.line
-            border.width: 1
+            border.width: panel.tech ? 0 : 1
+
+            Rectangle {
+                visible: panel.tech
+                y: 2
+                width: parent.width
+                height: parent.height - 2
+                radius: parent.radius
+                color: panel.well
+                border.width: 1
+                border.color: Theme.alpha(Theme.cyan, 0.16)
+            }
 
             Row {
                 id: hardware
@@ -1592,5 +1714,16 @@ PanelWindow {
                 }
             }
         }
+    }
+
+    Bus {
+        from: leftIsland.x + leftIsland.width
+        to: centerIsland.visible ? centerIsland.x : rightIsland.x
+    }
+
+    Bus {
+        active: centerIsland.visible
+        from: centerIsland.x + centerIsland.width
+        to: rightIsland.x
     }
 }

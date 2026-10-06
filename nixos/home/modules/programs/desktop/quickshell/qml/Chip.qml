@@ -34,7 +34,7 @@ Rectangle {
 
     implicitHeight: bar ? bar.chipHeight : 26
     implicitWidth: row.implicitWidth + pad * 2
-    radius: bar && bar.tech ? 3 : height / 2
+    radius: bar && bar.tech ? bar.partRadius : height / 2
     color: fill
 
     Behavior on color {

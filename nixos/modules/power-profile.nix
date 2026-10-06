@@ -119,7 +119,7 @@ in
         description = "Select the power-profiles-daemon profile for the power source";
         after = [ "power-profiles-daemon.service" ];
         requires = [ "power-profiles-daemon.service" ];
-        wantedBy = [ "multi-user.target" ];
+        wantedBy = [ "graphical.target" ];
         serviceConfig.Type = "oneshot";
         script = ''
           profile=${acProfile}
