@@ -235,15 +235,15 @@ let
             "Extend above") position=auto-up ;;
             "Extend below") position=auto-down ;;
           esac
-          hypr-monitor on "$external" preferred "$position" auto ""
+          hypr-monitor on "$external" highrr "$position" auto ""
           display-lid sync
           ;;
         "Mirror laptop")
           display-lid open
-          hypr-monitor on "$external" preferred auto auto "$panel"
+          hypr-monitor on "$external" highrr auto auto "$panel"
           ;;
         "External only")
-          hypr-monitor on "$external" preferred auto auto ""
+          hypr-monitor on "$external" highrr auto auto ""
           hypr-monitor off "$panel"
           ;;
         "Laptop only")
@@ -255,7 +255,7 @@ let
         "Reset")
           display-lid open
           for output in "''${externals[@]}"; do
-            hypr-monitor on "$output" preferred auto auto ""
+            hypr-monitor on "$output" highrr auto auto ""
           done
           display-lid sync
           ;;
@@ -596,7 +596,7 @@ in
     extraConfig = ''
       hl.env("SSH_ASKPASS_REQUIRE", "force")
 
-      hl.monitor({ output = "", mode = "preferred", position = "auto", scale = "auto" })
+      hl.monitor({ output = "", mode = "highrr", position = "auto", scale = "auto" })
       hl.monitor({ output = ${luaString monitorRule.output}, mode = ${luaString monitorRule.mode}, position = ${luaString monitorRule.position}, scale = ${luaString monitorRule.scale} })
 
       hl.on("hyprland.start", function()
