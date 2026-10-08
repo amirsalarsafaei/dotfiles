@@ -12,6 +12,7 @@ in
     ./theme.nix
     ./keymaps.nix
     ./autocmds.nix
+    ./clipboard.nix
     ./lsp.nix
     ./completion.nix
     ./git.nix
@@ -94,7 +95,6 @@ in
         scrolloff = 8;
         sidescrolloff = 8;
         mouse = "a";
-        clipboard = "unnamedplus";
         list = true;
         listchars = {
           tab = "» ";

@@ -49,8 +49,42 @@ Item {
     readonly property real quoteWidth: Math.min(640, width * 0.4)
     readonly property var status: [sun > 0.01 ? "sun " + Math.round(sun * 100) + "%" : "", moon.name + " " + Math.round(moon.lit * 100) + "%"]
 
+    readonly property int keyTicks: Perf.eco ? 5 : 8
+    property bool live: true
+    property bool flip: false
+    property real keyFrom: 0
+    property real keyTo: 1
+    property real keyTime: 0
+    property real keySwell: 0
+    readonly property real fade: live || keyTo <= keyFrom ? 1 : Math.max(0, Math.min(1, (time - keyFrom) / (keyTo - keyFrom)))
+    readonly property var inputs: [scene.pan, scene.sunPath, scene.horizon, scene.glow, scene.stars, scene.daylight, scene.twilight, scene.detail, scene.sky, scene.surface, scene.rimA, scene.rimB, scene.ocean, scene.shoal, scene.artMix, scene.spin, scene.wish, scene.moonPhase, scene.resolution, scene.earthRes, ready, cover.shown, cover.image.status]
+
     property color moodA: Theme.mood.active ? Qt.tint(Theme.blue, Theme.alpha(Theme.primary, 0.45)) : Theme.blue
     property color moodB: Theme.mood.active ? Qt.tint(Theme.cyan, Theme.alpha(Theme.secondary, 0.45)) : Theme.cyan
+
+    function roll(slot: int, salt: real): real {
+        const x = Math.sin(slot * 12.9898 + salt * 78.233) * 43758.5453;
+        return x - Math.floor(x);
+    }
+
+    function key(): void {
+        flip = !flip;
+        keyFrom = time;
+        keyTo = time + keyTicks * ticker.step;
+        keyTime = keyTo;
+        keySwell = swell;
+        (flip ? frameB : frameA).scheduleUpdate();
+    }
+
+    Component.onCompleted: settle.start()
+    onInputsChanged: {
+        live = true;
+        settle.restart();
+    }
+    onTimeChanged: {
+        if (!live && time >= keyTo - ticker.step / 2)
+            key();
+    }
 
     Behavior on reveal {
         NumberAnimation {
@@ -78,6 +112,21 @@ Item {
         id: ticker
 
         running: world.running && world.ready
+    }
+
+    Timer {
+        id: settle
+
+        interval: 300
+        onTriggered: {
+            world.live = false;
+            world.flip = !world.flip;
+            world.keyFrom = world.time;
+            world.keyTo = world.time;
+            world.keyTime = world.time;
+            world.keySwell = world.swell;
+            (world.flip ? frameB : frameA).scheduleUpdate();
+        }
     }
 
     Cover {
@@ -120,10 +169,9 @@ Item {
         opacity: world.reveal
         visible: world.reveal > 0.001
 
-        property real time: world.time
+        property real time: world.live ? world.time : world.keyTime
         property real detail: Perf.eco ? 0 : 1
-        property real level: world.level
-        property real swell: world.swell
+        property real swell: world.live ? world.swell : world.keySwell
         property real daylight: world.sun
         property real sunPath: {
             const theta = 0.85 * Math.min(1, Math.max(0, (world.skyHour - 6) / 13)) - 0.5;
@@ -184,6 +232,101 @@ Item {
         }
 
         fragmentShader: Qt.resolvedUrl("shaders/horizon.frag.qsb")
+    }
+
+    ShaderEffectSource {
+        id: frameA
+
+        anchors.fill: parent
+        visible: false
+        sourceItem: scene
+        hideSource: !world.live
+        live: false
+        textureSize: Qt.size(Math.ceil(width * Screen.devicePixelRatio), Math.ceil(height * Screen.devicePixelRatio))
+    }
+
+    ShaderEffectSource {
+        id: frameB
+
+        anchors.fill: parent
+        visible: false
+        sourceItem: scene
+        hideSource: !world.live
+        live: false
+        textureSize: Qt.size(Math.ceil(width * Screen.devicePixelRatio), Math.ceil(height * Screen.devicePixelRatio))
+    }
+
+    ShaderEffect {
+        anchors.fill: parent
+        opacity: world.reveal
+        visible: !world.live && world.reveal > 0.001
+        blending: world.reveal < 1
+
+        property var back: world.flip ? frameA : frameB
+        property var front: world.flip ? frameB : frameA
+        property real fade: world.fade
+
+        fragmentShader: Qt.resolvedUrl("shaders/crossfade.frag.qsb")
+    }
+
+    ShaderEffect {
+        id: meteor
+
+        readonly property int slot: Math.floor(world.time / 11)
+        readonly property bool armed: gain > 0.001 && world.roll(slot, 3.7) >= 0.62
+        readonly property real aspect: world.width / Math.max(1, world.height)
+        readonly property real way: world.roll(slot, 5.9) < 0.5 ? -1 : 1
+        readonly property vector2d start: Qt.vector2d((0.15 + 0.7 * world.roll(slot, 1.3)) * aspect, 0.04 + 0.22 * world.roll(slot, 8.1))
+        readonly property vector2d dir: Qt.vector2d(way / Math.hypot(1, 0.42), 0.42 / Math.hypot(1, 0.42))
+        readonly property real pad: 0.01
+        property vector4d box: Qt.vector4d(x, y, width, height)
+        property vector2d resolution: scene.resolution
+        property real pan: scene.pan
+        property real horizon: scene.horizon
+        property vector4d path: Qt.vector4d(start.x, start.y, dir.x, dir.y)
+        property real progress: armed ? (world.time - slot * 11) / 1.1 : 2
+        property real kind: 0
+        property real gain: scene.stars * scene.detail
+
+        x: (Math.min(start.x - 0.25 * dir.x, start.x + 0.32 * dir.x) - pad) * world.height
+        y: (start.y - 0.25 * dir.y - pad) * world.height
+        width: (0.57 * Math.abs(dir.x) + 2 * pad) * world.height
+        height: (0.57 * dir.y + 2 * pad) * world.height
+        visible: armed && progress <= 1 && world.reveal > 0.001
+        fragmentShader: Qt.resolvedUrl("shaders/transit.frag.qsb")
+    }
+
+    ShaderEffect {
+        id: satellite
+
+        readonly property int slot: Math.floor(world.time / 150)
+        readonly property int beat: Math.floor(world.time / 3)
+        readonly property bool armed: gain > 0.001 && beat * 3 - slot * 150 <= 45
+        readonly property real aspect: world.width / Math.max(1, world.height)
+        readonly property bool east: world.roll(slot, 9.2) < 0.5
+        readonly property vector2d from: Qt.vector2d((east ? -0.05 : 1.05) * aspect, 0.08 + 0.2 * world.roll(slot, 2.3))
+        readonly property vector2d to: Qt.vector2d((east ? 1.05 : -0.05) * aspect, 0.18 + 0.25 * world.roll(slot, 6.1))
+        readonly property real span: Math.hypot(to.x - from.x, to.y - from.y)
+        readonly property real headX: from.x + (to.x - from.x) * progress
+        readonly property real headY: from.y + (to.y - from.y) * progress
+        readonly property real tailX: headX - (to.x - from.x) / span * 360 / Math.max(1, world.height)
+        readonly property real tailY: headY - (to.y - from.y) / span * 360 / Math.max(1, world.height)
+        readonly property real pad: 8 / Math.max(1, world.height)
+        property vector4d box: Qt.vector4d(x, y, width, height)
+        property vector2d resolution: scene.resolution
+        property real pan: scene.pan
+        property real horizon: scene.horizon
+        property vector4d path: Qt.vector4d(from.x, from.y, to.x, to.y)
+        property real progress: armed ? (world.time - slot * 150) / 45 : 2
+        property real kind: 1
+        property real gain: (0.35 + 0.65 * scene.stars) * scene.detail
+
+        x: (Math.min(headX, tailX) - pad) * world.height
+        y: (Math.min(headY, tailY) - pad) * world.height
+        width: (Math.abs(headX - tailX) + 2 * pad) * world.height
+        height: (Math.abs(headY - tailY) + 2 * pad) * world.height
+        visible: armed && progress <= 1 && world.reveal > 0.001
+        fragmentShader: Qt.resolvedUrl("shaders/transit.frag.qsb")
     }
 
     MouseArea {

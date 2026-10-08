@@ -182,6 +182,8 @@ in
         };
       };
 
+      globals.claude_variants = lib.mkIf cfg.features.ai (config.custom.claudeCode.variants or [ ]);
+
       keymaps = [
         (normalKeymap "<leader>W" "<cmd>SudaWrite<CR>" { desc = "Write file with sudo"; })
         (normalKeymap ",v" "<cmd>VenvSelect<CR>" { desc = "Select Python venv"; })
@@ -202,6 +204,34 @@ in
         })
         (normalKeymap "<leader>aa" "<cmd>ClaudeCodeDiffAccept<CR>" { desc = "Claude Code: accept diff"; })
         (normalKeymap "<leader>ad" "<cmd>ClaudeCodeDiffDeny<CR>" { desc = "Claude Code: reject diff"; })
+        (normalKeymap "<leader>av" {
+          __raw = ''
+            function()
+              local variants = vim.g.claude_variants or {}
+              if #variants == 0 then
+                vim.notify("No Claude Code variants enabled", vim.log.levels.WARN)
+                return
+              end
+              vim.ui.select(variants, {
+                prompt = "Claude Code variant",
+                format_item = function(variant)
+                  return string.format("%-28s %s", variant.name, variant.desc)
+                end,
+              }, function(choice)
+                if not choice then
+                  return
+                end
+                local terminal = require("claudecode.terminal")
+                if vim.g.claude_variant ~= choice.command and terminal.get_active_terminal_bufnr() then
+                  terminal.close()
+                end
+                vim.g.claude_variant = choice.command
+                terminal.setup({}, choice.command, require("claudecode").state.config.env)
+                terminal.open({}, nil)
+              end)
+            end
+          '';
+        } { desc = "Claude Code: pick variant"; })
       ]
       ++ lib.optionals cfg.features.embedded [
         (normalKeymap "<leader>pb" "<cmd>Piorun<CR>" { desc = "PlatformIO: Build"; })

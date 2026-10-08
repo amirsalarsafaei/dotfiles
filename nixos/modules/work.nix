@@ -34,6 +34,8 @@ lib.mkIf config.isWork {
       ...
     }:
     let
+      hardening = import ../home/modules/systemd/lib.nix { inherit lib; };
+
       devarLauncher = "${config.home.homeDirectory}/divar/devar/bin/devar";
 
       workCodex = pkgs.writeShellApplication {
@@ -233,12 +235,19 @@ lib.mkIf config.isWork {
             PartOf = [ "graphical-session.target" ];
             After = [ "graphical-session.target" ];
           };
-          Service = {
-            ExecStart = lib.getExe workNetStatus;
-            ExecStopPost = "${lib.getExe' pkgs.coreutils "rm"} -f %t/${stateDir}/status.json %t/${stateDir}/status.json.tmp";
-            Restart = "on-failure";
-            RestartSec = 5;
-          };
+          Service = lib.mkMerge [
+            hardening.user
+            {
+              ExecStart = lib.getExe workNetStatus;
+              ExecStopPost = "+${lib.getExe' pkgs.coreutils "rm"} -f %t/${stateDir}/status.json %t/${stateDir}/status.json.tmp";
+              Restart = "on-failure";
+              RestartSec = 5;
+              RuntimeDirectory = [ stateDir ];
+              RuntimeDirectoryMode = "0700";
+              RuntimeDirectoryPreserve = "yes";
+              RestrictAddressFamilies = [ "AF_NETLINK" ];
+            }
+          ];
           Install.WantedBy = [ "graphical-session.target" ];
         };
       };
@@ -250,6 +259,10 @@ lib.mkIf config.isWork {
         };
         personal.enable = false;
         work.enable = true;
+        sessionBusProxy.work-net-status = {
+          services = [ "work-net-status" ];
+          talk = [ "org.freedesktop.Notifications" ];
+        };
         ntfy = {
           enable = true;
           enableClaudeHook = false;

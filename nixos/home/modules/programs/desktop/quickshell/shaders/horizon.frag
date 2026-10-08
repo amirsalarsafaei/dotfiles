@@ -20,7 +20,6 @@ layout(std140, binding = 0) uniform buf {
     vec4 rimA;
     vec4 rimB;
     float detail;
-    float level;
     float artMix;
     float swell;
     vec2 earthRes;
@@ -194,17 +193,6 @@ float streak(vec2 p, vec2 start, vec2 dir, float t, float scale) {
     return trail * exp(-across * across / 0.7) * sin(3.14159 * t);
 }
 
-float meteor(vec2 p, float aspect, float scale) {
-    float slot = floor(time / 11.0);
-    float t = (time - slot * 11.0) / 1.1;
-    if (t > 1.0 || hash(vec2(slot, 3.7)) < 0.62) {
-        return 0.0;
-    }
-    vec2 start = vec2((0.15 + 0.7 * hash(vec2(slot, 1.3))) * aspect, 0.04 + 0.22 * hash(vec2(slot, 8.1)));
-    float heading = hash(vec2(slot, 5.9)) < 0.5 ? -1.0 : 1.0;
-    return streak(p, start, normalize(vec2(heading, 0.42)), t, scale);
-}
-
 vec4 moonLayer(vec2 p, float aspect) {
     vec2 c = vec2(aspect * 0.84 + pan * 0.45, 0.19);
     float r = 0.028;
@@ -239,40 +227,6 @@ vec4 moonLayer(vec2 p, float aspect) {
                + vec3(0.38, 0.48, 0.63) * albedo * earthshine
                + vec3(0.012, 0.014, 0.019);
     return vec4(lunar + halo, cover);
-}
-
-float lightning(vec2 local, float cloud, float dark) {
-    float period = 1.7;
-    float slot = floor(time / period);
-    float phase = fract(time / period);
-    if (hash(vec2(slot, 1.9)) < 0.55 || dark < 0.05) {
-        return 0.0;
-    }
-    float x = mix(-0.62, 0.42, hash(vec2(slot, 4.1)));
-    vec2 spot = vec2(x, -sqrt(1.0 - x * x) + 0.03 + 0.1 * hash(vec2(slot, 6.3)));
-    vec2 d = (local - spot) / vec2(0.022, 0.012);
-    float flicker = 0.55 + 0.45 * step(0.45, fract(phase * 17.0 + hash(vec2(slot, 2.2))));
-    float flash = exp(-phase * 7.0) * flicker;
-    return exp(-dot(d, d)) * flash * smoothstep(0.2, 0.7, cloud) * dark;
-}
-
-float satellite(vec2 p, float aspect) {
-    float slot = floor(time / 150.0);
-    float t = (time - slot * 150.0) / 45.0;
-    if (t > 1.0) {
-        return 0.0;
-    }
-    float lane = hash(vec2(slot, 9.2)) < 0.5 ? 0.0 : 1.0;
-    vec2 a = vec2(mix(-0.05, 1.05, lane) * aspect, 0.08 + 0.2 * hash(vec2(slot, 2.3)));
-    vec2 b = vec2(mix(1.05, -0.05, lane) * aspect, 0.18 + 0.25 * hash(vec2(slot, 6.1)));
-    vec2 route = normalize(b - a);
-    vec2 d = (p - mix(a, b, t)) * resolution.y;
-    float behind = dot(d, -route);
-    float across = dot(d, vec2(-route.y, route.x));
-    float blink = 0.35 + 0.65 * step(0.9, fract(time * 0.8));
-    float point = exp(-dot(d, d) / 1.6) * blink;
-    float trace = smoothstep(0.0, 5.0, behind) * exp(-behind / 80.0) * exp(-across * across / 0.7) * 0.12;
-    return (point + trace) * smoothstep(0.0, 0.08, t) * smoothstep(1.0, 0.92, t);
 }
 
 void main() {
@@ -345,10 +299,6 @@ void main() {
                        + starLayer(near, 120.0, 0.22, 0.8, 3.0, unit, false)
                        + starLayer(near + 13.0, 300.0, 0.3, 0.9, 4.0, unit, true) * 1.3;
         color += starfield * mix(0.16, 1.0, night) * skyFade;
-        if (detail > 0.001) {
-            color += vec3(0.8, 0.92, 1.0) * meteor(p, aspect, scale) * 0.7 * night * skyFade * detail;
-            color += vec3(0.85, 0.93, 1.0) * satellite(p, aspect) * 0.8 * mix(0.35, 1.0, night) * skyFade * detail;
-        }
         if (wish.z > 0.0 && wish.z < 1.0) {
             color += vec3(0.86, 0.94, 1.0) * streak(p, wish.xy, normalize(vec2(wish.w, 0.42)), wish.z, scale) * skyFade;
         }
@@ -526,9 +476,6 @@ void main() {
             float core = smoothstep(0.0, 0.7, lights) * (0.35 + 0.65 * lights);
             float spill = smoothstep(0.05, 0.5, coarse.r);
             color += (vec3(0.86, 0.94, 1.0) * core * 0.65 + rimB.rgb * spill * 0.16) * veil;
-        }
-        if (detail > 0.001) {
-            color += vec3(0.78, 0.9, 1.0) * lightning(local, cloud, (1.0 - day) * night) * 0.9 * detail;
         }
 
         color += inner * fresnel * 0.22 * limbLight * glow;

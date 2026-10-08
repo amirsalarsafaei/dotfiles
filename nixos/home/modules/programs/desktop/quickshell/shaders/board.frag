@@ -612,10 +612,10 @@ void main() {
     if (rect(b, io, 0.012) < 0.08) {
         for (int i = 0; i < 5; i++) {
             float y0 = io.y + 0.035 + float(i) * (io.w - io.y - 0.08) / 5.0;
-            vec4 port = vec4(io.x - 0.034, y0, io.x + 0.004, y0 + (i == 2 ? 0.06 : 0.05));
+            vec4 port = vec4(io.x - 0.034, y0, io.x + 0.004, y0 + (i == 4 ? 0.06 : 0.05));
             if (rect(b, hull(port, PORT_Z), 0.003) < lw) {
                 vec4 t = lifted(port, PORT_Z);
-                vec3 base = i == 2 ? vec3(0.32, 0.35, 0.42) : STEEL * 0.8;
+                vec3 base = i == 4 ? vec3(0.32, 0.35, 0.42) : STEEL * 0.8;
                 vec3 top = celRect(base, b, t, 0.003, 0.003);
                 top = mix(top, PLASTIC * 0.5, fill(rect(b, vec4(t.x + 0.006, t.y + 0.008, t.z - 0.01, t.w - 0.008), 0.002)));
                 color = block(color, b, port, 0.003, PORT_Z, top, wall(base, b, port, PORT_Z), 0.0);

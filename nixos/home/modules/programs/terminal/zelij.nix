@@ -99,10 +99,6 @@ in
       osc8_hyperlinks = true;
       styled_underlines = true;
 
-      session_serialization = true;
-      serialize_pane_viewport = true;
-      scrollback_lines_to_serialize = 10000;
-      serialization_interval = 60;
       stacked_resize = true;
 
       auto_layout = false;

@@ -1,4 +1,4 @@
-{ config, ... }:
+{ config, lib, ... }:
 {
   programs.ghostty = {
     enable = true;
@@ -11,7 +11,7 @@
       clipboard-read = "allow";
       clipboard-write = "allow";
 
-      command = "zellij --layout welcome";
+      command = lib.getExe config.custom.zellij.launcher;
 
       window-decoration = false;
       window-padding-x = 8;

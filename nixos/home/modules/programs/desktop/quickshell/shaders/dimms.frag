@@ -8,9 +8,7 @@ layout(std140, binding = 0) uniform buf {
     float qt_Opacity;
     float pitch;
     float fine;
-    float time;
     float level;
-    float pace;
     vec4 bar;
     vec4 area;
     vec4 hit;
@@ -58,8 +56,6 @@ void main() {
     float lit = clamp(6.0 * on, 0.0, 1.0);
     float top = max(ceil(n) - 1.0, 0.0);
     float shade = mix(0.68, 1.0, top > 0.0 ? slot / top : 1.0);
-    float head = floor(fract(time * pace + stick * 0.29) * (top + 4.0));
-    float chase = step(0.02, level) * (step(abs(slot - head), 0.5) + 0.35 * step(abs(slot - head + 1.0), 0.5));
     float cap = step(abs(slot - top), 0.5) * band(sq.y + extent.y - max(1.5 * fine, 0.16 * cell));
 
     float age = hit.z;
@@ -76,7 +72,7 @@ void main() {
     vec3 body = tone.rgb * 0.8 * shade * mix(0.4, 1.0, on) * (1.0 + surge);
     body = mix(body, body * 0.62, foot);
     body = mix(body, min(tone.rgb * 1.08 * shade * mix(0.4, 1.0, on) + flash.rgb * 0.14 * on, vec3(1.0)), key);
-    body = mix(body, flash.rgb, 0.22 * chase + 0.45 * on * cap);
+    body = mix(body, flash.rgb, 0.45 * on * cap);
 
     float outside = max(d, 0.0);
     float near = clamp(n - floor(clamp(0.5 - q.y / len, 0.0, 0.9999) * SEGMENTS), 0.0, 1.0);

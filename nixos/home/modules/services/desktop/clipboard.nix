@@ -1,4 +1,31 @@
-{ lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
+let
+  hardening = import ../../systemd/lib.nix { inherit lib; };
+
+  wayland = {
+    BindReadOnlyPaths = [
+      "-%t/wayland-0"
+      "-%t/wayland-1"
+    ];
+    InaccessiblePaths = [ "/run/dbus" ];
+    PrivateNetwork = true;
+  };
+
+  cliphistSandbox = lib.mkMerge [
+    hardening.user
+    wayland
+    {
+      CacheDirectory = [ "cliphist" ];
+      CacheDirectoryMode = "0700";
+      BindReadOnlyPaths = [ "-%h/.config/cliphist" ];
+    }
+  ];
+in
 {
   services.cliphist.enable = true;
 
@@ -19,17 +46,26 @@
     '')
   ];
 
-  systemd.user.services.wl-clip-persist = {
-    Unit = {
-      Description = "Persist Wayland clipboard after the source app exits";
-      PartOf = [ "graphical-session.target" ];
-      After = [ "graphical-session.target" ];
+  systemd.user.services = {
+    cliphist.Service = cliphistSandbox;
+    cliphist-images = lib.mkIf config.services.cliphist.allowImages { Service = cliphistSandbox; };
+
+    wl-clip-persist = {
+      Unit = {
+        Description = "Persist Wayland clipboard after the source app exits";
+        PartOf = [ "graphical-session.target" ];
+        After = [ "graphical-session.target" ];
+      };
+      Service = lib.mkMerge [
+        hardening.user
+        wayland
+        {
+          ExecStart = "${lib.getExe pkgs.wl-clip-persist} --clipboard regular";
+          Restart = "always";
+          RestartSec = 2;
+        }
+      ];
+      Install.WantedBy = [ "graphical-session.target" ];
     };
-    Service = {
-      ExecStart = "${lib.getExe pkgs.wl-clip-persist} --clipboard regular";
-      Restart = "always";
-      RestartSec = 2;
-    };
-    Install.WantedBy = [ "graphical-session.target" ];
   };
 }

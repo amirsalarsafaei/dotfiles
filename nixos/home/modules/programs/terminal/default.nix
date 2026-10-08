@@ -6,5 +6,6 @@
     ./tmux.nix
     ./yazi.nix
     ./zelij.nix
+    ./zellij-resurrection.nix
   ];
 }

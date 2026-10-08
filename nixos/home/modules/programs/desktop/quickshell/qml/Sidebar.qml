@@ -656,14 +656,6 @@ PanelWindow {
                             active: Prefs.floatingLyrics
                             onClicked: Prefs.floatingLyrics = !Prefs.floatingLyrics
                         }
-
-                        Toggle {
-                            implicitHeight: win.compact ? 48 : 62
-                            icon: "󰘚"
-                            label: "Circuit"
-                            active: Prefs.scene === "motherboard"
-                            onClicked: Prefs.chosenScene = Prefs.scene === "motherboard" ? "planet" : "motherboard"
-                        }
                     }
                 }
 

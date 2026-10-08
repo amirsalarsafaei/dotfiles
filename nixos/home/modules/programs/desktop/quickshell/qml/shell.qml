@@ -214,17 +214,6 @@ ShellRoot {
     IpcHandler {
         target: "scene"
 
-        function toggle(): string {
-            Prefs.cycleScene();
-            return Prefs.scene;
-        }
-
-        function set(name: string): string {
-            if (Prefs.scenes.includes(name) || name === "")
-                Prefs.chosenScene = name;
-            return Prefs.scene;
-        }
-
         function status(): string {
             return Prefs.scene;
         }

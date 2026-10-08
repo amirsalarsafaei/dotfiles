@@ -16,7 +16,7 @@ from mcp.types import ToolAnnotations
 API = "https://www.googleapis.com/calendar/v3"
 DATA_DIR = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
 OAUTH_FILE = DATA_DIR / "gcalcli/oauth"
-SYSTEMCTL = os.environ.get("AGENDA_SYSTEMCTL", "systemctl")
+BUSCTL = os.environ.get("AGENDA_BUSCTL", "busctl")
 CALENDAR_TTL = 300
 MAX_PAGE = 2500
 SendUpdates = Literal["none", "all", "externalOnly"]
@@ -45,7 +45,18 @@ def error_message(response):
 def refresh_agenda():
     try:
         subprocess.run(
-            [SYSTEMCTL, "--user", "start", "--no-block", "agenda-refresh.service"],
+            [
+                BUSCTL,
+                "--user",
+                "call",
+                "org.freedesktop.systemd1",
+                "/org/freedesktop/systemd1",
+                "org.freedesktop.systemd1.Manager",
+                "StartUnit",
+                "ss",
+                "agenda-refresh.service",
+                "replace",
+            ],
             capture_output=True,
             check=False,
             timeout=10,

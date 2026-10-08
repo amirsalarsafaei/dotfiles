@@ -773,6 +773,6 @@ PanelWindow {
         height: 5
         radius: 2.5
         color: Perf.eco ? Theme.good : Theme.secondary
-        opacity: 0.625 + 0.375 * Math.cos(Math.PI * scene.time / 1.8)
+        opacity: scene.board ? 0.8 : 0.625 + 0.375 * Math.cos(Math.PI * scene.time / 1.8)
     }
 }

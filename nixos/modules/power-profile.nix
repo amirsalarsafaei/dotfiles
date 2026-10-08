@@ -1,6 +1,7 @@
 { config, lib, ... }:
 let
   cfg = config.custom.powerProfile;
+  hardening = import ../home/modules/systemd/lib.nix { inherit lib; };
   isLowPower = cfg == "low-power";
   isPerformance = cfg == "performance";
   batteryProfile = config.custom.batteryPowerProfile;
@@ -120,7 +121,13 @@ in
         after = [ "power-profiles-daemon.service" ];
         requires = [ "power-profiles-daemon.service" ];
         wantedBy = [ "graphical.target" ];
-        serviceConfig.Type = "oneshot";
+        serviceConfig = lib.mkMerge [
+          hardening.system
+          {
+            Type = "oneshot";
+            RestrictAddressFamilies = [ "AF_UNIX" ];
+          }
+        ];
         script = ''
           profile=${acProfile}
           ${lib.optionalString (batteryProfile != null) ''

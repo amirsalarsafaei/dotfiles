@@ -1,7 +1,11 @@
 {
+  lib,
   pkgs,
   ...
 }:
+let
+  hardening = import ../../home/modules/systemd/lib.nix { inherit lib; };
+in
 {
   imports = [
     ./hardware-configuration.nix
@@ -30,10 +34,15 @@
     wantedBy = [ "graphical.target" ];
     after = [ "power-profiles-daemon.service" ];
     path = [ pkgs.coreutils ];
-    serviceConfig = {
-      Restart = "on-failure";
-      RestartSec = 10;
-    };
+    serviceConfig = lib.mkMerge [
+      hardening.system
+      {
+        Restart = "on-failure";
+        RestartSec = 10;
+        ReadWritePaths = [ "-/sys/class/powercap/intel-rapl-mmio:0/constraint_0_power_limit_uw" ];
+        RestrictAddressFamilies = [ "none" ];
+      }
+    ];
     script = ''
       limit=/sys/class/powercap/intel-rapl-mmio:0/constraint_0_power_limit_uw
       target=28000000
@@ -104,6 +113,10 @@
   services.fprintd.enable = true;
   systemd.services.fprintd.serviceConfig.TimeoutStopSec = "5s";
   powerManagement.resumeCommands = "${pkgs.systemd}/bin/systemctl --no-block try-restart fprintd.service";
+  services.logind.settings.Login = {
+    HandlePowerKey = "ignore";
+    HandlePowerKeyLongPress = "poweroff";
+  };
 
   virtualisation.docker.enableOnBoot = false;
   custom.localMonitoring.enable = false;

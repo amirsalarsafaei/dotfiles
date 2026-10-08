@@ -6,6 +6,7 @@
 }:
 let
   cfg = config.custom.quip;
+  hardening = import ../../../systemd/lib.nix { inherit lib; };
 
   python = pkgs.python3.withPackages (ps: [ ps.anthropic ]);
 
@@ -140,12 +141,28 @@ in
           Description = "Write a fresh LLM greeting for the lock screen";
           After = [ "graphical-session.target" ];
         };
-        Service = {
-          Type = "oneshot";
-          ExecStart = lib.getExe quip;
-          Restart = "on-failure";
-          RestartSec = "10min";
-        };
+        Service = lib.mkMerge [
+          hardening.user
+          {
+            Type = "oneshot";
+            ExecStart = lib.getExe quip;
+            Restart = "on-failure";
+            RestartSec = "10min";
+            CacheDirectory = [ "quip" ];
+            CacheDirectoryMode = "0700";
+            BindReadOnlyPaths = [
+              "-%C/lyrics"
+              "-%C/agenda-os"
+              (hardening.quote "-${cfg.notesDir}")
+            ]
+            ++ map (provider: hardening.quote "-${cfg.keyFiles.${provider}}") cfg.providers;
+            InaccessiblePaths = [ "/run/dbus" ];
+            RestrictAddressFamilies = [
+              "AF_INET"
+              "AF_INET6"
+            ];
+          }
+        ];
       };
 
       timers.quip = {

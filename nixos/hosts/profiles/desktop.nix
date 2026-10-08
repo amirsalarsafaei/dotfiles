@@ -8,6 +8,7 @@
 }:
 let
   localMonitoring = config.custom.localMonitoring.enable;
+  hardening = import ../../home/modules/systemd/lib.nix { inherit lib; };
   browserPolicy = builtins.toJSON { DefaultBrowserSettingEnabled = false; };
   collectNvidiaMetrics =
     localMonitoring && hostname == "g14" && builtins.elem "nvidia" config.services.xserver.videoDrivers;
@@ -132,22 +133,27 @@ in
       wantedBy = [ "network-pre.target" ];
       before = [ "network-pre.target" ];
       restartTriggers = [ config.environment.etc.hosts.source ];
-      serviceConfig = {
-        Type = "oneshot";
-        ExecStart = pkgs.writeShellScript "update-local-hosts" ''
-          if [[ ! -e /etc/hosts.local ]]; then
-            install -m 0644 -o root -g root /dev/null /etc/hosts.local
-          fi
+      serviceConfig = lib.mkMerge [
+        hardening.system
+        {
+          Type = "oneshot";
+          ReadWritePaths = [ "/etc" ];
+          RestrictAddressFamilies = [ "none" ];
+          ExecStart = pkgs.writeShellScript "update-local-hosts" ''
+            if [[ ! -e /etc/hosts.local ]]; then
+              install -m 0644 -o root -g root /dev/null /etc/hosts.local
+            fi
 
-          tmp="$(mktemp /etc/.hosts.XXXXXX)"
-          trap 'rm -f "$tmp"' EXIT
-          cat ${config.environment.etc.hosts.source} /etc/hosts.local > "$tmp"
-          chmod 0644 "$tmp"
-          chown root:root "$tmp"
-          mv "$tmp" /etc/hosts
-          trap - EXIT
-        '';
-      };
+            tmp="$(mktemp /etc/.hosts.XXXXXX)"
+            trap 'rm -f "$tmp"' EXIT
+            cat ${config.environment.etc.hosts.source} /etc/hosts.local > "$tmp"
+            chmod 0644 "$tmp"
+            chown root:root "$tmp"
+            mv "$tmp" /etc/hosts
+            trap - EXIT
+          '';
+        }
+      ];
     };
 
     systemd.paths.local-hosts = {

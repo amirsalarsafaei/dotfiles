@@ -6,8 +6,11 @@
 }:
 let
   cfg = config.custom.airpods;
+  hardening = import ../../systemd/lib.nix { inherit lib; };
   airpods-tui = pkgs.callPackage ../../../../pkgs/airpods-tui.nix { };
   toml = pkgs.formats.toml { };
+
+  daemonRuntime = "airpods-tui";
 
   status = pkgs.writeShellApplication {
     name = "airpods-status";
@@ -18,7 +21,7 @@ let
     ];
     text = ''
       runtime="''${XDG_RUNTIME_DIR:?}"
-      socket="$runtime/airpods-tui.sock"
+      socket="$runtime/${daemonRuntime}/airpods-tui.sock"
       dir="$runtime/${cfg.stateDir}"
       mkdir -p "$dir"
 
@@ -29,7 +32,7 @@ let
         sleep 0.1
       done
 
-      airpods-tui --waybar-watch | while IFS= read -r line; do
+      XDG_RUNTIME_DIR="$runtime/${daemonRuntime}" airpods-tui --waybar-watch | while IFS= read -r line; do
         printf '%s\n' "$line" >"$dir/status.json.tmp"
         mv -f "$dir/status.json.tmp" "$dir/status.json"
       done
@@ -45,6 +48,21 @@ in
 
   config = {
     home.packages = [ airpods-tui ];
+
+    custom.sessionBusProxy.airpods-tui = {
+      services = [ "airpods-tui" ];
+      talk = [ "org.freedesktop.Notifications" ];
+      call = hardening.mprisCalls (
+        map (method: "org.mpris.MediaPlayer2.Player.${method}") [
+          "Play"
+          "Pause"
+          "PlayPause"
+          "Next"
+          "Previous"
+        ]
+      );
+      broadcast = hardening.mprisSignals;
+    };
 
     xdg.configFile."airpods-tui/config.toml".source = toml.generate "airpods-tui-config.toml" {
       volume_osd_command = [ ];
@@ -64,7 +82,10 @@ in
     };
 
     systemd.user = {
-      tmpfiles.rules = [ "d %t/${cfg.stateDir} 0700 - - -" ];
+      tmpfiles.rules = [
+        "d %t/${cfg.stateDir} 0700 - - -"
+        "d %h/.local/share/airpods-tui 0700 - - -"
+      ];
 
       services = {
         airpods-tui = {
@@ -77,11 +98,29 @@ in
             PartOf = [ "graphical-session.target" ];
             Upholds = [ "airpods-status.service" ];
           };
-          Service = {
-            ExecStart = "${lib.getExe airpods-tui} --daemon";
-            Restart = "on-failure";
-            RestartSec = 5;
-          };
+          Service = lib.mkMerge [
+            hardening.user
+            {
+              ExecStartPre = "+${lib.getExe' pkgs.coreutils "ln"} -sfn %t/${daemonRuntime}/airpods-tui.sock %t/airpods-tui.sock";
+              ExecStart = "${lib.getExe airpods-tui} --daemon";
+              Restart = "on-failure";
+              RestartSec = 5;
+              Environment = [
+                "XDG_RUNTIME_DIR=%t/${daemonRuntime}"
+                "PULSE_SERVER=unix:%t/pulse/native"
+                "PIPEWIRE_RUNTIME_DIR=%t"
+              ];
+              RuntimeDirectory = [ daemonRuntime ];
+              RuntimeDirectoryMode = "0700";
+              BindPaths = [ "%h/.local/share/airpods-tui" ];
+              BindReadOnlyPaths = [
+                "%h/.config/airpods-tui"
+                "-%t/pulse"
+                "-%t/pipewire-0"
+              ];
+              RestrictAddressFamilies = [ "AF_BLUETOOTH" ];
+            }
+          ];
           Install.WantedBy = [ "graphical-session.target" ];
         };
 
@@ -91,12 +130,24 @@ in
             BindsTo = [ "airpods-tui.service" ];
             After = [ "airpods-tui.service" ];
           };
-          Service = {
-            ExecStart = lib.getExe status;
-            ExecStopPost = "${lib.getExe' pkgs.coreutils "rm"} -f %t/${cfg.stateDir}/status.json %t/${cfg.stateDir}/status.json.tmp";
-            Restart = "on-failure";
-            RestartSec = 2;
-          };
+          Service = lib.mkMerge [
+            hardening.user
+            {
+              ExecStart = lib.getExe status;
+              ExecStopPost = "+${lib.getExe' pkgs.coreutils "rm"} -f %t/${cfg.stateDir}/status.json %t/${cfg.stateDir}/status.json.tmp";
+              Restart = "on-failure";
+              RestartSec = 2;
+              RuntimeDirectory = [ cfg.stateDir ];
+              RuntimeDirectoryMode = "0700";
+              RuntimeDirectoryPreserve = "yes";
+              BindReadOnlyPaths = [
+                "%t/${daemonRuntime}"
+                "-%h/.config/airpods-tui"
+              ];
+              InaccessiblePaths = [ "/run/dbus" ];
+              PrivateNetwork = true;
+            }
+          ];
         };
       };
     };

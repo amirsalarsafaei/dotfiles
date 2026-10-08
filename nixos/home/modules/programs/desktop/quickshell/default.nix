@@ -750,7 +750,7 @@ in
   options.custom.desktop.scene = lib.mkOption {
     type = lib.types.enum scenes.names;
     default = "planet";
-    description = "Default live wallpaper and lock-screen scene. The sidebar, IPC and the login session picker override it at runtime.";
+    description = "Default live wallpaper and lock-screen scene, used until a login session picks one. The scene is fixed for the rest of the session.";
   };
 
   config = {

@@ -6,6 +6,7 @@
 }:
 let
   cfg = config.custom.mood;
+  hardening = import ../../../systemd/lib.nix { inherit lib; };
 
   python = pkgs.python3.withPackages (ps: [ ps.pillow ]);
 
@@ -27,6 +28,12 @@ in
     };
   };
 
+  config.custom.sessionBusProxy.moodd = {
+    services = [ "moodd" ];
+    call = hardening.mprisCalls [ ];
+    broadcast = hardening.mprisSignals;
+  };
+
   config.systemd.user.services.moodd = {
     Unit = {
       Description = "Tint the desktop accents from the playing track's album art";
@@ -37,11 +44,29 @@ in
       Wants = [ "playerctld.service" ];
       PartOf = [ config.wayland.systemd.target ];
     };
-    Service = {
-      ExecStart = lib.getExe moodd;
-      Restart = "always";
-      RestartSec = 3;
-    };
+    Service = lib.mkMerge [
+      hardening.user
+      {
+        ExecStart = lib.getExe moodd;
+        Restart = "always";
+        RestartSec = 3;
+        RuntimeDirectory = [ cfg.stateDir ];
+        RuntimeDirectoryMode = "0700";
+        RuntimeDirectoryPreserve = "yes";
+        CacheDirectory = [ "mood" ];
+        CacheDirectoryMode = "0700";
+        PrivateTmp = false;
+        InaccessiblePaths = [
+          "/run/dbus"
+          "-/tmp/.X11-unix"
+          "-/tmp/.ICE-unix"
+        ];
+        RestrictAddressFamilies = [
+          "AF_INET"
+          "AF_INET6"
+        ];
+      }
+    ];
     Install.WantedBy = [ config.wayland.systemd.target ];
   };
 }

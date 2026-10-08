@@ -49,6 +49,20 @@ if [ "${CLAUDE_SANDBOX_NET:-0}" = 1 ]; then
   args+=(--unshare-net)
 fi
 
+if [ -n "${CLAUDE_SANDBOX_BUS_DIR:-}" ] && [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+  bus="$XDG_RUNTIME_DIR/$CLAUDE_SANDBOX_BUS_DIR/bus"
+  if [ ! -S "$bus" ] && [ -n "${CLAUDE_SANDBOX_BUS_UNIT:-}" ]; then
+    "${CLAUDE_SANDBOX_SYSTEMCTL:-systemctl}" --user start "$CLAUDE_SANDBOX_BUS_UNIT" >/dev/null 2>&1 || true
+  fi
+  if [ ! -S "$bus" ]; then
+    printf 'claude-sandbox: %s is not running, so the session bus is cut off\n' "${CLAUDE_SANDBOX_BUS_UNIT:-the filtered bus}" >&2
+  fi
+  add_deny "$XDG_RUNTIME_DIR/bus"
+  add_deny "$XDG_RUNTIME_DIR/systemd"
+  add_deny "$XDG_RUNTIME_DIR/at-spi"
+  args+=(--setenv DBUS_SESSION_BUS_ADDRESS "unix:path=$bus")
+fi
+
 keep=()
 while IFS= read -r line; do
   [ -n "$line" ] && keep+=("$line")

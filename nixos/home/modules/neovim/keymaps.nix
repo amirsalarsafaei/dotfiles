@@ -49,7 +49,9 @@ in
       (normalKeymap "<C-u>" "<C-u>zz" { desc = "Page up centered"; })
       (normalKeymap "n" "nzzzv" { desc = "Next search centered"; })
       (normalKeymap "N" "Nzzzv" { desc = "Prev search centered"; })
-      (mkKeymap "x" "<leader>p" ''"_dP'' { desc = "Paste without yanking"; })
+      (mkKeymap "x" "<leader>p" { __raw = ''function() require("clipboard_sync").put("P") end''; } {
+        desc = "Paste without yanking";
+      })
       (mkKeymap [ "n" "v" ] "<leader>d" ''"_d'' { desc = "Delete without yanking"; })
       (normalKeymap "<leader>bn" "<cmd>bnext<CR>" { desc = "Next buffer"; })
       (normalKeymap "<leader>bp" "<cmd>bprevious<CR>" { desc = "Previous buffer"; })

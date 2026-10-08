@@ -114,6 +114,7 @@ Item {
         property real size: 4
         property real lit: 0
         property color tone: Theme.cyan
+        property bool square: false
 
         x: cx - width / 2
         y: cy - height / 2
@@ -121,17 +122,8 @@ Item {
         height: width
 
         Rectangle {
-            anchors.centerIn: parent
-            width: parent.width * 3.4
-            height: width
-            radius: width / 2
-            visible: led.lit > 0.02
-            color: Theme.alpha(led.tone, 0.2 * led.lit)
-        }
-
-        Rectangle {
             anchors.fill: parent
-            radius: width / 2
+            radius: led.square ? 1 : width / 2
             color: Qt.tint("#0c1017", Theme.alpha(led.tone, led.lit))
             border.width: 1
             border.color: "#03050a"
@@ -206,6 +198,7 @@ Item {
     component Callout: Item {
         id: callout
 
+        default property alias readouts: values.data
         property real ax: 0
         property real ay: 0
         property real reach: 40
@@ -247,12 +240,18 @@ Item {
             text: callout.title
         }
 
-        Readout {
+        Row {
+            id: values
+
             x: callout.ax - callout.reach - 8 - width
             y: Math.round(callout.ay) + 2
-            text: callout.value
-            clock: callout.clock
-            live: callout.live
+
+            Readout {
+                visible: callout.value !== ""
+                text: callout.value
+                clock: callout.clock
+                live: callout.live
+            }
         }
     }
 
@@ -280,6 +279,7 @@ Item {
     readonly property color ink: "#03050a"
     readonly property color dark: "#0c1017"
     readonly property color flash: "#f2f7ff"
+    readonly property color orange: Qt.tint(Theme.warm, Theme.alpha(Theme.heat, 0.5))
     readonly property color moodA: Theme.mood.active ? Qt.tint(Theme.blue, Theme.alpha(Theme.primary, 0.45)) : Theme.blue
     readonly property color moodB: Theme.mood.active ? Qt.tint(Theme.cyan, Theme.alpha(Theme.secondary, 0.45)) : Theme.cyan
     readonly property color accent: Qt.tint(Qt.tint(moodA, Theme.alpha(moodB, 0.5)), Theme.alpha(Theme.danger, alarm))
@@ -328,39 +328,23 @@ Item {
             buses: [
                 {
                     points: [[pump[2], pump[1] + 0.08], [gapX - 0.008, pump[1] + 0.08], [gapX + 0.008, pump[1] + 0.064], [dimm[0], pump[1] + 0.064]],
-                    count: 9,
-                    speed: 0.08,
-                    seed: 1,
-                    feed: "cpu"
+                    count: 9
                 },
                 {
                     points: [[pump[2], pump[3] - 0.11], [gapX - 0.008, pump[3] - 0.11], [gapX + 0.008, pump[3] - 0.094], [dimm[0], pump[3] - 0.094]],
-                    count: 9,
-                    speed: 0.08,
-                    seed: 2,
-                    feed: "cpu"
+                    count: 9
                 },
                 {
                     points: [[pcx + 0.07, pump[3]], [pcx + 0.07, pump[3] + 0.02], [pcx + 0.085, pump[3] + 0.035], [pcx + 0.085, gpu[1]]],
-                    count: 8,
-                    speed: 0.14,
-                    seed: 3,
-                    feed: "gpu"
+                    count: 8
                 },
                 {
                     points: [[pump[0] + 0.06, pump[3]], [pump[0] + 0.06, pump[3] + 0.007], [ssd[0] - 0.012, pump[3] + 0.007], [ssd[0] - 0.012, (ssd[1] + ssd[3]) / 2]],
-                    count: 4,
-                    speed: 0.11,
-                    seed: 4,
-                    feed: "disk"
+                    count: 4
                 },
                 {
                     points: [[eps[2], 0.062], [eps[2] + 0.02, 0.062], [vrmT[0] - 0.02, 0.062], [vrmT[0], 0.062]],
-                    count: 3,
-                    speed: 0.05,
-                    seed: 6,
-                    feed: "power",
-                    power: true
+                    count: 3
                 }
             ]
         };
@@ -368,6 +352,11 @@ Item {
     readonly property var dash: {
         const t = lifted(layout.io, layout.heights[3]);
         return [t[0] + 0.0105, t[1] + 0.014, t[2] - 0.0105, t[3] - 0.07];
+    }
+    readonly property var lan: {
+        const io = layout.io;
+        const y0 = io[1] + 0.035 + 4 * (io[3] - io[1] - 0.08) / 5;
+        return lifted([io[0] - 0.034, y0, io[0] + 0.004, y0 + 0.06], 0.07);
     }
     readonly property var pumpTop: lifted(layout.pump, layout.heights[0])
     readonly property var lcd: inset(pumpTop, 0.022)
@@ -476,8 +465,8 @@ Item {
         if (bytes < 1024)
             return Math.round(bytes) + "B";
         if (bytes < 1048576)
-            return Math.round(bytes / 1024) + "K";
-        return (bytes / 1048576).toFixed(bytes < 10485760 ? 1 : 0) + "M";
+            return Math.round(bytes / 1024) + "KB";
+        return (bytes / 1048576).toFixed(bytes < 10485760 ? 1 : 0) + "MB";
     }
 
     function duration(seconds: real): string {
@@ -501,16 +490,6 @@ Item {
 
     function traffic(bytes: real): real {
         return bytes <= 1024 ? 0 : Math.min(1, Math.log(bytes / 1024) / Math.log(65536));
-    }
-
-    function feed(name: string): real {
-        if (name === "cpu")
-            return 0.15 + 0.85 * shownLoad.x;
-        if (name === "gpu")
-            return 0.06 + 0.94 * shownLoad.y;
-        if (name === "disk")
-            return Math.max(shownTraffic.x, shownTraffic.y);
-        return 0.2 + 0.8 * Math.min(1, hw.watts / 30);
     }
 
     function cosmic(): void {
@@ -740,38 +719,6 @@ Item {
         }
 
         Repeater {
-            model: board.layout.buses
-
-            ShaderEffect {
-                id: lane
-
-                required property var modelData
-                readonly property var points: modelData.points
-                readonly property var kind: modelData.power ? board.layout.power : board.layout.signal
-                readonly property real margin: 0.5 * (modelData.count + 1) * kind.pitch + 0.009
-                readonly property var box: [Math.min(points[0][0], points[1][0], points[2][0], points[3][0]) - margin, Math.min(points[0][1], points[1][1], points[2][1], points[3][1]) - margin, Math.max(points[0][0], points[1][0], points[2][0], points[3][0]) + margin, Math.max(points[0][1], points[1][1], points[2][1], points[3][1]) + margin]
-                property real time: board.time
-                property real activity: board.feed(modelData.feed)
-                property real speed: modelData.speed
-                property real seed: modelData.seed
-                property real count: modelData.count
-                property real pitch: kind.pitch
-                property real gauge: kind.gauge
-                property real unit: 1 / Math.max(1, board.layout.w * board.height)
-                property vector4d area: board.v4(box)
-                property vector4d ab: Qt.vector4d(points[0][0], points[0][1], points[1][0], points[1][1])
-                property vector4d cd: Qt.vector4d(points[2][0], points[2][1], points[3][0], points[3][1])
-                property color tone: Qt.tint(Theme.cyan, Theme.alpha(Theme.blue, 0.3))
-
-                x: board.ux(box[0])
-                y: board.vy(box[1])
-                width: board.span(box[2] - box[0])
-                height: board.span(box[3] - box[1])
-                fragmentShader: Qt.resolvedUrl("shaders/lanes.frag.qsb")
-            }
-        }
-
-        Repeater {
             model: 3
 
             Band {
@@ -807,9 +754,7 @@ Item {
             readonly property real used: board.shownLoad.z
             property real pitch: board.slotPitch
             property real fine: 1 / Math.max(1, board.layout.w * board.height * Screen.devicePixelRatio)
-            property real time: board.time
             property real level: used
-            property real pace: 0.16 + 0.5 * board.shownLoad.x
             property vector4d bar: board.v4(strip)
             property vector4d area: board.v4(box)
             property vector4d hit: Qt.vector4d(board.eccStick, board.eccAt, Math.max(0, board.ray), board.ray >= 0 ? 1 : 0)
@@ -911,13 +856,14 @@ Item {
 
             Led {
                 required property int index
-                readonly property real y0: board.layout.io[1] + 0.035 + 2 * (board.layout.io[3] - board.layout.io[1] - 0.08) / 5 - board.lift * 0.07
+                readonly property real flow: index === 0 ? board.shownTraffic.z : board.shownTraffic.w
 
-                cx: board.ux(board.layout.io[0] + 0.004 - 0.012)
-                cy: board.vy(index === 0 ? y0 + 0.004 : y0 + 0.056)
-                size: board.span(0.005)
-                tone: index === 0 ? Theme.good : Theme.cyan
-                lit: index === 0 ? (board.shownTraffic.z + board.shownTraffic.w > 0.02 ? 1 : 0.15) : Math.min(1, board.shownTraffic.z * 2)
+                cx: board.ux(board.lan[2] - 0.008)
+                cy: board.vy(index === 0 ? board.lan[1] + 0.005 : board.lan[3] - 0.005)
+                size: board.span(0.0078)
+                square: true
+                tone: index === 0 ? board.orange : Theme.good
+                lit: Math.max(0.15, Math.min(1, flow * 2))
             }
         }
 
@@ -1067,6 +1013,8 @@ Item {
             y: board.vy(area.y)
             width: board.span(area.z - area.x)
             height: board.span(area.w - area.y)
+            layer.enabled: board.fanSpeed === 0
+            layer.smooth: true
             fragmentShader: Qt.resolvedUrl("shaders/fans.frag.qsb")
         }
 
@@ -1359,23 +1307,6 @@ Item {
             accent: Qt.tint(Theme.cyan, Theme.alpha(board.accent, 0.35))
         }
 
-        Column {
-            x: board.ux(board.dash[0])
-            y: board.vy(board.dash[3] + 0.0205)
-            spacing: 1
-
-            Silk {
-                text: hw.info.wifi ?? "wlan"
-                at: 0.5
-            }
-
-            Readout {
-                text: "↓ " + board.rate(hw.rx) + "  ↑ " + board.rate(hw.tx)
-                clock: board.time
-                live: ticker.running
-            }
-        }
-
         Rectangle {
             id: screenMask
 
@@ -1454,22 +1385,6 @@ Item {
             }
         }
 
-        Row {
-            x: board.ux(board.layout.ssd[0])
-            y: board.vy(board.layout.ssd[3]) + 5
-            spacing: 8
-
-            Silk {
-                text: "m.2_1  ·  " + (hw.info.diskModel ?? "nvme")
-            }
-
-            Readout {
-                text: "r " + board.rate(hw.diskRead) + "  w " + board.rate(hw.diskWrite) + (hw.diskTemp > 0 ? "  " + Math.round(hw.diskTemp) + "°c" : "")
-                clock: board.time
-                live: ticker.running
-            }
-        }
-
         Silk {
             x: board.ux(board.layout.cmos[0] + board.layout.cmos[2] + 0.036)
             y: board.vy(board.layout.cmos[1]) - height / 2
@@ -1501,6 +1416,8 @@ Item {
         }
 
         Row {
+            id: gpuRow
+
             x: board.ux(board.layout.gpu[0] + 0.05)
             y: board.vy(board.layout.gpu[1] + 0.5 * board.layout.band) - height / 2
             spacing: 14
@@ -1517,6 +1434,23 @@ Item {
             }
         }
 
+        Row {
+            x: Math.max(board.ux(board.layout.ssd[0]), gpuRow.x + gpuRow.width + board.span(0.05))
+            y: board.vy(board.layout.gpu[1] + 0.5 * board.layout.band) - height / 2
+            spacing: 14
+
+            Silk {
+                text: "m.2_1  ·  " + (hw.info.diskModel ?? "nvme")
+                at: 0.6
+            }
+
+            Readout {
+                text: "r " + board.rate(hw.diskRead) + "  w " + board.rate(hw.diskWrite) + (hw.diskTemp > 0 ? "  " + Math.round(hw.diskTemp) + "°c" : "")
+                clock: board.time
+                live: ticker.running
+            }
+        }
+
         Callout {
             ax: board.ux(0.03) - board.span(0.011)
             ay: board.vy(0.03)
@@ -1525,6 +1459,37 @@ Item {
             value: "bios " + String(hw.info.bios ?? "").replace(/\s+\)/, ")") + "  nixos gen " + (hw.info.generation ?? "?")
             clock: board.time
             live: ticker.running
+        }
+
+        Callout {
+            ax: board.ux(board.lan[0])
+            ay: board.vy(board.lan[1] + 0.018)
+            reach: board.span(0.03)
+            title: "lan1  ·  " + (hw.info.wifi ?? "wlan")
+            clock: board.time
+            live: ticker.running
+
+            Readout {
+                text: "↓ "
+                color: board.orange
+            }
+
+            Readout {
+                text: board.rate(hw.rx) + "  "
+                clock: board.time
+                live: ticker.running
+            }
+
+            Readout {
+                text: "↑ "
+                color: Theme.good
+            }
+
+            Readout {
+                text: board.rate(hw.tx)
+                clock: board.time
+                live: ticker.running
+            }
         }
     }
 

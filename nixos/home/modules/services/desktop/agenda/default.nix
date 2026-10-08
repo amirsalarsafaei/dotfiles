@@ -6,6 +6,24 @@
 }:
 let
   planner = config.custom.claudeCode.planner.enable;
+  hardening = import ../../../systemd/lib.nix { inherit lib; };
+
+  network = [
+    "AF_INET"
+    "AF_INET6"
+  ];
+
+  agendaSandbox = {
+    CacheDirectory = [ "agenda-os" ];
+    CacheDirectoryMode = "0700";
+    BindPaths = [ "%h/.local/share/gcalcli" ];
+    BindReadOnlyPaths = [
+      "-%h/.config/gcalcli"
+      "-%h/Documents/amirsalar-vault"
+    ];
+    InaccessiblePaths = [ "/run/dbus" ];
+    RestrictAddressFamilies = network;
+  };
 
   agenda = pkgs.writeShellApplication {
     name = "agenda-os";
@@ -30,7 +48,7 @@ let
     name = "agenda-mcp";
     text = ''
       export PYTHONTZPATH=${pkgs.tzdata}/share/zoneinfo
-      export AGENDA_SYSTEMCTL=${config.systemd.user.systemctlPath}
+      export AGENDA_BUSCTL=${lib.getExe' pkgs.systemd "busctl"}
       exec ${lib.getExe mcpPython} ${./agenda_mcp.py} "$@"
     '';
   };
@@ -65,7 +83,27 @@ in
 
   custom.claudeCode.planner.mcpConfigs = lib.mkIf planner [ "${mcpConfig}" ];
 
+  custom.sessionBusProxy = {
+    agenda = {
+      services = [
+        "agenda-refresh"
+        "agenda-remind"
+        "agenda-day"
+      ];
+      talk = [ "org.freedesktop.Notifications" ];
+    };
+
+    agenda-mcp = lib.mkIf planner {
+      services = [ "agenda-mcp@" ];
+      call = [
+        "org.freedesktop.systemd1=org.freedesktop.systemd1.Manager.StartUnit@/org/freedesktop/systemd1"
+      ];
+    };
+  };
+
   systemd.user = {
+    tmpfiles.rules = [ "d %h/.local/share/gcalcli 0700 - - -" ];
+
     sockets.agenda-mcp = lib.mkIf planner {
       Unit.Description = "Google Calendar MCP socket for Claude Code";
       Socket = {
@@ -81,12 +119,18 @@ in
     services = {
       "agenda-mcp@" = lib.mkIf planner {
         Unit.Description = "Google Calendar MCP server for one Claude Code session";
-        Service = {
-          ExecStart = lib.getExe mcpServer;
-          StandardInput = "socket";
-          StandardOutput = "socket";
-          StandardError = "journal";
-        };
+        Service = lib.mkMerge [
+          hardening.user
+          {
+            ExecStart = lib.getExe mcpServer;
+            StandardInput = "socket";
+            StandardOutput = "socket";
+            StandardError = "journal";
+            BindReadOnlyPaths = [ "-%h/.local/share/gcalcli" ];
+            InaccessiblePaths = [ "/run/dbus" ];
+            RestrictAddressFamilies = network;
+          }
+        ];
       };
 
       agenda-refresh = {
@@ -95,10 +139,14 @@ in
           After = [ "graphical-session.target" ];
           PartOf = [ "graphical-session.target" ];
         };
-        Service = {
-          Type = "oneshot";
-          ExecStart = "${lib.getExe agenda} update";
-        };
+        Service = lib.mkMerge [
+          hardening.user
+          agendaSandbox
+          {
+            Type = "oneshot";
+            ExecStart = "${lib.getExe agenda} update";
+          }
+        ];
       };
 
       agenda-remind = {
@@ -107,10 +155,14 @@ in
           After = [ "graphical-session.target" ];
           PartOf = [ "graphical-session.target" ];
         };
-        Service = {
-          Type = "oneshot";
-          ExecStart = "${lib.getExe agenda} remind";
-        };
+        Service = lib.mkMerge [
+          hardening.user
+          agendaSandbox
+          {
+            Type = "oneshot";
+            ExecStart = "${lib.getExe agenda} remind";
+          }
+        ];
       };
 
       agenda-day = {
@@ -119,10 +171,14 @@ in
           After = [ "graphical-session.target" ];
           PartOf = [ "graphical-session.target" ];
         };
-        Service = {
-          Type = "oneshot";
-          ExecStart = "${lib.getExe agenda} day";
-        };
+        Service = lib.mkMerge [
+          hardening.user
+          agendaSandbox
+          {
+            Type = "oneshot";
+            ExecStart = "${lib.getExe agenda} day";
+          }
+        ];
       };
     };
 

@@ -232,6 +232,9 @@ let
       export CLAUDE_SANDBOX_ALLOW=${lib.escapeShellArg (lib.concatStringsSep "\n" cfg.sandbox.allowPaths)}
       export CLAUDE_SANDBOX_ENV_FILES=${lib.escapeShellArg (lib.concatStringsSep "\n" cfg.sandbox.envFiles)}
       export CLAUDE_SANDBOX_ENV_KEEP=${lib.escapeShellArg (lib.concatStringsSep "\n" cfg.sandbox.envPassthrough)}
+      export CLAUDE_SANDBOX_BUS_DIR=${lib.escapeShellArg config.custom.sessionBusProxy.claude.directory}
+      export CLAUDE_SANDBOX_BUS_UNIT=dbus-proxy-claude.service
+      export CLAUDE_SANDBOX_SYSTEMCTL=${config.systemd.user.systemctlPath}
       context_sandbox=${pkgs.writeText "claude-context-sandbox.md" cfg.context.sandbox}
       context_sandbox_net=${pkgs.writeText "claude-context-sandbox-net.md" cfg.context.sandboxNet}
       context_sandbox_fs=${pkgs.writeText "claude-context-sandbox-fs.md" cfg.context.sandboxFs}
@@ -1780,6 +1783,8 @@ let
   };
 in
 {
+  imports = [ ../../systemd/dbus-proxy.nix ];
+
   options.custom.claudeCode = {
     enable = lib.mkEnableOption "Install claude-code and the gap-claude wrapper";
     enableGlm = mkWorkEnableOption "Route the default claude command through GLM";
@@ -1973,6 +1978,9 @@ in
           - PID, IPC and UTS namespaces are private, so host processes are invisible.
           - xdg-open and $BROWSER hand URLs and files to the desktop portal, which opens them in the
             host session with the user's real browser profile.
+          - The session bus is a filtered proxy that passes only desktop notifications and the
+            portal's OpenURI. `busctl --user`, `systemctl --user`, the keyring and every other
+            session service are unreachable; ask the user to run commands that need them.
         '';
         description = ''
           Appended to CLAUDE.md only for sandboxed launches. The sandbox
@@ -2011,6 +2019,10 @@ in
         are unshared, so the agent cannot see, signal or ptrace processes
         outside its own tree. $SSH_AUTH_SOCK is unset and the
         agent socket masked too, so git over SSH cannot authenticate at all.
+        The session bus is `custom.sessionBusProxy.claude`, which passes only
+        notifications and the portal's OpenURI; the real bus, the user
+        manager's sockets and the accessibility bus are masked, so the agent
+        cannot start units, read the keyring or drive other apps over D-Bus.
         Network is shared by default. Three per-launch flags every wrapper
         accepts: `--no-sandbox` skips bwrap entirely, `--sandbox-net` unshares
         the network namespace (kills the Anthropic API too, so it only makes
@@ -2268,12 +2280,40 @@ in
         shell completion automatically, no separate edit needed.
       '';
     };
+
+    variants = lib.mkOption {
+      type = lib.types.listOf (lib.types.attrsOf lib.types.str);
+      internal = true;
+      readOnly = true;
+      default = map (v: {
+        inherit (v) tag name desc;
+        command = lib.getExe' v.bin v.name;
+      }) pickerVariants;
+      description = ''
+        The enabled variants the `claude` picker offers, each with its tag,
+        launcher name, description and absolute launcher path. Consumed by
+        home/modules/neovim/tools.nix so the Neovim Claude Code integration can
+        start a specific variant instead of the interactive picker.
+      '';
+    };
   };
 
   config = lib.mkMerge [
     {
       home.packages = [ pkgs.crit ];
     }
+    (lib.mkIf cfg.sandbox.enable {
+      custom.sessionBusProxy.claude = {
+        talk = [ "org.freedesktop.Notifications" ];
+        call = [
+          "org.freedesktop.portal.Desktop=org.freedesktop.portal.OpenURI.*@/org/freedesktop/portal/desktop"
+          "org.freedesktop.portal.Desktop=org.freedesktop.DBus.Introspectable.Introspect@/org/freedesktop/portal/desktop"
+        ];
+        broadcast = [
+          "org.freedesktop.portal.Desktop=org.freedesktop.portal.Request.Response@/org/freedesktop/portal/desktop/request/*"
+        ];
+      };
+    })
     {
       assertions = map (name: {
         assertion = cfg.${name} -> config.custom.work.enable;
