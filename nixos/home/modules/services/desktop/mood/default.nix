@@ -56,8 +56,8 @@ in
         CacheDirectory = [ "mood" ];
         CacheDirectoryMode = "0700";
         PrivateTmp = false;
+        TemporaryFileSystem = [ "/run/dbus:ro" ];
         InaccessiblePaths = [
-          "/run/dbus"
           "-/tmp/.X11-unix"
           "-/tmp/.ICE-unix"
         ];

@@ -10,6 +10,7 @@
     ./udiskie.nix
     ./batsignal.nix
     ./airpods-tui.nix
+    ./azoth-oled
     ./agenda
     ./lyrics
     ./mood

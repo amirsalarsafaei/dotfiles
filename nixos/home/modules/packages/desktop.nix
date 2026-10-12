@@ -18,6 +18,7 @@
     pkgs.mattermost-desktop
     pkgs.xournalpp
     pkgs.masterpdfeditor
+    pkgs.libreoffice
   ]
   ++ lib.optionals config.custom.personal.enable [
     pkgs.telegram-desktop

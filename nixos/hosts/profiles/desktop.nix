@@ -168,7 +168,7 @@ in
         enable = true;
         wifi = {
           backend = "iwd";
-          powersave = true;
+          powersave = false;
         };
         plugins = with pkgs; [
           networkmanager-openconnect
@@ -195,6 +195,9 @@ in
           };
           Settings = {
             AutoConnect = true;
+          };
+          DriverQuirks = {
+            PowerSaveDisable = "*";
           };
         };
       };
@@ -586,7 +589,16 @@ in
 
     services.pcscd.enable = true;
 
-    services.udev.packages = [ pkgs.yubikey-personalization ];
+    services.udev.packages = [
+      pkgs.yubikey-personalization
+      (pkgs.writeTextFile {
+        name = "rog-azoth-udev-rules";
+        destination = "/etc/udev/rules.d/70-rog-azoth.rules";
+        text = ''
+          SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="0b05", ATTR{idProduct}=="1a83", TAG+="uaccess"
+        '';
+      })
+    ];
 
   };
 }

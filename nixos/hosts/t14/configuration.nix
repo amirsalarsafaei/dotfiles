@@ -117,6 +117,7 @@ in
     HandlePowerKey = "ignore";
     HandlePowerKeyLongPress = "poweroff";
   };
+  services.journald.settings.Journal.SyncIntervalSec = "5s";
 
   virtualisation.docker.enableOnBoot = false;
   custom.localMonitoring.enable = false;
@@ -126,6 +127,10 @@ in
     loader.systemd-boot.enable = true;
     loader.efi.canTouchEfiVariables = true;
     kernelPackages = pkgs.linuxPackages_latest;
+    kernel.sysctl = {
+      "kernel.softlockup_panic" = 1;
+      "kernel.hardlockup_panic" = 1;
+    };
   };
 
   environment.systemPackages = with pkgs; [
