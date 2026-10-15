@@ -315,6 +315,8 @@ in
 
   hardware.nvidia-container-toolkit.enable = true;
 
+  hyprland.monitorConfig = lib.mkDefault "DP-9,3440x1440@120,auto,auto";
+
   services.udev.extraRules = ''
     SUBSYSTEM=="power_supply", KERNEL=="ACAD", ACTION=="change", RUN+="${lib.getExe' pkgs.systemd "systemctl"} --machine=amirsalar@ --user start oled-power-sync.service"
   '';

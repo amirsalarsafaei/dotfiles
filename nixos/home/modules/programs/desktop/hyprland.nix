@@ -7,7 +7,7 @@
   ...
 }:
 let
-  monitorConfig = osConfig.hyprland.monitorConfig or ",preferred,auto,auto";
+  monitorConfig = osConfig.hyprland.monitorConfig or "";
   theme = config.custom.theme.resolved;
   t = theme.colors;
   s = theme.surfaces;
@@ -26,7 +26,14 @@ let
     let
       fields = map lib.trim (lib.splitString "," monitorConfig);
     in
-    if builtins.length fields != 4 then
+    if lib.trim monitorConfig == "" then
+      {
+        output = "";
+        mode = "highrr";
+        position = "auto";
+        scale = "auto";
+      }
+    else if builtins.length fields != 4 then
       throw "hyprland.monitorConfig must be output,mode,position,scale, got: ${monitorConfig}"
     else
       {
@@ -35,6 +42,14 @@ let
         position = builtins.elemAt fields 2;
         scale = builtins.elemAt fields 3;
       };
+
+  monitorRules = lib.concatStringsSep "\n      " (
+    lib.optional (monitorRule.output != "")
+      ''hl.monitor({ output = "", mode = "highrr", position = "auto", scale = "auto" })''
+    ++ [
+      ''hl.monitor({ output = ${luaString monitorRule.output}, mode = ${luaString monitorRule.mode}, position = ${luaString monitorRule.position}, scale = ${luaString monitorRule.scale} })''
+    ]
+  );
 
   hyprMonitor = pkgs.writeShellApplication {
     name = "hypr-monitor";
@@ -205,6 +220,14 @@ let
       panel=$(jq -r '[.[] | select(.name | startswith("eDP")) | .name][0] // empty' <<< "$monitors")
       mapfile -t externals < <(jq -r '.[] | select(.name | startswith("eDP") | not) | .name' <<< "$monitors")
 
+      external_mode() {
+        if [ "$1" = ${lib.escapeShellArg monitorRule.output} ]; then
+          printf '%s' ${lib.escapeShellArg monitorRule.mode}
+        else
+          printf '%s' highrr
+        fi
+      }
+
       if [ "''${#externals[@]}" -eq 0 ]; then
         display-lid open
         notify-send "Displays" "Laptop display restored; no external monitor connected"
@@ -235,7 +258,7 @@ let
             "Extend above") position=auto-up ;;
             "Extend below") position=auto-down ;;
           esac
-          hypr-monitor on "$external" highrr "$position" auto ""
+          hypr-monitor on "$external" "$(external_mode "$external")" "$position" auto ""
           display-lid sync
           ;;
         "Mirror laptop")
@@ -243,7 +266,7 @@ let
           hypr-monitor on "$external" highrr auto auto "$panel"
           ;;
         "External only")
-          hypr-monitor on "$external" highrr auto auto ""
+          hypr-monitor on "$external" "$(external_mode "$external")" auto auto ""
           hypr-monitor off "$panel"
           ;;
         "Laptop only")
@@ -255,7 +278,7 @@ let
         "Reset")
           display-lid open
           for output in "''${externals[@]}"; do
-            hypr-monitor on "$output" highrr auto auto ""
+            hypr-monitor on "$output" "$(external_mode "$output")" auto auto ""
           done
           display-lid sync
           ;;
@@ -596,8 +619,7 @@ in
     extraConfig = ''
       hl.env("SSH_ASKPASS_REQUIRE", "force")
 
-      hl.monitor({ output = "", mode = "highrr", position = "auto", scale = "auto" })
-      hl.monitor({ output = ${luaString monitorRule.output}, mode = ${luaString monitorRule.mode}, position = ${luaString monitorRule.position}, scale = ${luaString monitorRule.scale} })
+      ${monitorRules}
 
       hl.on("hyprland.start", function()
       ${lib.concatMapStrings (command: "  hl.exec_cmd(${luaString command})\n") startupCommands}end)

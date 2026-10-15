@@ -556,6 +556,40 @@ let
     unset _claude_nixos
   '';
 
+  githubMcpConfigRel = ".config/claude-github-mcp/github.json";
+  githubMcpConfigPath = "${config.home.homeDirectory}/${githubMcpConfigRel}";
+
+  githubMcpServers = {
+    mcpServers = {
+      github = {
+        command = lib.getExe pkgs.github-mcp-server;
+        args = [
+          "stdio"
+          "--read-only"
+          "--tools"
+          "search_code,get_file_contents"
+        ];
+      };
+    };
+  };
+
+  githubMcpParserText = mkBoolFlagParser {
+    flag = "--github-mcp";
+    resultVar = "_claude_github_mcp";
+  };
+
+  githubMcpArgText = ''
+    if [ "$_claude_github_mcp" -eq 1 ]; then
+      if ! GITHUB_PERSONAL_ACCESS_TOKEN="$(${lib.getExe pkgs.gh} auth token)"; then
+        printf '%s: --github-mcp needs a logged-in gh (run gh auth login)\n' "$CLAUDE_VARIANT_NAME" >&2
+        exit 1
+      fi
+      export GITHUB_PERSONAL_ACCESS_TOKEN
+      _claude_extra_args+=(--mcp-config "${githubMcpConfigPath}")
+    fi
+    unset _claude_github_mcp
+  '';
+
   agenticMcpParserText = mkBoolFlagParser {
     flag = "--agentic-mcps";
     resultVar = "_claude_agentic_mcps";
@@ -998,8 +1032,8 @@ let
       }}
       export CLAUDE_VARIANT_NAME="deepseek-claude"
       export ANTHROPIC_BASE_URL="https://api.deepseek.com/anthropic"
-      export ANTHROPIC_MODEL="deepseek-v4-pro"
-      export ANTHROPIC_DEFAULT_OPUS_MODEL="deepseek-v4-pro"
+      export ANTHROPIC_MODEL="deepseek-flash"
+      export ANTHROPIC_DEFAULT_OPUS_MODEL="deepseek-flash"
       export ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek-flash"
       export ANTHROPIC_DEFAULT_HAIKU_MODEL="deepseek-flash"
       export ANTHROPIC_SMALL_FAST_MODEL="deepseek-flash"
@@ -1023,8 +1057,8 @@ let
       }}
       export CLAUDE_VARIANT_NAME="personal-deepseek-claude"
       export ANTHROPIC_BASE_URL="https://api.deepseek.com/anthropic"
-      export ANTHROPIC_MODEL="deepseek-v4-pro"
-      export ANTHROPIC_DEFAULT_OPUS_MODEL="deepseek-v4-pro"
+      export ANTHROPIC_MODEL="deepseek-flash"
+      export ANTHROPIC_DEFAULT_OPUS_MODEL="deepseek-flash"
       export ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek-flash"
       export ANTHROPIC_DEFAULT_HAIKU_MODEL="deepseek-flash"
       export ANTHROPIC_SMALL_FAST_MODEL="deepseek-flash"
@@ -1036,10 +1070,12 @@ let
       ${pluginFlagsParserText}
       ${browserMcpParserText}
       ${nixosMcpParserText}
+      ${githubMcpParserText}
       ${lib.getExe healClaudeState} || true
       ${pluginSettingsArgText}
       ${browserMcpArgText}
       ${nixosMcpArgText}
+      ${githubMcpArgText}
       exec ${claudeBin} "''${_claude_extra_args[@]}" "$@"
     '';
   };
@@ -1160,7 +1196,8 @@ let
       [ -n "$branch" ]    && parts+=("($branch)")
       [ -n "$usage_seg" ] && parts+=("$usage_seg")
       parts+=("ctx ''${ctx_k}k/''${limit_label}")
-      if [ "$(printf '%s' "$input" | jq -r '(.cost.total_cost_usd // 0) > 0' 2>/dev/null)" = "true" ]; then
+      if [ "''${CLAUDE_STATUSLINE_NO_CC_COST:-}" != "1" ] \
+        && [ "$(printf '%s' "$input" | jq -r '(.cost.total_cost_usd // 0) > 0' 2>/dev/null)" = "true" ]; then
         parts+=("$(printf '$%.2f' "$cost")")
       fi
       if [ "$added" != "0" ] || [ "$removed" != "0" ]; then
@@ -1207,11 +1244,19 @@ let
 
   deepseekUsage = pkgs.writeShellApplication {
     name = "deepseek-usage";
-    runtimeInputs = [ pkgs.python3 ];
+    runtimeInputs = [
+      pkgs.python3
+      pkgs.cacert
+    ];
+    runtimeEnv.SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
     text = ''
       if [ -z "''${DEEPSEEK_PRICES:-}" ]; then
         export DEEPSEEK_PRICES=${lib.escapeShellArg deepseekPricesJson}
       fi
+      if [ -z "''${DEEPSEEK_BALANCE_URL:-}" ]; then
+        export DEEPSEEK_BALANCE_URL=${lib.escapeShellArg cfg.deepseekBalanceUrl}
+      fi
+      export DEEPSEEK_BALANCE_KEY_ENV="''${DEEPSEEK_BALANCE_KEY_ENV:-ANTHROPIC_API_KEY}"
       if [ -z "''${DEEPSEEK_PEAK_UTC_HOURS:-}" ]; then
         export DEEPSEEK_PEAK_UTC_HOURS=${lib.escapeShellArg cfg.deepseekPeakUtcHours}
       fi
@@ -1228,14 +1273,18 @@ let
       name,
       usageBin,
       label,
+      hideClaudeCost ? false,
     }:
+    let
+      noCcCost = if hideClaudeCost then "1" else "0";
+    in
     pkgs.writeShellApplication {
       inherit name;
       runtimeInputs = [ pkgs.coreutils ];
       text = ''
         input=$(cat)
-        base=$(${lib.getExe claudeStatusLine} <<<"$input" 2>/dev/null || true)
-        seg=$(${lib.getExe usageBin} statusline 2>/dev/null || true)
+        base=$(CLAUDE_STATUSLINE_NO_CC_COST=${noCcCost} ${lib.getExe claudeStatusLine} <<<"$input" 2>/dev/null || true)
+        seg=$(printf '%s' "$input" | ${lib.getExe usageBin} statusline --stdin-json 2>/dev/null || true)
         if [ -n "$seg" ] && [ -n "$base" ]; then
           printf '%s | %s\n' "$base" "$seg"
         elif [ -n "$base" ]; then
@@ -1250,12 +1299,14 @@ let
     name = "glm-claude-statusline";
     usageBin = glmUsage;
     label = "glm";
+    hideClaudeCost = true;
   };
 
   deepseekStatusLine = mkUsageStatusLine {
     name = "deepseek-claude-statusline";
     usageBin = deepseekUsage;
     label = "deepseek";
+    hideClaudeCost = true;
   };
 
   divarPathGuardText = ''
@@ -1303,10 +1354,12 @@ let
       ${pluginFlagsParserText}
       ${browserMcpParserText}
       ${nixosMcpParserText}
+      ${githubMcpParserText}
       ${lib.getExe healClaudeState} || true
       ${pluginSettingsArgText}
       ${browserMcpArgText}
       ${nixosMcpArgText}
+      ${githubMcpArgText}
       if [ "$_claude_agentic_mcps" -eq 1 ]; then
         if [ "$_claude_gitlab_mcp" -eq 1 ]; then
           exec ${claudeBin} --mcp-config ${workMcpConfigPath} "''${_claude_extra_args[@]}" "$@"
@@ -1462,6 +1515,8 @@ let
       ])
   );
 
+  pushAllowed = personalVariant;
+
   mkSettings =
     variant: name: base:
     let
@@ -1501,7 +1556,7 @@ let
         (base.hooks or { })
       ];
       permissions = (base.permissions or { }) // {
-        deny = (base.permissions.deny or [ ]) ++ [ "Bash(git push:*)" ];
+        deny = (base.permissions.deny or [ ]) ++ lib.optional (!pushAllowed variant) "Bash(git push:*)";
       };
       sandbox = {
         denyRead = sandboxSecretDenyPaths;
@@ -1712,11 +1767,25 @@ let
       inherit (cfg) skillOverrides;
     };
 
-  nixManagedNote = cfg.context.base;
+  personalVariant =
+    variant:
+    lib.elem variant [
+      "personal"
+      "personalDeepseek"
+    ];
+
+  mkContext =
+    variant:
+    lib.concatStringsSep "\n" (
+      [ cfg.context.base ]
+      ++ lib.optional (config.custom.work.enable && !personalVariant variant) cfg.context.workSplit
+      ++ lib.optional (!pushAllowed variant) cfg.context.noPush
+      ++ lib.optional (variant == "local") cfg.context.local
+    );
 
   mkVariantHomeFile = dir: variant: name: base: {
     "${dir}/settings.json".text = builtins.toJSON (withOverrides (mkSettings variant name base));
-    "${dir}/CLAUDE.md".text = nixManagedNote;
+    "${dir}/CLAUDE.md".text = mkContext variant;
   };
 
   pickerEntry = tag: name: desc: bin: {
@@ -1947,18 +2016,43 @@ in
           `nix develop dev#rust` is the Rust equivalent. Never use pip --user,
           --break-system-packages, or `uv sync` against that shared venv. Inside a project,
           use that project's own shell and lockfile instead.
+        '';
+        description = "First section of every variant's CLAUDE.md.";
+      };
 
+      workSplit = lib.mkOption {
+        type = lib.types.lines;
+        default = ''
           ~/divar holds work projects and their configuration; ~/personal holds personal projects,
           including this dotfiles flake. Keep the two apart: do not carry work code, credentials or
           context into personal repos, or the reverse.
+        '';
+        description = ''
+          CLAUDE.md section for non-personal variants on a machine with
+          custom.work.enable.
+        '';
+      };
 
-          `git push` is denied by permission rules in every variant. Commit locally when asked and
+      noPush = lib.mkOption {
+        type = lib.types.lines;
+        default = ''
+          `git push` is denied by permission rules in this variant. Commit locally when asked and
           leave pushing, and opening pull requests, to the user.
         '';
         description = ''
-          Always-present part of every variant's CLAUDE.md. The per-variant
-          extras (the local variant's MCP note) are appended after it.
+          CLAUDE.md section for every variant whose settings deny
+          `git push`, which is all of them except the personal variants
+          (personal-claude and personal-deepseek-claude).
         '';
+      };
+
+      local = lib.mkOption {
+        type = lib.types.lines;
+        default = ''
+          Use mcp__exa__web_search_exa for web searches and mcp__exa__web_fetch_exa for webpage
+          retrieval. The built-in WebSearch and WebFetch tools are unavailable with the local model.
+        '';
+        description = "CLAUDE.md section for the local variant only.";
       };
 
       sandbox = lib.mkOption {
@@ -2099,7 +2193,7 @@ in
       };
       description = ''
         Per-model, per-1M-token USD prices for the z.ai GLM endpoint (docs.z.ai
-        pricing), consumed by `usage-tracker` and its statusline week/month
+        pricing), consumed by `usage-tracker` and its statusline session/week/month
         cost. Keyed by the model id a turn's transcript records — glm-5.3 is
         the main model, glm-5.3-flash backs the Haiku/subagent slot (see
         glmClaude's ANTHROPIC_DEFAULT_HAIKU_MODEL). A turn's model is matched
@@ -2145,9 +2239,10 @@ in
       description = ''
         Per-model, per-1M-token USD prices for the DeepSeek platform
         (api-docs.deepseek.com pricing), consumed by `usage-tracker` and its
-        statusline week/month cost. Keyed by the model id a turn's transcript
-        records — deepseek-v4-pro backs the deepseek-claude/personal-deepseek-
-        claude Opus/Sonnet slots, deepseek-flash backs Haiku/subagent. The
+        statusline session/week/month cost. Keyed by the model id a turn's transcript
+        records — the deepseek-claude and personal-deepseek-claude variants
+        currently run deepseek-flash in every slot; deepseek-v4-pro stays
+        priced here for switching a slot back. The
         "peak" fields (input/output/cacheRead/cacheCreate) are the standard
         rate; the "Offpeak" fields are DeepSeek's discounted off-peak rate,
         applied by `deepseekPeakUtcHours`/`deepseekPeakWeekdays`. Override
@@ -2183,6 +2278,17 @@ in
         Day of month the statusline's DeepSeek "mo" window resets. DeepSeek is
         prepaid (no subscription cycle), so this just picks a display window
         — default the 1st (calendar month).
+      '';
+    };
+
+    deepseekBalanceUrl = lib.mkOption {
+      type = lib.types.str;
+      default = "https://api.deepseek.com/user/balance";
+      description = ''
+        DeepSeek endpoint returning the account's remaining credit, shown by
+        the statusline as "bal $X". The bearer token is the env var named by
+        DEEPSEEK_BALANCE_KEY_ENV (default ANTHROPIC_API_KEY, which the deepseek
+        variants already export). Set to "" to drop the segment.
       '';
     };
 
@@ -2344,7 +2450,10 @@ in
     })
     (lib.mkIf cfg.enableDeepseek {
       home = {
-        packages = [ deepseekClaude ];
+        packages = [
+          deepseekClaude
+          deepseekUsage
+        ];
         file = mkVariantHomeFile ".config/deepseek-claude" "work" "deepseek" deepseekSettings;
       };
     })
@@ -2435,11 +2544,17 @@ in
           );
     })
     (lib.mkIf (cfg.enablePersonal || cfg.enablePersonalDeepseek) {
-      home.file.${nixosMcpConfigRel}.text = builtins.toJSON nixosMcpServers;
+      home.file = {
+        ${nixosMcpConfigRel}.text = builtins.toJSON nixosMcpServers;
+        ${githubMcpConfigRel}.text = builtins.toJSON githubMcpServers;
+      };
     })
     (lib.mkIf cfg.enablePersonalDeepseek {
       home = {
-        packages = [ personalDeepseekClaude ];
+        packages = [
+          personalDeepseekClaude
+          deepseekUsage
+        ];
         file =
           mkVariantHomeFile ".config/personal-deepseek-claude" "personalDeepseek" "personalDeepseek"
             personalDeepseekSettings;
@@ -2452,9 +2567,7 @@ in
           ".config/local-claude/settings.json".text = builtins.toJSON (
             withOverrides (mkSettings "local" "local" localSettings)
           );
-          ".config/local-claude/CLAUDE.md".text =
-            nixManagedNote
-            + "Use mcp__exa__web_search_exa for web searches and mcp__exa__web_fetch_exa for webpage retrieval. The built-in WebSearch and WebFetch tools are unavailable with the local model.\n";
+          ".config/local-claude/CLAUDE.md".text = mkContext "local";
           ${localMcpConfigRel}.text = builtins.toJSON localMcpServers;
         };
       };

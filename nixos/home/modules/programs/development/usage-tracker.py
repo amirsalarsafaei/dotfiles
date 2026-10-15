@@ -7,12 +7,27 @@
 # up token usage per assistant turn (message.usage). Two modes:
 #   usage-tracker <prefix> report       -> all-time report (totals, by
 #                                           day/project/model)
-#   usage-tracker <prefix> statusline   -> compact "$X/wk $Y/mo" for the
-#                                           Claude Code statusline (week
-#                                           starts Saturday), cached + a
-#                                           non-blocking background refresh
-#                                           so the ~300ms statusline cadence
-#                                           never stalls on the transcript scan.
+#   usage-tracker <prefix> statusline   -> compact "sess $A wk $B mo $C"
+#                                           segments for the Claude Code
+#                                           statusline (week starts Saturday),
+#                                           cached + a non-blocking background
+#                                           refresh so the ~300ms statusline
+#                                           cadence never stalls on the
+#                                           transcript scan. With --stdin-json
+#                                           the live session's transcript is
+#                                           read from the statusline JSON, so
+#                                           "sess" is this session's cost priced
+#                                           by us instead of Claude Code's own
+#                                           (wrong for third-party models)
+#                                           cost.total_cost_usd. "sess"
+#                                           refreshes on its own short
+#                                           --session-ttl clock (default 30s)
+#                                           from just the live transcript,
+#                                           while wk/mo/bal keep the slower
+#                                           --ttl (default 300s). With
+#                                           <PREFIX>_BALANCE_URL set (DeepSeek's
+#                                           /user/balance), "bal" is the
+#                                           account's remaining credit.
 #
 # The transcripts are the source of truth — a provider's own stats-cache.json
 # (when it has one) tends to be stale, report costUSD: 0, and double-count (it
@@ -27,6 +42,10 @@
 # <PREFIX>_PEAK_WEEKDAYS ("0-4", Mon=0) pick peak vs. off-peak pricing from
 # the turn's UTC timestamp; otherwise the base fields apply to every hour.
 # The billing-month window start day comes from <PREFIX>_BILLING_DAY.
+# Optional <PREFIX>_BALANCE_URL names the provider's remaining-credit endpoint
+# (DeepSeek: https://api.deepseek.com/user/balance); the bearer token is read
+# from the env var named by <PREFIX>_BALANCE_KEY_ENV (default
+# ANTHROPIC_API_KEY). Unset url or token omits the segment.
 import argparse
 import calendar
 import json
@@ -34,6 +53,8 @@ import os
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -73,29 +94,37 @@ def parse_utc(ts):
         return None
 
 
-def iter_usage_records(projects_dir, min_mtime=None):
+def iter_usage_records(projects_dir, min_mtime=None, extra_files=()):
     """Yield one dict per assistant turn that carries token usage.
 
     min_mtime (epoch seconds) skips transcripts last modified before that
     moment — safe for recent-window sums since a transcript holding a record
     from day D must have been written on/after D. Keeps the statusline scan
-    O(recent) instead of O(all history).
+    O(recent) instead of O(all history). extra_files are scanned regardless of
+    mtime, so the live session's transcript is always read in full. Pass
+    projects_dir=None to visit only extra_files (the cheap session-only pass).
     """
-    if not projects_dir.is_dir():
-        return
+    files = []
+    if projects_dir is not None and projects_dir.is_dir():
+        for transcript in sorted(projects_dir.glob("*/*.jsonl")):
+            if min_mtime is not None:
+                try:
+                    if transcript.stat().st_mtime < min_mtime:
+                        continue
+                except OSError:
+                    continue
+            files.append(transcript)
+    for extra in extra_files:
+        path = Path(extra)
+        if path not in files and path.is_file():
+            files.append(path)
     # Dedup: some providers log each assistant response several times under
     # one requestId — identical usage, milliseconds apart (a streaming/commit
     # artifact, not separate billed API calls). Summing every copy inflates
     # totals, so count each requestId once. Fall back to message.id, then
     # uuid, when requestId is absent.
     seen = set()
-    for transcript in sorted(projects_dir.glob("*/*.jsonl")):
-        if min_mtime is not None:
-            try:
-                if transcript.stat().st_mtime < min_mtime:
-                    continue
-            except OSError:
-                continue
+    for transcript in files:
         project = transcript.parent.name
         try:
             with transcript.open("r", encoding="utf-8", errors="replace") as fh:
@@ -134,6 +163,7 @@ def iter_usage_records(projects_dir, min_mtime=None):
                         "model": msg.get("model", "unknown"),
                         "project": rec.get("cwd") or project,
                         "project_dir": project,
+                        "file": os.path.abspath(transcript),
                         "session": rec.get("sessionId") or rec.get("session_id"),
                         "input": inp,
                         "output": out,
@@ -279,6 +309,24 @@ def add_totals(acc, r, prices, peak_ranges, peak_weekdays):
     acc["turns"] += 1
     if prices is not None:
         acc["cost"] += record_cost(r, prices, peak_ranges, peak_weekdays)
+
+
+def totals_with_total(acc):
+    out = dict(acc)
+    out["total"] = out["input"] + out["output"] + out["cache_read"] + out["cache_create"]
+    return out
+
+
+def compute_session(transcript, prices, peak_ranges, peak_weekdays):
+    """Cost of one session, read from just its transcript.
+
+    Independent of the week/month scan, so the statusline can refresh it on a
+    much shorter interval without paying for the whole project history.
+    """
+    session = empty_totals()
+    for r in iter_usage_records(None, extra_files=[transcript]):
+        add_totals(session, r, prices, peak_ranges, peak_weekdays)
+    return totals_with_total(session)
 
 
 # ---------------------------------------------------------------------------
@@ -437,8 +485,62 @@ def current_boundaries(billing_day):
     return week_start.strftime("%Y-%m-%d"), month_start.strftime("%Y-%m-%d"), month_epoch
 
 
-def compute_window(projects_dir, billing_day, prices, peak_ranges, peak_weekdays):
-    """Token+cost sums for the current week and current billing month."""
+BALANCE_SYMBOLS = {"USD": "$", "CNY": "¥"}
+
+
+def get_balance_config(price_prefix):
+    """(url, token) for the provider's remaining-credit endpoint, or None.
+
+    Only providers that expose a documented API-key balance endpoint set
+    <PREFIX>_BALANCE_URL; the bearer token comes from the env var named by
+    <PREFIX>_BALANCE_KEY_ENV (default ANTHROPIC_API_KEY, which the Claude Code
+    wrappers already export). A missing url or token disables the segment.
+    """
+    url = os.environ.get(f"{price_prefix}_BALANCE_URL", "").strip()
+    if not url:
+        return None
+    key_env = os.environ.get(f"{price_prefix}_BALANCE_KEY_ENV", "ANTHROPIC_API_KEY")
+    return url, os.environ.get(key_env, "")
+
+
+def fetch_balance(url, token):
+    """Remaining credit from a DeepSeek-style /user/balance response."""
+    req = urllib.request.Request(
+        url,
+        headers={"Accept": "application/json", "Authorization": f"Bearer {token}"},
+    )
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        payload = json.loads(resp.read().decode("utf-8", "replace"))
+    infos = payload.get("balance_infos") or []
+    if not infos:
+        return None
+    info = next(
+        (i for i in infos if str(i.get("currency", "")).upper() == "USD"),
+        infos[0],
+    )
+    total = info.get("total_balance")
+    if total is None:
+        return None
+    currency = str(info.get("currency", "")).upper()
+    return {
+        "currency": currency,
+        "symbol": BALANCE_SYMBOLS.get(currency, currency + " "),
+        "total": f"{float(total):.2f}",
+        "available": bool(payload.get("is_available")),
+    }
+
+
+def compute_window(
+    projects_dir,
+    billing_day,
+    prices,
+    peak_ranges,
+    peak_weekdays,
+    transcript=None,
+    balance_cfg=None,
+    prev_balance=None,
+):
+    """Token+cost sums for the current week, billing month and live session."""
     week_start, month_start, month_epoch = current_boundaries(billing_day)
     week_epoch = datetime.strptime(week_start, "%Y-%m-%d").timestamp()
     # Scan transcripts modified since the EARLIER of the two window starts
@@ -448,7 +550,10 @@ def compute_window(projects_dir, billing_day, prices, peak_ranges, peak_weekdays
     min_mtime = min(week_epoch, month_epoch) - 86400
     week = empty_totals()
     month = empty_totals()
-    for r in iter_usage_records(projects_dir, min_mtime=min_mtime):
+    session = empty_totals()
+    session_file = os.path.abspath(transcript) if transcript else None
+    extra = [transcript] if transcript else []
+    for r in iter_usage_records(projects_dir, min_mtime=min_mtime, extra_files=extra):
         d = r["day"]
         # Week and month are independent windows: the billing month can start
         # AFTER the Saturday week-start, so neither is a subset of the other —
@@ -457,13 +562,34 @@ def compute_window(projects_dir, billing_day, prices, peak_ranges, peak_weekdays
             add_totals(week, r, prices, peak_ranges, peak_weekdays)
         if d and d >= month_start:
             add_totals(month, r, prices, peak_ranges, peak_weekdays)
-    return {
+        if session_file and r["file"] == session_file:
+            add_totals(session, r, prices, peak_ranges, peak_weekdays)
+    data = {
         "ts": time.time(),
         "week_start": week_start,
         "month_start": month_start,
         "week": dict(week),
         "month": dict(month),
     }
+    if transcript:
+        data["session"] = totals_with_total(session)
+        data["session_file"] = transcript
+        data["session_ts"] = time.time()
+    balance = None
+    if balance_cfg:
+        url, token = balance_cfg
+        if url and token:
+            try:
+                balance = fetch_balance(url, token)
+            except (urllib.error.URLError, ValueError, OSError, KeyError):
+                balance = None
+    # Keep the last good balance rather than blanking the segment on a
+    # transient network/API error.
+    if balance is None:
+        balance = prev_balance
+    if balance:
+        data["balance"] = balance
+    return data
 
 
 def read_cache(path):
@@ -481,13 +607,14 @@ def write_cache(path, data):
         pass
 
 
-def spawn_refresh(label, price_prefix):
+def spawn_refresh(label, price_prefix, mode, transcript=None):
     """Detach a background recompute so the statusline never blocks.
 
-    A lockfile prevents pile-up if the statusline fires several times while a
-    refresh is already running; the child removes it on completion.
+    mode is "--refresh" (week/month/session/balance) or "--refresh-session"
+    (session only, cheap). Each mode has its own lockfile so the two never
+    serialise on each other; the child removes it on completion.
     """
-    lock = cache_dir(label) / ".refresh.lock"
+    lock = cache_dir(label) / f".{mode.lstrip('-')}.lock"
     # Reclaim a lock abandoned by a refresh that crashed mid-scan.
     try:
         if time.time() - lock.stat().st_mtime > 60:
@@ -500,9 +627,12 @@ def spawn_refresh(label, price_prefix):
     except FileExistsError:
         return
     script = os.path.abspath(__file__)
+    argv = [sys.executable, script, price_prefix, "statusline", mode]
+    if transcript:
+        argv += ["--transcript", transcript]
     try:
         subprocess.Popen(
-            [sys.executable, script, price_prefix, "statusline", "--refresh"],
+            argv,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             stdin=subprocess.DEVNULL,
@@ -523,45 +653,127 @@ def fmt_window(totals, prices):
     return human(t)
 
 
-def render_statusline(args, projects_dir, label, price_prefix, prices, peak_ranges, peak_weekdays):
+def format_statusline(data, prices):
+    parts = []
+    if data.get("session"):
+        parts.append(f"sess {fmt_window(data['session'], prices)}")
+    parts.append(f"wk {fmt_window(data['week'], prices)}")
+    parts.append(f"mo {fmt_window(data['month'], prices)}")
+    if data.get("balance"):
+        parts.append(f"bal {data['balance']['symbol']}{data['balance']['total']}")
+    return " ".join(parts)
+
+
+def transcript_from_stdin():
+    """The live session's transcript path from Claude Code's statusline JSON."""
+    try:
+        payload = json.load(sys.stdin)
+    except (ValueError, OSError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return payload.get("transcript_path") or None
+
+
+def render_statusline(
+    args,
+    projects_dir,
+    label,
+    price_prefix,
+    prices,
+    peak_ranges,
+    peak_weekdays,
+    transcript,
+    balance_cfg,
+):
     path = cache_dir(label) / "statusline.json"
     billing_day = get_billing_day(price_prefix)
     week_start, month_start, _ = current_boundaries(billing_day)
 
-    if args.refresh:
-        lock = cache_dir(label) / ".refresh.lock"
+    def emit(data):
+        print(format_statusline(data, prices))
+
+    def release(mode):
+        # Best-effort release of the lock spawn_refresh() acquired; a manual
+        # `--refresh` (no lock) just no-ops here.
         try:
-            data = compute_window(projects_dir, billing_day, prices, peak_ranges, peak_weekdays)
+            os.unlink(cache_dir(label) / f".{mode.lstrip('-')}.lock")
+        except OSError:
+            pass
+
+    if args.refresh_session:
+        if transcript:
+            # Read-modify-write: keep the window/balance fields another child
+            # may have just written.
+            data = read_cache(path) or {}
+            data["session"] = compute_session(transcript, prices, peak_ranges, peak_weekdays)
+            data["session_file"] = transcript
+            data["session_ts"] = time.time()
             write_cache(path, data)
-            print(f"wk {fmt_window(data['week'], prices)} mo {fmt_window(data['month'], prices)}")
+            emit(data)
+        release("--refresh-session")
+        return
+
+    if args.refresh:
+        try:
+            prev = read_cache(path) or {}
+            data = compute_window(
+                projects_dir,
+                billing_day,
+                prices,
+                peak_ranges,
+                peak_weekdays,
+                transcript,
+                balance_cfg,
+                prev.get("balance"),
+            )
+            # A refresh with no transcript must not drop a session another
+            # refresh already computed.
+            for key in ("session", "session_file", "session_ts"):
+                if key not in data and key in prev:
+                    data[key] = prev[key]
+            write_cache(path, data)
+            emit(data)
         finally:
-            # Release the lock the parent acquired in spawn_refresh(). Best-effort:
-            # a manual `--refresh` (no lock) just no-ops here.
-            try:
-                os.unlink(lock)
-            except OSError:
-                pass
+            release("--refresh")
         return
 
     cache = read_cache(path)
-    fresh = (
-        cache is not None
-        and (time.time() - cache.get("ts", 0)) < args.ttl
-        and cache.get("week_start") == week_start
-        and cache.get("month_start") == month_start
+    now = time.time()
+    windows_stale = (
+        cache is None
+        or (now - cache.get("ts", 0)) >= args.ttl
+        or cache.get("week_start") != week_start
+        or cache.get("month_start") != month_start
     )
-    if cache and fresh:
-        print(f"wk {fmt_window(cache['week'], prices)} mo {fmt_window(cache['month'], prices)}")
+    # The session moves every turn, so it refreshes on its own shorter clock
+    # (--session-ttl) from just the live transcript. A cache holding a different
+    # session's transcript is stale regardless of age.
+    session_stale = bool(transcript) and (
+        cache is None
+        or cache.get("session_file") != transcript
+        or (now - cache.get("session_ts", 0)) >= args.session_ttl
+    )
+    if cache is None:
+        # First ever run: compute once synchronously.
+        data = compute_window(
+            projects_dir,
+            billing_day,
+            prices,
+            peak_ranges,
+            peak_weekdays,
+            transcript,
+            balance_cfg,
+        )
+        write_cache(path, data)
+        emit(data)
         return
-    if cache:
-        # Stale but present: show it now, refresh in the background.
-        print(f"wk {fmt_window(cache['week'], prices)} mo {fmt_window(cache['month'], prices)}")
-        spawn_refresh(label, price_prefix)
-        return
-    # No cache yet: compute once synchronously (first ever run).
-    data = compute_window(projects_dir, billing_day, prices, peak_ranges, peak_weekdays)
-    write_cache(path, data)
-    print(f"wk {fmt_window(data['week'], prices)} mo {fmt_window(data['month'], prices)}")
+    # Show what we have now; refresh behind the statusline.
+    emit(cache)
+    if windows_stale:
+        spawn_refresh(label, price_prefix, "--refresh", transcript)
+    elif session_stale:
+        spawn_refresh(label, price_prefix, "--refresh-session", transcript)
 
 
 def main():
@@ -587,7 +799,20 @@ def main():
     ap.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     # statusline options
     ap.add_argument("--refresh", action="store_true", help="statusline: force a synchronous recompute")
+    ap.add_argument(
+        "--refresh-session",
+        action="store_true",
+        help="statusline: recompute only the session cost (cheap, live transcript only)",
+    )
     ap.add_argument("--ttl", type=int, default=300, help="statusline cache TTL seconds (default 300)")
+    ap.add_argument(
+        "--session-ttl",
+        type=int,
+        default=30,
+        help="statusline session-cost TTL seconds (default 30)",
+    )
+    ap.add_argument("--transcript", help="statusline: path to the live session transcript (session cost)")
+    ap.add_argument("--stdin-json", action="store_true", help="statusline: read the Claude Code statusline JSON on stdin")
     args = ap.parse_args()
 
     label = args.label or args.price_prefix.lower()
@@ -607,7 +832,20 @@ def main():
 
     try:
         if args.command == "statusline":
-            render_statusline(args, projects_dir, label, args.price_prefix, prices, peak_ranges, peak_weekdays)
+            transcript = args.transcript
+            if not transcript and args.stdin_json:
+                transcript = transcript_from_stdin()
+            render_statusline(
+                args,
+                projects_dir,
+                label,
+                args.price_prefix,
+                prices,
+                peak_ranges,
+                peak_weekdays,
+                transcript,
+                get_balance_config(args.price_prefix),
+            )
         else:
             records = list(iter_usage_records(projects_dir))
             render_report(args, records, label, prices, peak_ranges, peak_weekdays)

@@ -225,6 +225,15 @@ not build on the pinned Hyprland):
   `hyprctl eval` and moves each workspace back to its owning monitor. When a monitor goes
   away, Hyprland moves its workspaces to the remaining screen (reachable with
   Super+Ctrl+N/P); they go back when the monitor returns.
+- **Modes:** the only startup rule is a wildcard `highrr`, so every monitor
+  comes up at its highest refresh rate rather than its EDID preferred one. A
+  host pins one output with `hyprland.monitorConfig`
+  (`output,mode,position,scale`), emitted as a second rule for that output
+  only; Hyprland merges rules per output, so a second wildcard rule would
+  silently override the first. The display menu adopts the pinned mode for
+  that output instead of `highrr`, so arranging displays does not undo the
+  pin. g14 pins its external `DP-9` to `3440x1440@120` because 144 Hz makes
+  the driver subsample chroma on that link and the panel goes gray.
 - Super+Alt+←/→ and Super+Ctrl+←/→ still move or swap whole workspaces across
   monitors; the next `home` run (replug or reload) puts them back.
 

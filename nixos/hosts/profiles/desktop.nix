@@ -51,8 +51,12 @@ in
     hyprland = {
       monitorConfig = lib.mkOption {
         type = lib.types.str;
-        default = ",preferred,auto,auto";
-        description = "Hyprland monitor configuration string";
+        default = "";
+        description = ''
+          Hyprland monitor rule as `output,mode,position,scale`. Empty leaves every
+          monitor at its highest refresh rate (`highrr`); set it to pin one output,
+          usually the laptop panel, to an exact mode and scale.
+        '';
       };
 
       opaqueWindows = lib.mkOption {
