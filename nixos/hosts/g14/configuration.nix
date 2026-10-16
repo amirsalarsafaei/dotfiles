@@ -321,5 +321,44 @@ in
     SUBSYSTEM=="power_supply", KERNEL=="ACAD", ACTION=="change", RUN+="${lib.getExe' pkgs.systemd "systemctl"} --machine=amirsalar@ --user start oled-power-sync.service"
   '';
 
+  users.users.fateme = {
+    isNormalUser = true;
+    extraGroups = [
+      "audio"
+      "dialout"
+      "docker"
+      "input"
+      "kvm"
+      "networkmanager"
+      "render"
+      "video"
+      "wheel"
+    ];
+    packages = [ pkgs.sysbench ];
+    shell = pkgs.bashInteractive;
+    openssh.authorizedKeys.keys = [
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEDDDJDhs24hJ1RncORDRDI8c6rNti0MndVDJnrzyk1h"
+    ];
+  };
+
+  services.openssh = {
+    enable = true;
+    openFirewall = true;
+    settings = {
+      PubkeyAuthentication = true;
+      PasswordAuthentication = false;
+      KbdInteractiveAuthentication = false;
+      PermitEmptyPasswords = false;
+      PermitRootLogin = "no";
+      AllowUsers = [ "fateme" ];
+      MaxAuthTries = 3;
+      LoginGraceTime = 20;
+      X11Forwarding = false;
+      AllowAgentForwarding = false;
+      ClientAliveInterval = 300;
+      ClientAliveCountMax = 2;
+    };
+  };
+
   system.stateVersion = "25.05";
 }
