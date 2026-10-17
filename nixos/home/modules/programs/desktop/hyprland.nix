@@ -29,7 +29,7 @@ let
     if lib.trim monitorConfig == "" then
       {
         output = "";
-        mode = "highrr";
+        mode = "preferred";
         position = "auto";
         scale = "auto";
       }
@@ -44,10 +44,11 @@ let
       };
 
   monitorRules = lib.concatStringsSep "\n      " (
-    lib.optional (monitorRule.output != "")
-      ''hl.monitor({ output = "", mode = "highrr", position = "auto", scale = "auto" })''
+    lib.optional (
+      monitorRule.output != ""
+    ) ''hl.monitor({ output = "", mode = "preferred", position = "auto", scale = "auto" })''
     ++ [
-      ''hl.monitor({ output = ${luaString monitorRule.output}, mode = ${luaString monitorRule.mode}, position = ${luaString monitorRule.position}, scale = ${luaString monitorRule.scale} })''
+      "hl.monitor({ output = ${luaString monitorRule.output}, mode = ${luaString monitorRule.mode}, position = ${luaString monitorRule.position}, scale = ${luaString monitorRule.scale} })"
     ]
   );
 
@@ -84,13 +85,24 @@ let
 
       restore_panel() {
         hyprctl monitors all -j \
-          | jq -r '.[] | select(.name | startswith("eDP")) | .name' \
-          | while read -r panel; do
-              if [ "$panel" = ${lib.escapeShellArg monitorRule.output} ]; then
-                hypr-monitor on "$panel" ${lib.escapeShellArg monitorRule.mode} ${lib.escapeShellArg monitorRule.position} ${lib.escapeShellArg monitorRule.scale} ""
-              else
-                hypr-monitor on "$panel" preferred auto auto ""
-              fi
+          | jq -r \
+            --arg pin ${lib.escapeShellArg monitorRule.output} \
+            --arg mode ${lib.escapeShellArg monitorRule.mode} \
+            --arg position ${lib.escapeShellArg monitorRule.position} \
+            --arg scale ${lib.escapeShellArg monitorRule.scale} '
+            def pinned($p):
+              if ($p | startswith("desc:"))
+              then ((.description // "") | ascii_downcase | contains($p[5:] | ascii_downcase))
+              else .name == $p
+              end;
+            .[] | select(.name | startswith("eDP"))
+            | if pinned($pin)
+              then "\(.name) \($mode) \($position) \($scale)"
+              else "\(.name) preferred auto auto"
+              end
+          ' \
+          | while read -r panel mode position scale; do
+              hypr-monitor on "$panel" "$mode" "$position" "$scale" ""
             done
       }
 
@@ -221,11 +233,18 @@ let
       mapfile -t externals < <(jq -r '.[] | select(.name | startswith("eDP") | not) | .name' <<< "$monitors")
 
       external_mode() {
-        if [ "$1" = ${lib.escapeShellArg monitorRule.output} ]; then
-          printf '%s' ${lib.escapeShellArg monitorRule.mode}
-        else
-          printf '%s' highrr
-        fi
+        jq -r \
+          --arg name "$1" \
+          --arg pin ${lib.escapeShellArg monitorRule.output} \
+          --arg mode ${lib.escapeShellArg monitorRule.mode} '
+          def pinned($p):
+            if ($p | startswith("desc:"))
+            then ((.description // "") | ascii_downcase | contains($p[5:] | ascii_downcase))
+            else .name == $p
+            end;
+          first(.[] | select(.name == $name) | if pinned($pin) then $mode else "preferred" end)
+          // "preferred"
+        ' <<< "$monitors"
       }
 
       if [ "''${#externals[@]}" -eq 0 ]; then
@@ -263,7 +282,7 @@ let
           ;;
         "Mirror laptop")
           display-lid open
-          hypr-monitor on "$external" highrr auto auto "$panel"
+          hypr-monitor on "$external" preferred auto auto "$panel"
           ;;
         "External only")
           hypr-monitor on "$external" "$(external_mode "$external")" auto auto ""

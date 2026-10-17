@@ -25,6 +25,8 @@ in
     batteryPowerProfile = "power-saver";
   };
 
+  hyprland.monitorConfig = "desc:LG Electronics LG Ultra HD,2560x1440@60,auto,auto";
+
   hyprland.xwaylandDpi = 144;
 
   hyprland.compactOutput = "eDP-1";

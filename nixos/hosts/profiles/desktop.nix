@@ -54,8 +54,11 @@ in
         default = "";
         description = ''
           Hyprland monitor rule as `output,mode,position,scale`. Empty leaves every
-          monitor at its highest refresh rate (`highrr`); set it to pin one output,
-          usually the laptop panel, to an exact mode and scale.
+          monitor at its EDID preferred mode (`preferred`); set it to pin one
+          output, usually the laptop panel, to an exact mode and scale. `output`
+          is a port name (`DP-9`) or a `desc:` substring (`desc:LG Electronics
+          LG Ultra HD`) matched against the monitor description, so the pin
+          follows the physical display instead of the port it is plugged into.
         '';
       };
 

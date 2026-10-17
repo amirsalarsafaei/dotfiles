@@ -225,15 +225,22 @@ not build on the pinned Hyprland):
   `hyprctl eval` and moves each workspace back to its owning monitor. When a monitor goes
   away, Hyprland moves its workspaces to the remaining screen (reachable with
   Super+Ctrl+N/P); they go back when the monitor returns.
-- **Modes:** the only startup rule is a wildcard `highrr`, so every monitor
-  comes up at its highest refresh rate rather than its EDID preferred one. A
-  host pins one output with `hyprland.monitorConfig`
+- **Modes:** the only startup rule is a wildcard `preferred`, so every monitor
+  comes up at its EDID preferred mode rather than whatever mode offers the
+  highest refresh rate (which can be a low one like 800x600). A host pins one
+  output with `hyprland.monitorConfig`
   (`output,mode,position,scale`), emitted as a second rule for that output
   only; Hyprland merges rules per output, so a second wildcard rule would
-  silently override the first. The display menu adopts the pinned mode for
-  that output instead of `highrr`, so arranging displays does not undo the
-  pin. g14 pins its external `DP-9` to `3440x1440@120` because 144 Hz makes
-  the driver subsample chroma on that link and the panel goes gray.
+  silently override the first. `output` may be a port name or a `desc:`
+  substring matched (case-insensitively, same as Hyprland) against the
+  monitor's description, so the pin targets the physical display rather than
+  the port it happens to be plugged into; `display-lid` and `display-menu`
+  resolve `desc:` pins the same way, so arranging displays does not undo the
+  pin. g14 pins its external Xiaomi `DP-9` to `3440x1440@120` because that
+  panel's EDID preferred mode is 50 Hz and 144 Hz makes the driver subsample
+  chroma on that link and the panel goes gray. t14 pins
+  `desc:LG Electronics LG Ultra HD` to `2560x1440@60` because that panel's
+  EDID preferred mode is 4K@30 and the link cannot carry 4K@60.
 - Super+Alt+←/→ and Super+Ctrl+←/→ still move or swap whole workspaces across
   monitors; the next `home` run (replug or reload) puts them back.
 
