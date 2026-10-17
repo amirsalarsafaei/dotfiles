@@ -1,3 +1,4 @@
+import colorsys
 import json
 import math
 import os
@@ -20,6 +21,18 @@ LEDS = (
     (117, 13, 5), (125, 14, 5),
 )
 
+CENTERS = (
+    (0.5, 1.75, 2.75, 3.75, 4.75, 6.0, 7.0, 8.0, 9.0, 10.25, 11.25, 12.25, 13.25),
+    (0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5, 14.0, 15.5),
+    (0.75, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.25, 15.5),
+    (0.875, 2.25, 3.25, 4.25, 5.25, 6.25, 7.25, 8.25, 9.25, 10.25, 11.25, 12.25, 13.875, 13.875, 15.5),
+    (1.125, 1.75, 2.75, 3.75, 4.75, 5.75, 6.75, 7.75, 8.75, 9.75, 10.75, 11.75, 13.125, 14.5, 15.5),
+    (0.625, 1.875, 3.125, 3.75, 5.0, 6.875, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5, 13.5, 14.5, 15.5),
+)
+COLUMNS = 16
+ROWS = 6
+WHITE = (1.0, 1.0, 1.0)
+
 
 def mix(a, b, f):
     return tuple(x + (y - x) * f for x, y in zip(a, b))
@@ -35,6 +48,27 @@ def hex_rgb(value, default):
         return tuple(int(value[i:i + 2], 16) / 255 for i in (0, 2, 4))
     except ValueError:
         return default
+
+
+def vivid(color, fallback):
+    if color is None:
+        return fallback
+    hue, saturation, value = colorsys.rgb_to_hsv(*color)
+    if saturation < 0.15 or value < 0.1:
+        return fallback
+    return colorsys.hsv_to_rgb(hue, 1.0, 1.0)
+
+
+def ramp(lo, hi, f):
+    start = colorsys.rgb_to_hsv(*lo)[0]
+    turn = (colorsys.rgb_to_hsv(*hi)[0] - start + 0.5) % 1 - 0.5
+    return colorsys.hsv_to_rgb((start + turn * f) % 1, 1.0, 1.0)
+
+
+def sample(values, position):
+    position = max(0.0, min(len(values) - 1.0, position - 0.5))
+    i = min(len(values) - 2, int(position))
+    return values[i] + (values[i + 1] - values[i]) * (position - i)
 
 
 class Lights:
@@ -56,6 +90,43 @@ class Lights:
         self.refreshed = 0.0
         self.last = 0.0
         self.start = time.monotonic()
+        self.envelope = [0.15] * COLUMNS
+        self.level = [0.0] * COLUMNS
+        self.peak = [0.0] * COLUMNS
+        self.held = [0.0] * COLUMNS
+        self.bass = 0.0
+        self.kick = 0.0
+        self.kicked = 0.0
+
+    def _spectrum(self, bars, now, dt):
+        fade = math.exp(-dt / 4)
+        for i, value in enumerate(bars):
+            self.envelope[i] = max(value, self.envelope[i] * fade, 0.15)
+            target = max(0.0, min(1.0, (value / self.envelope[i] / 1.05 - 0.4) / 0.6))
+            self.level[i] = max(target, self.level[i] - dt * 2.5)
+            if self.level[i] >= self.peak[i]:
+                self.peak[i] = self.level[i]
+                self.held[i] = now + 0.15
+            elif now > self.held[i]:
+                self.peak[i] = max(self.level[i], self.peak[i] - dt * 1.8)
+        bass = sum(bars[:3]) / 3
+        if bass > 0.3 and bass > self.bass + 0.12 and now - self.kicked > 0.18:
+            self.kick = 1.0
+            self.kicked = now
+        else:
+            self.kick *= math.exp(-dt * 7)
+        self.bass += (bass - self.bass) * min(1.0, dt * 4)
+
+    def _bar(self, x, y, shades, floor):
+        position = CENTERS[y][x]
+        rise = ROWS - 1 - y
+        height = sample(self.level, position) * ROWS
+        fill = max(0.0, min(1.0, height - rise))
+        color = tuple(max(c * fill * fill, f) for c, f in zip(shades[rise], floor))
+        top = sample(self.peak, position) * ROWS
+        if top > max(1.0, height + 0.3) and rise == min(ROWS - 1, int(top)):
+            color = mix(shades[rise], WHITE, 0.55)
+        return color
 
     def frame(self, now, m, context, audio, events):
         t = now - self.start
@@ -70,9 +141,16 @@ class Lights:
             comet[1] += comet[2] * dt
         self.comets = [c for c in self.comets if c[1] < 18][-8:]
         music = context.music
-        bars = audio.bars(15) if audio and music and music["playing"] else None
+        bars = audio.bars(COLUMNS) if audio and music and music["playing"] else None
         lo, hi = context.mood if music and context.mood else (self.blue, self.cyan)
-        spark = mix(hi, (1.0, 1.0, 1.0), 0.35)
+        gain = self.brightness
+        if bars is not None:
+            self._spectrum(bars, now, dt)
+            lo, hi = vivid(lo, vivid(self.blue, self.blue)), vivid(hi, vivid(self.cyan, self.cyan))
+            shades = [ramp(lo, hi, rise / (ROWS - 1)) for rise in range(ROWS)]
+            floor = scale(lo, 0.015 + 0.1 * self.kick)
+            gain = 1.0
+        spark = mix(hi, WHITE, 0.35)
         warmth = max(0.0, min(1.0, (temp - 80) / 15))
         alert = None
         if any(a["status"] == "error" for a in context.agents):
@@ -81,20 +159,16 @@ class Lights:
             alert = self.warm
         colors = {}
         for led, x, y in LEDS:
-            wave = 0.5 + 0.5 * math.sin(x * 0.45 + y * 0.7 - t * 1.3)
-            color = mix(scale(lo, 0.4), scale(hi, 0.9), wave)
-            if warmth:
-                color = mix(color, mix(self.heat, self.warm, wave * 0.5), warmth * (0.45 + 0.1 * y))
-            if bars is not None:
-                height = bars[min(14, x)] * 6.5
-                rise = 5 - y
-                color = scale(lo, 0.1)
-                if rise < height:
-                    lit = mix(lo, hi, rise / 5)
-                    color = mix(lit, (1.0, 1.0, 1.0), 0.25) if rise >= height - 1 else scale(lit, 0.75)
-            for row, head, _ in self.comets:
-                if row == y and 0 <= head - x < 3:
-                    color = mix(color, spark, (1 - (head - x) / 3) ** 2)
+            if bars is None:
+                wave = 0.5 + 0.5 * math.sin(x * 0.45 + y * 0.7 - t * 1.3)
+                color = mix(scale(lo, 0.4), scale(hi, 0.9), wave)
+                if warmth:
+                    color = mix(color, mix(self.heat, self.warm, wave * 0.5), warmth * (0.45 + 0.1 * y))
+                for row, head, _ in self.comets:
+                    if row == y and 0 <= head - x < 3:
+                        color = mix(color, spark, (1 - (head - x) / 3) ** 2)
+            else:
+                color = self._bar(x, y, shades, floor)
             for rx, ry, stamp in self.ripples:
                 age = now - stamp
                 dist = math.hypot(x - rx, (y - ry) * 1.15)
@@ -105,7 +179,7 @@ class Lights:
                     color = mix(color, spark, min(1.0, strength))
             if alert and (x, y) == (0, 0):
                 color = mix(color, alert, 0.45 + 0.55 * (0.5 + 0.5 * math.sin(t * 6)))
-            colors[led] = tuple(max(0, min(255, round(c * 255 * self.brightness))) for c in color)
+            colors[led] = tuple(max(0, min(255, round(c * 255 * gain))) for c in color)
         return colors
 
     def dark(self):

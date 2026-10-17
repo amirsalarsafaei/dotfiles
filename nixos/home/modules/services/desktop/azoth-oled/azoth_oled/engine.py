@@ -15,6 +15,7 @@ from .system import Control, boottime, log, runtime_dir, serve_control, watch_sl
 GAP = 0.1
 QUIET = 0.06
 LIGHTS_HZ = 20
+FINAL_SPACING = 0.01
 STATS_EVERY = 600
 RESET_EVERY = 60
 WATCHDOG = 30
@@ -231,11 +232,11 @@ class Engine:
         self.control.dark.set()
         self.control.nap(5)
 
-    def _light_step(self):
+    def _light_step(self, left=None):
         if self.lights is None or self.link is None:
             return
         now = time.monotonic()
-        if now - self.lit_at < 1 / LIGHTS_HZ:
+        if now - self.lit_at < (FINAL_SPACING if left == 0 else 1 / LIGHTS_HZ):
             return
         self.lit_at = now
         events = self.keys.take() if self.keys else []

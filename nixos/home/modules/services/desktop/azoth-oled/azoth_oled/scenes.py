@@ -98,24 +98,9 @@ class Painter:
                           fill=None if fill is None else level(fill),
                           outline=None if outline is None else level(outline))
 
-    def part(self, x, y, w, h, front=3, top=4, rim=9):
-        self.rect(x + 2, y + 2, x + w + 1, y + h + front + 1, 1)
-        self.rect(x, y, x + w - 1, y + h - 1, top)
-        self.rect(x, y + h, x + w - 1, y + h + front - 1, 2)
-        self.rect(x, y, x + w - 1, y, top + 3)
-        self.rect(x + w - 1, y, x + w - 1, y + h - 1, rim)
-        self.dot(x + 2, y + 2, 13)
-        self.dot(x + 3, y + 2, 9)
-        self.dot(x + 2, y + 3, 9)
-
-    def glass(self, x, y, w, h):
-        self.rect(x, y, x + w - 1, y + h - 1, 0)
-        self.rect(x, y + h - 1, x + w - 1, y + h - 1, 3)
-        self.rect(x + w - 1, y, x + w - 1, y + h - 1, 2)
-
-    def via(self, x, y):
-        self.rect(x - 1, y - 1, x + 1, y + 1, 5)
-        self.dot(x, y, 0)
+    def box(self, x0, y0, x1, y1, shade):
+        if x1 >= x0 and y1 >= y0:
+            self.draw.rectangle((x0, y0, x1, y1), outline=level(shade))
 
     def digit(self, x, y, w, h, t, char, on, off=None):
         mid = y + (h - t) // 2
@@ -166,158 +151,95 @@ class Painter:
 
 
 class Board:
+    HISTORY = 96
+    TOP = 11
+    BASE = 62
+    RIGHT = 146
+    EDGE = 205
+
     def __init__(self, topology):
         self.topology = topology
-        self.fan = 0.0
-        self.comet = 0.0
-        self.pulses = [[], []]
-        self.credit = [0.0, 0.0]
-        self.random = random.Random(7)
-        self.ray = None
+        self.history = []
+        self.seen = None
 
     def step(self, m):
-        if m["gpu"] >= 0.08:
-            self.fan += math.radians(8 + 14 * min(1.0, m["gpu"] * 1.6))
-            self.comet += 0.4 + 0.5 * m["gpu"]
-        rates = [m["cpu"] * 2.5, min(2.5, math.log10(1 + (m["net"] + m["disk"]) / 4096))]
-        for lane in range(2):
-            self.credit[lane] += rates[lane]
-            while self.credit[lane] >= 1:
-                self.credit[lane] -= 1
-                self.pulses[lane].append(float(self.random.randint(-14, 0)))
-            speed = 10 + 6 * min(1.0, rates[lane] / 2.5)
-            self.pulses[lane] = [x + speed for x in self.pulses[lane] if x + speed < W + 6][-6:]
-        if self.ray is None and self.random.random() < 0.01:
-            self.ray = [self.random.randrange(4), self.random.randrange(12), 0]
-        elif self.ray is not None:
-            self.ray[2] += 1
-            if self.ray[2] > 6:
-                self.ray = None
+        if m is not self.seen:
+            self.seen = m
+            self.history = (self.history + [m["cpu"]])[-self.HISTORY:]
 
     def render(self, p, m, frame):
-        for x in range(4, W, 8):
-            for y in range(4, 58, 8):
-                p.dot(x, y, 1)
-        for points in (((58, 14), (62, 14)), ((58, 44), (60, 44), (62, 42), (70, 42)),
-                       ((112, 18), (118, 18)), ((148, 30), (152, 30))):
-            p.line(points, 2)
-        p.via(70, 42)
-        self._socket(p, m)
-        self._qcode(p, m, frame)
-        self._vrm(p, m, frame)
-        self._dimms(p, m)
-        self._fan(p, m)
-        for lane, y in enumerate((60, 62)):
-            p.line([(0, y), (W - 1, y)], 2)
-            for head in self.pulses[lane]:
-                for i, shade in enumerate((15, 11, 7, 4)):
-                    p.dot(int(head) - i, y, shade)
+        p.text(0, 0, "cpu", 6)
+        p.text(p.width("cpu") + 4, 0, f"{round(100 * m['cpu'])}%", 15)
+        self._history(p)
+        self._die(p, m, self.HISTORY + 4, 42)
+        p.rect(0, self.BASE, self.HISTORY - 1, self.BASE, 2)
+        self._temp(p, m, frame)
+        self._meter(p, 30, "gpu", m["gpu"])
+        self._meter(p, 47, "ram", m["mem"])
 
-    def _socket(self, p, m):
-        x, y, w, h = 2, 2, 56, 50
-        heat = max(0.0, min(1.0, (m["temp"] - 45) / 45))
-        if m["temp"] >= 70:
-            p.rect(x - 2, y - 2, x + w + 1, y + h + 4, 3 if m["temp"] < 85 else 5)
-            p.rect(x - 1, y - 1, x + w, y + h + 3, 0)
-        p.part(x, y, w, h, rim=6 + 9 * heat)
-        p.glass(x + 4, y + 4, w - 8, h - 8)
-        bars = []
-        for group in self.topology.groups:
-            bars.append(("gap", 2))
-            for i, core in enumerate(group["cores"]):
-                if i:
-                    bars.append(("gap", 1))
-                bars.append(("core", core))
-        bars = [("igpu", None)] + bars
-        weights = sum(2 if kind == "igpu" else (2 if item["kind"] == "p" else 1) for kind, item in bars if kind != "gap")
-        gaps = sum(n for kind, n in bars if kind == "gap")
-        inner = w - 12
-        unit = max(1, (inner - gaps) // max(1, weights))
-        total = gaps + unit * weights
-        bx = x + 6 + (inner - total) // 2
-        top, bottom = y + 7, y + h - 7
-        span = bottom - top
-        for kind, item in bars:
-            if kind == "gap":
-                bx += item
-                continue
-            if kind == "igpu":
-                bw, load, lit, hatch = unit * 2, m["gpu"], 9, True
-            else:
-                bw = unit * (2 if item["kind"] == "p" else 1)
-                load = max((m["threads"].get(c, 0.0) for c in item["cpus"]), default=0.0)
-                lit, hatch = (15 if item["kind"] == "p" else 11), False
-            p.rect(bx, top, bx + bw - 1, bottom, 1)
-            fill = round(span * load)
-            if fill:
-                shade = 15 if load > 0.85 else lit
-                p.rect(bx, bottom - fill + 1, bx + bw - 1, bottom, shade - 4)
-                p.rect(bx, bottom - fill + 1, bx + bw - 1, bottom - fill + 1, shade)
-            if hatch:
-                for yy in range(top + 2, bottom, 3):
-                    p.rect(bx, yy, bx + bw - 1, yy, 0)
-            bx += bw
+    def _history(self, p):
+        span = self.BASE - self.TOP
+        for gx in range(0, self.HISTORY, 4):
+            p.dot(gx, self.TOP + span // 2, 2)
+        previous = None
+        for i, load in enumerate(self.history):
+            hx = self.HISTORY - len(self.history) + i
+            top = self.BASE - round(span * load)
+            if top < self.BASE:
+                p.rect(hx, top + 1, hx, self.BASE - 1, 2)
+            reach = top if previous is None else previous
+            p.rect(hx, min(top, reach), hx, max(top, reach), 10)
+            previous = top
 
-    def _qcode(self, p, m, frame):
-        x, y, w, h = 64, 2, 46, 30
-        p.part(x, y, w, h, front=2)
-        p.glass(x + 3, y + 3, w - 6, h - 6)
+    @staticmethod
+    def _cells(x, y, w, h, cols, rows, gap):
+        return [(x + c * (w + gap) // cols, y + r * (h + gap) // rows,
+                 x + (c + 1) * (w + gap) // cols - gap - 1, y + (r + 1) * (h + gap) // rows - gap - 1)
+                for r in range(rows) for c in range(cols)]
+
+    def _die(self, p, m, x, w):
+        y, h = self.TOP, self.BASE - self.TOP
+        groups = self.topology.groups
+        big = [core for group in groups if group["kind"] == "p" for core in group["cores"]]
+        clusters = [group["cores"] for group in groups if group["kind"] != "p"]
+        split = (h - 4) // 2 if big and clusters else h
+        tiles = []
+        if big:
+            cols = min(len(big), 4)
+            tiles += zip(self._cells(x, y, w, split, cols, math.ceil(len(big) / cols), 4), big)
+        if clusters:
+            top = y + split + 4 if big else y
+            for box, cores in zip(self._cells(x, top, w, y + h - top, len(clusters), 1, 4), clusters):
+                x0, y0, x1, y1 = box
+                tiles += zip(self._cells(x0, y0, x1 - x0 + 1, y1 - y0 + 1, 2, math.ceil(len(cores) / 2), 1), cores)
+        for (x0, y0, x1, y1), core in tiles:
+            threads = core["cpus"]
+            for (tx0, ty0, tx1, ty1), cpu in zip(self._cells(x0, y0, x1 - x0 + 1, y1 - y0 + 1, len(threads), 1, 1), threads):
+                load = m["threads"].get(cpu, 0.0)
+                p.rect(tx0, ty0, tx1, ty1, 1)
+                fill = round((ty1 - ty0 + 1) * load)
+                if fill:
+                    p.rect(tx0, ty1 - fill + 1, tx1, ty1, 14 if load > 0.85 else 5 + round(7 * load))
+                    p.rect(tx0, ty1 - fill + 1, tx1, ty1 - fill + 1, 15)
+
+    def _temp(self, p, m, frame):
         temp = int(round(m["temp"]))
+        p.text(self.RIGHT, 0, "temp", 15 if temp >= 85 else 6)
         text = f"{min(99, temp):02d}" if temp > 0 else "--"
         on = 15 if temp < 90 or frame % 2 == 0 else 6
         for i, char in enumerate(text):
-            p.digit(x + 6 + i * 17, y + 5, 14, 20, 3, char, on, 1)
-        p.rect(x + 39, y + 5, x + 40, y + 6, 9)
+            p.digit(self.EDGE - 35 + i * 18, 0, 14, 24, 3, char, on, 1)
+        p.box(self.EDGE - 2, 0, self.EDGE, 2, 9)
 
-    def _vrm(self, p, m, frame):
-        lit = round(8 * m["cpu"])
-        for i in range(8):
-            cx = 64 + i * 6
-            p.rect(cx, 40, cx + 3, 41, 15 if i < lit else 2)
-        for i in range(4):
-            cx = 64 + i * 12
-            p.part(cx, 45, 9, 7, front=2, top=5, rim=8)
-            p.rect(cx + 2, 47, cx + 6, 49, 3)
-
-    def _dimms(self, p, m):
-        segments = 12
-        lit = round(segments * m["mem"])
-        for i in range(4):
-            x = 118 + i * 8
-            y = 2
-            p.part(x, y, 6, 51, front=2, top=3, rim=6)
-            for s in range(segments):
-                sy = y + 49 - 4 * (s + 1)
-                hit = self.ray and self.ray[0] == i and abs(self.ray[1] - s) <= self.ray[2] // 2
-                if s < lit or hit:
-                    bright = 15 if hit else 8 + 5 * (s + 1) / max(1, lit)
-                    p.rect(x + 1, sy, x + 4, sy + 2, bright)
-                    p.rect(x + 1, sy + 2, x + 4, sy + 2, bright - 4)
-                    if s == lit - 1:
-                        p.rect(x + 1, sy, x + 4, sy, 15)
-                else:
-                    p.rect(x + 1, sy, x + 4, sy + 2, 1)
-
-    def _fan(self, p, m):
-        x, y, w, h = 152, 2, 54, 51
-        gpu = m["gpu"]
-        p.part(x, y, w, h, front=3, top=4, rim=10)
-        cx, cy, r = x + 27, y + 26, 23
-        p.circle(cx, cy, r + 1, fill=0, outline=4 + 8 * gpu)
-        if gpu >= 0.08:
-            for i in range(7):
-                angle = self.comet - i * 0.1
-                p.dot(round(cx + (r + 1) * math.cos(angle)), round(cy + (r + 1) * math.sin(angle)), 15 - i * 2)
-        spinning = gpu >= 0.08
-        for b in range(9):
-            a = self.fan + b * 2 * math.pi / 9
-            pts = [(cx + radius * math.cos(a + off), cy + radius * math.sin(a + off))
-                   for radius, off in ((6, 0.0), (r - 2, 0.45), (r - 2, 0.78), (6, 0.42))]
-            p.draw.polygon(pts, fill=level(6 if spinning else 4))
-            p.line([(cx + 6 * math.cos(a + 0.42), cy + 6 * math.sin(a + 0.42)),
-                    (cx + (r - 2) * math.cos(a + 0.78), cy + (r - 2) * math.sin(a + 0.78))], 10 if spinning else 5)
-        p.circle(cx, cy, 6, fill=8, outline=11)
-        p.circle(cx, cy, 2, fill=0)
+    def _meter(self, p, y, name, value):
+        p.text(self.RIGHT, y, name, 6)
+        text = f"{round(100 * value)}%"
+        p.text(self.EDGE + 1 - p.width(text), y, text, 15)
+        segments = (self.EDGE - self.RIGHT + 1) // 3
+        lit = round(segments * value)
+        for s in range(segments):
+            sx = self.RIGHT + s * 3
+            p.rect(sx, y + 10, sx + 1, y + 12, 15 if s == lit - 1 else 10 if s < lit else 1)
 
 
 class Agents:

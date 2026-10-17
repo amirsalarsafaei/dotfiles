@@ -131,9 +131,10 @@ class Link:
         total = (len(frame) + CHUNK - 1) // CHUNK
         ok = self.command(0x67, 0x00, 0x00, 0x00, 0x00, 0x00, total & 0xFF, total >> 8, W & 0xFF, W >> 8, H & 0xFF, H >> 8)
         for sent in range(total) if ok else ():
+            left = total - 1 - sent
             if between:
-                between()
-            index = (total - 1 - sent).to_bytes(2, "little")
+                between(left)
+            index = left.to_bytes(2, "little")
             if not self.command(0x67, 0x01, *index, payload=frame[sent * CHUNK:(sent + 1) * CHUNK], echo=4):
                 ok = False
                 break

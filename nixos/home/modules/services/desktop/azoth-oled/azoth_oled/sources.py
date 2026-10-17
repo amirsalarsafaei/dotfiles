@@ -302,13 +302,15 @@ class Context:
 
     def _music(self):
         line = self._json("lyrics/line.json") or {}
-        if line.get("class") not in ("playing", "paused"):
+        state = line.get("class")
+        playing = state == "playing" or bool(line.get("playing"))
+        if not playing and state != "paused":
             return None
         track = self._json("lyrics/track.json") or {}
         tooltip = str(line.get("tooltip") or "")
         title, _, artist = tooltip.partition(" — ")
         return {
-            "playing": line.get("class") == "playing",
+            "playing": playing,
             "title": title or str(track.get("title") or ""),
             "artist": artist or str(track.get("artist") or ""),
             "lyric": str(line.get("text") or "") if track.get("synced") else "",
@@ -366,23 +368,33 @@ class Refresher:
 
 
 class Audio:
+    RETRY = 2.0
+
     def __init__(self):
         self.binary = os.environ.get("AZOTH_CAVA")
         self.config = os.environ.get("AZOTH_CAVA_CONFIG")
         self.process = None
         self.levels = []
         self.updated = 0.0
+        self.retry_at = 0.0
 
     def want(self, on):
-        if on and self.process is None and self.binary and self.config:
-            try:
-                self.process = subprocess.Popen([self.binary, "-p", self.config], stdin=subprocess.DEVNULL,
-                                                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
-            except OSError as exc:
-                log("cava-failed", reason=exc.strerror)
-                self.binary = None
-                return
-            threading.Thread(target=self._read, args=(self.process,), daemon=True).start()
+        if on:
+            now = time.monotonic()
+            if self.process is not None and self.process.poll() is not None:
+                log.change("cava", "cava-exited", code=self.process.returncode)
+                self.process = None
+                self.levels = []
+                self.retry_at = now + self.RETRY
+            if self.process is None and self.binary and self.config and now >= self.retry_at:
+                try:
+                    self.process = subprocess.Popen([self.binary, "-p", self.config], stdin=subprocess.DEVNULL,
+                                                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+                except OSError as exc:
+                    log("cava-failed", reason=exc.strerror)
+                    self.binary = None
+                    return
+                threading.Thread(target=self._read, args=(self.process,), daemon=True).start()
         elif not on and self.process is not None:
             self.stop()
 

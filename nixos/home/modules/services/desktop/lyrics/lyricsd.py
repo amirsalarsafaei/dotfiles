@@ -466,10 +466,10 @@ class Daemon:
             },
         )
 
-    def publish_line(self, text, tooltip, views=None):
+    def publish_line(self, text, tooltip, playing, views=None):
         views = views or {}
         state = "playing" if text else "idle"
-        line = {"text": text, "tooltip": tooltip, "class": state}
+        line = {"text": text, "tooltip": tooltip, "class": state, "playing": bool(playing)}
         paged = {width: {"text": views.get(width, text), "tooltip": tooltip, "class": state} for width in WIDTHS}
         if (line, paged) == self.line:
             return
@@ -523,12 +523,12 @@ class Daemon:
                             boundaries.append(boundary)
                 heading = track["title"] + " — " + track["artist"]
                 tooltip = text + "\n" + heading if any(len(text) > width for width in WIDTHS) else heading
-                self.publish_line(text, tooltip, views)
+                self.publish_line(text, tooltip, True, views)
                 until_line = (min(boundaries) - position) / max(player.rate, 0.01) + 0.02 if boundaries else DRIFT_CHECK
                 until_check = DRIFT_CHECK - (time.monotonic() - player.checked_at)
                 timeout = max(0.02, min(until_line, until_check))
             else:
-                self.publish_line("", "")
+                self.publish_line("", "", bool(player and player.playing))
             try:
                 await asyncio.wait_for(self.wake.wait(), timeout)
             except asyncio.TimeoutError:
