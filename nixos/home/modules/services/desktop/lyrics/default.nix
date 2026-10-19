@@ -47,36 +47,40 @@ in
     };
   };
 
-  config.custom.sessionBusProxy.lyricsd = {
-    services = [ "lyricsd" ];
-    call = hardening.mprisCalls [ ];
-    broadcast = hardening.mprisSignals;
-  };
-
-  config.systemd.user.services.lyricsd = {
-    Unit = {
-      Description = "Synced lyrics for the active MPRIS player";
-      After = [ "graphical-session.target" ];
-      PartOf = [ "graphical-session.target" ];
+  config = {
+    custom.sessionBusProxy.lyricsd = {
+      services = [ "lyricsd" ];
+      call = hardening.mprisCalls [ ];
+      broadcast = hardening.mprisSignals;
     };
-    Service = lib.mkMerge [
-      hardening.user
-      {
-        ExecStart = lib.getExe lyricsd;
-        Restart = "on-failure";
-        RestartSec = 5;
-        RuntimeDirectory = [ cfg.stateDir ];
-        RuntimeDirectoryMode = "0700";
-        RuntimeDirectoryPreserve = "yes";
-        CacheDirectory = [ "lyrics" ];
-        CacheDirectoryMode = "0700";
-        InaccessiblePaths = [ "/run/dbus" ];
-        RestrictAddressFamilies = [
-          "AF_INET"
-          "AF_INET6"
-        ];
-      }
-    ];
-    Install.WantedBy = [ "graphical-session.target" ];
+
+    systemd.user.tmpfiles.rules = [ "d %t/${cfg.stateDir} 0700 - - -" ];
+
+    systemd.user.services.lyricsd = {
+      Unit = {
+        Description = "Synced lyrics for the active MPRIS player";
+        After = [ "graphical-session.target" ];
+        PartOf = [ "graphical-session.target" ];
+      };
+      Service = lib.mkMerge [
+        hardening.user
+        {
+          ExecStart = lib.getExe lyricsd;
+          Restart = "on-failure";
+          RestartSec = 5;
+          RuntimeDirectory = [ cfg.stateDir ];
+          RuntimeDirectoryMode = "0700";
+          RuntimeDirectoryPreserve = "yes";
+          CacheDirectory = [ "lyrics" ];
+          CacheDirectoryMode = "0700";
+          InaccessiblePaths = [ "/run/dbus" ];
+          RestrictAddressFamilies = [
+            "AF_INET"
+            "AF_INET6"
+          ];
+        }
+      ];
+      Install.WantedBy = [ "graphical-session.target" ];
+    };
   };
 }

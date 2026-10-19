@@ -28,7 +28,7 @@ in
 
     pkgs.cmake
     pkgs.pkg-config
-    pkgs.openssl_3
+    pkgs.openssl
     pkgs.gnumake
     pkgs.just
     pkgs.devenv

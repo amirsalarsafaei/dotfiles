@@ -105,6 +105,8 @@ in
   config = {
     home.packages = [ azoth-oled ];
 
+    systemd.user.tmpfiles.rules = [ "d %t/zellij 0700 - - -" ];
+
     services.hypridle.settings.listener = [
       {
         timeout = 600;

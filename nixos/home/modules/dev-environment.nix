@@ -6,7 +6,7 @@
 }:
 let
   devOutputs = map lib.getDev [
-    pkgs.openssl_3
+    pkgs.openssl
     pkgs.zlib
   ];
 in

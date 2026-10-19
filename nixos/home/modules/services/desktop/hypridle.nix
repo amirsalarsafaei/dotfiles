@@ -3,6 +3,7 @@ let
   dpms =
     action:
     pkgs.writeShellScript "dpms-${action}" ''
+      date +%s%3N > "''${XDG_RUNTIME_DIR:?}/dpms.state"
       exec hyprctl dispatch 'hl.dsp.dpms({ action = "${action}" })'
     '';
 in

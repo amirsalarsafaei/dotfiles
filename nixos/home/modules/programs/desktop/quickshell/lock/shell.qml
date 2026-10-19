@@ -101,6 +101,11 @@ ShellRoot {
     property real flare: 0
     property real alarm: 0
     property bool idle: false
+    property real dpmsAt: 0
+    property real screensChangedAt: 0
+    property real unlockStartedAt: 0
+    property var screenNames: Quickshell.screens.map(screen => screen.name)
+    onScreenNamesChanged: root.screensChangedAt = Date.now()
     property real warmth: buffer.length > 0 && !checking && !unlocking ? 0.28 : 0
 
     Behavior on warmth {
@@ -249,6 +254,7 @@ ShellRoot {
         if (password.active)
             password.abort();
         flareRise.restart();
+        root.unlockStartedAt = Date.now();
         unlockTimer.start();
     }
 
@@ -419,17 +425,34 @@ ShellRoot {
 
     Timer {
         id: unlockTimer
-        interval: 340
+        interval: 150
+        repeat: true
         onTriggered: {
-            lock.locked = false;
-            quitTimer.start();
+            const now = Date.now();
+            const waited = now - root.unlockStartedAt;
+            const sinceDpms = root.dpmsAt > 0 ? now - root.dpmsAt : -1;
+            const sinceScreens = now - root.screensChangedAt;
+            const external = Quickshell.screens.some(screen => !screen.name.startsWith("eDP"));
+            const churned = root.screensChangedAt >= root.dpmsAt && sinceScreens >= 800;
+            const settled = sinceDpms < 0 || sinceDpms >= 6000 || (sinceScreens >= 800 && (churned || !external));
+            if ((settled && waited >= 340) || waited >= 8000) {
+                stop();
+                lock.locked = false;
+                quitTimer.start();
+            }
         }
     }
 
     Timer {
-        id: quitTimer
+        id: finishTimer
         interval: 500
         onTriggered: Qt.quit()
+    }
+
+    Timer {
+        id: quitTimer
+        interval: 5000
+        onTriggered: Qt.exit(lock.secure ? 3 : 0)
     }
 
     Timer {
@@ -527,6 +550,19 @@ ShellRoot {
         onLoadFailed: root.quip = {}
     }
 
+    FileView {
+        path: (Quickshell.env("XDG_RUNTIME_DIR") || "") + "/dpms.state"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            const value = Number(text().trim());
+            if (Number.isFinite(value) && value > 0)
+                root.dpmsAt = value;
+        }
+        onLoadFailed: {}
+    }
+
     Timer {
         interval: 1000
         repeat: true
@@ -568,8 +604,11 @@ ShellRoot {
         locked: true
 
         onSecureChanged: {
-            if (!secure)
+            if (!secure) {
+                if (root.unlocking)
+                    finishTimer.start();
                 return;
+            }
             readyProc.running = true;
             if (Sys.fingerprint)
                 fingerprint.start();

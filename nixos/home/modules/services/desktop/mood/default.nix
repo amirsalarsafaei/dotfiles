@@ -28,45 +28,49 @@ in
     };
   };
 
-  config.custom.sessionBusProxy.moodd = {
-    services = [ "moodd" ];
-    call = hardening.mprisCalls [ ];
-    broadcast = hardening.mprisSignals;
-  };
-
-  config.systemd.user.services.moodd = {
-    Unit = {
-      Description = "Tint the desktop accents from the playing track's album art";
-      After = [
-        "playerctld.service"
-        config.wayland.systemd.target
-      ];
-      Wants = [ "playerctld.service" ];
-      PartOf = [ config.wayland.systemd.target ];
+  config = {
+    custom.sessionBusProxy.moodd = {
+      services = [ "moodd" ];
+      call = hardening.mprisCalls [ ];
+      broadcast = hardening.mprisSignals;
     };
-    Service = lib.mkMerge [
-      hardening.user
-      {
-        ExecStart = lib.getExe moodd;
-        Restart = "always";
-        RestartSec = 3;
-        RuntimeDirectory = [ cfg.stateDir ];
-        RuntimeDirectoryMode = "0700";
-        RuntimeDirectoryPreserve = "yes";
-        CacheDirectory = [ "mood" ];
-        CacheDirectoryMode = "0700";
-        PrivateTmp = false;
-        TemporaryFileSystem = [ "/run/dbus:ro" ];
-        InaccessiblePaths = [
-          "-/tmp/.X11-unix"
-          "-/tmp/.ICE-unix"
+
+    systemd.user.tmpfiles.rules = [ "d %t/${cfg.stateDir} 0700 - - -" ];
+
+    systemd.user.services.moodd = {
+      Unit = {
+        Description = "Tint the desktop accents from the playing track's album art";
+        After = [
+          "playerctld.service"
+          config.wayland.systemd.target
         ];
-        RestrictAddressFamilies = [
-          "AF_INET"
-          "AF_INET6"
-        ];
-      }
-    ];
-    Install.WantedBy = [ config.wayland.systemd.target ];
+        Wants = [ "playerctld.service" ];
+        PartOf = [ config.wayland.systemd.target ];
+      };
+      Service = lib.mkMerge [
+        hardening.user
+        {
+          ExecStart = lib.getExe moodd;
+          Restart = "always";
+          RestartSec = 3;
+          RuntimeDirectory = [ cfg.stateDir ];
+          RuntimeDirectoryMode = "0700";
+          RuntimeDirectoryPreserve = "yes";
+          CacheDirectory = [ "mood" ];
+          CacheDirectoryMode = "0700";
+          PrivateTmp = false;
+          TemporaryFileSystem = [ "/run/dbus:ro" ];
+          InaccessiblePaths = [
+            "-/tmp/.X11-unix"
+            "-/tmp/.ICE-unix"
+          ];
+          RestrictAddressFamilies = [
+            "AF_INET"
+            "AF_INET6"
+          ];
+        }
+      ];
+      Install.WantedBy = [ config.wayland.systemd.target ];
+    };
   };
 }
