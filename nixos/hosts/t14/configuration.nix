@@ -14,7 +14,7 @@ in
     ../../modules/work.nix
     ../../private/hosts/t14
     ../../modules/logitech.nix
-    ./virtualization.nix
+    ../../modules/virtualization.nix
   ];
 
   isLaptop = true;

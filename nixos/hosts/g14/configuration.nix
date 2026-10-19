@@ -100,9 +100,12 @@ in
     ./hardware-configuration.nix
     ./local-llm.nix
     ../../modules/laptop.nix
+    ../../modules/virtualization.nix
   ];
 
   isLaptop = true;
+
+  custom.virtualization.sharedPaths = [ "/home/amirsalar/personal/kernel-dev" ];
 
   custom.homeNetwork = {
     enable = true;
