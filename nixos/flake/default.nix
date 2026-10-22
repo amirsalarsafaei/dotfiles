@@ -99,6 +99,7 @@ let
       users,
       extraModules ? [ ],
       useSops ? true,
+      useSopsHome ? useSops,
       ...
     }@hostConfig:
     lib.nixosSystem {
@@ -130,7 +131,7 @@ let
                 inherit secrets inputs;
                 currentHostname = hostname;
               };
-              sharedModules = sopsHomeModules useSops ++ commonHomeModules ++ homeImports hostConfig;
+              sharedModules = sopsHomeModules useSopsHome ++ commonHomeModules ++ homeImports hostConfig;
               users = lib.genAttrs users (_: { });
             };
           }

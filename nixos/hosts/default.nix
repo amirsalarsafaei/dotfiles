@@ -38,6 +38,7 @@
       "franksalar"
     ];
     useSops = true;
+    useSopsHome = false;
     extraModules = [ disko.nixosModules.disko ];
   };
 }
