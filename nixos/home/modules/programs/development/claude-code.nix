@@ -748,6 +748,7 @@ let
     "mcp__plugin_devar_devar__cve_*"
     "Skill(devar:seclab)"
     "Bash(devar sec:*)"
+    "Bash(devar-lab sec:*)"
   ];
 
   flagPlugins = [
@@ -1373,6 +1374,22 @@ let
     '';
   };
 
+  glmQuota = pkgs.writeShellApplication {
+    name = "glm-quota";
+    runtimeInputs = [
+      pkgs.python3
+      pkgs.cacert
+    ];
+    runtimeEnv = {
+      SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+      GLM_TEAM_ORGANIZATION = secrets.glm.teamOrganization or "";
+      GLM_TEAM_PROJECT = secrets.glm.teamProject or "";
+    };
+    text = ''
+      exec ${lib.getExe' pkgs.python3 "python3"} ${./glm-quota.py} "$@"
+    '';
+  };
+
   deepseekUsage = pkgs.writeShellApplication {
     name = "deepseek-usage";
     runtimeInputs = [
@@ -1405,6 +1422,10 @@ let
       usageBin,
       label,
       hideClaudeCost ? false,
+      usageArgs ? [
+        "statusline"
+        "--stdin-json"
+      ],
     }:
     let
       noCcCost = if hideClaudeCost then "1" else "0";
@@ -1415,7 +1436,7 @@ let
       text = ''
         input=$(cat)
         base=$(CLAUDE_STATUSLINE_NO_CC_COST=${noCcCost} ${lib.getExe claudeStatusLine} <<<"$input" 2>/dev/null || true)
-        seg=$(printf '%s' "$input" | ${lib.getExe usageBin} statusline --stdin-json 2>/dev/null || true)
+        seg=$(printf '%s' "$input" | ${lib.getExe usageBin} ${lib.escapeShellArgs usageArgs} 2>/dev/null || true)
         if [ -n "$seg" ] && [ -n "$base" ]; then
           printf '%s | %s\n' "$base" "$seg"
         elif [ -n "$base" ]; then
@@ -1428,7 +1449,8 @@ let
 
   glmStatusLine = mkUsageStatusLine {
     name = "glm-claude-statusline";
-    usageBin = glmUsage;
+    usageBin = glmQuota;
+    usageArgs = [ ];
     label = "glm";
     hideClaudeCost = true;
   };
@@ -1785,6 +1807,7 @@ let
   devarPermissions = lib.optionalAttrs cfg.enableDevar {
     allow = [
       "Bash(devar:*)"
+      "Bash(devar-lab:*)"
       "mcp__plugin_devar_devar"
       "Read(/${config.home.homeDirectory}/divar/devar/skills/**)"
       "Read(/${config.home.homeDirectory}/.cache/devar/repos/**)"
@@ -1895,6 +1918,7 @@ let
   };
 
   glmSettings = workSettings // {
+    hooks = devarSkillUsageHooks;
     statusLine = {
       type = "command";
       command = lib.getExe glmStatusLine;
@@ -2249,7 +2273,8 @@ in
           - Git over SSH cannot authenticate, so `git push`, `git pull` and `git fetch` against SSH
             remotes fail. Do not try to work around it; ask the user to run them.
           - Signed commits work: GPG signing goes through the host gpg-agent, which holds the keys.
-            If the passphrase is not cached, pinentry prompts the user.
+            If the passphrase is not cached, a pinentry window opens on the host desktop; tell the
+            user to type it there and never ask for the passphrase in chat.
           - gh, glab, kubectl, aws and docker find no credentials.
           - PID, IPC and UTS namespaces are private, so host processes are invisible.
           - xdg-open and $BROWSER hand URLs and files to the desktop portal, which opens them in the
@@ -2375,9 +2400,11 @@ in
       };
       description = ''
         Per-model, per-1M-token USD prices for the z.ai GLM endpoint (docs.z.ai
-        pricing), consumed by `usage-tracker` and its statusline session/week/month
-        cost. Keyed by the model id a turn's transcript records — glm-5.3 is
-        the main model, glm-5.3-flash backs the Haiku/subagent slot (see
+        pricing), consumed by the `glm-usage` report command. The glm-claude
+        statusline uses the Coding Plan's remote quota windows instead of
+        estimated dollar cost. Keyed by the model id a turn's transcript
+        records — glm-5.3 is the main model, glm-5.3-flash backs the
+        Haiku/subagent slot (see
         glmClaude's ANTHROPIC_DEFAULT_HAIKU_MODEL). A turn's model is matched
         against the longest key it starts with. Override per-host if your
         plan's rates differ.
@@ -2388,9 +2415,9 @@ in
       type = lib.types.ints.between 1 31;
       default = 5;
       description = ''
-        Day of month the glm-5.3 billing cycle resets. The statusline's "mo"
-        window runs from this day to the day before next month's same day
-        (default the 5th).
+        Day of month the glm-5.3 billing cycle resets for `glm-usage` reports.
+        The reporting window runs from this day to the day before next month's
+        same day (default the 5th).
       '';
     };
 

@@ -718,6 +718,14 @@ let
         exit 0
       fi
 
+      fallback() {
+        for _ in $(seq 5); do
+          ${hyprlock} && return 0
+          sleep 1
+        done
+        return 1
+      }
+
       systemctl --user start --no-block quip.service || true
 
       ready="$runtime/lock-screen.ready"
@@ -734,14 +742,16 @@ let
       if [ ! -e "$ready" ]; then
         kill "$shell" 2>/dev/null || true
         wait "$shell" 2>/dev/null || true
-        exec ${hyprlock}
+        fallback
+        exit 0
       fi
 
       status=0
       wait "$shell" || status=$?
       rm -f "$ready"
       if [ "$status" -ne 0 ]; then
-        exec ${hyprlock}
+        fallback
+        exit 0
       fi
     '';
   };

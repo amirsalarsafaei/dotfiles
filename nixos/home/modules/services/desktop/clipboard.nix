@@ -20,22 +20,27 @@ let
     hardening.user
     wayland
     {
-      CacheDirectory = [ "cliphist" ];
-      CacheDirectoryMode = "0700";
-      BindReadOnlyPaths = [ "-%h/.config/cliphist" ];
+      Environment = [ "XDG_CACHE_HOME=%t" ];
+      BindReadWritePaths = [ "%t/cliphist" ];
     }
   ];
 in
 {
   services.cliphist.enable = true;
 
+  systemd.user.tmpfiles.rules = [
+    "d %t/cliphist 0700 - - -"
+    "R %h/.cache/cliphist - - - -"
+  ];
+
   home.packages = [
     (pkgs.writeShellScriptBin "clipboard-menu" ''
       active=$(hyprctl activewindow -j 2>/dev/null | ${lib.getExe pkgs.jq} -r '.class // empty')
-      sel=$(${lib.getExe pkgs.cliphist} list \
+      cl() { XDG_CACHE_HOME="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" ${lib.getExe pkgs.cliphist} "$@"; }
+      sel=$(cl list \
         | ${lib.getExe pkgs.rofi} -dmenu -i -display-columns 2 -p "󰅍 Clipboard") || exit 0
       if [ -z "$sel" ]; then exit 0; fi
-      printf '%s\n' "$sel" | ${lib.getExe pkgs.cliphist} decode | ${lib.getExe' pkgs.wl-clipboard "wl-copy"}
+      printf '%s\n' "$sel" | cl decode | ${lib.getExe' pkgs.wl-clipboard "wl-copy"}
       sleep 0.12
       case "$active" in
         com.mitchellh.ghostty|*[Aa]lacritty*|kitty|*[Ff]oot*|org.wezfurlong.wezterm|*[Kk]itty*)

@@ -1020,7 +1020,10 @@ in
         group = "Session & tools";
       })
       (zbind {
-        on = on.none K.f;
+        on = [
+          (on.none K.f)
+          (on.ctrl K.f)
+        ];
         run = [
           ''
             LaunchOrFocusPlugin "session-manager" {
@@ -1029,7 +1032,20 @@ in
             };''
           ''SwitchToMode "Normal";''
         ];
-        desc = "Session manager";
+        desc = "Session manager — fuzzy-find a session, tab or pane and switch to it";
+        group = "Session & tools";
+      })
+      (zbind {
+        on = on.ctrl K.c;
+        run = [
+          ''
+            LaunchOrFocusPlugin "session-manager" {
+                floating true
+                move_to_focused_tab true
+            };''
+          ''SwitchToMode "Normal";''
+        ];
+        desc = "New session — opens the manager, Ctrl+w inside jumps to the new-session screen";
         group = "Session & tools";
       })
       (zbind {

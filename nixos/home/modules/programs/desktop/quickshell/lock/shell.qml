@@ -433,9 +433,10 @@ ShellRoot {
             const sinceDpms = root.dpmsAt > 0 ? now - root.dpmsAt : -1;
             const sinceScreens = now - root.screensChangedAt;
             const external = Quickshell.screens.some(screen => !screen.name.startsWith("eDP"));
-            const churned = root.screensChangedAt >= root.dpmsAt && sinceScreens >= 800;
-            const settled = sinceDpms < 0 || sinceDpms >= 6000 || (sinceScreens >= 800 && (churned || !external));
-            if ((settled && waited >= 340) || waited >= 8000) {
+            const churned = root.screensChangedAt >= root.dpmsAt;
+            const grace = churned || external ? 4000 : 800;
+            const settled = (sinceDpms < 0 && sinceScreens >= 800) || sinceDpms >= 12000 || (sinceScreens >= grace && sinceDpms >= grace && (churned || !external));
+            if ((settled && waited >= 340) || waited >= 12000) {
                 stop();
                 lock.locked = false;
                 quitTimer.start();

@@ -38,13 +38,60 @@ lib.mkIf config.isWork {
 
       devarLauncher = "${config.home.homeDirectory}/divar/devar/bin/devar";
 
+      workCodexConfigDir = "${config.home.homeDirectory}/.config/work-codex";
+
+      workCodexSandbox = pkgs.writeShellApplication {
+        name = "work-codex-sandbox";
+        runtimeInputs = [
+          pkgs.bubblewrap
+          pkgs.coreutils
+          pkgs.gnused
+        ];
+        text = ''
+          export CODEX_SANDBOX_TARGET="${lib.getExe' pkgs.codex "codex"}"
+          export CODEX_SANDBOX_DENY=${lib.escapeShellArg (lib.concatStringsSep "\n" config.custom.claudeCode.sandbox.denyPaths)}
+          export CODEX_SANDBOX_ALLOW=${lib.escapeShellArg (lib.concatStringsSep "\n" config.custom.claudeCode.sandbox.allowPaths)}
+          export CODEX_SANDBOX_ENV_FILES=${lib.escapeShellArg (lib.concatStringsSep "\n" config.custom.claudeCode.sandbox.envFiles)}
+          export CODEX_SANDBOX_ENV_KEEP=${lib.escapeShellArg (lib.concatStringsSep "\n" config.custom.claudeCode.sandbox.envPassthrough)}
+          export CODEX_SANDBOX_BUS_DIR=${lib.escapeShellArg config.custom.sessionBusProxy.codex.directory}
+          export CODEX_SANDBOX_BUS_UNIT=dbus-proxy-codex.service
+          export CODEX_SANDBOX_SYSTEMCTL=${config.systemd.user.systemctlPath}
+          ${builtins.readFile ../home/modules/programs/development/codex-sandbox.sh}
+        '';
+      };
+
       workCodex = pkgs.writeShellApplication {
         name = "work-codex";
-        runtimeInputs = [ pkgs.codex ];
+        runtimeInputs = [
+          pkgs.codex
+          pkgs.coreutils
+        ];
         text = ''
-          export CODEX_HOME="${config.home.homeDirectory}/.config/work-codex"
+          export CODEX_HOME="${workCodexConfigDir}"
           mkdir -p "$CODEX_HOME"
-          exec codex "$@"
+
+          sandbox_off=0
+          sandbox_net=0
+          sandbox_fs=0
+          rest=()
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              --no-sandbox) sandbox_off=1 ;;
+              --sandbox-net) sandbox_net=1 ;;
+              --sandbox-fs) sandbox_fs=1 ;;
+              *) rest+=("$1") ;;
+            esac
+            shift
+          done
+          set -- "''${rest[@]}"
+
+          if [ "$sandbox_off" -eq 1 ]; then
+            exec codex "$@"
+          fi
+
+          export CODEX_SANDBOX_NET="$sandbox_net"
+          export CODEX_SANDBOX_FS="$sandbox_fs"
+          exec ${lib.getExe workCodexSandbox} "$@"
         '';
       };
 
@@ -183,6 +230,53 @@ lib.mkIf config.isWork {
         sessionPath = [ "${config.home.homeDirectory}/divar/devar/bin" ];
         sessionVariables.DEVAR_FLAVOR = "lab";
 
+        file.".config/work-codex/config.toml".text = ''
+          # Claude-style auto mode: review requests to cross Codex's sandbox
+          # automatically, with bubblewrap providing an additional outer boundary.
+          approval_policy = "on-request"
+          approvals_reviewer = "auto_review"
+          sandbox_mode = "workspace-write"
+
+          [marketplaces.divar]
+          source_type = "local"
+          source = "${config.home.homeDirectory}/divar/devar"
+
+          [plugins."devar@divar"]
+          enabled = true
+
+          [mcp_servers.devar]
+          command = "${devarLauncher}"
+          args = ["mcp"]
+          required = true
+          default_tools_approval_mode = "auto"
+        '';
+
+        # Codex considers a plugin installed when its versioned cache directory
+        # is materialized. Keep the live Devar checkout as the source of truth,
+        # just as Claude's directory marketplace does.
+        file.".config/work-codex/plugins/cache/divar/devar/0.1.0/.codex-plugin".source =
+          config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/divar/devar/.codex-plugin";
+        file.".config/work-codex/plugins/cache/divar/devar/0.1.0/.mcp.json".source =
+          config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/divar/devar/.mcp.json";
+        file.".config/work-codex/plugins/cache/divar/devar/0.1.0/bin".source =
+          config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/divar/devar/bin";
+        file.".config/work-codex/plugins/cache/divar/devar/0.1.0/skills".source =
+          config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/divar/devar/skills";
+
+        file.".config/work-codex/AGENTS.md".text = ''
+          ## Sandbox
+
+          This Codex session uses a workspace-write sandbox with automatic approval review,
+          inside an additional bubblewrap sandbox. Requests to cross the inner sandbox boundary
+          go to the automatic reviewer. The outer bubblewrap restrictions remain in effect:
+          credential paths such as SSH, GitHub/GitLab, Kubernetes, AWS, Docker, browser profiles,
+          and keyrings are masked. PID, IPC, and UTS namespaces are private. The session bus only
+          exposes desktop notifications and the OpenURI portal. Network access is available unless
+          the session was launched with `--sandbox-net`.
+
+          Devar is available both as the `devar` command and as the required `devar` MCP server.
+        '';
+
         file.".config/amp/plugins/devar-usage.ts".text = ''
           import type { PluginAPI } from '@ampcode/plugin'
 
@@ -262,6 +356,16 @@ lib.mkIf config.isWork {
         sessionBusProxy.work-net-status = {
           services = [ "work-net-status" ];
           talk = [ "org.freedesktop.Notifications" ];
+        };
+        sessionBusProxy.codex = {
+          talk = [ "org.freedesktop.Notifications" ];
+          call = [
+            "org.freedesktop.portal.Desktop=org.freedesktop.portal.OpenURI.*@/org/freedesktop/portal/desktop"
+            "org.freedesktop.portal.Desktop=org.freedesktop.DBus.Introspectable.Introspect@/org/freedesktop/portal/desktop"
+          ];
+          broadcast = [
+            "org.freedesktop.portal.Desktop=org.freedesktop.portal.Request.Response@/org/freedesktop/portal/desktop/request/*"
+          ];
         };
         ntfy = {
           enable = true;

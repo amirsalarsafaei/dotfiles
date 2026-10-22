@@ -458,7 +458,7 @@ in
     programs.gnupg.agent = {
       enable = true;
       enableSSHSupport = false;
-      pinentryPackage = pkgs.pinentry-gnome3;
+      pinentryPackage = pkgs.pinentry-qt;
       settings = {
         default-cache-ttl = 2592000;
         max-cache-ttl = 2592000;
