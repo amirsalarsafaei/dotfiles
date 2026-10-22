@@ -95,6 +95,96 @@ a global `OPENSSL_DIR` or `LD_LIBRARY_PATH`. Keep any extra native dependencies
 scoped to the relevant shell. These shells target native compilation; cross
 compilation needs a target-specific toolchain and libraries.
 
+## Shared Ubuntu VM
+
+The desktop profile (`g14`, `t14`) enables Incus, the standard `incus` CLI, and
+an `ubuntu` profile with 4 GiB guest RAM, 2 vCPUs, a 32 GiB disk, and no automatic
+startup. Use one VM named `ubuntu` on the current host, shared by the human and
+all coding agents. There are no host directory mounts in its profile. Its private
+NAT network is `ubuntu-br0`, with guest address `10.89.0.2`. QEMU needs some host
+memory beyond the guest allocation. Implementation: `modules/ubuntu-vm.nix`.
+
+The human applies the NixOS configuration and logs in again for `incus-admin`
+group membership. This group grants full host-level Incus administration. The
+preseed creates the network, storage pool, and profile; it does not create or
+start the VM. Existing libvirt configuration remains available independently.
+Do not use `incus admin init` to replace this declarative setup.
+
+Create the VM once after activation, then start it:
+
+```sh
+incus init images:ubuntu/24.04 ubuntu --vm --profile ubuntu
+incus start ubuntu
+```
+
+The image is downloaded at creation time and is not pinned by `flake.lock`.
+Wait for `incus exec ubuntu -- true` to succeed before provisioning. Set up SSH
+once, using Incus's authenticated local management connection for bootstrap:
+
+```sh
+install -d -m 700 ~/.ssh
+test -f ~/.ssh/ubuntu || ssh-keygen -t ed25519 -N '' -f ~/.ssh/ubuntu
+incus exec ubuntu -- apt-get update
+incus exec ubuntu -- apt-get install -y openssh-server sudo
+incus exec ubuntu -- sh -c 'id -u ubuntu >/dev/null 2>&1 || useradd -m -s /bin/bash ubuntu'
+incus exec ubuntu -- install -d -o ubuntu -g ubuntu -m 700 /home/ubuntu/.ssh
+cat ~/.ssh/ubuntu.pub | incus exec ubuntu -- tee /home/ubuntu/.ssh/authorized_keys >/dev/null
+incus exec ubuntu -- chown ubuntu:ubuntu /home/ubuntu/.ssh/authorized_keys
+incus exec ubuntu -- chmod 600 /home/ubuntu/.ssh/authorized_keys
+incus exec ubuntu -- sh -c 'printf "%s\n" "ubuntu ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ubuntu'
+incus exec ubuntu -- chmod 440 /etc/sudoers.d/ubuntu
+incus exec ubuntu -- sh -c 'printf "%s\n" "PasswordAuthentication no" "KbdInteractiveAuthentication no" "PermitRootLogin no" "AllowAgentForwarding no" > /etc/ssh/sshd_config.d/00-ubuntu.conf'
+incus exec ubuntu -- systemctl enable --now ssh
+incus exec ubuntu -- systemctl restart ssh
+incus exec ubuntu -- install -d -o ubuntu -g ubuntu /work
+incus exec ubuntu -- cat /etc/ssh/ssh_host_ed25519_key.pub | awk '{print "10.89.0.2 " $0}' >> ~/.ssh/known_hosts
+```
+
+If `~/.ssh/ubuntu` already exists, reuse it; do not overwrite its private key.
+The key stays outside Git and the Nix store. Do not copy host credentials into
+Ubuntu. The guest user `ubuntu` has passwordless sudo for installing tools.
+
+Agents must use this start sequence, which serializes concurrent requests and
+checks state under the same lock. It starts the existing VM only when stopped;
+errors still propagate. Run it in Bash or Zsh on the host:
+
+```sh
+flock "$XDG_RUNTIME_DIR/ubuntu-start.lock" bash -eu -c '
+  state=$(incus list "^ubuntu$" --format csv -c s)
+  case "$state" in
+    RUNNING) ;;
+    STOPPED) incus start ubuntu ;;
+    *) printf "Unexpected Ubuntu VM state: %s\n" "$state" >&2; exit 1 ;;
+  esac
+' && timeout 180 bash -c 'until incus exec ubuntu -- true 2>/dev/null; do sleep 2; done'
+```
+
+After startup, use SSH for work and SCP for every host/guest file transfer:
+
+```sh
+ssh -o StrictHostKeyChecking=yes -o ForwardAgent=no -i ~/.ssh/ubuntu ubuntu@10.89.0.2
+ssh -o StrictHostKeyChecking=yes -i ~/.ssh/ubuntu ubuntu@10.89.0.2 'mkdir -p /work/task-unique-id'
+scp -o StrictHostKeyChecking=yes -i ~/.ssh/ubuntu -r ./source ubuntu@10.89.0.2:/work/task-unique-id/
+scp -o StrictHostKeyChecking=yes -i ~/.ssh/ubuntu ubuntu@10.89.0.2:/work/task-unique-id/source/result ./result
+incus info ubuntu
+incus console ubuntu --show-log
+```
+
+Use a unique `/work/<task-id>` directory or Git worktree per task. All agents
+share the same 4 GiB RAM and 2 CPUs; prefer low build parallelism and coordinate
+apt operations, ports, and services. Never add host directory devices or shared
+filesystem mounts. Incus's built-in VM management device is infrastructure, not
+a mount of the user's home or project files. NAT allows outbound network access;
+this setup does not isolate the guest from reachable LAN services.
+
+Agents may start the existing VM, but must leave it running after their task:
+another agent or the human may still be using it. Never stop, restart, delete,
+restore, or recreate it without an explicit request. The human can shut it down
+when idle with `incus stop ubuntu`; this retains the disk, and it stays off after
+host reboot. Shutdown is not automatically blocked by active SSH sessions.
+The startup lock protects startup only; it is not a workload lease. Do not create
+extra VMs or reuse the `ubuntu` profile for another VM with its reserved IP.
+
 ## Local verification
 
 Run from the repository root, targeting changed files:

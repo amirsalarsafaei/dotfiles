@@ -14,7 +14,6 @@
 
     sessionVariables = {
       GOPATH = "${config.home.homeDirectory}/go";
-      GOPRIVATE = "git.divar.cloud";
       GOBIN = "${config.home.homeDirectory}/.local/bin";
     };
 

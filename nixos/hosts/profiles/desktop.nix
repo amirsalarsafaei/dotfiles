@@ -125,9 +125,11 @@ in
     ../../modules/home-network.nix
     ../../modules/personal.nix
     ../../modules/power-profile.nix
+    ../../modules/ubuntu-vm.nix
   ];
 
   config = {
+    custom.ubuntuVm.enable = true;
 
     environment.pathsToLink = [
       "/share/xdg-desktop-portal"

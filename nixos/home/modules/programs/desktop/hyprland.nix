@@ -325,6 +325,10 @@ let
       }
 
       toggle() {
+        if ! command -v spotify >/dev/null 2>&1; then
+          notify-send "Spotify" "Spotify is not installed in this profile."
+          return 0
+        fi
         local found fresh=0 address workspace
         found=$(find_spotify)
         if [ -z "$found" ]; then

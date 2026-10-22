@@ -21,7 +21,10 @@ let
     wayland
     {
       Environment = [ "XDG_CACHE_HOME=%t" ];
-      BindReadWritePaths = [ "%t/cliphist" ];
+      RuntimeDirectory = "cliphist";
+      RuntimeDirectoryMode = "0700";
+      # Both watchers share this directory; keep it across independent restarts.
+      RuntimeDirectoryPreserve = "yes";
     }
   ];
 in
@@ -29,7 +32,6 @@ in
   services.cliphist.enable = true;
 
   systemd.user.tmpfiles.rules = [
-    "d %t/cliphist 0700 - - -"
     "R %h/.cache/cliphist - - - -"
   ];
 

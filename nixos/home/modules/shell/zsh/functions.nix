@@ -2,14 +2,6 @@
 {
   gavgo = "fortune ${funFortunes} | cowsay | lolcat";
 
-  divar-warm = ''
-    if ssh -O check git@git.divar.cloud >/dev/null 2>&1; then
-      return 0
-    fi
-    echo "Warming git.divar.cloud SSH connection..." >&2
-    ssh -fNT git@git.divar.cloud
-  '';
-
   "_claude-common" = ''
     #compdef gap-claude local-claude
 

@@ -1,22 +1,17 @@
 {
   lib,
   rustPlatform,
-  fetchFromGitHub,
   pkg-config,
   dbus,
   libpulseaudio,
 }:
-rustPlatform.buildRustPackage (finalAttrs: {
+rustPlatform.buildRustPackage {
   pname = "airpods-tui";
-  version = "0.3.3";
+  version = "0.3.3-dotfiles.1";
 
-  src = fetchFromGitHub {
-    owner = "annoyedmilk";
-    repo = "airpods-tui";
-    tag = "v${finalAttrs.version}";
-    hash = "sha256-WHC0UDPCGdAqFt9mgSJxTiKraL2FoYIlvvCZp+sg+1o=";
-  };
+  src = ./airpods-tui;
 
+  cargoDepsName = "airpods-tui-0.3.3";
   cargoHash = "sha256-Buf5wPQ8fPAimMd49rNkgPcA6a6rYsagFZ62E8bzpzw=";
 
   nativeBuildInputs = [ pkg-config ];
@@ -40,4 +35,4 @@ rustPlatform.buildRustPackage (finalAttrs: {
     mainProgram = "airpods-tui";
     platforms = lib.platforms.linux;
   };
-})
+}

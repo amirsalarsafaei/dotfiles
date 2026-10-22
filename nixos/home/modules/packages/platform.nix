@@ -1,4 +1,9 @@
-{ lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   wineStableSuffixed = pkgs.runCommand "wine-stable-suffixed" { } ''
     mkdir -p $out/bin
@@ -8,15 +13,18 @@ let
   '';
 in
 {
-  home.packages = lib.optionals pkgs.stdenv.hostPlatform.isx86_64 [
-    pkgs.zoom-us
-    pkgs.android-studio
-    pkgs.discord
-    pkgs.insomnia
-    pkgs.blender
-    pkgs.google-chrome
-    pkgs.wineWow64Packages.waylandFull
-    wineStableSuffixed
-    pkgs.winetricks
-  ];
+  home.packages =
+    lib.optionals pkgs.stdenv.hostPlatform.isx86_64 [
+      pkgs.insomnia
+      pkgs.google-chrome
+      pkgs.android-studio
+    ]
+    ++ lib.optionals (pkgs.stdenv.hostPlatform.isx86_64 && config.custom.personal.enable) [
+      pkgs.zoom-us
+      pkgs.discord
+      pkgs.blender
+      pkgs.wineWow64Packages.waylandFull
+      wineStableSuffixed
+      pkgs.winetricks
+    ];
 }

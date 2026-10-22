@@ -78,7 +78,10 @@ in
         "{}"
       ];
       ble_scan = true;
-      auto_connect = true;
+      auto_connect = false;
+      reclaim_after_peer = false;
+      automatic_takeover = false;
+      tui_title = "AIRPODS / ${config.home.username}";
     };
 
     systemd.user = {

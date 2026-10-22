@@ -1,5 +1,6 @@
+{ config, ... }:
 {
-  programs.texlive.enable = true;
+  programs.texlive.enable = config.custom.personal.enable;
   programs.texlive.extraPackages = tpkgs: {
     inherit (tpkgs)
       pbox

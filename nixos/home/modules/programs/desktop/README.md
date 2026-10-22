@@ -6,6 +6,16 @@ sidebar, widgets board, lock screen) and the theme they share. Keep it in sync
 with the code: any change to desktop visuals or behaviour updates this file in the
 same change.
 
+The work laptop disables `custom.personal.enable`. Zoom, Blender, Discord,
+general-purpose Wine builds, TeX Live, TeXstudio, Xournal++, Master PDF Editor,
+iOS and embedded-device tools, and media-production tools are personal-only.
+Cisco Jabber retains its dedicated Wine dependency. Android Studio, ADB
+(`android-tools`), LibreOffice, and Spotify are required for work and remain in
+the shared desktop alongside development tools, browsers, work communication,
+document viewers, and the local AirPods TUI. Super+O reports when Spotify is not
+installed. Add individual package exceptions through
+`custom.dev.extraPackages` instead of enabling the whole personal set.
+
 ## Aesthetic
 
 Mostly gray and minimal, with small blue/cyan accents, in the style of
