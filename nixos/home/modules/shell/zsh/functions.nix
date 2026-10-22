@@ -33,6 +33,7 @@
       '--agentic-mcps[attach agentic-development-mcps for this launch]' \
       '--gitlab-mcp[allow the gitlab_* tool family on agentic-development-mcps]' \
       '--nixos[attach mcp-nixos (nixpkgs/NixOS/Home Manager/nix-darwin search)]' \
+      '--search[attach the DeepSeek Search & Fetch MCP server (deepseek variants only)]' \
       '--chrome[attach playwright-mcp --extension (control your logged-in Chrome via the Playwright Extension, one tab group per session, approve each connection)]' \
       '--sec-chrome[attach chrome-devtools-mcp (DevTools inspection + network/console capture)]' \
       '--playwright[attach playwright-mcp]' \

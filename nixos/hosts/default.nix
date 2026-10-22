@@ -35,8 +35,9 @@
     homeProfiles = [
       "base"
       "dev"
+      "franksalar"
     ];
-    useSops = false;
+    useSops = true;
     extraModules = [ disko.nixosModules.disko ];
   };
 }

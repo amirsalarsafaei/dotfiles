@@ -37,6 +37,13 @@ let
 
   zellijExtraPlugins = pkgs.callPackage ../../../../pkgs/zellij-plugins.nix { };
 
+  zellijCopy = pkgs.writeShellApplication {
+    name = "zellij-copy";
+    text = ''
+      ${lib.getExe' pkgs.python3 "python3"} ${./zellij-copy.py} | exec ${lib.getExe' pkgs.wl-clipboard "wl-copy"}
+    '';
+  };
+
 in
 {
   home.activation.zellijPluginPermissions =
@@ -92,7 +99,7 @@ in
 
       scroll_buffer_size = 100000;
       mouse_mode = true;
-      copy_command = "wl-copy";
+      copy_command = lib.getExe zellijCopy;
       copy_on_select = true;
       scrollback_editor = lib.getExe config.programs.nixvim.build.package;
 

@@ -13,6 +13,9 @@
     inputs.amirsalarsafaei-com.nixosModules.default
   ];
 
+  programs.command-not-found.enable = false;
+
+
   services.amirsalarsafaei-com = {
     enable = true;
     domain = "amirsalarsafaei.com";

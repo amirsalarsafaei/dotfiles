@@ -60,11 +60,11 @@ in
   custom = {
     neovim.enable = true;
     claudeCode = {
-      enable = true;
-      enablePersonal = config.custom.personal.enable;
-      enablePersonalDeepseek = config.custom.personal.enable;
-      enableCaveman = true;
-      planner.enable = true;
+      enable = lib.mkDefault true;
+      enablePersonal = config.custom.claudeCode.enable && config.custom.personal.enable;
+      enablePersonalDeepseek = config.custom.claudeCode.enable && config.custom.personal.enable;
+      enableCaveman = config.custom.claudeCode.enable;
+      planner.enable = config.custom.claudeCode.enable;
       plugins.personal."clangd-lsp@claude-plugins-official" = true;
       skillOverrides = lib.genAttrs samberGoSkills (_: "name-only") // {
         nix-environment = "on";
@@ -74,7 +74,7 @@ in
     ntfy.enable = lib.mkDefault config.custom.personal.enable;
 
     agentSkills = {
-      enable = true;
+      enable = lib.mkDefault true;
       localPath = inputs.self + "/skills";
       sources = {
         samber-go = {
@@ -86,27 +86,27 @@ in
       targets = {
         agents.enable = true;
         gap-claude = {
-          enable = true;
+          enable = config.custom.claudeCode.enable;
           dest = "${config.home.homeDirectory}/.config/gap-claude/skills";
           structure = "symlink-tree";
         };
         local-claude = {
-          enable = config.custom.claudeCode.enableLocal;
+          enable = config.custom.claudeCode.enable && config.custom.claudeCode.enableLocal;
           dest = "${config.home.homeDirectory}/.config/local-claude/skills";
           structure = "symlink-tree";
         };
         personal-claude = {
-          enable = config.custom.claudeCode.enablePersonal;
+          enable = config.custom.claudeCode.enable && config.custom.claudeCode.enablePersonal;
           dest = "${config.home.homeDirectory}/.config/personal-claude/skills";
           structure = "symlink-tree";
         };
         personal-deepseek-claude = {
-          enable = config.custom.claudeCode.enablePersonalDeepseek;
+          enable = config.custom.claudeCode.enable && config.custom.claudeCode.enablePersonalDeepseek;
           dest = "${config.home.homeDirectory}/.config/personal-deepseek-claude/skills";
           structure = "symlink-tree";
         };
         work-claude = {
-          enable = config.custom.claudeCode.enableWork;
+          enable = config.custom.claudeCode.enable && config.custom.claudeCode.enableWork;
           dest = "${config.home.homeDirectory}/.config/work-claude/skills";
           structure = "symlink-tree";
         };

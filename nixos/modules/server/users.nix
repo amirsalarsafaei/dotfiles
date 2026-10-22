@@ -118,7 +118,7 @@ in
     environment.systemPackages = plainUserPackageList;
 
     documentation.man.enable = true;
-    programs.command-not-found.enable = true;
+    programs.command-not-found.enable = lib.mkDefault true;
     programs.nix-ld.enable = true;
 
     users.users = lib.mapAttrs mkPlainUser cfg.extraUsers // {

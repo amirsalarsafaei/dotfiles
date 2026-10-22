@@ -272,7 +272,145 @@ let
     ''
   );
 
-  commonParserText = effortParserText + sandboxParserText;
+  sessionMarkerText = ''
+    _claude_zellij_marker=""
+    _claude_session_args=()
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --zellij-marker)
+          if [ "$#" -ge 2 ]; then
+            _claude_zellij_marker="$2"
+            shift 2
+          else
+            shift
+          fi
+          ;;
+        *)
+          _claude_session_args+=("$1")
+          shift
+          ;;
+      esac
+    done
+    set -- "''${_claude_session_args[@]}"
+    unset _claude_session_args
+
+    _claude_session_manage=0
+    if [ -n "''${ZELLIJ:-}" ]; then
+      _claude_session_manage=1
+      _claude_session_first=""
+      for _claude_session_arg in "$@"; do
+        case "$_claude_session_arg" in
+          -p | --print | -c | --continue | -r | --resume | --session-id | --session-id=* | --fork-session | -h | --help | -v | --version)
+            _claude_session_manage=0
+            ;;
+          -*) ;;
+          *)
+            [ -n "$_claude_session_first" ] || _claude_session_first="$_claude_session_arg"
+            ;;
+        esac
+      done
+      case "$_claude_session_first" in
+        auth | mcp | mcp-server | doctor | update | upgrade | setup-token | install | agents | plugin | plugins)
+          _claude_session_manage=0
+          ;;
+      esac
+      unset _claude_session_first
+    fi
+    unset _claude_session_arg
+
+    if [ "$_claude_session_manage" -eq 1 ] && [ -z "$_claude_zellij_marker" ]; then
+      exec "$0" --zellij-marker "$(${lib.getExe' pkgs.util-linux "uuidgen"})" "$@"
+    fi
+  '';
+
+  sessionLaunchText = ''
+    _claude_session_watch() {
+      local marker_file="$1"
+      local current="$2"
+      local dir="$3"
+      local file=""
+      local id=""
+      local candidate=""
+      local parent=$$
+      while kill -0 "$parent" 2>/dev/null; do
+        if [ ! -d "$dir" ]; then
+          sleep 1
+          continue
+        fi
+        if [ -z "$file" ] || [ ! -f "$file" ]; then
+          file=""
+          for candidate in "$dir"/*.json; do
+            [ -f "$candidate" ] || continue
+            id=$(${lib.getExe' pkgs.jq "jq"} -r '.sessionId // empty' "$candidate" 2>/dev/null || true)
+            if [ "$id" = "$current" ]; then
+              file="$candidate"
+              break
+            fi
+          done
+        fi
+        if [ -n "$file" ]; then
+          id=$(${lib.getExe' pkgs.jq "jq"} -r '.sessionId // empty' "$file" 2>/dev/null || true)
+          if [ -n "$id" ] && [ "$id" != "$current" ]; then
+            printf '%s\n' "$id" >"$marker_file" 2>/dev/null || true
+            current="$id"
+          fi
+        fi
+        sleep 1
+      done
+    }
+
+    _claude_session_run() {
+      if [ -z "''${ZELLIJ:-}" ]; then
+        exec "$@"
+      fi
+      if [ "''${_claude_session_manage:-0}" -ne 1 ] || [ -z "''${_claude_zellij_marker:-}" ]; then
+        local unmanaged_status=0
+        "$@" || unmanaged_status=$?
+        exit "$unmanaged_status"
+      fi
+
+      local bin="$1"
+      shift
+      local marker_dir="''${XDG_STATE_HOME:-$HOME/.local/state}/claude-zellij/markers"
+      local config_dir="''${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+      local marker_file=""
+      local session_id=""
+      local watcher=""
+      local status=0
+      local flags=()
+
+      mkdir -p "$marker_dir" || true
+      ${lib.getExe' pkgs.findutils "find"} "$marker_dir" -type f -mtime +45 -delete 2>/dev/null || true
+      marker_file="$marker_dir/$_claude_zellij_marker"
+      if [ -s "$marker_file" ]; then
+        session_id=$(cat "$marker_file" 2>/dev/null || true)
+      fi
+      if [ -n "$session_id" ] && compgen -G "$config_dir/projects/*/$session_id.jsonl" >/dev/null; then
+        flags=(--resume "$session_id")
+      else
+        session_id=$(${lib.getExe' pkgs.util-linux "uuidgen"})
+        flags=(--session-id "$session_id")
+        printf '%s\n' "$session_id" >"$marker_file" 2>/dev/null || true
+      fi
+
+      (_claude_session_watch "$marker_file" "$session_id" "$config_dir/sessions") >/dev/null 2>&1 &
+      watcher=$!
+      "$bin" "''${flags[@]}" "$@" || status=$?
+      kill "$watcher" >/dev/null 2>&1 || true
+      exit "$status"
+    }
+  '';
+
+  commonParserText = effortParserText + sandboxParserText + sessionLaunchText;
+
+  claudeZellijResurrect = pkgs.writeShellApplication {
+    name = "claude-zellij-resurrect";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = ''
+      _claude_picker=${lib.escapeShellArg (lib.getExe claudePicker)}
+      ${builtins.readFile ./claude-zellij-resurrect.sh}
+    '';
+  };
 
   ipGuardText = ''
     country=""
@@ -619,22 +757,8 @@ let
       enable = false;
       desc = "disable the devar plugin for this launch";
     }
-    {
-      flag = "--crit";
-      plugin = "crit@crit";
-      enable = true;
-      desc = "enable the crit review plugin (tomasz-tomczyk/crit) for this launch";
-      marketplace = {
-        crit = {
-          source = {
-            source = "github";
-            repo = "tomasz-tomczyk/crit";
-          };
-        };
-      };
-    }
   ]
-  ++ lib.optional cfg.enableCaveman {
+  ++ lib.optional (cfg.enable && cfg.enableCaveman) {
     flag = "--caveman";
     plugin = "caveman@caveman";
     enable = true;
@@ -664,7 +788,7 @@ let
   gatedFlagPlugins = lib.filter (p: (p.gatedTools or [ ]) != [ ]) flagPlugins;
 
   flagPluginsZshArgs = lib.concatMapStringsSep " " (p: "'${p.flag}[${p.desc}]'") (
-    flagPlugins ++ lib.optional cfg.enableDevar devarSecurityFlag
+    flagPlugins ++ lib.optional (cfg.enable && cfg.enableDevar) devarSecurityFlag
   );
 
   pluginFlagsParserText =
@@ -946,7 +1070,7 @@ let
     ${lib.getExe healClaudeState} || true
     ${pluginSettingsArgText}
     ${browserMcpArgText}
-    exec ${claudeBin} "''${_claude_extra_args[@]}" "$@"
+    _claude_session_run ${claudeBin} "''${_claude_extra_args[@]}" "$@"
   '';
 
   glmClaude = pkgs.writeShellApplication {
@@ -954,6 +1078,7 @@ let
     runtimeEnv.CLAUDE_VARIANT_REALM = "work";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
+      ${sessionMarkerText}
       ${mkKeyAuth {
         name = "glm-claude";
         keyFile = "glm-key";
@@ -979,6 +1104,7 @@ let
     runtimeEnv.CLAUDE_VARIANT_REALM = "work";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
+      ${sessionMarkerText}
       ${mkKeyAuth {
         name = "work-divar-glm-claude";
         keyFile = "divar-glm";
@@ -1002,6 +1128,7 @@ let
     runtimeEnv.CLAUDE_VARIANT_REALM = "work";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
+      ${sessionMarkerText}
       ${mkKeyAuth {
         name = "work-divar-deepseek-claude";
         keyFile = "divar-deepseek";
@@ -1025,6 +1152,7 @@ let
     runtimeEnv.CLAUDE_VARIANT_REALM = "work";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
+      ${sessionMarkerText}
       ${mkKeyAuth {
         name = "deepseek-claude";
         keyFile = "deepseek-key";
@@ -1041,7 +1169,7 @@ let
       export CLAUDE_CONFIG_DIR="${deepseekClaudeConfigDir}"
       export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1048576"
       export CLAUDE_CODE_MAX_CONTEXT_TOKENS="1048576"
-      ${workWrapperTail}
+      ${deepseekWrapperTail}
     '';
   };
 
@@ -1050,6 +1178,7 @@ let
     runtimeEnv.CLAUDE_VARIANT_REALM = "personal";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
+      ${sessionMarkerText}
       ${mkKeyAuth {
         name = "personal-deepseek-claude";
         keyFile = "personal-deepseek";
@@ -1071,12 +1200,14 @@ let
       ${browserMcpParserText}
       ${nixosMcpParserText}
       ${githubMcpParserText}
+      ${deepseekSearchParserText}
       ${lib.getExe healClaudeState} || true
       ${pluginSettingsArgText}
       ${browserMcpArgText}
       ${nixosMcpArgText}
       ${githubMcpArgText}
-      exec ${claudeBin} "''${_claude_extra_args[@]}" "$@"
+      ${deepseekSearchArgText}
+      _claude_session_run ${claudeBin} "''${_claude_extra_args[@]}" "$@"
     '';
   };
 
@@ -1309,6 +1440,52 @@ let
     hideClaudeCost = true;
   };
 
+  deepseekSearchMcp = pkgs.writeShellApplication {
+    name = "deepseek-search-mcp";
+    runtimeInputs = [
+      pkgs.python3
+      pkgs.cacert
+    ];
+    runtimeEnv.SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+    text = ''
+      exec ${lib.getExe' pkgs.python3 "python3"} -I ${./deepseek-search-mcp.py} "$@"
+    '';
+  };
+
+  deepseekSearchMcpConfigRel = ".config/claude-deepseek-search/deepseek.json";
+  deepseekSearchMcpConfigPath = "${config.home.homeDirectory}/${deepseekSearchMcpConfigRel}";
+
+  deepseekSearchMcpServers = {
+    mcpServers.deepseek = {
+      command = lib.getExe deepseekSearchMcp;
+    };
+  };
+
+  deepseekSearchParserText = mkBoolFlagParser {
+    flag = "--search";
+    resultVar = "_claude_deepseek_search";
+  };
+
+  deepseekSearchArgText = ''
+    if [ "$_claude_deepseek_search" -eq 1 ]; then
+      _claude_extra_args+=(--mcp-config "${deepseekSearchMcpConfigPath}")
+    fi
+    unset _claude_deepseek_search
+  '';
+
+  deepseekWrapperTail = ''
+    ${commonParserText}
+    ${pluginFlagsParserText}
+    ${browserMcpParserText}
+    ${deepseekSearchParserText}
+
+    ${lib.getExe healClaudeState} || true
+    ${pluginSettingsArgText}
+    ${browserMcpArgText}
+    ${deepseekSearchArgText}
+    _claude_session_run ${claudeBin} "''${_claude_extra_args[@]}" "$@"
+  '';
+
   divarPathGuardText = ''
     case "$PWD" in
       *divar*)
@@ -1341,6 +1518,7 @@ let
       pkgs.tzdata
     ];
     text = ''
+      ${sessionMarkerText}
       ${ipGuardText}
       ${divarPathGuardText}
       export CLAUDE_VARIANT_NAME="personal-claude"
@@ -1362,13 +1540,13 @@ let
       ${githubMcpArgText}
       if [ "$_claude_agentic_mcps" -eq 1 ]; then
         if [ "$_claude_gitlab_mcp" -eq 1 ]; then
-          exec ${claudeBin} --mcp-config ${workMcpConfigPath} "''${_claude_extra_args[@]}" "$@"
+          _claude_session_run ${claudeBin} --mcp-config ${workMcpConfigPath} "''${_claude_extra_args[@]}" "$@"
         else
-          exec ${claudeBin} --mcp-config ${workMcpConfigPath} \
+          _claude_session_run ${claudeBin} --mcp-config ${workMcpConfigPath} \
             --disallowedTools "mcp__${workMcpServerName}__gitlab_*" "''${_claude_extra_args[@]}" "$@"
         fi
       else
-        exec ${claudeBin} "''${_claude_extra_args[@]}" "$@"
+        _claude_session_run ${claudeBin} "''${_claude_extra_args[@]}" "$@"
       fi
     '';
   };
@@ -1377,6 +1555,7 @@ let
     name = "gap-claude";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
+      ${sessionMarkerText}
       export CLAUDE_VARIANT_NAME="gap-claude"
       export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/gap-claude"
       export ANTHROPIC_API_KEY="${secrets.gapgpt.apiKey or ""}"
@@ -1387,7 +1566,7 @@ let
       ${lib.getExe healClaudeState} || true
       ${pluginSettingsArgText}
       ${browserMcpArgText}
-      exec ${claudeBin} "''${_claude_extra_args[@]}" "$@"
+      _claude_session_run ${claudeBin} "''${_claude_extra_args[@]}" "$@"
     '';
   };
 
@@ -1401,6 +1580,7 @@ let
       pkgs.tzdata
     ];
     text = ''
+      ${sessionMarkerText}
       ${ipGuardText}
       export CLAUDE_VARIANT_NAME="work-claude"
       export CLAUDE_CONFIG_DIR="${workClaudeConfigDir}"
@@ -1416,9 +1596,11 @@ let
     name = "local-claude";
     runtimeInputs = [
       pkgs.claude-code
+      pkgs.coreutils
       pkgs.nodejs
     ];
     text = ''
+      ${sessionMarkerText}
       export CLAUDE_VARIANT_NAME="local-claude"
       export CLAUDE_CONFIG_DIR="${config.home.homeDirectory}/.config/local-claude"
       export ANTHROPIC_BASE_URL="${localAnthropicBaseUrl}"
@@ -1431,7 +1613,7 @@ let
       ${lib.getExe healClaudeState} || true
       ${pluginSettingsArgText}
       ${browserMcpArgText}
-      exec ${claudeBin} --mcp-config "${localMcpConfigPath}" "''${_claude_extra_args[@]}" "$@"
+      _claude_session_run ${claudeBin} --mcp-config "${localMcpConfigPath}" "''${_claude_extra_args[@]}" "$@"
     '';
   };
 
@@ -1798,24 +1980,24 @@ let
   };
   pickerVariants =
     lib.optional cfg.enable (pickerEntry "gap" "gap-claude" "gapgpt cloud" gapClaude)
-    ++ lib.optional cfg.enableGlm (pickerEntry "glm" "glm-claude" "GLM via z.ai" glmClaude)
-    ++ lib.optional cfg.enableDeepseek (
+    ++ lib.optional (cfg.enable && cfg.enableGlm) (pickerEntry "glm" "glm-claude" "GLM via z.ai" glmClaude)
+    ++ lib.optional (cfg.enable && cfg.enableDeepseek) (
       pickerEntry "deepseek" "deepseek-claude" "DeepSeek, native Anthropic API" deepseekClaude
     )
-    ++ lib.optional cfg.enableWorkDivarGlm (
+    ++ lib.optional (cfg.enable && cfg.enableWorkDivarGlm) (
       pickerEntry "work-divar-glm" "work-divar-glm-claude" "Divar work, divar-glm5.3 gateway"
         workDivarGlmClaude
     )
-    ++ lib.optional cfg.enableWorkDivarDeepseek (
+    ++ lib.optional (cfg.enable && cfg.enableWorkDivarDeepseek) (
       pickerEntry "work-divar-deepseek" "work-divar-deepseek-claude" "Divar work, divar-deepseek gateway"
         workDivarDeepseekClaude
     )
-    ++ lib.optional cfg.enablePersonalDeepseek (
+    ++ lib.optional (cfg.enable && cfg.enablePersonalDeepseek) (
       pickerEntry "personal-deepseek" "personal-deepseek-claude" "DeepSeek, personal key"
         personalDeepseekClaude
     )
-    ++ lib.optional cfg.enableWork (pickerEntry "work" "work-claude" "Divar work, xhigh" claudeWork)
-    ++ lib.optional cfg.enablePersonal (
+    ++ lib.optional (cfg.enable && cfg.enableWork) (pickerEntry "work" "work-claude" "Divar work, xhigh" claudeWork)
+    ++ lib.optional (cfg.enable && cfg.enablePersonal) (
       pickerEntry "personal" "personal-claude" "Anthropic direct, IP-guarded" personalClaude
     );
 
@@ -2381,7 +2563,7 @@ in
       description = ''
         Generated zsh `_arguments` fragment (one `'--flag[desc]'` per entry in
         `flagPlugins`) for the CLI plugin-toggle flags every claude variant
-        wrapper accepts (e.g. `--crit`, `--no-devar`). Consumed by
+        wrapper accepts (e.g. `--caveman`, `--no-devar`). Consumed by
         home/modules/shell/zsh/functions.nix so a new flagPlugins entry gets
         shell completion automatically, no separate edit needed.
       '';
@@ -2406,7 +2588,9 @@ in
 
   config = lib.mkMerge [
     {
-      home.packages = [ pkgs.crit ];
+      programs.zellij.settings = lib.mkIf config.programs.zellij.enable {
+        post_command_discovery_hook = lib.getExe claudeZellijResurrect;
+      };
     }
     (lib.mkIf cfg.sandbox.enable {
       custom.sessionBusProxy.claude = {
@@ -2438,17 +2622,17 @@ in
           claudePicker
           gapClaude
         ]
-        ++ lib.optional cfg.enableGlm glmClaude;
+        ++ lib.optional (cfg.enable && cfg.enableGlm) glmClaude;
         file = mkVariantHomeFile ".config/gap-claude" "gap" "gap" gapSettings;
       };
     })
-    (lib.mkIf cfg.enableGlm {
+    (lib.mkIf (cfg.enable && cfg.enableGlm) {
       home = {
         packages = [ glmUsage ];
         file = mkVariantHomeFile ".config/glm-claude" "work" "glm" glmSettings;
       };
     })
-    (lib.mkIf cfg.enableDeepseek {
+    (lib.mkIf (cfg.enable && cfg.enableDeepseek) {
       home = {
         packages = [
           deepseekClaude
@@ -2457,13 +2641,13 @@ in
         file = mkVariantHomeFile ".config/deepseek-claude" "work" "deepseek" deepseekSettings;
       };
     })
-    (lib.mkIf cfg.enableWorkDivarGlm {
+    (lib.mkIf (cfg.enable && cfg.enableWorkDivarGlm) {
       home = {
         packages = [ workDivarGlmClaude ];
         file = mkVariantHomeFile ".config/work-divar-glm-claude" "work" "workDivarGlm" workSettings;
       };
     })
-    (lib.mkIf cfg.enableWorkDivarDeepseek {
+    (lib.mkIf (cfg.enable && cfg.enableWorkDivarDeepseek) {
       home = {
         packages = [ workDivarDeepseekClaude ];
         file =
@@ -2471,7 +2655,7 @@ in
             workSettings;
       };
     })
-    (lib.mkIf cfg.enableWork {
+    (lib.mkIf (cfg.enable && cfg.enableWork) {
       home = {
         packages = [ claudeWork ];
         file = mkVariantHomeFile ".config/work-claude" "work" "work" workSettings;
@@ -2517,11 +2701,11 @@ in
           ));
         home.activation.claudeWorkConversationMigration = lib.hm.dag.entryBefore [ "checkLinkTargets" ] (
           mkConversationShareMigration workClaudeSharedDir (
-            lib.optional cfg.enableWork workClaudeConfigDir
-            ++ lib.optional cfg.enableGlm glmClaudeConfigDir
-            ++ lib.optional cfg.enableDeepseek deepseekClaudeConfigDir
-            ++ lib.optional cfg.enableWorkDivarGlm workDivarGlmClaudeConfigDir
-            ++ lib.optional cfg.enableWorkDivarDeepseek workDivarDeepseekClaudeConfigDir
+            lib.optional (cfg.enable && cfg.enableWork) workClaudeConfigDir
+            ++ lib.optional (cfg.enable && cfg.enableGlm) glmClaudeConfigDir
+            ++ lib.optional (cfg.enable && cfg.enableDeepseek) deepseekClaudeConfigDir
+            ++ lib.optional (cfg.enable && cfg.enableWorkDivarGlm) workDivarGlmClaudeConfigDir
+            ++ lib.optional (cfg.enable && cfg.enableWorkDivarDeepseek) workDivarDeepseekClaudeConfigDir
           )
         );
       }
@@ -2538,8 +2722,8 @@ in
         lib.hm.dag.entryBefore [ "checkLinkTargets" ]
           (
             mkConversationShareMigration personalClaudeSharedDir (
-              lib.optional cfg.enablePersonal personalClaudeConfigDir
-              ++ lib.optional cfg.enablePersonalDeepseek personalDeepseekClaudeConfigDir
+              lib.optional (cfg.enable && cfg.enablePersonal) personalClaudeConfigDir
+              ++ lib.optional (cfg.enable && cfg.enablePersonalDeepseek) personalDeepseekClaudeConfigDir
             )
           );
     })
@@ -2549,7 +2733,10 @@ in
         ${githubMcpConfigRel}.text = builtins.toJSON githubMcpServers;
       };
     })
-    (lib.mkIf cfg.enablePersonalDeepseek {
+    (lib.mkIf (cfg.enableDeepseek || cfg.enablePersonalDeepseek) {
+      home.file.${deepseekSearchMcpConfigRel}.text = builtins.toJSON deepseekSearchMcpServers;
+    })
+    (lib.mkIf (cfg.enable && cfg.enablePersonalDeepseek) {
       home = {
         packages = [
           personalDeepseekClaude
@@ -2560,7 +2747,7 @@ in
             personalDeepseekSettings;
       };
     })
-    (lib.mkIf cfg.enableLocal {
+    (lib.mkIf (cfg.enable && cfg.enableLocal) {
       home = {
         packages = [ localClaude ];
         file = {
@@ -2572,7 +2759,7 @@ in
         };
       };
     })
-    (lib.mkIf cfg.enablePersonal {
+    (lib.mkIf (cfg.enable && cfg.enablePersonal) {
       home = {
         packages = [ personalClaude ];
         file = mkVariantHomeFile ".config/personal-claude" "personal" "personal" personalSettings;
@@ -2622,14 +2809,14 @@ in
             '')
             (
               lib.optional cfg.enable ".config/gap-claude"
-              ++ lib.optional cfg.enableGlm ".config/glm-claude"
-              ++ lib.optional cfg.enableDeepseek ".config/deepseek-claude"
-              ++ lib.optional cfg.enableWorkDivarGlm ".config/work-divar-glm-claude"
-              ++ lib.optional cfg.enableWorkDivarDeepseek ".config/work-divar-deepseek-claude"
-              ++ lib.optional cfg.enablePersonalDeepseek ".config/personal-deepseek-claude"
-              ++ lib.optional cfg.enableWork ".config/work-claude"
-              ++ lib.optional cfg.enableLocal ".config/local-claude"
-              ++ lib.optional cfg.enablePersonal ".config/personal-claude"
+              ++ lib.optional (cfg.enable && cfg.enableGlm) ".config/glm-claude"
+              ++ lib.optional (cfg.enable && cfg.enableDeepseek) ".config/deepseek-claude"
+              ++ lib.optional (cfg.enable && cfg.enableWorkDivarGlm) ".config/work-divar-glm-claude"
+              ++ lib.optional (cfg.enable && cfg.enableWorkDivarDeepseek) ".config/work-divar-deepseek-claude"
+              ++ lib.optional (cfg.enable && cfg.enablePersonalDeepseek) ".config/personal-deepseek-claude"
+              ++ lib.optional (cfg.enable && cfg.enableWork) ".config/work-claude"
+              ++ lib.optional (cfg.enable && cfg.enableLocal) ".config/local-claude"
+              ++ lib.optional (cfg.enable && cfg.enablePersonal) ".config/personal-claude"
             )
         );
       }

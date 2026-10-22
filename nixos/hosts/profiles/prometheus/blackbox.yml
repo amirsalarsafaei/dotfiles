@@ -15,5 +15,7 @@ modules:
     prober: tcp
     timeout: 5s
   ping:
-    prober: ping
+    prober: icmp
     timeout: 5s
+    icmp:
+      preferred_ip_protocol: ipv4

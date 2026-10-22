@@ -176,13 +176,13 @@ in
           };
         };
 
-        claudecode = lib.mkIf cfg.features.ai {
+        claudecode = lib.mkIf (cfg.features.ai && config.custom.claudeCode.enable) {
           enable = true;
           settings.diff_opts.auto_close_on_accept = true;
         };
       };
 
-      globals.claude_variants = lib.mkIf cfg.features.ai (config.custom.claudeCode.variants or [ ]);
+      globals.claude_variants = lib.mkIf (cfg.features.ai && config.custom.claudeCode.enable) (config.custom.claudeCode.variants or [ ]);
 
       keymaps = [
         (normalKeymap "<leader>W" "<cmd>SudaWrite<CR>" { desc = "Write file with sudo"; })

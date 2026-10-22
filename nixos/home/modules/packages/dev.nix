@@ -39,7 +39,6 @@ in
     pkgs.gore
     pkgs.devbox
     pkgs.bazelisk
-    pkgs.amp-cli
     pkgs.codex
     pkgs.opencode
     pkgs.pnpm
@@ -53,6 +52,5 @@ in
     pkgs.ast-grep
     pkgs.istioctl
     pkgs.jfrog-cli
-    pkgs.crit
   ];
 }

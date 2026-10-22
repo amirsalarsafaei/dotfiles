@@ -56,11 +56,6 @@
 
     claude-code.url = "github:sadjow/claude-code-nix";
 
-    crit = {
-      url = "github:tomasz-tomczyk/crit";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     samber-go-skills = {
       url = "github:samber/cc-skills-golang";
       flake = false;

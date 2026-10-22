@@ -8,7 +8,6 @@
   agent-skills,
   stylix,
   disko,
-  crit,
   ...
 }@inputs:
 let
@@ -37,7 +36,6 @@ let
     config = nixpkgsConfig;
     overlays = import ../overlays { inherit nixpkgs-stable nixpkgsConfig; } ++ [
       claude-code.overlays.default
-      (_: _: { crit = crit.packages.${system}.crit; })
     ];
   };
 
@@ -51,6 +49,7 @@ let
     theme = ../home/profiles/theme.nix;
     desktop = ../home/profiles/desktop.nix;
     full = ../home/profiles/full.nix;
+    franksalar = ../home/profiles/franksalar.nix;
   };
 
   nixosProfileModules = {

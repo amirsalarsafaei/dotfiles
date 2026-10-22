@@ -5,5 +5,8 @@
   ...
 }:
 {
-  home.packages = lib.optional config.custom.personal.enable pkgs.hmcl;
+  home.packages = lib.optionals config.custom.personal.enable [
+    pkgs.hmcl
+    (pkgs.bottles.override { removeWarningPopup = true; })
+  ];
 }
