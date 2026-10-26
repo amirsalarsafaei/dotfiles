@@ -19,6 +19,11 @@
 
     pkgs.clang-tools
     pkgs.cppcheck
+    # native exploit-dev on top of gdb: pwndbg (heap/watchpoint UX),
+    # rr (record+replay — reverse from the write), ropper (gadget search)
+    pkgs.pwndbg
+    pkgs.rr
+    pkgs.ropper
     pkgs.gdb
     pkgs.lldb
 
