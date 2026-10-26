@@ -18,7 +18,7 @@
   '';
 
   "_claude-mcp" = ''
-    #compdef work-claude glm-claude deepseek-claude personal-deepseek-claude personal-claude claude
+    #compdef work-claude glm-claude deepseek-claude kimi-claude personal-deepseek-claude personal-claude claude
 
     _arguments \
       '--effort[effort level for this session]:level:(low medium high xhigh max)' \

@@ -214,6 +214,7 @@ let
     "${config.home.homeDirectory}/zshsecret"
     "${config.home.homeDirectory}/glm-key"
     "${config.home.homeDirectory}/deepseek-key"
+    "${config.home.homeDirectory}/kimi-key"
     "${config.home.homeDirectory}/personal-deepseek"
     "${config.home.homeDirectory}/divar-glm"
     "${config.home.homeDirectory}/divar-deepseek"
@@ -542,6 +543,7 @@ let
   workClaudeConfigDir = "${config.home.homeDirectory}/.config/work-claude";
   glmClaudeConfigDir = "${config.home.homeDirectory}/.config/glm-claude";
   deepseekClaudeConfigDir = "${config.home.homeDirectory}/.config/deepseek-claude";
+  kimiClaudeConfigDir = "${config.home.homeDirectory}/.config/kimi-claude";
   workDivarGlmClaudeConfigDir = "${config.home.homeDirectory}/.config/work-divar-glm-claude";
   workDivarDeepseekClaudeConfigDir = "${config.home.homeDirectory}/.config/work-divar-deepseek-claude";
   personalClaudeConfigDir = "${config.home.homeDirectory}/.config/personal-claude";
@@ -1092,6 +1094,7 @@ let
       export ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5.3[1m]"
       export ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-5.3-flash[1m]"
       export CLAUDE_CODE_SUBAGENT_MODEL="glm-5.3-flash[1m]"
+      export CLAUDE_CODE_AUTO_MODE_MODEL="glm-5.3-flash[1m]"
       export CLAUDE_CONFIG_DIR="${glmClaudeConfigDir}"
       export CLAUDE_CODE_EFFORT_DEFAULT="${workEffortLevel}"
       export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1048576"
@@ -1171,6 +1174,34 @@ let
       export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1048576"
       export CLAUDE_CODE_MAX_CONTEXT_TOKENS="1048576"
       ${deepseekWrapperTail}
+    '';
+  };
+
+  kimiClaude = pkgs.writeShellApplication {
+    name = "kimi-claude";
+    runtimeEnv.CLAUDE_VARIANT_REALM = "work";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = ''
+      ${mkKeyAuth {
+        name = "kimi-claude";
+        keyFile = "kimi-key";
+        authVar = "ANTHROPIC_AUTH_TOKEN";
+      }}
+      export CLAUDE_VARIANT_NAME="kimi-claude"
+      export ANTHROPIC_BASE_URL="https://api.moonshot.ai/anthropic"
+      export ANTHROPIC_MODEL="kimi-k3.1-pro"
+      export ANTHROPIC_DEFAULT_OPUS_MODEL="kimi-k3.1-pro"
+      export ANTHROPIC_DEFAULT_SONNET_MODEL="kimi-k3.1-pro"
+      export ANTHROPIC_DEFAULT_HAIKU_MODEL="kimi-k2.7-code"
+      export ANTHROPIC_DEFAULT_FABLE_MODEL="kimi-k3.1-pro-highspeed"
+      export ANTHROPIC_SMALL_FAST_MODEL="kimi-k2.7-code"
+      export CLAUDE_CODE_SUBAGENT_MODEL="kimi-k3.1-pro"
+      export CLAUDE_CODE_AUTO_MODE_MODEL="kimi-k3.1-pro"
+      export CLAUDE_CONFIG_DIR="${kimiClaudeConfigDir}"
+      export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1048576"
+      export CLAUDE_CODE_MAX_CONTEXT_TOKENS="1048576"
+      export API_TIMEOUT_MS="3000000"
+      ${workWrapperTail}
     '';
   };
 
@@ -1361,6 +1392,7 @@ let
 
   glmPricesJson = builtins.toJSON (lib.mapAttrs (_: usagePriceModelToJson) cfg.glmPrices);
   deepseekPricesJson = builtins.toJSON (lib.mapAttrs (_: usagePriceModelToJson) cfg.deepseekPrices);
+  kimiPricesJson = builtins.toJSON (lib.mapAttrs (_: usagePriceModelToJson) cfg.kimiPrices);
 
   glmUsage = pkgs.writeShellApplication {
     name = "glm-usage";
@@ -1413,6 +1445,18 @@ let
       fi
       export DEEPSEEK_BILLING_DAY="''${DEEPSEEK_BILLING_DAY-${toString cfg.deepseekBillingDay}}"
       exec ${lib.getExe' pkgs.python3 "python3"} ${./usage-tracker.py} DEEPSEEK "$@"
+    '';
+  };
+
+  kimiUsage = pkgs.writeShellApplication {
+    name = "kimi-usage";
+    runtimeInputs = [ pkgs.python3 ];
+    text = ''
+      if [ -z "''${KIMI_PRICES:-}" ]; then
+        export KIMI_PRICES=${lib.escapeShellArg kimiPricesJson}
+      fi
+      export KIMI_BILLING_DAY="''${KIMI_BILLING_DAY-${toString cfg.kimiBillingDay}}"
+      exec ${lib.getExe' pkgs.python3 "python3"} ${./usage-tracker.py} KIMI "$@"
     '';
   };
 
@@ -1507,6 +1551,13 @@ let
     ${deepseekSearchArgText}
     _claude_session_run ${claudeBin} "''${_claude_extra_args[@]}" "$@"
   '';
+
+  kimiStatusLine = mkUsageStatusLine {
+    name = "kimi-claude-statusline";
+    usageBin = kimiUsage;
+    label = "kimi";
+    hideClaudeCost = true;
+  };
 
   divarPathGuardText = ''
     case "$PWD" in
@@ -1673,6 +1724,7 @@ let
     "enableWork"
     "enableGlm"
     "enableDeepseek"
+    "enableKimi"
     "enableWorkDivarGlm"
     "enableWorkDivarDeepseek"
     "enableDevar"
@@ -1945,6 +1997,20 @@ let
     };
   };
 
+  kimiSettings = {
+    theme = "dark";
+    env = {
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1";
+    };
+    extraKnownMarketplaces = devarMarketplace // astGrepMarketplace;
+    enabledPlugins = devarPlugin // astGrepPlugin;
+    permissions = devarPermissions;
+    statusLine = {
+      type = "command";
+      command = lib.getExe kimiStatusLine;
+    };
+  };
+
   personalDeepseekSettings = {
     theme = "dark";
     env = {
@@ -2004,9 +2070,14 @@ let
   };
   pickerVariants =
     lib.optional cfg.enable (pickerEntry "gap" "gap-claude" "gapgpt cloud" gapClaude)
-    ++ lib.optional (cfg.enable && cfg.enableGlm) (pickerEntry "glm" "glm-claude" "GLM via z.ai" glmClaude)
+    ++ lib.optional (cfg.enable && cfg.enableGlm) (
+      pickerEntry "glm" "glm-claude" "GLM via z.ai" glmClaude
+    )
     ++ lib.optional (cfg.enable && cfg.enableDeepseek) (
       pickerEntry "deepseek" "deepseek-claude" "DeepSeek, native Anthropic API" deepseekClaude
+    )
+    ++ lib.optional (cfg.enable && cfg.enableKimi) (
+      pickerEntry "kimi" "kimi-claude" "Kimi, native Anthropic API" kimiClaude
     )
     ++ lib.optional (cfg.enable && cfg.enableWorkDivarGlm) (
       pickerEntry "work-divar-glm" "work-divar-glm-claude" "Divar work, divar-glm5.3 gateway"
@@ -2020,7 +2091,9 @@ let
       pickerEntry "personal-deepseek" "personal-deepseek-claude" "DeepSeek, personal key"
         personalDeepseekClaude
     )
-    ++ lib.optional (cfg.enable && cfg.enableWork) (pickerEntry "work" "work-claude" "Divar work, xhigh" claudeWork)
+    ++ lib.optional (cfg.enable && cfg.enableWork) (
+      pickerEntry "work" "work-claude" "Divar work, xhigh" claudeWork
+    )
     ++ lib.optional (cfg.enable && cfg.enablePersonal) (
       pickerEntry "personal" "personal-claude" "Anthropic direct, IP-guarded" personalClaude
     );
@@ -2067,6 +2140,11 @@ in
       the deepseek-claude variant: routes through DeepSeek's native
       Anthropic-compatible endpoint (https://api.deepseek.com/anthropic).
       Reads the API key from ~/deepseek-key
+    '';
+    enableKimi = mkWorkEnableOption ''
+      the kimi-claude variant: routes through Kimi's native
+      Anthropic-compatible endpoint (https://api.moonshot.ai/anthropic).
+      Reads the API key from ~/kimi-key
     '';
     enableWorkDivarGlm = mkWorkEnableOption ''
       the work-divar-glm-claude variant: work group, routed through the Divar
@@ -2131,6 +2209,7 @@ in
         work = mkMode "work-claude" "full";
         glm = mkMode "glm-claude" null;
         deepseek = mkMode "deepseek-claude" null;
+        kimi = mkMode "kimi-claude" null;
         workDivarGlm = mkMode "work-divar-glm-claude" null;
         workDivarDeepseek = mkMode "work-divar-deepseek-claude" null;
         personalDeepseek = mkMode "personal-deepseek-claude" null;
@@ -2501,6 +2580,54 @@ in
       '';
     };
 
+    kimiPrices = lib.mkOption {
+      type = lib.types.attrsOf usagePriceModel;
+      default = {
+        "kimi-k3.1-pro" = {
+          input = 2.00;
+          output = 10.00;
+          cacheRead = 0.20;
+          cacheCreate = 2.00;
+        };
+        "kimi-k3.1-pro-highspeed" = {
+          input = 4.00;
+          output = 20.00;
+          cacheRead = 0.20;
+          cacheCreate = 4.00;
+        };
+        "kimi-k2.7-code" = {
+          input = 0.95;
+          output = 4.00;
+          cacheRead = 0.19;
+          cacheCreate = 0.95;
+        };
+      };
+      description = ''
+        Per-model, per-1M-token USD prices for the Kimi API platform
+        (platform.kimi.ai), consumed by `kimi-usage` and its statusline
+        session/week/month cost. Keyed by the model id a turn's transcript
+        records — the kimi-claude variant runs kimi-k3.1-pro in the
+        main/Opus/Sonnet/subagent slots, kimi-k3.1-pro-highspeed in the
+        Fable/fast slot and kimi-k2.7-code in the Haiku slot. The platform's
+        own pricing tables render client-side, so the
+        defaults are the rates third-party trackers consistently report
+        (openrouter.ai, felloai.com, costgoat.com); Kimi bills K3 cache
+        writes per TTL tier, which the flat price model cannot express, so
+        cacheCreate defaults to the input rate. Override per-host once
+        Moonshot publishes exact official numbers.
+      '';
+    };
+
+    kimiBillingDay = lib.mkOption {
+      type = lib.types.ints.between 1 31;
+      default = 1;
+      description = ''
+        Day of month the statusline's Kimi "mo" window resets. Kimi is
+        prepaid (no subscription cycle), so this just picks a display window
+        — default the 1st (calendar month).
+      '';
+    };
+
     plugins = {
       default = lib.mkOption {
         type = pluginType;
@@ -2668,6 +2795,15 @@ in
         file = mkVariantHomeFile ".config/deepseek-claude" "work" "deepseek" deepseekSettings;
       };
     })
+    (lib.mkIf (cfg.enable && cfg.enableKimi) {
+      home = {
+        packages = [
+          kimiClaude
+          kimiUsage
+        ];
+        file = mkVariantHomeFile ".config/kimi-claude" "work" "kimi" kimiSettings;
+      };
+    })
     (lib.mkIf (cfg.enable && cfg.enableWorkDivarGlm) {
       home = {
         packages = [ workDivarGlmClaude ];
@@ -2694,6 +2830,7 @@ in
         || cfg.enableGlm
         || cfg.enablePersonal
         || cfg.enableDeepseek
+        || cfg.enableKimi
         || cfg.enableWorkDivarGlm
         || cfg.enableWorkDivarDeepseek
       )
@@ -2706,6 +2843,7 @@ in
         cfg.enableWork
         || cfg.enableGlm
         || cfg.enableDeepseek
+        || cfg.enableKimi
         || cfg.enableWorkDivarGlm
         || cfg.enableWorkDivarDeepseek
       )
@@ -2720,6 +2858,9 @@ in
           // (lib.optionalAttrs cfg.enableDeepseek (
             mkConversationShareFiles workClaudeSharedDir ".config/deepseek-claude"
           ))
+          // (lib.optionalAttrs cfg.enableKimi (
+            mkConversationShareFiles workClaudeSharedDir ".config/kimi-claude"
+          ))
           // (lib.optionalAttrs cfg.enableWorkDivarGlm (
             mkConversationShareFiles workClaudeSharedDir ".config/work-divar-glm-claude"
           ))
@@ -2731,6 +2872,7 @@ in
             lib.optional (cfg.enable && cfg.enableWork) workClaudeConfigDir
             ++ lib.optional (cfg.enable && cfg.enableGlm) glmClaudeConfigDir
             ++ lib.optional (cfg.enable && cfg.enableDeepseek) deepseekClaudeConfigDir
+            ++ lib.optional (cfg.enable && cfg.enableKimi) kimiClaudeConfigDir
             ++ lib.optional (cfg.enable && cfg.enableWorkDivarGlm) workDivarGlmClaudeConfigDir
             ++ lib.optional (cfg.enable && cfg.enableWorkDivarDeepseek) workDivarDeepseekClaudeConfigDir
           )
@@ -2799,6 +2941,7 @@ in
         || cfg.enableLocal
         || cfg.enablePersonal
         || cfg.enableDeepseek
+        || cfg.enableKimi
         || cfg.enablePersonalDeepseek
         || cfg.enableWorkDivarGlm
         || cfg.enableWorkDivarDeepseek
@@ -2822,6 +2965,7 @@ in
         || cfg.enableLocal
         || cfg.enablePersonal
         || cfg.enableDeepseek
+        || cfg.enableKimi
         || cfg.enablePersonalDeepseek
       )
       {
@@ -2838,6 +2982,7 @@ in
               lib.optional cfg.enable ".config/gap-claude"
               ++ lib.optional (cfg.enable && cfg.enableGlm) ".config/glm-claude"
               ++ lib.optional (cfg.enable && cfg.enableDeepseek) ".config/deepseek-claude"
+              ++ lib.optional (cfg.enable && cfg.enableKimi) ".config/kimi-claude"
               ++ lib.optional (cfg.enable && cfg.enableWorkDivarGlm) ".config/work-divar-glm-claude"
               ++ lib.optional (cfg.enable && cfg.enableWorkDivarDeepseek) ".config/work-divar-deepseek-claude"
               ++ lib.optional (cfg.enable && cfg.enablePersonalDeepseek) ".config/personal-deepseek-claude"
