@@ -6,5 +6,6 @@
     pkgs.jemalloc
     pkgs.xdg-utils
     pkgs.lm_sensors
+    pkgs.libsecret
   ];
 }

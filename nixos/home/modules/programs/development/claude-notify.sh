@@ -80,6 +80,7 @@ variant="${CLAUDE_VARIANT_NAME:-claude}"
 case "$variant" in
   gap-claude) emoji="🌐" ;;
   glm-claude) emoji="🌙" ;;
+  orca-claude) emoji="🐬" ;;
   *deepseek-claude) emoji="🐋" ;;
   work-claude) emoji="💼" ;;
   local-claude) emoji="🏠" ;;

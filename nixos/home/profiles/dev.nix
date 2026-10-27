@@ -105,6 +105,11 @@ in
           dest = "${config.home.homeDirectory}/.config/personal-deepseek-claude/skills";
           structure = "symlink-tree";
         };
+        orca-claude = {
+          enable = config.custom.claudeCode.enable && config.custom.claudeCode.enableOrca;
+          dest = "${config.home.homeDirectory}/.config/orca-claude/skills";
+          structure = "symlink-tree";
+        };
         work-claude = {
           enable = config.custom.claudeCode.enable && config.custom.claudeCode.enableWork;
           dest = "${config.home.homeDirectory}/.config/work-claude/skills";

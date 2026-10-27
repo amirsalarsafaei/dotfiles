@@ -45,6 +45,14 @@ args=(
   --dev-bind /dev /dev
 )
 
+if [ -n "${CLAUDE_VARIANT_NAME:-}" ]; then
+  args+=(--setenv CLAUDE_VARIANT_NAME "$CLAUDE_VARIANT_NAME")
+fi
+
+if [ -n "${CLAUDE_ZELLIJ_MARKER:-}" ]; then
+  args+=(--setenv CLAUDE_ZELLIJ_MARKER "$CLAUDE_ZELLIJ_MARKER")
+fi
+
 if [ "${CLAUDE_SANDBOX_NET:-0}" = 1 ]; then
   args+=(--unshare-net)
 fi

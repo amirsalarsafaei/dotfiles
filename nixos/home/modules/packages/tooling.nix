@@ -21,9 +21,9 @@
     pkgs.cppcheck
     # native exploit-dev on top of gdb: pwndbg (heap/watchpoint UX),
     # rr (record+replay — reverse from the write), ropper (gadget search)
-    pkgs.pwndbg
+    pkgs.gef
     pkgs.rr
-    pkgs.ropper
+    pkgs.python3Packages.ropper
     pkgs.gdb
     pkgs.lldb
 
@@ -53,6 +53,7 @@
     pkgs.dockerfile-language-server
     pkgs.docker-compose-language-service
     pkgs.hadolint
+    pkgs.docker-sbx
 
     pkgs.prettier
     pkgs.shellcheck
