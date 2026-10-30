@@ -2447,6 +2447,7 @@ in
           directory are read-only Nix store symlinks, so edits to them do not persist. Change the
           Nix module and let the user rebuild; never run nixos-rebuild or home-manager switch
           yourself.
+          The Obsidian vault is located at ~/Documents/amirsalar-vault.
 
           The system does not follow normal FHS conventions: there is no /usr/lib, /usr/include or
           /usr/local, /bin holds only sh, and binaries live in /nix/store and reach PATH through
