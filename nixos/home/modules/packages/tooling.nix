@@ -1,4 +1,9 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  lib,
+  currentHostname,
+  ...
+}:
 {
   home.packages = [
     pkgs.nixd
@@ -53,8 +58,9 @@
     pkgs.dockerfile-language-server
     pkgs.docker-compose-language-service
     pkgs.hadolint
-    pkgs.docker-sbx
-
+  ]
+  ++ lib.optional (currentHostname == "t14") pkgs.docker-sbx
+  ++ [
     pkgs.prettier
     pkgs.shellcheck
     pkgs.shfmt
