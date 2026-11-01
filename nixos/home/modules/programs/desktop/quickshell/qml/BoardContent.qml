@@ -220,6 +220,89 @@ Item {
         width: parent.width
         spacing: content.gap
 
+        BoardCard {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 250
+            progress: content.progress
+            title: "Open todos"
+            note: (content.agenda.tasks ?? []).length + " open · click a todo to edit its note"
+
+            ListView {
+                id: taskList
+                anchors.fill: parent
+                clip: true
+                spacing: 6
+                boundsBehavior: Flickable.StopAtBounds
+                model: content.agenda.tasks ?? []
+
+                delegate: Rectangle {
+                    id: taskRow
+                    required property var modelData
+                    width: taskList.width
+                    height: taskText.implicitHeight + taskSource.implicitHeight + 22
+                    radius: 8
+                    color: Theme.alpha(modelData.overdue ? Theme.warm : Theme.primary, taskMouse.containsMouse ? 0.18 : 0.07)
+
+                    Label {
+                        x: 10
+                        y: 9
+                        text: "□"
+                        color: taskRow.modelData.overdue ? Theme.warm : Theme.secondary
+                        font.pixelSize: 18
+                    }
+
+                    Label {
+                        id: taskText
+                        x: 36
+                        y: 8
+                        width: parent.width - 50
+                        text: taskRow.modelData.title
+                        textFormat: Text.PlainText
+                        wrapMode: Text.Wrap
+                        elide: Text.ElideNone
+                        color: Theme.fgBright
+                        font.pixelSize: 14
+                    }
+
+                    Label {
+                        id: taskSource
+                        x: 36
+                        y: taskText.y + taskText.implicitHeight + 3
+                        width: parent.width - 50
+                        text: (taskRow.modelData.overdue ? "Overdue · " : "") + (taskRow.modelData.date || "No date") + " · " + taskRow.modelData.path + ":" + taskRow.modelData.line
+                        textFormat: Text.PlainText
+                        font.pixelSize: 11
+                        color: taskRow.modelData.overdue ? Theme.warm : Theme.muted
+                    }
+
+                    MouseArea {
+                        id: taskMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Qt.openUrlExternally("obsidian://open?vault=amirsalar-vault&file=" + encodeURIComponent(taskRow.modelData.path))
+                    }
+                }
+
+                Label {
+                    anchors.centerIn: parent
+                    visible: taskList.count === 0
+                    text: "All clear — no open todos"
+                    color: Theme.muted
+                }
+
+                Rectangle {
+                    anchors.right: parent.right
+                    width: 3
+                    radius: 2
+                    height: Math.max(16, taskList.height * taskList.visibleArea.heightRatio)
+                    y: taskList.height * taskList.visibleArea.yPosition
+                    visible: taskList.contentHeight > taskList.height
+                    color: Theme.alpha(Theme.secondary, 0.6)
+                }
+            }
+        }
+
         RowLayout {
             Layout.fillWidth: true
             spacing: content.gap
@@ -307,7 +390,6 @@ Item {
                         Item {
                             Layout.fillWidth: true
                         }
-
                     }
                 }
             }
@@ -481,7 +563,7 @@ Item {
 
                     Label {
                         visible: (content.agenda.tasks ?? []).length > 0
-                        text: (content.agenda.tasks ?? []).length + " task" + ((content.agenda.tasks ?? []).length === 1 ? "" : "s") + " due"
+                        text: (content.agenda.tasks ?? []).length + " task" + ((content.agenda.tasks ?? []).length === 1 ? "" : "s") + " open"
                         color: (content.agenda.tasks ?? []).some(task => task.overdue) ? Theme.warm : Theme.muted
                         font.pixelSize: 12
                     }

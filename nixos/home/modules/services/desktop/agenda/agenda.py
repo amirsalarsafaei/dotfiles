@@ -16,6 +16,7 @@ CACHE_FILE = CACHE_DIR / "today.json"
 REMINDER_FILE = CACHE_DIR / "reminders.json"
 DONE_FILE = CACHE_DIR / "done.json"
 DAY_FILE = CACHE_DIR / "day-notified"
+REVIEW_FILE = CACHE_DIR / "task-review.json"
 GCALCLI = os.environ.get("AGENDA_GCALCLI", "gcalcli")
 NOTIFY_SEND = os.environ.get("AGENDA_NOTIFY_SEND", "notify-send")
 OAUTH_CLIENT = os.environ.get("AGENDA_OAUTH_CLIENT")
@@ -23,7 +24,7 @@ PKILL = os.environ.get("AGENDA_PKILL", "pkill")
 TERMINAL = os.environ.get("AGENDA_TERMINAL", "ghostty")
 WAYBAR_SIGNAL = 9
 VAULT = HOME / "Documents/amirsalar-vault"
-TASK_PATTERN = re.compile(r"^\s*-\s+\[ \]\s+(.+)$")
+TASK_PATTERN = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+\[ \]\s+(.+)$")
 DATE_PATTERN = re.compile(r"(?:📅|🛫)\s*(\d{4}-\d{2}-\d{2})")
 MARKER_PATTERN = re.compile(r"\s*(?:📅|🛫|➕|⏰)\s*\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2})?")
 
@@ -133,26 +134,45 @@ def fetch_tasks(today):
                 lines = path.read_text(errors="replace").splitlines()
             except OSError:
                 continue
+            fence = None
             for number, line in enumerate(lines, 1):
+                fenced = re.match(r"^\s{0,3}(`{3,}|~{3,})", line)
+                if fenced:
+                    marker = fenced.group(1)
+                    if fence is None:
+                        fence = marker
+                    elif marker[0] == fence[0] and len(marker) >= len(fence):
+                        fence = None
+                    continue
+                if fence:
+                    continue
                 task_match = TASK_PATTERN.match(line)
                 if not task_match:
                     continue
                 dates = DATE_PATTERN.findall(task_match.group(1))
-                if not dates:
-                    continue
-                task_date = min(dt.date.fromisoformat(value) for value in dates)
-                if task_date > today:
-                    continue
+                valid_dates = []
+                for value in dates:
+                    try:
+                        valid_dates.append(dt.date.fromisoformat(value))
+                    except ValueError:
+                        pass
+                task_date = min(valid_dates) if valid_dates else None
                 tasks.append(
                     {
                         "title": clean_task(task_match.group(1)),
-                        "date": task_date.isoformat(),
-                        "overdue": task_date < today,
+                        "date": task_date.isoformat() if task_date else None,
+                        "overdue": task_date is not None and task_date < today,
                         "path": str(path.relative_to(VAULT)),
                         "line": number,
                     }
                 )
-    tasks.sort(key=lambda task: (not task["overdue"], task["date"], task["title"].casefold()))
+    tasks.sort(key=lambda task: (
+        0 if task["overdue"] else 1 if task["date"] == today.isoformat() else 2 if not task["date"] else 3,
+        task["date"] or "",
+        task["title"].casefold(),
+        task["path"],
+        task["line"],
+    ))
     return tasks
 
 
@@ -178,13 +198,13 @@ def event_start(today, event):
     return dt.datetime.combine(today, dt.time.fromisoformat(event["start"]))
 
 
-def send_notification(summary, body, urgency="normal", replace="agenda"):
+def send_notification(summary, body, urgency="normal", replace="agenda", expire=12000):
     command = [
         NOTIFY_SEND,
         "--app-name=Agenda",
         "--icon=x-office-calendar",
         f"--urgency={urgency}",
-        "--expire-time=12000",
+        f"--expire-time={expire}",
         "--hint",
         f"string:x-canonical-private-synchronous:{replace}",
         summary,
@@ -247,6 +267,31 @@ def remind():
     data = read_json(CACHE_FILE, None)
     if data and data.get("date") == today.isoformat():
         notify_upcoming(data, today)
+        notify_task_review(data)
+
+
+def notify_task_review(data):
+    now = dt.datetime.now()
+    tasks = data["tasks"]
+    if not tasks or not 9 <= now.hour < 22:
+        return
+    slot = f"{now.date().isoformat()}:{(now.hour - 9) // 3}"
+    state = read_json(REVIEW_FILE, {})
+    if state.get("slot") == slot:
+        return
+    offset = state.get("offset", 0) % len(tasks)
+    shown = (tasks[offset:] + tasks[:offset])[:5]
+    lines = [f"□ {task['title']}" for task in shown]
+    if len(tasks) > len(shown):
+        lines.append(f"…and {len(tasks) - len(shown)} more")
+    lines.append("Click the agenda in the bar to review all todos and open their notes.")
+    if send_notification(
+        f"Review your {len(tasks)} open todo{'s' if len(tasks) != 1 else ''}",
+        "\n".join(html.escape(line) for line in lines),
+        replace="agenda-task-review",
+        expire=0,
+    ):
+        write_json(REVIEW_FILE, {"slot": slot, "offset": offset + len(shown)})
 
 
 def refresh_waybar():
@@ -281,7 +326,7 @@ def agenda_lines(data, limit=12):
         label = event_label(event)
         lines.append(f"✓ {label}" if event_key(event) in done else label)
     for task in data["tasks"]:
-        marker = "Overdue" if task["overdue"] else "Task"
+        marker = "Overdue" if task["overdue"] else f"Task · {task['date']}" if task["date"] else "No date"
         lines.append(f"{marker}  {task['title']}")
     hidden = len(lines) - limit
     if hidden > 0:
@@ -347,8 +392,8 @@ def waybar():
         css_class = "overdue" if any(task["overdue"] for task in data["tasks"]) else "tasks"
     else:
         text = "󰃭 Clear"
-    if event and task_count:
-        text += f" · {task_count}"
+    if task_count and css_class not in ("tasks", "overdue"):
+        text = f"{task_count} · {text}"
     lines = agenda_lines(data)
     if not lines:
         lines = ["Nothing scheduled or due today"]
@@ -365,6 +410,15 @@ def waybar():
 
 
 def show():
+    try:
+        result = subprocess.run(
+            ["quickshell", "-c", "shell", "ipc", "call", "widgets", "open"],
+            capture_output=True, timeout=5, check=False,
+        )
+        if result.returncode == 0:
+            return
+    except (OSError, subprocess.TimeoutExpired):
+        pass
     data = load_today()
     lines = agenda_lines(data, limit=8)
     if not lines:

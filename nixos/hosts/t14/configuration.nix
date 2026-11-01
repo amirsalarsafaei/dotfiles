@@ -51,8 +51,10 @@ in
       saved=""
       [ -e "$limit" ] || exit 0
       while :; do
-        current=$(cat "$limit")
-        if [ "$(cat /sys/class/power_supply/AC/online)" = 1 ] && [ "$(cat /sys/firmware/acpi/platform_profile)" = performance ]; then
+        read -r current < "$limit"
+        read -r online < /sys/class/power_supply/AC/online
+        read -r profile < /sys/firmware/acpi/platform_profile
+        if [ "$online" = 1 ] && [ "$profile" = performance ]; then
           if [ "$current" -lt "$target" ]; then
             saved=$current
             echo "$target" > "$limit" || true

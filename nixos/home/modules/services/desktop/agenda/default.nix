@@ -151,7 +151,7 @@ in
 
       agenda-remind = {
         Unit = {
-          Description = "Send reminders for agenda events starting soon";
+          Description = "Send event reminders and daytime todo reviews";
           After = [ "graphical-session.target" ];
           PartOf = [ "graphical-session.target" ];
         };
@@ -200,7 +200,7 @@ in
 
       agenda-remind = {
         Unit = {
-          Description = "Check for upcoming agenda events every minute";
+          Description = "Check upcoming events and todo review slots every minute";
           After = [ "graphical-session.target" ];
           PartOf = [ "graphical-session.target" ];
         };

@@ -424,11 +424,10 @@ fn run_waybar_mode(watch: bool) -> io::Result<()> {
     let ipc_rt = tokio::runtime::Runtime::new()?;
     let ipc_result = ipc_rt.block_on(ipc::ipc_connect());
 
-    let (_ipc_rt_guard, app_rx, cmd_tx) = if let Ok((ipc_cmd_tx, ipc_event_rx)) = ipc_result {
+    let (app_rx, cmd_tx) = if let Ok((ipc_cmd_tx, ipc_event_rx)) = ipc_result {
         info!("Waybar: connected to daemon via IPC");
-        (Some(ipc_rt), ipc_event_rx, ipc_cmd_tx)
+        (ipc_event_rx, ipc_cmd_tx)
     } else {
-        drop(ipc_rt);
         info!("Waybar: no daemon, starting in-process Bluetooth");
 
         let (app_tx, app_rx) = unbounded_channel::<AppEvent>();
@@ -448,7 +447,7 @@ fn run_waybar_mode(watch: bool) -> io::Result<()> {
                 .unwrap_or_else(|e| log::error!("Bluetooth error: {}", e));
         });
 
-        (None, app_rx, cmd_tx)
+        (app_rx, cmd_tx)
     };
 
     fn render_waybar_json(app: &App) -> String {
@@ -504,34 +503,26 @@ fn run_waybar_mode(watch: bool) -> io::Result<()> {
         Some(std::time::Instant::now() + Duration::from_secs(5))
     };
     let mut last_json = String::new();
+    if watch {
+        last_json = render_waybar_json(&app);
+        println!("{}", last_json);
+    }
 
     loop {
-        // Block until an event arrives or timeout expires (avoids busy-wait polling)
-        let remaining = match deadline {
-            Some(d) => {
-                let now = std::time::Instant::now();
-                if now >= d {
-                    break;
-                }
-                d - now
+        let event = ipc_rt.block_on(async {
+            match deadline {
+                Some(deadline) => tokio::time::timeout_at(deadline.into(), app.rx.recv())
+                    .await
+                    .unwrap_or(None),
+                None => app.rx.recv().await,
             }
-            None => Duration::from_secs(60),
+        });
+        let Some(event) = event else {
+            break;
         };
-        // tokio's unbounded receiver has no blocking recv-with-timeout usable
-        // from sync code, so poll try_recv with short sleeps
-        match app.rx.try_recv() {
-            Ok(event) => {
-                // Process this event plus any others that have queued up
-                app.handle_event(event);
-                while let Ok(event) = app.rx.try_recv() {
-                    app.handle_event(event);
-                }
-            }
-            Err(tokio::sync::mpsc::error::TryRecvError::Empty) => {
-                // No event available - sleep for a reasonable interval
-                std::thread::sleep(remaining.min(Duration::from_secs(1)));
-            }
-            Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => break,
+        app.handle_event(event);
+        while let Ok(event) = app.rx.try_recv() {
+            app.handle_event(event);
         }
 
         if watch {

@@ -251,7 +251,7 @@ class Context:
                 return None
             for pane in panes:
                 if not pane.get("is_plugin") and not pane.get("exited") \
-                        and re.search(r"/bin/claude( |$)", str(pane.get("pane_command") or "")):
+                        and re.search(r"(^| )([^ ]*/bin/[-a-z0-9]*claude|claude)( |$)", str(pane.get("pane_command") or "")):
                     live.add((session, str(pane.get("id"))))
         log.forget("zellij")
         return live

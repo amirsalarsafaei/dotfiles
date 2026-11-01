@@ -57,11 +57,14 @@ PanelWindow {
         focus: true
         Keys.onEscapePressed: win.closeRequested()
 
-        Item {
+        Flickable {
             id: board
 
             width: Math.min(1240, win.width - 120)
-            height: content.implicitHeight
+            height: Math.min(content.implicitHeight, win.height - 100)
+            contentHeight: content.implicitHeight
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
             anchors.centerIn: parent
 
             MouseArea {
@@ -70,7 +73,8 @@ PanelWindow {
 
             BoardContent {
                 id: content
-                anchors.fill: parent
+                width: board.width
+                height: implicitHeight
                 progress: win.progress
                 shown: win.shown
 

@@ -202,18 +202,18 @@ PanelWindow {
         if (tasks.length > 0) {
             const overdue = tasks.filter(task => task.overdue).length;
             lines.push("");
-            lines.push("<b>Tasks</b>" + gap + panel.tint(overdue > 0 ? Theme.warm : Theme.faint, overdue > 0 ? overdue + " overdue" : tasks.length + " due today"));
+            lines.push("<b>Tasks</b>" + gap + panel.tint(overdue > 0 ? Theme.warm : Theme.faint, overdue > 0 ? overdue + " overdue" : tasks.length + " open"));
             for (const task of tasks.slice(0, 6)) {
                 const parts = String(task.date ?? today).split("-").map(Number);
                 const days = Math.round((new Date(date.getFullYear(), date.getMonth(), date.getDate()) - new Date(parts[0], parts[1] - 1, parts[2])) / 86400000);
-                lines.push(panel.tint(task.overdue ? Theme.warm : Theme.muted, "□") + gap + clip(String(task.title ?? "")) + (task.overdue && days > 0 ? gap + panel.tint(Theme.warm, days + "d overdue") : ""));
+                lines.push(panel.tint(task.overdue ? Theme.warm : Theme.muted, "□") + gap + clip(String(task.title ?? "")) + (task.overdue && days > 0 ? gap + panel.tint(Theme.warm, days + "d overdue") : gap + panel.tint(Theme.faint, task.date || "no date")));
             }
             if (tasks.length > 6)
                 lines.push(panel.tint(Theme.faint, "+" + (tasks.length - 6) + " more"));
         }
 
         lines.push("");
-        lines.push(panel.tint(Theme.faint, "click: show" + (left > 0 ? " · middle: mark next done" : "") + " · right: " + (status === "setup" ? "connect" : "sync")));
+        lines.push(panel.tint(Theme.faint, "click: review all todos" + (left > 0 ? " · middle: mark next done" : "") + " · right: " + (status === "setup" ? "connect" : "sync")));
         return lines.join("\n");
     }
 
@@ -1083,14 +1083,16 @@ PanelWindow {
             bar: panel
             visible: panel.wantAgenda
             icon: "󰃭"
+            badge: panel.agendaRoom < 48 && (panel.day.tasks ?? []).length > 0 ? String(panel.day.tasks.length) : ""
+            badgeColor: Theme.warm
             text: panel.agendaRoom >= 48 ? panel.agenda.text : ""
             maxTextWidth: Math.max(0, panel.agendaRoom)
             tooltip: panel.agendaTip
             iconColor: kind === "now" ? Theme.fgBright : kind === "soon" ? Theme.heat : kind === "upcoming" || kind === "overdue" ? Theme.warm : kind === "later" ? Theme.fg : Theme.muted
             textColor: kind === "now" ? Theme.fgBright : kind === "soon" ? Theme.heat : kind === "upcoming" || kind === "overdue" ? Theme.warm : kind === "later" ? Theme.fg : kind === "tasks" ? Theme.fg : Theme.muted
-            fill: kind === "now" ? Theme.alpha(Theme.blue, 0.22) : kind === "soon" ? Theme.alpha(Theme.heat, 0.14) : "transparent"
+            fill: kind === "now" ? Theme.alpha(Theme.blue, 0.22) : kind === "soon" ? Theme.alpha(Theme.heat, 0.14) : (panel.day.tasks ?? []).length > 0 ? Theme.alpha(Theme.warm, 0.14) : "transparent"
             onClicked: {
-                panel.run(["agenda-os", "show"]);
+                panel.widgetsRequested();
                 agendaRefresh.restart();
             }
             onMiddleClicked: {

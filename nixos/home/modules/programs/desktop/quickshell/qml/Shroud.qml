@@ -424,7 +424,7 @@ Item {
 
         Heading {
             title: "todo"
-            detail: dash.overdue > 0 ? dash.overdue + " late" : dash.tasks.length > 0 ? dash.tasks.length + " due" : ""
+            detail: dash.overdue > 0 ? dash.overdue + " late" : dash.tasks.length > 0 ? dash.tasks.length + " open" : ""
             detailColor: dash.overdue > 0 ? Theme.warm : Theme.alpha(Theme.muted, 0.8)
         }
 

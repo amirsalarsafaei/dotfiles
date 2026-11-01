@@ -400,7 +400,6 @@ Item {
     property vector4d shownLoad: Qt.vector4d(0, 0, 0, 0)
     property vector4d shownTraffic: Qt.vector4d(0, 0, 0, 0)
     property real shownPhases: 0
-    property int page: 0
     property var post: []
     property real boost: 0
     property real sparkT: 0
@@ -585,12 +584,6 @@ Item {
 
     Cover {
         id: cover
-    }
-
-    Timer {
-        interval: 30000
-        running: board.page !== 0
-        onTriggered: board.page = 0
     }
 
     Timer {
@@ -1037,7 +1030,6 @@ Item {
             readonly property real corner: board.span(0.03)
             readonly property real header: Math.round(height * 0.15)
             readonly property real footer: Math.round(height * 0.11)
-            readonly property real strip: height - screen.header - screen.footer - 8
             readonly property real body: height - screen.header - screen.footer - 10
             readonly property real dieWidth: Math.min(width * 0.94, screen.body * chip.aspect)
             readonly property real dieHeight: Math.round(screen.dieWidth / chip.aspect)
@@ -1059,15 +1051,6 @@ Item {
                     y: Math.round(screen.header + (screen.body - screen.dieHeight) / 2)
                     width: screen.dieWidth
                     height: screen.dieHeight
-                    opacity: board.page === 0 ? 1 : 0
-
-                    Behavior on opacity {
-                        NumberAnimation {
-                            duration: Theme.calm
-                            easing.type: Easing.BezierSpline
-                            easing.bezierCurve: Theme.standard
-                        }
-                    }
 
                     Die {
                         id: chip
@@ -1079,57 +1062,6 @@ Item {
                         model: hw.info.model ?? ""
                         gpu: board.shownLoad.y
                         accent: board.accent
-                    }
-                }
-
-                Row {
-                    id: threadsView
-
-                    visible: board.page === 1
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    y: screen.height - screen.footer - screen.strip
-                    height: screen.strip
-                    spacing: Math.max(2, Math.round(screen.width * 0.008))
-
-                    Repeater {
-                        model: hw.threads
-
-                        Item {
-                            id: bar
-
-                            required property var modelData
-                            readonly property real load: board.shownLoads[modelData.cpu] ?? 0
-                            readonly property real label: board.page === 1 ? 14 : 0
-
-                            width: Math.max(6, Math.floor((screen.width * 0.86 - threadsView.spacing * (hw.threads.length - 1)) / Math.max(1, hw.threads.length)))
-                            height: threadsView.height
-
-                            Rectangle {
-                                anchors.fill: parent
-                                anchors.bottomMargin: bar.label
-                                radius: 1
-                                color: Theme.alpha(Theme.muted, 0.08)
-                            }
-
-                            Rectangle {
-                                anchors.bottom: parent.bottom
-                                anchors.bottomMargin: bar.label
-                                width: parent.width
-                                height: Math.max(2, (parent.height - bar.label) * bar.load)
-                                radius: 1
-                                color: bar.modelData.kind === "e" ? Theme.alpha(Theme.blue, 0.85) : Theme.alpha(Theme.cyan, 0.85)
-                            }
-
-                            Text {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                anchors.bottom: parent.bottom
-                                visible: bar.label > 0
-                                text: String(bar.modelData.cpu)
-                                color: Theme.alpha(Theme.muted, 0.8)
-                                font.family: Theme.mono
-                                font.pixelSize: 9
-                            }
-                        }
                     }
                 }
             }
@@ -1502,9 +1434,7 @@ Item {
             const spec = board.layout;
             const inside = r => u >= r[0] && u <= r[2] && v >= r[1] && v <= r[3];
             let hit = "";
-            if (inside(board.hull(spec.pump, spec.heights[0])))
-                hit = "pump";
-            else if (inside(board.hull(spec.io, spec.heights[3])))
+            if (inside(board.hull(spec.io, spec.heights[3])))
                 hit = "agenda";
             else if (inside(spec.gpu))
                 hit = "gpu";
@@ -1528,9 +1458,7 @@ Item {
         cursorShape: part(mouseX, mouseY).name !== "" ? Qt.PointingHandCursor : Qt.ArrowCursor
         onClicked: mouse => {
             const hit = part(mouse.x, mouse.y);
-            if (hit.name === "pump")
-                board.page = (board.page + 1) % 2;
-            else if (hit.name === "gpu")
+            if (hit.name === "gpu")
                 board.fanKick = Math.min(60, board.fanKick + 22);
             else if (hit.name === "dimm")
                 board.cosmic();

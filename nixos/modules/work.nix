@@ -9,6 +9,7 @@ let
 in
 lib.mkIf config.isWork {
   services.netbird.enable = true;
+  services.netbird.clients.default.ui.enable = false;
 
   systemd.services.netbird = {
     wants = [ "network-online.target" ];
@@ -114,6 +115,15 @@ lib.mkIf config.isWork {
           marker="$dir/expect-down"
           mkdir -p "$dir"
           trap : USR1
+          sleeper=""
+          cleanup() {
+            if [[ -n $sleeper ]]; then
+              kill "$sleeper" 2>/dev/null || true
+              wait "$sleeper" 2>/dev/null || true
+            fi
+          }
+          trap cleanup EXIT
+          trap 'exit 0' TERM INT
 
           state=off
           profile=""
@@ -134,11 +144,11 @@ lib.mkIf config.isWork {
           }
 
           sessions() {
-            busctl --system --json=short call org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus \
+            busctl --system --timeout=3s --json=short call org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus \
               NameHasOwner s net.openvpn.v3.sessions | jq -e '.data[0]' >/dev/null || return 0
-            busctl --system --json=short call net.openvpn.v3.sessions /net/openvpn/v3/sessions \
+            busctl --system --timeout=3s --json=short call net.openvpn.v3.sessions /net/openvpn/v3/sessions \
               net.openvpn.v3.sessions FetchAvailableSessions | jq -r '.data[0][]' | while read -r path; do
-              busctl --system --json=short get-property net.openvpn.v3.sessions "$path" net.openvpn.v3.sessions \
+              busctl --system --timeout=3s --json=short get-property net.openvpn.v3.sessions "$path" net.openvpn.v3.sessions \
                 config_name device_name session_created status 2>/dev/null |
                 jq -cs 'select(length == 4) | {config: .[0].data, device: .[1].data, since: .[2].data, minor: .[3].data[1]}' ||
                 true
@@ -181,7 +191,7 @@ lib.mkIf config.isWork {
               fi
             fi
 
-            mesh=$(netbird status --json 2>/dev/null | jq -c --arg iface ${lib.escapeShellArg netbird.interface} '{
+            mesh=$(timeout 5 netbird status --json 2>/dev/null | jq -c --arg iface ${lib.escapeShellArg netbird.interface} '{
               state: .daemonStatus,
               ip: (.netbirdIp // "" | sub("/.*"; "")),
               fqdn: (.fqdn // ""),
@@ -217,8 +227,9 @@ lib.mkIf config.isWork {
             fi
 
             sleep 10 &
-            wait $! || true
-            kill $! 2>/dev/null || true
+            sleeper=$!
+            wait "$sleeper" || cleanup
+            sleeper=""
           done
         '';
       };
