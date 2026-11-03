@@ -19,6 +19,7 @@ in
     ./editor.nix
     ./ui.nix
     ./tools.nix
+    ./markdown.nix
   ];
 
   options.custom.neovim = {

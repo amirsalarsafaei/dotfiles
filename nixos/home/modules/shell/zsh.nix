@@ -124,5 +124,6 @@ in
   home.sessionVariables = {
     EDITOR = "nvim";
     DISABLE_MAGIC_FUNCTIONS = "true";
+    NVIM_NOTTYFAST = "1";
   };
 }

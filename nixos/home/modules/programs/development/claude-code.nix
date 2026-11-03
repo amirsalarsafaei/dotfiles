@@ -1806,7 +1806,7 @@ let
       export CLAUDE_VARIANT_NAME="work-claude"
       export CLAUDE_CONFIG_DIR="${workClaudeConfigDir}"
       export CLAUDE_CODE_SUBAGENT_MODEL="sonnet"
-      export TZ="Asia/Singapore"
+      export TZ="Europe/London"
       export TZDIR="${pkgs.tzdata}/share/zoneinfo"
       export CLAUDE_CODE_EFFORT_DEFAULT="${workEffortLevel}"
       ${workWrapperTail}
