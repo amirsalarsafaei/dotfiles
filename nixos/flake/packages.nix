@@ -10,6 +10,7 @@ in
 {
   chrome-devtools-mcp = pkgs.callPackage ../pkgs/chrome-devtools-mcp.nix { };
   airpods-tui = pkgs.callPackage ../pkgs/airpods-tui.nix { };
+  clip-image = pkgs.callPackage ../pkgs/clip-image.nix { };
   hypr-dynamic-cursors = pkgs.callPackage ../pkgs/hypr-dynamic-cursors.nix {
     inherit (pkgs.hyprlandPlugins) mkHyprlandPlugin;
   };

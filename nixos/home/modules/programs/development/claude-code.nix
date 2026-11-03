@@ -2559,29 +2559,45 @@ in
         default = ''
           ## Obsidian daily notes
 
-          Vault: `~/Documents/amirsalar-vault`. Canonical convention:
+          Vault: `~/Documents/amirsalar-vault`. Full convention:
           `daily notes/README.md`; read it only when this section is not enough.
 
-          - Daily note: `daily notes/YYYY-MM-DD.md`, local ISO date. If it is missing,
-            create it from `Templates/Daily note.md` and title it `# YYYY-MM-DD`.
-          - Keep the existing sections `## 📅 Today`, `## 💼 Work`, `## 🏠 Personal`
-            and `## 📝 Log`; never edit the `tasks` block under
-            `## 🔁 Rolled over`.
-          - Finished work goes in `## 📝 Log` as one line: `- HH:MM — outcome`
-            (24-hour local time, optional `→ [[note]]`). Open work goes in its
-            section as a Tasks checkbox, keeping `📅`/`🛫`/`✅`; never invent dates.
-          - Whenever the user asks you to write something down — `log this`,
-            `add to today`, `note that I…`, or any similar request — append it
-            immediately, without clarifying questions or confirmation. Infer the
-            section from meaning: completed work → Log; open work → Work,
-            Personal or Today; ambiguous → Today.
-          - Also add one line when a deliverable the user asked for is finished.
-            One line per meaningful outcome, at most a few lines per session;
-            link a separate note for detail. No sub-bullets, command output,
-            diffs or play-by-play.
-          - Never write credentials, tokens, phone numbers, personal data,
-            security findings, incidents, or anything from a `--security`
-            session into the vault.
+          ### Time
+
+          `TZ` differs between launchers, so `date` can give the wrong day and hour.
+          Take the note's date and every log time from `tehran-time '+%F %H:%M'`.
+
+          ### Layout
+
+          - File: `daily notes/YYYY-MM-DD.md`. If it is missing, create it from
+            `Templates/Daily note.md` with `{{date}}` replaced by the date.
+          - Sections, in order: `## 🔁 Rolled over` (a `tasks` query; never edit it),
+            `## 📅 Today`, `## 💼 Work`, `## 🏠 Personal`, `## 📝 Log`.
+          - Open work: a Tasks checkbox in its section, keeping `📅`/`🛫`/`✅`.
+            Never invent dates.
+          - Finished work: one line at the bottom of `## 📝 Log`,
+            `- HH:MM — outcome`, optionally `→ [[note]]`.
+
+          ### When to write
+
+          - On request (`log this`, `add to today`, `note that I…` or similar):
+            write it immediately, without clarifying questions. Completed work →
+            Log; open work → Work, Personal or Today; ambiguous → Today.
+          - Unasked: one Log line per session, when a deliverable the user asked
+            for is finished (a shipped change, a rollout, a document, a decision).
+            Later work in the same session updates that line instead of adding one.
+
+          ### Never write
+
+          - State that goes stale: `uncommitted`, `unpushed`, `awaiting rebuild`.
+          - Detail: commit hashes, cluster names, flags, queries, metric readings,
+            examples. Link a separate note when the detail matters.
+          - Routine checks that found nothing, intermediate steps, or one line per
+            command.
+          - A bug or follow-up found on the way inside a Log line: add it as an
+            open task in its section instead.
+          - Credentials, tokens, phone numbers, personal data, security findings,
+            incidents, or anything from a `--security` session.
         '';
         description = ''
           System-prompt section for every launch except `--security`: where the

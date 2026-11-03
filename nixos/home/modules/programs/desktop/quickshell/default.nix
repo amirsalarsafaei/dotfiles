@@ -108,6 +108,21 @@ let
         fi
       done
     }
+
+    gpu_scale() {
+      local card
+      card=$(gpu_card)
+      [ -n "$card" ] || return 0
+      set -- "$card/gt/gt0/rps_cur_freq_mhz" "$card/gt/gt0/rps_RP0_freq_mhz" \
+        "$card/device/tile0/gt0/freq0/cur_freq" "$card/device/tile0/gt0/freq0/rp0_freq"
+      while [ "$#" -ge 2 ]; do
+        if [ -r "$1" ] && [ -r "$2" ]; then
+          echo "$(cat "$2") $1"
+          return
+        fi
+        shift 2
+      done
+    }
   '';
 
   barProbe = pkgs.writeShellApplication {
@@ -123,6 +138,7 @@ let
         | jq -r '([.keyboards[] | select(.main)][0] // .keyboards[0] // {}).active_keymap // ""' \
         || echo
       printf "%s\n" "$(gpu_counter)"
+      printf "%s\n" "$(gpu_scale)"
     '';
   };
 
@@ -241,6 +257,7 @@ let
         --arg nvme "''${nvme:+$nvme/temp1_input}" \
         --arg gpu "$(gpu_counter)" \
         --arg gpuClock "$gpuClock" \
+        --arg gpuScale "$(gpu_scale)" \
         --arg driver "$driver" \
         --arg pci "$pci" \
         --arg battery "$battery" \

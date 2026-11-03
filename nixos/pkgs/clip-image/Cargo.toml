@@ -1,0 +1,7 @@
+[package]
+name = "clip-image"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+wl-clipboard-rs = "0.9"

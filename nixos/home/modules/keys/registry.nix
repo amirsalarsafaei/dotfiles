@@ -228,13 +228,13 @@ in
       })
       (keysLib.hypr.exec {
         on = on.none K.printScreen;
-        cmd = ''grim -g "$(slurp)" - | wl-copy'';
+        cmd = cmd.screenshot;
         desc = "Screenshot a region to the clipboard";
         group = "Session";
       })
       (keysLib.hypr.exec {
         on = on.superShift K.P;
-        cmd = ''grim -g "$(slurp)" - | wl-copy'';
+        cmd = cmd.screenshot;
         desc = "Screenshot a region to the clipboard";
         group = "Session";
       })

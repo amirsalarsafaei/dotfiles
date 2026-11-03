@@ -1,0 +1,62 @@
+--- a/src/renderer/Thread.zig
++++ b/src/renderer/Thread.zig
+@@ -17,6 +17,7 @@
+ const log = std.log.scoped(.renderer_thread);
+ 
+ const DRAW_INTERVAL = 8; // 120 FPS
++const ANIMATION_GRACE = 500 * std.time.ns_per_ms;
+ const CURSOR_BLINK_INTERVAL = 600;
+ 
+ /// Whether calls to `drawFrame` must be done from the app thread.
+@@ -61,6 +62,7 @@
+ draw_h: xev.Timer,
+ draw_c: xev.Completion = .{},
+ draw_active: bool = false,
++last_update: ?std.time.Instant = null,
+ 
+ /// This async is used to force a draw immediately. This does not
+ /// coalesce like the wakeup does.
+@@ -318,6 +320,7 @@
+     // Set our active state so it knows we're running. We set this before
+     // even checking the active state in case we have a pending shutdown.
+     self.draw_active = true;
++    self.last_update = std.time.Instant.now() catch null;
+ 
+     // If our draw timer is already active, then we don't have to do anything.
+     if (self.draw_c.state() == .active) return;
+@@ -582,6 +585,8 @@
+         return .disarm;
+     };
+ 
++    if (!t.animating()) return .disarm;
++
+     // Draw
+     t.drawFrame(false);
+ 
+@@ -606,6 +611,8 @@
+         return .disarm;
+     };
+ 
++    const cursor = t.renderer.uniforms.cursor_pos;
++
+     // Update our frame data
+     t.renderer.updateFrame(
+         t.state,
+@@ -616,9 +623,17 @@
+     // Draw
+     t.drawFrame(false);
+ 
++    if (t.draw_active and !std.meta.eql(cursor, t.renderer.uniforms.cursor_pos)) t.syncDrawTimer();
++
+     return .disarm;
+ }
+ 
++fn animating(self: *Thread) bool {
++    const last = self.last_update orelse return true;
++    const now = std.time.Instant.now() catch return true;
++    return now.since(last) < ANIMATION_GRACE;
++}
++
+ fn cursorTimerCallback(
+     self_: ?*Thread,
+     _: *xev.Loop,

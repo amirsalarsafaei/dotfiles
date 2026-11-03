@@ -1,6 +1,11 @@
 { pkgs, ... }:
 
 let
+  tehranTime = pkgs.writeShellScriptBin "tehran-time" ''
+    #!/usr/bin/env bash
+    TZ=Asia/Tehran TZDIR=${pkgs.tzdata}/share/zoneinfo exec ${pkgs.coreutils}/bin/date "''${@:-+%H:%M}"
+  '';
+
   oledSet = pkgs.writeShellScriptBin "oled-set" ''
     #!/usr/bin/env bash
     set -euo pipefail
@@ -42,6 +47,7 @@ in
   };
 
   home.packages = with pkgs; [
+    tehranTime
     oledSet
     oledPowerSync
 
@@ -130,15 +136,34 @@ in
 
       vault="$HOME/Documents/amirsalar-vault"
       dir="$vault/daily notes"
-      today="$(date +%Y-%m-%d)"
+      today="$(${tehranTime}/bin/tehran-time +%F)"
       note="$dir/$today.md"
 
       mkdir -p "$dir"
 
       ensure_note() {
         if [ ! -f "$note" ]; then
-          printf '# %s\n\n## Tasks\n' "$today" > "$note"
+          sed "s/{{date}}/$today/" "$vault/Templates/Daily note.md" > "$note"
         fi
+      }
+
+      add_task() {
+        awk -v line="$1" '
+          function flush() { for (; blanks > 0; blanks--) print "" }
+          /^## / {
+            if (today && !done) { if (!filled) print ""; print line; done = 1 }
+            flush()
+            today = index($0, "## 📅 Today") == 1
+            filled = 0
+            print
+            next
+          }
+          /^[[:space:]]*$/ { blanks++; next }
+          today && !done && /^- \[ \][[:space:]]*$/ { flush(); print line; done = 1; next }
+          { flush(); print; if (today) filled = 1 }
+          END { if (!done) { flush(); print line } }
+        ' "$note" > "$note.tmp"
+        mv "$note.tmp" "$note"
       }
 
       case "''${1:-}" in
@@ -148,7 +173,7 @@ in
           ;;
         "")
           if [ -f "$note" ]; then
-            grep -nE '^\s*- \[ \]' "$note" || echo "No open tasks for $today."
+            grep -nE '^\s*- \[ \] *\S' "$note" || echo "No open tasks for $today."
           else
             echo "No daily note for $today yet. Add one with: td <task>"
           fi
@@ -156,7 +181,7 @@ in
         *)
           ensure_note
           task="$*"
-          printf -- '- [ ] %s ➕ %s\n' "$task" "$today" >> "$note"
+          add_task "$(printf -- '- [ ] %s ➕ %s' "$task" "$today")"
           notify-send -a Obsidian -i obsidian "Task added" "$task"
           ;;
       esac

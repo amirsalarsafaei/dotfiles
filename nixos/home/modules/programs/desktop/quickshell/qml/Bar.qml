@@ -90,6 +90,9 @@ PanelWindow {
     property string thermalPath: ""
     property string gpuPath: ""
     property string gpuKind: ""
+    property string gpuScalePath: ""
+    property real gpuScaleMax: 0
+    property real gpuScale: 1
     property string layout: ""
     property string submap: ""
     property bool caffeine: false
@@ -341,6 +344,12 @@ PanelWindow {
                     panel.gpuKind = gpu.slice(0, space);
                     panel.gpuPath = gpu.slice(space + 1);
                 }
+                const scale = (lines[3] ?? "").trim();
+                const gap = scale.indexOf(" ");
+                if (gap > 0 && Number(scale.slice(0, gap)) > 0) {
+                    panel.gpuScaleMax = Number(scale.slice(0, gap));
+                    panel.gpuScalePath = scale.slice(gap + 1);
+                }
             }
         }
     }
@@ -382,6 +391,8 @@ PanelWindow {
             loadFile.reload();
             if (panel.thermalPath.length > 0)
                 tempFile.reload();
+            if (panel.gpuScalePath.length > 0)
+                gpuScaleFile.reload();
             if (panel.gpuPath.length > 0)
                 gpuFile.reload();
         }
@@ -463,8 +474,16 @@ PanelWindow {
                 at: now
             };
             if (prev && now > prev.at)
-                panel.settle("gpu", Math.max(0, Math.min(100, 100 * (1 - (value - prev.idle) / (now - prev.at)))), 5);
+                panel.settle("gpu", Math.max(0, Math.min(100, 100 * panel.gpuScale * (1 - (value - prev.idle) / (now - prev.at)))), 5);
         }
+    }
+
+    FileView {
+        id: gpuScaleFile
+
+        path: panel.gpuScalePath
+        printErrors: false
+        onLoaded: panel.gpuScale = Math.max(0, Math.min(1, Number(text().trim()) / panel.gpuScaleMax))
     }
 
     FileView {

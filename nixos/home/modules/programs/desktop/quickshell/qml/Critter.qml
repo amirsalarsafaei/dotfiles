@@ -15,6 +15,7 @@ Item {
     property bool hushed: false
     property real unit: 1
     property real time: 0
+    property real calmStep: 0
     property date now: new Date()
     property real sunPath: 0.5
     property real twilight: 0
@@ -152,7 +153,8 @@ Item {
             hash = (hash * 31 + id.charCodeAt(i)) % 9973;
         return hash / 9973 * 6.283;
     }
-    readonly property real t: time + seed * 3
+    readonly property bool calm: calmStep > 0 && (status === "done" || status === "ready") && !vibing && !walking && !hovered && ouch === 0 && cheer === 0
+    readonly property real t: (calm ? Math.floor(time / calmStep + 0.001) * calmStep : time) + seed * 3
     readonly property bool walking: walk.running
     readonly property bool picked: Agents.selected !== "" && Agents.selected === (agent?.id ?? "")
     readonly property bool hovered: spriteMouse.containsMouse || bubbleMouse.containsMouse || picked

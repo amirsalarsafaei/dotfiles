@@ -22,6 +22,26 @@ let
   };
   luaString = builtins.toJSON;
 
+  screenshot = pkgs.writeShellApplication {
+    name = "screenshot";
+    runtimeInputs = [
+      pkgs.grim
+      pkgs.slurp
+      pkgs.coreutils
+      pkgs.findutils
+      (pkgs.callPackage ../../../../pkgs/clip-image.nix { })
+    ];
+    text = ''
+      dir="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/screenshots"
+      mkdir -p "$dir"
+      find "$dir" -name '*.png' -mmin +1440 -delete
+      region=$(slurp) || exit 0
+      file="$dir/screenshot-$(date +%Y-%m-%d_%H-%M-%S).png"
+      grim -g "$region" "$file"
+      exec clip-image "$file"
+    '';
+  };
+
   monitorRule =
     let
       fields = map lib.trim (lib.splitString "," monitorConfig);
@@ -624,6 +644,7 @@ in
     menu = "rofi -show drun -run-command 'uwsm app -- {cmd}'";
     windows = "rofi -show window -run-command 'uwsm app -- {cmd}'";
     clipboard = "clipboard-menu";
+    screenshot = lib.getExe screenshot;
     focusMode = lib.getExe focusMode;
     spotifySpace = lib.getExe spotifySpace;
     displayMenu = lib.getExe displayMenu;

@@ -408,7 +408,7 @@ Item {
 
     readonly property real tick: ticker.step
     readonly property real pitch: 2 * Math.PI / 11
-    readonly property real fanTarget: (hw.gpu < 8 ? 0 : 1.5 + 10 * hw.gpu / 100) + fanKick
+    readonly property real fanTarget: (hw.gpu < 15 ? 0 : 1.5 + 10 * hw.gpu / 100) + fanKick
     readonly property real smear: 0.5 * fanSpeed * tick
     readonly property real streak: Math.max(0, Math.min(1, (smear / pitch - 0.3) / 0.5))
     readonly property real temp01: Math.max(0, Math.min(1, hw.temp / 100))

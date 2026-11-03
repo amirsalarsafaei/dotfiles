@@ -551,6 +551,7 @@ PanelWindow {
                 y: colony.cy - colony.radius * Math.cos(angle)
                 unit: colony.size
                 time: scene.time
+                calmStep: scene.board ? 0.2 : 0
                 music: wall.player?.isPlaying ?? false
                 level: scene.swell
                 now: wall.now

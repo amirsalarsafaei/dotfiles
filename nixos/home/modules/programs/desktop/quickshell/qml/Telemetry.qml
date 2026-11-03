@@ -16,6 +16,7 @@ Item {
     property real fan: 0
     property real gpu: 0
     property real gpuClock: 0
+    property real gpuScale: 1
     property real mem: 0
     property real memUsed: 0
     property real memCached: 0
@@ -44,6 +45,8 @@ Item {
     readonly property string gpuPath: String(info.gpu ?? "").split(" ").slice(1).join(" ")
     readonly property string gpuClockKind: String(info.gpuClock ?? "").split(" ")[0]
     readonly property string gpuClockPath: String(info.gpuClock ?? "").split(" ").slice(1).join(" ")
+    readonly property real gpuScaleMax: Number(String(info.gpuScale ?? "").split(" ")[0]) || 0
+    readonly property string gpuScalePath: gpuScaleMax > 0 ? String(info.gpuScale).split(" ").slice(1).join(" ") : ""
 
     function delta(key: string, values: var): var {
         const now = Date.now();
@@ -72,7 +75,7 @@ Item {
         infoFile.reload();
         uptimeFile.reload();
         diskFile.reload();
-        for (const file of [tempFile, fanFile, gpuFile, gpuClockFile, diskTempFile, capacityFile, statusFile, powerFile, plugFile])
+        for (const file of [tempFile, fanFile, gpuScaleFile, gpuFile, gpuClockFile, diskTempFile, capacityFile, statusFile, powerFile, plugFile])
             if (file.path !== "")
                 file.reload();
     }
@@ -268,8 +271,16 @@ Item {
             }
             const step = hw.delta("gpu", [value]);
             if (step)
-                hw.gpu = Math.max(0, Math.min(100, 100 - step.values[0] / step.seconds / 10));
+                hw.gpu = Math.max(0, Math.min(100, hw.gpuScale * (100 - step.values[0] / step.seconds / 10)));
         }
+    }
+
+    FileView {
+        id: gpuScaleFile
+
+        path: hw.gpuScalePath
+        printErrors: false
+        onLoaded: hw.gpuScale = Math.max(0, Math.min(1, hw.value(gpuScaleFile) / hw.gpuScaleMax))
     }
 
     FileView {
