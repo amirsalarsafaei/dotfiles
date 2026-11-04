@@ -1961,6 +1961,9 @@ let
       };
       attribution = false;
     }
+    // lib.optionalAttrs (cfg.skillListingBudgetFraction != null) {
+      skillListingBudgetFraction = cfg.skillListingBudgetFraction;
+    }
     // base
     // lib.optionalAttrs (plugins != { } || base ? enabledPlugins || caveman) {
       enabledPlugins = (base.enabledPlugins or { }) // lib.optionalAttrs caveman cavemanPlugin // plugins;
@@ -3015,6 +3018,18 @@ in
           - "user-invocable-only" : installed and `/skill-name` works, hidden from model
           - "name-only"           : name listed, description hidden
           - "off"                 : fully hidden
+      '';
+    };
+
+    skillListingBudgetFraction = lib.mkOption {
+      type = lib.types.nullOr (lib.types.numbers.between 0 1);
+      default = 0.1;
+      description = ''
+        Written to settings.json as `skillListingBudgetFraction`: the fraction
+        of the context window (in characters) Claude Code reserves for the
+        skill listing. When the listing exceeds it, descriptions are shortened
+        to fit, down to name-only, which breaks description-based skill
+        triggering. null emits nothing and keeps the upstream default of 0.01.
       '';
     };
 

@@ -70,11 +70,4 @@ in
       Persistent = true;
     };
   };
-
-  security.wrappers.bwrap = {
-    source = lib.getExe pkgs.bubblewrap;
-    owner = "root";
-    group = "root";
-    setuid = true;
-  };
 }

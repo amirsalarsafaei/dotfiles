@@ -213,9 +213,7 @@ in
       firewall = {
         enable = true;
         allowedTCPPorts = [ ];
-        allowedUDPPorts = [
-          5353
-        ];
+        allowedUDPPorts = [ ];
         checkReversePath = "loose";
         logRefusedConnections = true;
         logRefusedPackets = true;
@@ -225,24 +223,12 @@ in
     services.xserver.enable = true;
     services.resolved = {
       enable = true;
-      settings.Resolve.FallbackDNS = [
-        "8.8.8.8"
-        "8.8.4.4"
-      ];
-    };
-
-    services.avahi = {
-      enable = true;
-      nssmdns4 = true;
-      nssmdns6 = true;
-      openFirewall = true;
-      publish = {
-        enable = true;
-        addresses = true;
-        domain = true;
-        hinfo = true;
-        userServices = true;
-        workstation = true;
+      settings.Resolve = {
+        FallbackDNS = [
+          "8.8.8.8"
+          "8.8.4.4"
+        ];
+        LLMNR = "no";
       };
     };
 
@@ -263,10 +249,20 @@ in
       enable = true;
       package = pkgs.postgresql_16;
       authentication = pkgs.lib.mkOverride 10 ''
-        local all       all     trust
-                host  all      all     127.0.0.1/32   trust
-                host all       all     ::1/128        trust
+        local all all peer
+        host all all 127.0.0.1/32 scram-sha-256
+        host all all ::1/128 scram-sha-256
       '';
+      ensureUsers = [
+        {
+          name = "amirsalar";
+          ensureClauses = {
+            login = true;
+            superuser = true;
+            createdb = true;
+          };
+        }
+      ];
     };
 
     users.users.amirsalar = {
@@ -282,7 +278,6 @@ in
         "audio"
         "networkmanager"
         "dialout"
-        "disk"
         "render"
         "libvirt"
         "podman"
@@ -304,10 +299,7 @@ in
       };
     };
 
-    services.usbmuxd = {
-      enable = true;
-      package = pkgs.usbmuxd2;
-    };
+    services.usbmuxd.enable = true;
 
     environment.sessionVariables = {
       NIXOS_OZONE_WL = "1";
@@ -420,16 +412,7 @@ in
 
     services.printing.enable = true;
 
-    security.polkit = {
-      enable = true;
-      extraConfig = ''
-        polkit.addRule(function(action, subject) {
-          if (subject.isInGroup("wheel")) {
-            return polkit.Result.YES;
-          }
-        });
-      '';
-    };
+    security.polkit.enable = true;
 
     security.pam.services = {
       login.enableGnomeKeyring = true;
@@ -462,8 +445,8 @@ in
       enableSSHSupport = false;
       pinentryPackage = pkgs.pinentry-qt;
       settings = {
-        default-cache-ttl = 2592000;
-        max-cache-ttl = 2592000;
+        default-cache-ttl = 3600;
+        max-cache-ttl = 86400;
       };
     };
 
