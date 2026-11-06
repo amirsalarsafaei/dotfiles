@@ -15,7 +15,6 @@
 
   programs.command-not-found.enable = false;
 
-
   services.amirsalarsafaei-com = {
     enable = true;
     domain = "amirsalarsafaei.com";
@@ -67,6 +66,12 @@
       efiInstallAsRemovable = true;
     };
 
+    kernel.sysctl = {
+      "net.ipv6.conf.ens3.accept_ra" = 0;
+      "net.ipv6.conf.ens3.autoconf" = 0;
+      "net.ipv6.conf.ens3.use_tempaddr" = 0;
+    };
+
     kernelModules = [
       "virtio_pci"
       "virtio_blk"
@@ -106,6 +111,18 @@
       ipv6.addresses = [
         {
           address = secrets.franksalar.ipv6;
+          prefixLength = 64;
+        }
+        {
+          address = "2a09:e683:7:32::b";
+          prefixLength = 64;
+        }
+        {
+          address = "2a09:e683:7:32::c";
+          prefixLength = 64;
+        }
+        {
+          address = "2a09:e683:7:32::d";
           prefixLength = 64;
         }
       ];
