@@ -1,26 +1,10 @@
 {
   config,
-  hostname,
   lib,
   pkgs,
-  secrets,
   ...
 }:
 lib.mkIf (!config.isWork) {
-  services.tailscale = {
-    enable = true;
-    extraDaemonFlags = [ "--no-logs-no-support" ];
-    extraUpFlags = [
-      "--login-server"
-      secrets.tailscale.loginServer
-      "--hostname"
-      hostname
-      "--accept-routes"
-    ];
-  };
-
-  systemd.services.tailscaled-autoconnect.serviceConfig.TimeoutStartSec = "5s";
-
   custom.homeNetwork = {
     ssids = [
       "Amir"

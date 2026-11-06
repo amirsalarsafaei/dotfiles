@@ -1,6 +1,4 @@
 {
-  config,
-  lib,
   pkgs,
   ...
 }:
@@ -33,6 +31,5 @@
     pkgs.wireguard-tools
     pkgs.proxychains
     pkgs.openvpn
-  ]
-  ++ lib.optional config.custom.personal.enable pkgs.tailscale;
+  ];
 }

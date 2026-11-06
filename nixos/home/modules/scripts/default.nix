@@ -9,13 +9,39 @@ let
   oledSet = pkgs.writeShellScriptBin "oled-set" ''
     #!/usr/bin/env bash
     set -euo pipefail
+    state="''${XDG_RUNTIME_DIR:-/tmp}/oled-display"
+    panels() {
+      hyprctl monitors -j \
+        | jq -r '.[] | select(.name | startswith("eDP")) | "\(.name)|\(.width)x\(.height)@\(.refreshRate)|\(.x)x\(.y)|\(.scale)"'
+    }
     case "''${1:-}" in
       on)
-        hyprctl eval "hl.monitor({ output = 'eDP-1', mode = 'preferred', position = 'auto', scale = '1.6', disabled = false, mirror = \"\" })"
+        if [ -s "$state" ]; then
+          while IFS='|' read -r output mode position scale; do
+            hyprctl eval "hl.monitor({ output = '$output', mode = '$mode', position = '$position', scale = '$scale', disabled = false, mirror = \"\" })" >/dev/null
+          done < "$state"
+        elif ! hyprctl monitors -j | jq -e '.[] | select(.name | startswith("eDP"))' >/dev/null; then
+          output=$(hyprctl monitors all -j | jq -r '[.[] | select(.name | startswith("eDP"))][0].name // empty')
+          if [ -z "$output" ]; then
+            echo "No internal panel found" >&2
+            exit 1
+          fi
+          hyprctl eval "hl.monitor({ output = '$output', mode = 'preferred', position = 'auto', scale = 'auto', disabled = false, mirror = \"\" })" >/dev/null
+        fi
         notify-send "Internal Display" "Enabled"
         ;;
       off)
-        hyprctl eval "hl.monitor({ output = 'eDP-1', disabled = true })"
+        pending=$(mktemp)
+        panels > "$pending"
+        if [ ! -s "$pending" ]; then
+          rm -f "$pending"
+          notify-send "Internal Display" "Already disabled"
+          exit 0
+        fi
+        mv "$pending" "$state"
+        while IFS='|' read -r output _ _ _; do
+          hyprctl eval "hl.monitor({ output = '$output', disabled = true })" >/dev/null
+        done < "$state"
         notify-send "Internal Display" "Disabled"
         ;;
       *)
@@ -191,7 +217,7 @@ in
       #!/usr/bin/env bash
       set -euo pipefail
 
-      if hyprctl monitors -j | jq -e '.[] | select(.name == "eDP-1")' > /dev/null; then
+      if hyprctl monitors -j | jq -e '.[] | select(.name | startswith("eDP"))' > /dev/null; then
         "${oledSet}/bin/oled-set" off
       else
         "${oledSet}/bin/oled-set" on
