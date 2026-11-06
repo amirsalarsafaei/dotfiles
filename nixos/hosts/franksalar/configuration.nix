@@ -69,7 +69,6 @@
     kernel.sysctl = {
       "net.ipv6.conf.ens3.accept_ra" = 0;
       "net.ipv6.conf.ens3.autoconf" = 0;
-      "net.ipv6.conf.ens3.use_tempaddr" = 0;
     };
 
     kernelModules = [
@@ -101,6 +100,8 @@
     networkmanager.enable = false;
     useDHCP = false;
     interfaces.ens3 = {
+      tempAddress = "disabled";
+
       ipv4.addresses = [
         {
           address = secrets.franksalar.ipv4;
