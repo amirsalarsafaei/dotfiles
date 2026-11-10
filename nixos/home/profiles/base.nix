@@ -5,6 +5,7 @@
     ../modules/work.nix
     ../modules/power-profile.nix
     ../modules/keys
+    ../modules/secrets
   ];
 
   home = {

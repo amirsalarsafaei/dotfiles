@@ -41,6 +41,27 @@ lib.mkIf config.isWork {
 
       workCodexConfigDir = "${config.home.homeDirectory}/.config/work-codex";
 
+      workCodexSettings = pkgs.writeText "work-codex-config.toml" ''
+        # Claude-style auto mode: review requests to cross Codex's sandbox
+        # automatically, with bubblewrap providing an additional outer boundary.
+        approval_policy = "on-request"
+        approvals_reviewer = "auto_review"
+        sandbox_mode = "workspace-write"
+
+        [marketplaces.divar]
+        source_type = "local"
+        source = "${config.home.homeDirectory}/divar/devar"
+
+        [plugins."devar@divar"]
+        enabled = true
+
+        [mcp_servers.devar]
+        command = "${devarLauncher}"
+        args = ["mcp"]
+        required = true
+        default_tools_approval_mode = "auto"
+      '';
+
       workCodexSandbox = pkgs.writeShellApplication {
         name = "work-codex-sandbox";
         runtimeInputs = [
@@ -238,29 +259,20 @@ lib.mkIf config.isWork {
       home = {
         packages = [ workCodex ];
 
+        activation.workCodexSettings = lib.hm.dag.entryAfter [ "linkGeneration" ] (
+          lib.hm.generators.mkImpureConfigMerger {
+            inherit pkgs;
+            format = "toml";
+            empty = "{}";
+            jqOperation = "$dynamic * $static";
+            path = "${workCodexConfigDir}/config.toml";
+            staticSettings = workCodexSettings;
+            mode = "600";
+          }
+        );
+
         sessionPath = [ "${config.home.homeDirectory}/divar/devar/bin" ];
         sessionVariables.DEVAR_FLAVOR = "lab";
-
-        file.".config/work-codex/config.toml".text = ''
-          # Claude-style auto mode: review requests to cross Codex's sandbox
-          # automatically, with bubblewrap providing an additional outer boundary.
-          approval_policy = "on-request"
-          approvals_reviewer = "auto_review"
-          sandbox_mode = "workspace-write"
-
-          [marketplaces.divar]
-          source_type = "local"
-          source = "${config.home.homeDirectory}/divar/devar"
-
-          [plugins."devar@divar"]
-          enabled = true
-
-          [mcp_servers.devar]
-          command = "${devarLauncher}"
-          args = ["mcp"]
-          required = true
-          default_tools_approval_mode = "auto"
-        '';
 
         # Codex considers a plugin installed when its versioned cache directory
         # is materialized. Keep the live Devar checkout as the source of truth,

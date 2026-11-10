@@ -11,6 +11,8 @@
   };
 
   config = lib.mkIf config.custom.work.enable {
+    custom.claudeCode.workEnvironment = import ../../private/work/claude-environment.nix;
+
     home.sessionVariables.GOPRIVATE = "git.divar.cloud";
 
     programs = {

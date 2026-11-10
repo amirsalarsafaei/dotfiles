@@ -1,5 +1,6 @@
 {
   config,
+  osConfig,
   lib,
   pkgs,
   ...
@@ -41,6 +42,26 @@ let
     name = "zellij-copy";
     text = ''
       ${lib.getExe' pkgs.python3 "python3"} ${./zellij-copy.py} | exec ${lib.getExe' pkgs.wl-clipboard "wl-copy"}
+    '';
+  };
+
+  zellijEditor = pkgs.writeShellApplication {
+    name = "nvim";
+    runtimeInputs = [
+      pkgs.file
+      pkgs.util-linux
+      pkgs.xdg-utils
+      (osConfig.programs.uwsm.package or pkgs.uwsm)
+    ];
+    text = ''
+      target="''${!#}"
+      case "$(file --brief --mime-type --dereference -- "$target" 2>/dev/null)" in
+        image/* | video/* | audio/* | application/pdf | application/epub+zip)
+          setsid -f uwsm app -- xdg-open "$target" >/dev/null 2>&1
+          exit 0
+          ;;
+      esac
+      exec ${lib.getExe config.programs.nixvim.build.package} "$@"
     '';
   };
 
@@ -101,7 +122,7 @@ in
       mouse_mode = true;
       copy_command = lib.getExe zellijCopy;
       copy_on_select = true;
-      scrollback_editor = lib.getExe config.programs.nixvim.build.package;
+      scrollback_editor = lib.getExe zellijEditor;
 
       osc8_hyperlinks = true;
       styled_underlines = true;
@@ -120,6 +141,7 @@ in
 
     settings.load_plugins = lib.mkForce {
       _children = [
+        { "zellij:link" = [ ]; }
         { tabula = [ ]; }
       ];
     };

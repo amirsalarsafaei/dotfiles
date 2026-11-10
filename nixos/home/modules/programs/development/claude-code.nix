@@ -9,6 +9,10 @@
 let
   cfg = config.custom.claudeCode;
 
+  workRuntimeEnv = cfg.workEnvironment // {
+    CLAUDE_VARIANT_REALM = "work";
+  };
+
   obsidianContextPath = pkgs.writeText "claude-context-obsidian.md" cfg.context.obsidian;
 
   claudeProcessWaitGuard = pkgs.writeShellApplication {
@@ -1110,20 +1114,23 @@ let
       authVar,
     }:
     ''
-      key="$(${lib.getExe' pkgs.libsecret "secret-tool"} lookup service claude variant ${name} 2>/dev/null || true)"
+      key="$(${lib.getExe' pkgs.libsecret "secret-tool"} lookup type api-key id ${name} 2>/dev/null || true)"
+      if [ -z "$key" ]; then
+        key="$(${lib.getExe' pkgs.libsecret "secret-tool"} lookup service claude variant ${name} 2>/dev/null || true)"
+      fi
       key_file="$HOME/${keyFile}"
       if [ -z "$key" ] && [ -s "$key_file" ]; then
         key="$(cat "$key_file")"
       fi
       if [ -z "$key" ]; then
-        printf '${name}: no keyring item (secret-tool lookup service claude variant ${name}) and %s missing or empty; run ~/claude-keyring-import\n' "$key_file" >&2
+        printf '${name}: no keyring item and %s missing or empty; run secret set api-key ${name}\n' "$key_file" >&2
         exit 1
       fi
 
       export ${authVar}="$key"
     '';
 
-  workWrapperTail = ''
+  mkWorkWrapperTail = bin: ''
     ${commonParserText}
     ${pluginFlagsParserText}
     ${browserMcpParserText}
@@ -1131,12 +1138,88 @@ let
     ${lib.getExe healClaudeState} || true
     ${pluginSettingsArgText}
     ${browserMcpArgText}
-    _claude_session_run ${claudeBin} "''${_claude_extra_args[@]}" "$@"
+    _claude_session_run ${bin} "''${_claude_extra_args[@]}" "$@"
   '';
+
+  workWrapperTail = mkWorkWrapperTail claudeBin;
+
+  mkHuntRouter =
+    name: provider:
+    pkgs.writeShellApplication {
+      name = "${name}-router";
+      text = ''
+        hunt_root="''${HUNT_WORKSPACE:-$PWD}"
+        while [ "$hunt_root" != / ] && [ ! -x "$hunt_root/hunt-session" ]; do
+          hunt_root=$(dirname "$hunt_root")
+        done
+        if [ -x "$hunt_root/hunt-session" ]; then
+          exec "$hunt_root/hunt-session" --mode "''${HUNT_SESSION_MODE:-hunt}" -- \
+            ${lib.getExe' pkgs.python3 "python3"} -I ${./claude-model-router.py} \
+            --provider ${lib.escapeShellArg provider} \
+            --secret-tool ${lib.getExe' pkgs.libsecret "secret-tool"} -- ${claudeBin} "$@"
+        fi
+        printf '${name}: launch from the hunt workspace (or set HUNT_WORKSPACE)\n' >&2
+        exit 2
+      '';
+    };
+
+  huntClaudeBin = mkHuntRouter "hunt-claude" "mixed";
+  huntDeepseekBin = mkHuntRouter "hunt-deepseek" "deepseek";
+
+  huntClaude = pkgs.writeShellApplication {
+    name = "hunt-claude";
+    runtimeEnv = workRuntimeEnv;
+    runtimeInputs = [ pkgs.coreutils ];
+    text = ''
+      ${sessionMarkerText}
+      export CLAUDE_VARIANT_NAME="hunt-claude"
+      export CLAUDE_CONFIG_DIR="${glmClaudeConfigDir}"
+      export ANTHROPIC_MODEL="glm-5.3[1m]"
+      export ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.3[1m]"
+      export ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek-chat"
+      export ANTHROPIC_DEFAULT_HAIKU_MODEL="deepseek-chat"
+      export ANTHROPIC_SMALL_FAST_MODEL="deepseek-chat"
+      export CLAUDE_CODE_SUBAGENT_MODEL="deepseek-chat"
+      export CLAUDE_CODE_SUBAGENT_MODEL_FORCE="1"
+      export CLAUDE_CODE_AUTO_MODE_MODEL="deepseek-chat"
+      export CLAUDE_CODE_EFFORT_DEFAULT="${workEffortLevel}"
+      export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1000000"
+      export CLAUDE_CODE_MAX_CONTEXT_TOKENS="1048576"
+      export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1"
+      set -- --security "$@"
+      ${mkWorkWrapperTail (lib.getExe huntClaudeBin)}
+    '';
+  };
+
+  huntDeepseek = pkgs.writeShellApplication {
+    name = "hunt-deepseek";
+    runtimeEnv = workRuntimeEnv;
+    runtimeInputs = [ pkgs.coreutils ];
+    text = ''
+      ${sessionMarkerText}
+      export CLAUDE_VARIANT_NAME="hunt-deepseek"
+      export CLAUDE_CONFIG_DIR="${deepseekClaudeConfigDir}"
+      export ANTHROPIC_MODEL="deepseek-chat"
+      export ANTHROPIC_DEFAULT_OPUS_MODEL="deepseek-chat"
+      export ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek-chat"
+      export ANTHROPIC_DEFAULT_HAIKU_MODEL="deepseek-chat"
+      export ANTHROPIC_DEFAULT_FABLE_MODEL="deepseek-chat"
+      export ANTHROPIC_SMALL_FAST_MODEL="deepseek-chat"
+      export CLAUDE_CODE_SUBAGENT_MODEL="deepseek-chat"
+      export CLAUDE_CODE_SUBAGENT_MODEL_FORCE="1"
+      export CLAUDE_CODE_AUTO_MODE_MODEL="deepseek-chat"
+      export CLAUDE_CODE_EFFORT_DEFAULT="${workEffortLevel}"
+      export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1000000"
+      export CLAUDE_CODE_MAX_CONTEXT_TOKENS="1048576"
+      export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1"
+      set -- --security "$@"
+      ${mkWorkWrapperTail (lib.getExe huntDeepseekBin)}
+    '';
+  };
 
   glmClaude = pkgs.writeShellApplication {
     name = "glm-claude";
-    runtimeEnv.CLAUDE_VARIANT_REALM = "work";
+    runtimeEnv = workRuntimeEnv;
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
       ${sessionMarkerText}
@@ -1163,7 +1246,7 @@ let
 
   workDivarGlmClaude = pkgs.writeShellApplication {
     name = "work-divar-glm-claude";
-    runtimeEnv.CLAUDE_VARIANT_REALM = "work";
+    runtimeEnv = workRuntimeEnv;
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
       ${sessionMarkerText}
@@ -1187,7 +1270,7 @@ let
 
   workDivarDeepseekClaude = pkgs.writeShellApplication {
     name = "work-divar-deepseek-claude";
-    runtimeEnv.CLAUDE_VARIANT_REALM = "work";
+    runtimeEnv = workRuntimeEnv;
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
       ${sessionMarkerText}
@@ -1211,7 +1294,7 @@ let
 
   deepseekClaude = pkgs.writeShellApplication {
     name = "deepseek-claude";
-    runtimeEnv.CLAUDE_VARIANT_REALM = "work";
+    runtimeEnv = workRuntimeEnv;
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
       ${sessionMarkerText}
@@ -1222,12 +1305,12 @@ let
       }}
       export CLAUDE_VARIANT_NAME="deepseek-claude"
       export ANTHROPIC_BASE_URL="https://api.deepseek.com/anthropic"
-      export ANTHROPIC_MODEL="deepseek-flash"
-      export ANTHROPIC_DEFAULT_OPUS_MODEL="deepseek-flash"
-      export ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek-flash"
-      export ANTHROPIC_DEFAULT_HAIKU_MODEL="deepseek-flash"
-      export ANTHROPIC_SMALL_FAST_MODEL="deepseek-flash"
-      export CLAUDE_CODE_SUBAGENT_MODEL="deepseek-flash"
+      export ANTHROPIC_MODEL="deepseek-chat"
+      export ANTHROPIC_DEFAULT_OPUS_MODEL="deepseek-chat"
+      export ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek-chat"
+      export ANTHROPIC_DEFAULT_HAIKU_MODEL="deepseek-chat"
+      export ANTHROPIC_SMALL_FAST_MODEL="deepseek-chat"
+      export CLAUDE_CODE_SUBAGENT_MODEL="deepseek-chat"
       export CLAUDE_CONFIG_DIR="${deepseekClaudeConfigDir}"
       export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1000000"
       export CLAUDE_CODE_MAX_CONTEXT_TOKENS="1048576"
@@ -1237,7 +1320,7 @@ let
 
   kimiClaude = pkgs.writeShellApplication {
     name = "kimi-claude";
-    runtimeEnv.CLAUDE_VARIANT_REALM = "work";
+    runtimeEnv = workRuntimeEnv;
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
       ${sessionMarkerText}
@@ -1310,7 +1393,7 @@ let
 
   orcaClaude = pkgs.writeShellApplication {
     name = "orca-claude";
-    runtimeEnv.CLAUDE_VARIANT_REALM = "work";
+    runtimeEnv = workRuntimeEnv;
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
       ${sessionMarkerText}
@@ -1352,12 +1435,12 @@ let
       }}
       export CLAUDE_VARIANT_NAME="personal-deepseek-claude"
       export ANTHROPIC_BASE_URL="https://api.deepseek.com/anthropic"
-      export ANTHROPIC_MODEL="deepseek-flash"
-      export ANTHROPIC_DEFAULT_OPUS_MODEL="deepseek-flash"
-      export ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek-flash"
-      export ANTHROPIC_DEFAULT_HAIKU_MODEL="deepseek-flash"
-      export ANTHROPIC_SMALL_FAST_MODEL="deepseek-flash"
-      export CLAUDE_CODE_SUBAGENT_MODEL="deepseek-flash"
+      export ANTHROPIC_MODEL="deepseek-chat"
+      export ANTHROPIC_DEFAULT_OPUS_MODEL="deepseek-chat"
+      export ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek-chat"
+      export ANTHROPIC_DEFAULT_HAIKU_MODEL="deepseek-chat"
+      export ANTHROPIC_SMALL_FAST_MODEL="deepseek-chat"
+      export CLAUDE_CODE_SUBAGENT_MODEL="deepseek-chat"
       export CLAUDE_CONFIG_DIR="${personalDeepseekClaudeConfigDir}"
       export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1000000"
       export CLAUDE_CODE_MAX_CONTEXT_TOKENS="1048576"
@@ -1793,7 +1876,7 @@ let
 
   claudeWork = pkgs.writeShellApplication {
     name = "work-claude";
-    runtimeEnv.CLAUDE_VARIANT_REALM = "work";
+    runtimeEnv = workRuntimeEnv;
     runtimeInputs = [
       pkgs.coreutils
       pkgs.curl
@@ -1872,6 +1955,7 @@ let
   workOnlyOptions = [
     "enableWork"
     "enableGlm"
+    "enableHunt"
     "enableDeepseek"
     "enableKimi"
     "enableWorkDivarGlm"
@@ -1948,6 +2032,7 @@ let
       marketplaces = lib.optionalAttrs caveman cavemanMarketplace;
       env = {
         CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN = "1";
+        CLAUDE_CODE_SHELL = lib.getExe pkgs.bash;
       }
       // lib.optionalAttrs caveman {
         CLAUDE_CAVEMAN = "1";
@@ -2255,8 +2340,15 @@ let
     ++ lib.optional (cfg.enable && cfg.enableGlm) (
       pickerEntry "glm" "glm-claude" "GLM via z.ai" glmClaude
     )
+    ++ lib.optional (cfg.enable && cfg.enableHunt) (
+      pickerEntry "hunt" "hunt-claude" "Security hunt: GLM main, DeepSeek subagents" huntClaude
+    )
     ++ lib.optional (cfg.enable && cfg.enableDeepseek) (
       pickerEntry "deepseek" "deepseek-claude" "DeepSeek, native Anthropic API" deepseekClaude
+    )
+    ++ lib.optional (cfg.enable && cfg.enableDeepseek) (
+      pickerEntry "hunt-deepseek" "hunt-deepseek" "Security hunt: DeepSeek main and subagents"
+        huntDeepseek
     )
     ++ lib.optional (cfg.enable && cfg.enableKimi) (
       pickerEntry "kimi" "kimi-claude" "Kimi, native Anthropic API" kimiClaude
@@ -2326,11 +2418,31 @@ in
 
   options.custom.claudeCode = {
     enable = lib.mkEnableOption "Install claude-code and the gap-claude wrapper";
+    workEnvironment = lib.mkOption {
+      type = lib.types.attrsOf lib.types.str;
+      default = { };
+      description = "Environment variables exported by all work Claude launchers.";
+    };
     enableGlm = mkWorkEnableOption "Route the default claude command through GLM";
+    enableHunt = lib.mkOption {
+      type = lib.types.bool;
+      default = cfg.enableGlm && cfg.enableDeepseek;
+      defaultText = lib.literalExpression "config.custom.claudeCode.enableGlm && config.custom.claudeCode.enableDeepseek";
+      description = ''
+        Install hunt-claude: GLM-5.3 main session with DeepSeek Flash subagents
+        through a per-session loopback router. Reuses the GLM config, plugins,
+        skills and history. Reads the existing glm-claude and deepseek-claude
+        keyring entries, falling back to ~/glm-key and ~/deepseek-key.
+        Requires enableGlm and Claude Code >= 2.1.257 for forced subagent routing.
+      '';
+    };
     enableDeepseek = mkWorkEnableOption ''
       the deepseek-claude variant: routes through DeepSeek's native
       Anthropic-compatible endpoint (https://api.deepseek.com/anthropic).
-      Reads the API key from ~/deepseek-key
+      Also installs hunt-deepseek with forced DeepSeek subagents, security
+      plugins and a per-session diagnostic router. Uses the DeepSeek config,
+      skills and history; no GLM configuration or credential is required.
+      Reads the deepseek-claude keyring entry, falling back to ~/deepseek-key.
     '';
     enableKimi = mkWorkEnableOption ''
       the kimi-claude variant: routes through Kimi's native
@@ -2355,7 +2467,8 @@ in
       prompt, and skipped prompts fall back to the first `orcaModels`
       entry. The chosen id fills every model slot (main, Opus, Sonnet,
       Haiku, subagent, auto-mode). Reads the API key from the keyring
-      (secret-tool lookup service claude variant orca-claude) or ~/orca-key
+      (secret-tool lookup type api-key id orca-claude, then the legacy
+      service/variant entry) or ~/orca-key
     '';
     orcaModels = lib.mkOption {
       type = lib.types.listOf lib.types.str;
@@ -2817,7 +2930,7 @@ in
           cacheReadOffpeak = 0.022;
           cacheCreateOffpeak = 0.66;
         };
-        "deepseek-flash" = {
+        "deepseek-chat" = {
           input = 0.30;
           output = 1.20;
           cacheRead = 0.006;
@@ -2833,7 +2946,7 @@ in
         (api-docs.deepseek.com pricing), consumed by `usage-tracker` and its
         statusline session/week/month cost. Keyed by the model id a turn's transcript
         records — the deepseek-claude and personal-deepseek-claude variants
-        currently run deepseek-flash in every slot; deepseek-v4-pro stays
+        currently run deepseek-chat in every slot; deepseek-v4-pro stays
         priced here for switching a slot back. The
         "peak" fields (input/output/cacheRead/cacheCreate) are the standard
         rate; the "Offpeak" fields are DeepSeek's discounted off-peak rate,
@@ -3083,10 +3196,17 @@ in
       };
     })
     {
-      assertions = map (name: {
-        assertion = cfg.${name} -> config.custom.work.enable;
-        message = "custom.claudeCode.${name} is work-only and requires custom.work.enable, which modules/work.nix sets on the work laptop.";
-      }) workOnlyOptions;
+      assertions =
+        map (name: {
+          assertion = cfg.${name} -> config.custom.work.enable;
+          message = "custom.claudeCode.${name} is work-only and requires custom.work.enable, which modules/work.nix sets on the work laptop.";
+        }) workOnlyOptions
+        ++ [
+          {
+            assertion = cfg.enableHunt -> cfg.enableGlm;
+            message = "custom.claudeCode.enableHunt requires enableGlm for its shared configuration.";
+          }
+        ];
     }
     (lib.mkIf cfg.agentStatus.enable {
       systemd.user.tmpfiles.rules = [
@@ -3110,10 +3230,14 @@ in
         file = mkVariantHomeFile ".config/glm-claude" "work" "glm" glmSettings;
       };
     })
+    (lib.mkIf (cfg.enable && cfg.enableHunt) {
+      home.packages = [ huntClaude ];
+    })
     (lib.mkIf (cfg.enable && cfg.enableDeepseek) {
       home = {
         packages = [
           deepseekClaude
+          huntDeepseek
           deepseekUsage
         ];
         file = mkVariantHomeFile ".config/deepseek-claude" "work" "deepseek" deepseekSettings;
