@@ -131,8 +131,12 @@ let
                 inherit secrets inputs;
                 currentHostname = hostname;
               };
-              sharedModules = sopsHomeModules useSopsHome ++ commonHomeModules ++ homeImports hostConfig;
-              users = lib.genAttrs users (_: { });
+              sharedModules = lib.optionals useSopsHome [
+                sops-nix.homeManagerModules.sops
+              ] ++ commonHomeModules;
+              users = lib.genAttrs users (_: {
+                imports = lib.optionals useSopsHome [ ../modules/sops.nix ] ++ homeImports hostConfig;
+              });
             };
           }
         ]

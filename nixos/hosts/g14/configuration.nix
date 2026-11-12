@@ -88,6 +88,8 @@ let
     steam-run
   ];
 
+  amirsalarDeepseekKey = "${config.users.users.amirsalar.home}/personal-deepseek";
+
   blacklistNvidia = [
     "nvidia"
     "nvidia_modeset"
@@ -148,7 +150,10 @@ in
       opencode.enableLocal = true;
     };
 
-    home.packages = [ goHassAgent ];
+    home.packages = [
+      goHassAgent
+      pkgs.gopeed
+    ];
 
     systemd.user.services = {
       go-hass-agent = {
@@ -183,6 +188,13 @@ in
         Install.WantedBy = [ "graphical-session.target" ];
       };
     };
+  };
+
+  home-manager.users.fateme = { config, ... }: {
+    imports = [ ../../home/profiles/claude.nix ];
+
+    home.file."personal-deepseek".source =
+      config.lib.file.mkOutOfStoreSymlink amirsalarDeepseekKey;
   };
 
   services.asusd = {
