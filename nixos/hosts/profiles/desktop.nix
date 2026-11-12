@@ -201,7 +201,7 @@ in
       NIXOS_OZONE_WL = "1";
     };
 
-    environment.variables.EDITOR = lib.mkForce "nvim";
+    environment.variables.EDITOR = lib.mkForce "vim";
 
     environment.etc."opt/chrome/policies/managed/default-browser.json".text = browserPolicy;
     environment.etc."chromium/policies/managed/default-browser.json".text = browserPolicy;
