@@ -47,6 +47,7 @@ lib.mkIf config.isWork {
         approval_policy = "on-request"
         approvals_reviewer = "auto_review"
         sandbox_mode = "workspace-write"
+        project_doc_fallback_filenames = ["CLAUDE.md"]
 
         [marketplaces.divar]
         source_type = "local"
@@ -84,10 +85,7 @@ lib.mkIf config.isWork {
 
       workCodex = pkgs.writeShellApplication {
         name = "work-codex";
-        runtimeInputs = [
-          pkgs.codex
-          pkgs.coreutils
-        ];
+        runtimeInputs = [ pkgs.coreutils ];
         text = ''
           export CODEX_HOME="${workCodexConfigDir}"
           mkdir -p "$CODEX_HOME"
@@ -108,7 +106,7 @@ lib.mkIf config.isWork {
           set -- "''${rest[@]}"
 
           if [ "$sandbox_off" -eq 1 ]; then
-            exec codex "$@"
+            exec ${lib.getExe' pkgs.codex "codex"} "$@"
           fi
 
           export CODEX_SANDBOX_NET="$sandbox_net"

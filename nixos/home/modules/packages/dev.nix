@@ -1,4 +1,9 @@
-{ pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   luaPackages = pkgs.lua.withPackages (ps: [
     ps.luafilesystem
@@ -39,7 +44,6 @@ in
     pkgs.gore
     pkgs.devbox
     pkgs.bazelisk
-    pkgs.codex
     pkgs.opencode
     pkgs.pnpm
     vitejs
@@ -52,5 +56,6 @@ in
     pkgs.ast-grep
     pkgs.istioctl
     pkgs.jfrog-cli
-  ];
+  ]
+  ++ lib.optional (!config.custom.work.enable) pkgs.codex;
 }
