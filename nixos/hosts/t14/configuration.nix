@@ -1,6 +1,7 @@
 {
   lib,
   pkgs,
+  inputs,
   ...
 }:
 let
@@ -8,6 +9,7 @@ let
 in
 {
   imports = [
+    inputs.lanzaboote.nixosModules.lanzaboote
     ./hardware-configuration.nix
     ./disko.nix
     ../../modules/laptop.nix
@@ -128,7 +130,15 @@ in
   services.printing.browsed.enable = false;
 
   boot = {
-    loader.systemd-boot.enable = true;
+    # Before the first rebuild: nix shell nixpkgs#sbctl -c sudo sbctl create-keys
+    # After rebuilding, run sudo sbctl verify before enabling Secure Boot.
+    # Follow the enrollment guide; preserve dbx when entering firmware Setup Mode:
+    # https://nix-community.github.io/lanzaboote/getting-started/enable-secure-boot.html
+    loader.systemd-boot.enable = lib.mkForce false;
+    lanzaboote = {
+      enable = true;
+      pkiBundle = "/var/lib/sbctl";
+    };
     loader.efi.canTouchEfiVariables = true;
     kernelPackages = pkgs.linuxPackages_latest;
     kernel.sysctl = {
@@ -138,6 +148,7 @@ in
   };
 
   environment.systemPackages = with pkgs; [
+    sbctl
     vim
     wget
     git

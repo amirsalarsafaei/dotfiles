@@ -71,7 +71,7 @@ let
           password=$(ask_password "$message") || exit 0
           [[ -n "$password" ]] || exit 0
         fi
-        if accounts=$(oath accounts list); then
+        if accounts=$(oath accounts list --remember); then
           break
         fi
         error=$(<"$error_file")

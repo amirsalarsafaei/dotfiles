@@ -6,6 +6,7 @@ import json
 import os
 import re
 import subprocess
+import tempfile
 from pathlib import Path
 
 
@@ -488,15 +489,21 @@ def auth():
         client = json.loads(Path(OAUTH_CLIENT).read_text())["installed"]
     except (OSError, json.JSONDecodeError, KeyError) as error:
         raise SystemExit(f"Cannot read Google OAuth client from {OAUTH_CLIENT}: {error}")
-    result = subprocess.run(
-        [
-            GCALCLI,
-            f"--client-id={client['client_id']}",
-            f"--client-secret={client['client_secret']}",
-            "init",
-        ],
-        check=False,
-    )
+    values = [client.get("client_id"), client.get("client_secret")]
+    if any(not isinstance(value, str) or not value or "\n" in value or "\r" in value
+           for value in values):
+        raise SystemExit("OAuth client ID and secret must be nonempty single-line strings")
+    # Keep credentials out of process arguments.
+    with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as credentials:
+        credentials.write(f"--client-id={values[0]}\n--client-secret={values[1]}\n")
+        credentials.flush()
+        credentials.seek(0)
+        result = subprocess.run(
+            [GCALCLI, f"@/proc/self/fd/{credentials.fileno()}", "init"],
+            pass_fds=(credentials.fileno(),),
+            umask=0o077,
+            check=False,
+        )
     if result.returncode != 0:
         raise SystemExit(result.returncode)
     update()

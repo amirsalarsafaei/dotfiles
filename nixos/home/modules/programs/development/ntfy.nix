@@ -40,15 +40,14 @@ let
             --no-cache        Do not store the message on the server
             --no-firebase     Do not forward via Firebase (FCM)
         -s, --server URL      ntfy server (default: ${cfg.server}, or $NTFY_SERVER)
-            --token TOKEN     Bearer token (overrides --token-file / files below)
             --token-file PATH File to read the bearer token from
         -q, --quiet           Suppress the server's response
-        -v, --verbose         Verbose curl output
+        -v, --verbose         Show HTTP status and timing
         -h, --help            Show this help
 
-      Auth token is read, in order: --token, --token-file, $NTFY_TOKEN,
-      $NTFY_TOKEN_FILE, then the built-in default file. If none resolve, the
-      request is sent unauthenticated.
+      Auth token is read, in order: --token-file, $NTFY_TOKEN,
+      $NTFY_TOKEN_FILE, then the default file. An unreadable or empty token file
+      stops the request. With no token or file configured, no authentication is sent.
 
       Examples:
         ntfy "build finished"
@@ -60,6 +59,7 @@ let
       server="''${NTFY_SERVER:-${cfg.server}}"
       topic="''${NTFY_TOPIC:-${cfg.defaultTopic}}"
       token="''${NTFY_TOKEN:-}"
+      unset NTFY_TOKEN
       token_file="''${NTFY_TOKEN_FILE:-${sopsTokenFile}}"
       title=""
       priority=""
@@ -145,11 +145,12 @@ let
             shift 2
             ;;
           --token)
-            token="$2"
-            shift 2
+            printf 'ntfy: --token is unsafe; use --token-file or NTFY_TOKEN\n' >&2
+            exit 1
             ;;
           --token-file)
             token_file="$2"
+            token=""
             shift 2
             ;;
           -q | --quiet)
@@ -187,8 +188,11 @@ let
         exit 1
       fi
 
-      if [ -z "$token" ] && [ -n "$token_file" ] && [ -s "$token_file" ]; then
-        token="$(cat "$token_file")"
+      if [ -z "$token" ] && [ -n "$token_file" ]; then
+        if ! token="$(cat "$token_file")" || [ -z "$token" ]; then
+          printf 'ntfy: token file is unreadable or empty\n' >&2
+          exit 1
+        fi
       fi
 
       headers=()
@@ -205,7 +209,13 @@ let
       [ "$markdown" -eq 1 ] && headers+=(-H "Markdown: yes")
       [ -n "$cache" ] && headers+=(-H "Cache: $cache")
       [ -n "$firebase" ] && headers+=(-H "Firebase: $firebase")
-      [ -n "$token" ] && headers+=(-H "Authorization: Bearer $token")
+      if [[ "$token" == *$'\r'* || "$token" == *$'\n'* ]]; then
+        printf 'ntfy: token must not contain newlines\n' >&2
+        exit 1
+      fi
+      if [ -n "$token" ]; then
+        headers+=(-H @/proc/self/fd/3)
+      fi
       if [ "''${#actions[@]}" -gt 0 ]; then
         joined=""
         for act in "''${actions[@]}"; do
@@ -215,10 +225,13 @@ let
       fi
 
       curl_opts=(-sS --connect-timeout 10 --max-time 30)
-      [ "$verbose" -eq 1 ] && curl_opts+=(-v)
+      [ "$verbose" -eq 1 ] && curl_opts+=(--write-out $'\nHTTP %{http_code}, %{time_total}s\n')
       [ "$quiet" -eq 1 ] && curl_opts+=(-o /dev/null)
 
-      exec curl "''${curl_opts[@]}" "''${headers[@]}" --data-binary "$message" "''${server%/}/$topic"
+      # Keep credentials and messages out of process arguments.
+      exec curl "''${curl_opts[@]}" "''${headers[@]}" --data-binary @/proc/self/fd/4 "''${server%/}/$topic" \
+        3< <(printf 'Authorization: Bearer %s\n' "$token") \
+        4< <(printf '%s' "$message")
     '';
   };
 

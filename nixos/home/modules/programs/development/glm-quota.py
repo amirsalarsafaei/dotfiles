@@ -29,14 +29,8 @@ def cache_path():
 
 
 def auth_token():
-    token = os.environ.get("ANTHROPIC_AUTH_TOKEN", "").strip()
-    if token:
-        return token
-    key_file = os.environ.get("GLM_KEY_FILE") or os.path.expanduser("~/glm-key")
-    try:
-        return Path(key_file).read_text().strip()
-    except OSError:
-        return ""
+    # The launcher retrieves this from the keyring before entering the sandbox.
+    return os.environ.get("ANTHROPIC_AUTH_TOKEN", "").strip()
 
 
 def team_context():

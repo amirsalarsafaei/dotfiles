@@ -201,7 +201,7 @@ class RouterHandler(BaseHTTPRequestHandler):
                                   elapsed_ms=round((time.monotonic() - started) * 1000))
 
 
-def load_key(secret_tool, variant, filename):
+def load_key(secret_tool, variant):
     for attributes in (
         ["type", "api-key", "id", variant],
         ["service", "claude", "variant", variant],
@@ -218,16 +218,10 @@ def load_key(secret_tool, variant, filename):
                 return result.stdout.strip()
         except (OSError, subprocess.TimeoutExpired):
             pass
-    try:
-        key = (Path.home() / filename).read_text().strip()
-    except OSError:
-        key = ""
-    if not key:
-        raise ValueError(
-            f"{variant}: no keyring entry or nonempty ~/{filename}; "
-            f"run secret set api-key {variant}"
-        )
-    return key
+    raise ValueError(
+        f"{variant}: keyring item unavailable; unlock the keyring or "
+        f"run secret set api-key {variant}"
+    )
 
 
 def run_session(routes, command, log_path=None, provider_timeout=600):
@@ -295,13 +289,13 @@ def main():
     try:
         routes = {}
         if args.provider == "mixed":
-            glm_key = load_key(args.secret_tool, "glm-claude", "glm-key")
+            glm_key = load_key(args.secret_tool, "glm-claude")
             routes["glm-"] = (
                 "https://api.z.ai/api/anthropic",
                 "Authorization",
                 f"Bearer {glm_key}",
             )
-        deepseek_key = load_key(args.secret_tool, "deepseek-claude", "deepseek-key")
+        deepseek_key = load_key(args.secret_tool, "deepseek-claude")
         routes["deepseek-"] = (
             "https://api.deepseek.com/anthropic",
             "x-api-key",

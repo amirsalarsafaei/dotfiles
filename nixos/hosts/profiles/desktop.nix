@@ -241,6 +241,17 @@ in
     services.pipewire = {
       enable = true;
       pulse.enable = true;
+      wireplumber.extraConfig."51-airpods" = {
+        "wireplumber.settings"."bluetooth.autoswitch-to-headset-profile" = true;
+        "monitor.bluez.rules" = [
+          {
+            matches = [ { "device.name" = "bluez_card.CC_22_FE_69_EF_55"; } ];
+            # The AirPods controller releases audio by selecting Off. Do not
+            # restore that temporary state when the buds reconnect.
+            actions.update-props."session.dont-restore-off-profile" = true;
+          }
+        ];
+      };
     };
 
     services.libinput.enable = true;

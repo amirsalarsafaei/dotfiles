@@ -1,4 +1,9 @@
-{ config, lib, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 {
   options.custom.work = {
     enable = lib.mkEnableOption "work-only programs, services and credentials; set by modules/work.nix on the work laptop";
@@ -11,6 +16,17 @@
   };
 
   config = lib.mkIf config.custom.work.enable {
+    home.activation.workCredentialPermissions = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      for directory in "$HOME/.aws" "$HOME/.kube"; do
+        if [ -d "$directory" ] && [ ! -L "$directory" ]; then
+          run ${lib.getExe' pkgs.findutils "find"} "$directory" -type d -exec ${lib.getExe' pkgs.coreutils "chmod"} 700 {} +
+          run ${lib.getExe' pkgs.findutils "find"} "$directory" -type f -exec ${lib.getExe' pkgs.coreutils "chmod"} go-rwx {} +
+          run ${lib.getExe' pkgs.findutils "find"} "$directory" -maxdepth 1 -type f \
+            '(' -name 'config*' -o -name 'credentials*' ')' -exec ${lib.getExe' pkgs.coreutils "chmod"} 600 {} +
+        fi
+      done
+    '';
+
     custom.claudeCode.workEnvironment = import ../../private/work/claude-environment.nix;
 
     home.sessionVariables.GOPRIVATE = "git.divar.cloud";

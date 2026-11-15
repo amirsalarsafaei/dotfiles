@@ -1110,24 +1110,21 @@ let
   mkKeyAuth =
     {
       name,
-      keyFile,
       authVar,
     }:
     ''
+      unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN
       key="$(${lib.getExe' pkgs.libsecret "secret-tool"} lookup type api-key id ${name} 2>/dev/null || true)"
       if [ -z "$key" ]; then
         key="$(${lib.getExe' pkgs.libsecret "secret-tool"} lookup service claude variant ${name} 2>/dev/null || true)"
       fi
-      key_file="$HOME/${keyFile}"
-      if [ -z "$key" ] && [ -s "$key_file" ]; then
-        key="$(cat "$key_file")"
-      fi
       if [ -z "$key" ]; then
-        printf '${name}: no keyring item and %s missing or empty; run secret set api-key ${name}\n' "$key_file" >&2
+        printf '${name}: keyring item unavailable; unlock the keyring or run secret set api-key ${name}\n' >&2
         exit 1
       fi
 
       export ${authVar}="$key"
+      unset key
     '';
 
   mkWorkWrapperTail = bin: ''
@@ -1225,7 +1222,6 @@ let
       ${sessionMarkerText}
       ${mkKeyAuth {
         name = "glm-claude";
-        keyFile = "glm-key";
         authVar = "ANTHROPIC_AUTH_TOKEN";
       }}
       export CLAUDE_VARIANT_NAME="glm-claude"
@@ -1252,7 +1248,6 @@ let
       ${sessionMarkerText}
       ${mkKeyAuth {
         name = "work-divar-glm-claude";
-        keyFile = "divar-glm";
         authVar = "ANTHROPIC_AUTH_TOKEN";
       }}
       export CLAUDE_VARIANT_NAME="work-divar-glm-claude"
@@ -1276,7 +1271,6 @@ let
       ${sessionMarkerText}
       ${mkKeyAuth {
         name = "work-divar-deepseek-claude";
-        keyFile = "divar-deepseek";
         authVar = "ANTHROPIC_AUTH_TOKEN";
       }}
       export CLAUDE_VARIANT_NAME="work-divar-deepseek-claude"
@@ -1300,7 +1294,6 @@ let
       ${sessionMarkerText}
       ${mkKeyAuth {
         name = "deepseek-claude";
-        keyFile = "deepseek-key";
         authVar = "ANTHROPIC_API_KEY";
       }}
       export CLAUDE_VARIANT_NAME="deepseek-claude"
@@ -1326,7 +1319,6 @@ let
       ${sessionMarkerText}
       ${mkKeyAuth {
         name = "kimi-claude";
-        keyFile = "kimi-key";
         authVar = "ANTHROPIC_AUTH_TOKEN";
       }}
       export CLAUDE_VARIANT_NAME="kimi-claude"
@@ -1399,7 +1391,6 @@ let
       ${sessionMarkerText}
       ${mkKeyAuth {
         name = "orca-claude";
-        keyFile = "orca-key";
         authVar = "ANTHROPIC_AUTH_TOKEN";
       }}
       export CLAUDE_VARIANT_NAME="orca-claude"
@@ -1430,7 +1421,6 @@ let
       ${sessionMarkerText}
       ${mkKeyAuth {
         name = "personal-deepseek-claude";
-        keyFile = "personal-deepseek";
         authVar = "ANTHROPIC_API_KEY";
       }}
       export CLAUDE_VARIANT_NAME="personal-deepseek-claude"
@@ -1858,7 +1848,6 @@ let
       ${sessionMarkerText}
       ${mkKeyAuth {
         name = "gap-claude";
-        keyFile = "gapgpt-key";
         authVar = "ANTHROPIC_API_KEY";
       }}
       export CLAUDE_VARIANT_NAME="gap-claude"
@@ -2429,46 +2418,25 @@ in
       default = cfg.enableGlm && cfg.enableDeepseek;
       defaultText = lib.literalExpression "config.custom.claudeCode.enableGlm && config.custom.claudeCode.enableDeepseek";
       description = ''
-        Install hunt-claude: GLM-5.3 main session with DeepSeek Flash subagents
-        through a per-session loopback router. Reuses the GLM config, plugins,
-        skills and history. Reads the existing glm-claude and deepseek-claude
-        keyring entries, falling back to ~/glm-key and ~/deepseek-key.
-        Requires enableGlm and Claude Code >= 2.1.257 for forced subagent routing.
+        Install hunt-claude with GLM for the main session and DeepSeek for subagents.
+        Uses the glm-claude and deepseek-claude keyring entries. Requires enableGlm
+        and Claude Code >= 2.1.257.
       '';
     };
     enableDeepseek = mkWorkEnableOption ''
-      the deepseek-claude variant: routes through DeepSeek's native
-      Anthropic-compatible endpoint (https://api.deepseek.com/anthropic).
-      Also installs hunt-deepseek with forced DeepSeek subagents, security
-      plugins and a per-session diagnostic router. Uses the DeepSeek config,
-      skills and history; no GLM configuration or credential is required.
-      Reads the deepseek-claude keyring entry, falling back to ~/deepseek-key.
+      deepseek-claude and hunt-deepseek, using the deepseek-claude keyring entry
     '';
-    enableKimi = mkWorkEnableOption ''
-      the kimi-claude variant: routes through Kimi's native
-      Anthropic-compatible endpoint (https://api.moonshot.ai/anthropic).
-      Reads the API key from ~/kimi-key
-    '';
+    enableKimi = mkWorkEnableOption "kimi-claude, using the kimi-claude keyring entry";
     enableWorkDivarGlm = mkWorkEnableOption ''
-      the work-divar-glm-claude variant: work group, routed through the Divar
-      LiteLLM gateway (divar-glm5.3). Reads the token from ~/divar-glm
+      work-divar-glm-claude through the Divar gateway, using its matching keyring entry
     '';
     enableWorkDivarDeepseek = mkWorkEnableOption ''
-      the work-divar-deepseek-claude variant: work group, routed through the
-      Divar LiteLLM gateway (divar-deepseek). Reads the token from
-      ~/divar-deepseek
+      work-divar-deepseek-claude through the Divar gateway, using its matching keyring entry
     '';
     enableOrca = mkWorkEnableOption ''
-      the orca-claude variant: work variant routed through the Orca
-      router (https://api.orcarouter.ai, which serves Claude Code's
-      Anthropic protocol at /v1/messages). Interactive launches prompt
-      for a model from `orcaModels` before starting; --orca-model <id>, a
-      CLAUDE_ORCA_MODEL env var or a -p (print-mode) launch skips the
-      prompt, and skipped prompts fall back to the first `orcaModels`
-      entry. The chosen id fills every model slot (main, Opus, Sonnet,
-      Haiku, subagent, auto-mode). Reads the API key from the keyring
-      (secret-tool lookup type api-key id orca-claude, then the legacy
-      service/variant entry) or ~/orca-key
+      orca-claude, using the orca-claude keyring entry. Interactive launches prompt
+      for a model; --orca-model or CLAUDE_ORCA_MODEL selects one directly.
+      Print mode defaults to the first entry in orcaModels.
     '';
     orcaModels = lib.mkOption {
       type = lib.types.listOf lib.types.str;
@@ -2489,10 +2457,8 @@ in
       '';
     };
     enablePersonalDeepseek = lib.mkEnableOption ''
-      the personal-deepseek-claude variant: same DeepSeek native
-      Anthropic-compatible endpoint as deepseek-claude, but for personal
-      (non-work) use — its own config dir and no work MCP config / devar
-      plugin. Reads the API key from ~/personal-deepseek
+      personal-deepseek-claude with a separate profile and keyring entry,
+      without work plugins
     '';
     enableWork = mkWorkEnableOption "Install the work-claude variant (work-host only)";
     enableLocal = lib.mkEnableOption "Install the local-claude variant (LiteLLM -> local llama-swap model)";

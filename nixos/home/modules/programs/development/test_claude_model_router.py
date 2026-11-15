@@ -219,7 +219,7 @@ class ProviderSelectionTests(unittest.TestCase):
                 patch.object(router, "load_key", return_value="deepseek-secret") as key, \
                 patch.object(router, "run_session", return_value=17) as session:
             self.assertEqual(router.main(), 17)
-        key.assert_called_once_with("secret-tool", "deepseek-claude", "deepseek-key")
+        key.assert_called_once_with("secret-tool", "deepseek-claude")
         routes, command, _, _ = session.call_args.args
         self.assertEqual(list(routes), ["deepseek-"])
         self.assertEqual(command, ["claude", "-p", "task"])
@@ -239,7 +239,7 @@ class KeyTests(unittest.TestCase):
         with patch.object(router.subprocess, "run") as run:
             run.return_value = subprocess.CompletedProcess([], 0, "standard-key\n")
             self.assertEqual(
-                router.load_key("secret-tool", "glm-claude", "glm-key"), "standard-key"
+                router.load_key("secret-tool", "glm-claude"), "standard-key"
             )
             run.assert_called_once_with(
                 ["secret-tool", "lookup", "type", "api-key", "id", "glm-claude"],
@@ -256,14 +256,14 @@ class KeyTests(unittest.TestCase):
                 subprocess.CompletedProcess([], 0, "legacy-key\n"),
             ]
             self.assertEqual(
-                router.load_key("secret-tool", "glm-claude", "glm-key"), "legacy-key"
+                router.load_key("secret-tool", "glm-claude"), "legacy-key"
             )
             self.assertEqual(
                 run.call_args.args[0],
                 ["secret-tool", "lookup", "service", "claude", "variant", "glm-claude"],
             )
 
-    def test_file_fallback_when_keyring_unavailable(self):
+    def test_keyring_failure_never_falls_back_to_existing_file(self):
         for failure in (OSError(), subprocess.TimeoutExpired("secret-tool", 5)):
             with self.subTest(failure=type(failure).__name__):
                 with tempfile.TemporaryDirectory() as directory:
@@ -272,10 +272,10 @@ class KeyTests(unittest.TestCase):
                         with patch.object(
                             router.Path, "home", return_value=Path(directory)
                         ):
-                            self.assertEqual(
-                                router.load_key("secret-tool", "glm-claude", "glm-key"),
-                                "file-key",
-                            )
+                            with patch.object(router.Path, "read_text") as read_file:
+                                with self.assertRaisesRegex(ValueError, "keyring item unavailable"):
+                                    router.load_key("secret-tool", "glm-claude")
+                                read_file.assert_not_called()
 
     def test_missing_key_reports_store_command(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -285,7 +285,7 @@ class KeyTests(unittest.TestCase):
                     with self.assertRaisesRegex(
                         ValueError, "secret set api-key glm-claude"
                     ):
-                        router.load_key("secret-tool", "glm-claude", "glm-key")
+                        router.load_key("secret-tool", "glm-claude")
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ import contextlib
 import datetime as dt
 import io
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -11,6 +12,46 @@ import agenda
 
 
 class AgendaTests(unittest.TestCase):
+    def test_auth_keeps_credentials_out_of_argv_and_closes_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            client = Path(directory) / 'client.json'
+            client.write_text(json.dumps({'installed': {
+                'client_id': 'test-client', 'client_secret': 'private-test-secret',
+            }}))
+            descriptor = None
+
+            def run(command, **kwargs):
+                nonlocal descriptor
+                self.assertEqual(command[-1], 'init')
+                self.assertNotIn('private-test-secret', ' '.join(command))
+                descriptor = kwargs['pass_fds'][0]
+                self.assertEqual(command[1], f'@/proc/self/fd/{descriptor}')
+                self.assertEqual(os.fstat(descriptor).st_mode & 0o777, 0o600)
+                self.assertEqual(os.read(descriptor, 4096).decode(),
+                                 '--client-id=test-client\n--client-secret=private-test-secret\n')
+                self.assertEqual(kwargs['umask'], 0o077)
+                return agenda.subprocess.CompletedProcess(command, 0)
+
+            with patch.object(agenda, 'OAUTH_CLIENT', str(client)), \
+                    patch.object(agenda.subprocess, 'run', side_effect=run), \
+                    patch.object(agenda, 'update') as update:
+                agenda.auth()
+                update.assert_called_once()
+            with self.assertRaises(OSError):
+                os.fstat(descriptor)
+
+    def test_auth_rejects_argument_file_injection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            client = Path(directory) / 'client.json'
+            client.write_text(json.dumps({'installed': {
+                'client_id': 'test-client', 'client_secret': 'secret\n--config-folder=/tmp',
+            }}))
+            with patch.object(agenda, 'OAUTH_CLIENT', str(client)), \
+                    patch.object(agenda.subprocess, 'run') as run:
+                with self.assertRaises(SystemExit):
+                    agenda.auth()
+                run.assert_not_called()
+
     def test_all_open_tasks_and_source_locations(self):
         with tempfile.TemporaryDirectory() as directory:
             vault = Path(directory)
