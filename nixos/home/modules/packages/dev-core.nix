@@ -15,12 +15,6 @@
       default = [ ];
       description = "Additional packages to install alongside the dev profile.";
     };
-
-    naviCheatsPath = lib.mkOption {
-      type = lib.types.nullOr lib.types.str;
-      default = null;
-      description = "Path to navi cheat sheets.";
-    };
   };
 
   config.home.packages = config.custom.dev.extraPackages;

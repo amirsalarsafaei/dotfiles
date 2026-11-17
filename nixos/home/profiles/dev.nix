@@ -82,7 +82,11 @@ in
           subdir = "skills";
         };
       };
-      skills = [ "nix-environment" ] ++ samberGoSkills;
+      skills = [
+        "nix-environment"
+        "navi-cheats"
+      ]
+      ++ samberGoSkills;
       targets = {
         agents.enable = true;
         gap-claude = {

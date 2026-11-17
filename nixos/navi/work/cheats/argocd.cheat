@@ -1,0 +1,13 @@
+% argocd, work, user-privacy, rollout
+
+# Log in to Divar Argo CD with SSO
+argocd login argocd.divar.cloud --grpc-web --sso
+
+# Preview full rollout promotion across an ApplicationSet
+bash "$NAVI_SCRIPTS/user-privacy-rollout.sh" preview '<application_set>' '<rollout>'
+
+# Promote a rollout fully across an ApplicationSet
+bash "$NAVI_SCRIPTS/user-privacy-rollout.sh" promote '<application_set>' '<rollout>'
+
+$ application_set: bash "$NAVI_SCRIPTS/user-privacy-rollout.sh" sets --- --prevent-extra
+$ rollout: bash "$NAVI_SCRIPTS/user-privacy-rollout.sh" rollouts '<application_set>' --- --prevent-extra
