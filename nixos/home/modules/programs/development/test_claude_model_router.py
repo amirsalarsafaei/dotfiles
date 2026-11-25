@@ -2,6 +2,8 @@ import concurrent.futures
 import importlib.util
 import json
 import os
+import re
+import shlex
 import socket
 import subprocess
 import sys
@@ -55,6 +57,7 @@ class RouterTests(unittest.TestCase):
         base = f"http://127.0.0.1:{self.provider.server_port}"
         self.routes = {
             "glm-": (base + "/glm", "Authorization", "Bearer glm-secret"),
+            "openai/orca/": (base + "/orca", "Authorization", "Bearer orca-secret"),
             "deepseek-": (base + "/deepseek", "x-api-key", "deepseek-secret"),
         }
         self.server = router.ModelRouter(self.routes, "session-secret")
@@ -94,7 +97,7 @@ class RouterTests(unittest.TestCase):
     def test_concurrent_models_use_separate_credentials_and_preserve_payloads(self):
         payloads = [
             {"model": model, "messages": [{"role": "user", "content": str(i)}]}
-            for i, model in enumerate(["glm-5.3", "deepseek-flash"] * 4)
+            for i, model in enumerate(["glm-5.3", "openai/orca/orcacyber-flash-1.0", "deepseek-flash"] * 4)
         ]
 
         def call(payload):
@@ -103,13 +106,16 @@ class RouterTests(unittest.TestCase):
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
             list(pool.map(call, payloads))
-        self.assertEqual(len(self.provider.calls), 8)
+        self.assertEqual(len(self.provider.calls), 12)
         for path, headers, data in self.provider.calls:
             self.assertEqual(headers["User-Agent"], "claude-cli/test")
             payload = json.loads(data)
             self.assertIn(payload, payloads)
             if path.startswith("/glm/"):
                 self.assertEqual(headers["Authorization"], "Bearer glm-secret")
+                self.assertNotIn("X-Api-Key", headers)
+            elif path.startswith("/orca/"):
+                self.assertEqual(headers["Authorization"], "Bearer orca-secret")
                 self.assertNotIn("X-Api-Key", headers)
             else:
                 self.assertEqual(headers["X-Api-Key"], "deepseek-secret")
@@ -125,11 +131,13 @@ class RouterTests(unittest.TestCase):
                 response.read()
         self.assertEqual(self.provider.calls, [])
 
-    def test_deepseek_only_route_rejects_glm_and_accepts_deepseek(self):
+    def test_deepseek_only_route_rejects_other_providers_and_accepts_deepseek(self):
         del self.server.routes["glm-"]
-        with self.request({"model": "glm-5.3"}) as response:
-            self.assertEqual(response.code, 400)
-            response.read()
+        del self.server.routes["openai/orca/"]
+        for model in ("glm-5.3", "openai/orca/orcacyber-flash-1.0"):
+            with self.request({"model": model}) as response:
+                self.assertEqual(response.code, 400)
+                response.read()
         self.assertEqual(self.provider.calls, [])
         with self.request({"model": "deepseek-chat"}) as response:
             self.assertEqual(json.load(response)["model"], "deepseek-chat")
@@ -214,6 +222,23 @@ sys.exit(17)
 
 
 class ProviderSelectionTests(unittest.TestCase):
+    def test_orca_launch_uses_orca_and_deepseek_without_glm_credentials(self):
+        with patch("sys.argv", ["router", "--provider", "orca", "--log", "", "--", "claude"]), \
+                patch.object(router, "load_key", side_effect=["orca-secret", "deepseek-secret"]) as key, \
+                patch.object(router, "run_session", return_value=0) as session:
+            self.assertEqual(router.main(), 0)
+        self.assertEqual(
+            [call.args for call in key.call_args_list],
+            [("secret-tool", "orca-claude"), ("secret-tool", "deepseek-claude")],
+        )
+        routes = session.call_args.args[0]
+        self.assertEqual(set(routes), {"openai/orca/", "orca/", "deepseek-"})
+        self.assertEqual(routes["openai/orca/"], (
+            "https://litellm.data.divar.cloud", "Authorization", "Bearer orca-secret",
+        ))
+        self.assertEqual(routes["orca/"], routes["openai/orca/"])
+        self.assertEqual(routes["deepseek-"][2], "deepseek-secret")
+
     def test_deepseek_launch_never_loads_glm_credentials(self):
         with patch("sys.argv", ["router", "--provider", "deepseek", "--log", "", "--", "claude", "-p", "task"]), \
                 patch.object(router, "load_key", return_value="deepseek-secret") as key, \
@@ -232,6 +257,80 @@ class ProviderSelectionTests(unittest.TestCase):
         routes = session.call_args.args[0]
         self.assertEqual(routes["glm-"][2], "Bearer glm-secret")
         self.assertEqual(routes["deepseek-"][2], "deepseek-secret")
+
+
+class HuntLauncherTests(unittest.TestCase):
+    def launch(self, args, environment=None):
+        source = Path(__file__).with_name("claude-code.nix").read_text()
+        parser = source.split("  mkValueFlagParser =", 1)[1].split("    ''\n", 1)[1].split("\n    '';", 1)[0]
+        picker = source.split("  orcaModelPromptText = ''\n", 1)[1].split("\n  '';", 1)[0]
+        script = source.split("  huntClaude = pkgs.writeShellApplication {", 1)[1].split("    text = ''\n", 1)[1].split("\n    '';", 1)[0]
+        script = script.replace("${orcaModelPromptText}", picker)
+        script = re.sub(
+            r'\$\{mkValueFlagParser \{\s*flag = "([^"]+)";\s*resultVar = "([^"]+)";\s*\}\}',
+            lambda match: parser.replace("${flag}", match[1]).replace("${resultVar}", match[2]),
+            script,
+        )
+        script = re.sub(r'\$\{mkKeyAuth \{.*?\}\}', 'export ANTHROPIC_AUTH_TOKEN=orca-test-secret', script, flags=re.S)
+        substitutions = {
+            "${sessionMarkerText}": "",
+            "${glmClaudeConfigDir}": "/test/config",
+            "${lib.escapeShellArg (lib.getExe huntClaudeBin)}": "glm-router",
+            "${lib.escapeShellArg (lib.getExe huntOrcaBin)}": "orca-router",
+            '${lib.concatStringsSep " " (map lib.escapeShellArg cfg.orcaModels)}': "openai/orca/orcacyber-flash-1.0",
+            "${lib.escapeShellArg (lib.head cfg.orcaModels)}": "openai/orca/orcacyber-flash-1.0",
+            '${customProviderAutoModeText "deepseek-chat"}': 'export CLAUDE_CODE_AUTO_MODE_MODEL=deepseek-chat',
+            "${workEffortLevel}": "high",
+        }
+        for before, after in substitutions.items():
+            script = script.replace(before, after)
+        script = script[:script.index("${mkWorkWrapperTail")]
+        script = script.replace("''${", "${")
+        capture = "import json, os, sys; print(json.dumps(dict(env=dict(os.environ), args=sys.argv[1:])))"
+        script += f'\n{shlex.quote(sys.executable)} -c {shlex.quote(capture)} "$_claude_hunt_router" "$@"\n'
+        env = {key: value for key, value in os.environ.items() if not key.startswith(("CLAUDE_", "ANTHROPIC_", "HUNT_"))}
+        env.update(environment or {})
+        return subprocess.run(["bash", "-euo", "pipefail", "-c", script, "hunt-claude", *args],
+                              env=env, capture_output=True, text=True)
+
+    def test_default_glm_and_orca_launches_use_subagents_without_teams(self):
+        for args, model, provider in (
+            ([], "glm-5.3[1m]", "glm-router"),
+            (["--orchestrator", "orca", "--orca-model", "openai/orca/custom"], "openai/orca/custom", "orca-router"),
+        ):
+            with self.subTest(args=args):
+                result = self.launch([*args, "task with spaces"])
+                self.assertEqual(result.returncode, 0, result.stderr)
+                data = json.loads(result.stdout)
+                env = data["env"]
+                self.assertEqual(env["ANTHROPIC_MODEL"], model)
+                self.assertEqual(env["ANTHROPIC_DEFAULT_OPUS_MODEL"], model)
+                self.assertEqual(env["CLAUDE_CODE_SUBAGENT_MODEL"], "deepseek-chat")
+                self.assertEqual(env["CLAUDE_CODE_SUBAGENT_MODEL_FORCE"], "1")
+                self.assertEqual(env["CLAUDE_CODE_AUTO_MODE_MODEL"], "deepseek-chat")
+                self.assertEqual(env["HUNT_ORCHESTRATION"], "subagents")
+                self.assertEqual(env["CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"], "0")
+                self.assertNotIn("ANTHROPIC_AUTH_TOKEN", env)
+                self.assertEqual(data["args"], [provider, "--security", "task with spaces"])
+
+    def test_print_mode_keeps_subagents_and_orca_default(self):
+        for flag in ("-p", "--print"):
+            result = self.launch([flag, "task"], {"HUNT_ORCHESTRATOR": "orca"})
+            self.assertEqual(result.returncode, 0, result.stderr)
+            data = json.loads(result.stdout)
+            self.assertEqual(data["env"]["ANTHROPIC_MODEL"], "openai/orca/orcacyber-flash-1.0")
+            self.assertEqual(data["env"]["HUNT_ORCHESTRATION"], "subagents")
+            self.assertEqual(data["env"]["CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"], "0")
+            self.assertEqual(data["args"], ["orca-router", "--security", flag, "task"])
+
+    def test_explicit_orchestrator_overrides_environment_and_rejects_invalid_values(self):
+        result = self.launch(["--orchestrator=glm"], {"HUNT_ORCHESTRATOR": "orca"})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["args"][0], "glm-router")
+        for args in (["--orchestrator", "unknown"], ["--orchestrator"]):
+            result = self.launch(args)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("--orchestrator", result.stderr)
 
 
 class KeyTests(unittest.TestCase):

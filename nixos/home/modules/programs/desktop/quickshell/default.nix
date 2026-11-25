@@ -699,19 +699,11 @@ let
             fi
           done
         } > qmldir
-        levels=()
-        for category in $(qmllint --help | grep -oE '^ +--[a-z-]+ <level>' | awk '{ print $1 }'); do
-          if [ "$category" = --import ]; then
-            levels+=("$category" warning)
-          else
-            levels+=("$category" disable)
-          fi
-        done
-        qmllint -W 0 \
+        qmllint --only-explicit-categories --import error --syntax error \
           -I ${config.programs.quickshell.package}/lib/qt-6/qml \
           -I ${pkgs.qt6.qtdeclarative}/lib/qt-6/qml \
-          -I . \
-          "''${levels[@]}" *.qml
+          -I "$lint" \
+          "$lint"/*.qml
       '';
 
   shellConfig = mkConfig "shell" ./qml/shell.qml;

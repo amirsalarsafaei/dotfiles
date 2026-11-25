@@ -99,7 +99,7 @@ if [ "$name" = "bwrap" ]; then
 fi
 
 case "$name" in
-  personal-deepseek-claude | personal-claude | work-claude | glm-claude | deepseek-claude | work-divar-glm-claude | work-divar-deepseek-claude | gap-claude | local-claude) ;;
+  personal-deepseek-claude | personal-claude | work-claude | glm-claude | deepseek-claude | gap-claude | local-claude) ;;
   claude)
     case "$target" in
       *-claude-code-*)

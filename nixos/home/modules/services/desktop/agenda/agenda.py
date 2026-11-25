@@ -125,6 +125,7 @@ def fetch_tasks(today):
     tasks = []
     if not VAULT.is_dir():
         return tasks
+    daily_notes = VAULT / "daily notes"
     for root, directories, filenames in os.walk(VAULT):
         directories[:] = [name for name in directories if not name.startswith(".") and name != "Templates"]
         for filename in filenames:
@@ -150,6 +151,9 @@ def fetch_tasks(today):
                 task_match = TASK_PATTERN.match(line)
                 if not task_match:
                     continue
+                title = clean_task(task_match.group(1))
+                if not title:
+                    continue
                 dates = DATE_PATTERN.findall(task_match.group(1))
                 valid_dates = []
                 for value in dates:
@@ -158,9 +162,11 @@ def fetch_tasks(today):
                     except ValueError:
                         pass
                 task_date = min(valid_dates) if valid_dates else None
+                if task_date is None and path.parent != daily_notes:
+                    continue
                 tasks.append(
                     {
-                        "title": clean_task(task_match.group(1)),
+                        "title": title,
                         "date": task_date.isoformat() if task_date else None,
                         "overdue": task_date is not None and task_date < today,
                         "path": str(path.relative_to(VAULT)),

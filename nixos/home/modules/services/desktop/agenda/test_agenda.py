@@ -52,32 +52,42 @@ class AgendaTests(unittest.TestCase):
                     agenda.auth()
                 run.assert_not_called()
 
-    def test_all_open_tasks_and_source_locations(self):
+    def test_tasks_scoped_to_daily_notes_and_dated(self):
         with tempfile.TemporaryDirectory() as directory:
             vault = Path(directory)
-            (vault / 'tasks.md').write_text(
-                '- [ ] Undated\n'
+            (vault / 'project.md').write_text(
+                '- [ ] Undated outside daily notes\n'
                 '- [ ] Future 📅 2026-11-01\n'
                 '* [ ] Today 📅 2026-10-30\n'
                 '+ [ ] Overdue 📅 2026-10-29\n'
                 '1. [ ] Invalid date 📅 2026-99-99\n'
                 '- [x] Finished\n'
-                '```markdown\n- [ ] Example\n```\n'
-                '~~~\n- [ ] Another example\n~~~\n'
+                '```markdown\n- [ ] Dated example 📅 2026-10-30\n```\n'
+                '~~~\n- [ ] Another example 📅 2026-10-30\n~~~\n'
+            )
+            daily = vault / 'daily notes'
+            daily.mkdir()
+            (daily / '2026-10-30.md').write_text(
+                '- [ ] Undated backlog\n'
+                '- [ ] Scheduled 🛫 2026-10-31\n'
+                '- [ ] ➕ 2026-10-01\n'
             )
             for excluded in ['Templates', '.obsidian']:
                 (vault / excluded).mkdir()
-                (vault / excluded / 'skip.md').write_text('- [ ] Skip me\n')
+                (vault / excluded / 'skip.md').write_text('- [ ] Skip me 📅 2026-10-30\n')
             with patch.object(agenda, 'VAULT', vault):
                 tasks = agenda.fetch_tasks(dt.date(2026, 10, 30))
             self.assertEqual([task['title'] for task in tasks],
-                             ['Overdue', 'Today', 'Invalid date', 'Undated', 'Future'])
-            self.assertEqual([task['line'] for task in tasks], [4, 3, 5, 1, 2])
+                             ['Overdue', 'Today', 'Undated backlog', 'Scheduled', 'Future'])
+            self.assertEqual([task['path'] for task in tasks],
+                             ['project.md', 'project.md', 'daily notes/2026-10-30.md',
+                              'daily notes/2026-10-30.md', 'project.md'])
+            self.assertEqual([task['line'] for task in tasks], [4, 3, 1, 2, 2])
             self.assertTrue(tasks[0]['overdue'])
             self.assertFalse(any(task['overdue'] for task in tasks[1:]))
-            self.assertIsNone(tasks[3]['date'])
+            self.assertIsNone(tasks[2]['date'])
+            self.assertEqual(tasks[3]['date'], '2026-10-31')
             self.assertEqual(tasks[-1]['date'], '2026-11-01')
-            self.assertTrue(all(task['path'] == 'tasks.md' for task in tasks))
 
     def test_review_slots_rotate_and_only_record_success(self):
         class Clock(dt.datetime):

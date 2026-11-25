@@ -26,7 +26,9 @@
     pkgs.jcal
     pkgs.hyperfine
     pkgs.valgrind
-    pkgs.minio-client
+
+    # minio-client not used: nixpkgs marks it insecure (abandoned upstream,
+    # no commits since 2025-11-06); rclone covers object-storage needs.
 
     pkgs.btop
     pkgs.dust

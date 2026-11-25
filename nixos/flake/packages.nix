@@ -11,9 +11,6 @@ in
   chrome-devtools-mcp = pkgs.callPackage ../pkgs/chrome-devtools-mcp.nix { };
   airpods-tui = pkgs.callPackage ../pkgs/airpods-tui.nix { };
   clip-image = pkgs.callPackage ../pkgs/clip-image.nix { };
-  hypr-dynamic-cursors = pkgs.callPackage ../pkgs/hypr-dynamic-cursors.nix {
-    inherit (pkgs.hyprlandPlugins) mkHyprlandPlugin;
-  };
   zellij-harpoon = zellijExtraPlugins.harpoon;
   zellij-tabula = zellijExtraPlugins.tabula;
   nvim-base64 = neovimPlugins.base64Plugin;

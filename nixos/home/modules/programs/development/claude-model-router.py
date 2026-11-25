@@ -273,10 +273,10 @@ def run_session(routes, command, log_path=None, provider_timeout=600):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run Claude with GLM and DeepSeek model routing"
+        description="Run Claude with GLM or Orca orchestration and DeepSeek subagents"
     )
     parser.add_argument("--secret-tool", default="secret-tool")
-    parser.add_argument("--provider", choices=("mixed", "deepseek"), default="mixed")
+    parser.add_argument("--provider", choices=("mixed", "orca", "deepseek"), default="mixed")
     parser.add_argument("--log", default=os.environ.get("ROUTER_LOG"))
     parser.add_argument("--provider-timeout", type=float, default=float(os.environ.get("ROUTER_TIMEOUT", 600)))
     parser.add_argument("command", nargs=argparse.REMAINDER)
@@ -295,6 +295,14 @@ def main():
                 "Authorization",
                 f"Bearer {glm_key}",
             )
+        elif args.provider == "orca":
+            orca_key = load_key(args.secret_tool, "orca-claude")
+            for prefix in ("openai/orca/", "orca/"):
+                routes[prefix] = (
+                    "https://litellm.data.divar.cloud",
+                    "Authorization",
+                    f"Bearer {orca_key}",
+                )
         deepseek_key = load_key(args.secret_tool, "deepseek-claude")
         routes["deepseek-"] = (
             "https://api.deepseek.com/anthropic",

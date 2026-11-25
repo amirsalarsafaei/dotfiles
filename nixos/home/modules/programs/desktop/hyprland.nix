@@ -3,6 +3,7 @@
   lib,
   osConfig,
   config,
+  inputs,
   themeLib,
   ...
 }:
@@ -17,8 +18,20 @@ let
   compactOutput = osConfig.hyprland.compactOutput or null;
   spotifyGreen = "1ed760";
   spotifyDeep = "1db954";
-  hyprDynamicCursors = pkgs.callPackage ../../../../pkgs/hypr-dynamic-cursors.nix {
-    inherit (pkgs.hyprlandPlugins) mkHyprlandPlugin;
+  hyprtasking = pkgs.hyprlandPlugins.mkHyprlandPlugin {
+    pluginName = "hyprtasking";
+    version = "0-unstable-2026-11-10";
+    src = inputs.hyprtasking;
+    nativeBuildInputs = [
+      pkgs.meson
+      pkgs.ninja
+    ];
+    meta = {
+      description = "Powerful workspace management plugin for Hyprland";
+      homepage = "https://github.com/raybbian/hyprtasking";
+      license = lib.licenses.bsd3;
+      platforms = lib.platforms.linux;
+    };
   };
   luaString = builtins.toJSON;
 
@@ -563,24 +576,6 @@ let
   pluginBlock = ''
     hl.config({
       plugin = {
-        dynamic_cursors = {
-          enabled = true,
-          mode = "tilt",
-          threshold = 2,
-          tilt = {
-            limit = 4000,
-            activation = "negative_quadratic",
-            window = 100,
-            full = 35,
-          },
-          shake = {
-            enabled = true,
-            threshold = 6.0,
-            base = 3.0,
-            speed = 3.0,
-            timeout = 1500,
-          },
-        },
         hyprtasking = {
           layout = "grid",
           gap_size = 14,
@@ -657,8 +652,7 @@ in
     systemd.enable = false;
     configType = "lua";
     plugins = [
-      hyprDynamicCursors
-      pkgs.hyprlandPlugins.hyprtasking
+      hyprtasking
     ];
     extraConfig = ''
       hl.env("SSH_ASKPASS_REQUIRE", "force")

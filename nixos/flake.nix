@@ -83,6 +83,11 @@
       flake = false;
     };
 
+    hyprtasking = {
+      url = "github:raybbian/hyprtasking/04d2365d37f032af537b8d5c55efbfe15f01adc7";
+      flake = false;
+    };
+
     amirsalarsafaei-com = {
       url = "github:amirsalarsafaei/amirsalarsafaei.com";
       inputs.nixpkgs.follows = "nixpkgs";
