@@ -1,6 +1,8 @@
 ---
 name: navi-cheats
 description: Add or edit this user's Navi cheatsheets and their shell scripts without a Nix rebuild, choosing the work, personal, or shared collection and adding dynamic completions.
+disable-model-invocation: true
+user-invocable: true
 ---
 
 Read the active paths with `navi info cheats-path` and inspect `NAVI_USER_CHEATS` and `NAVI_SCRIPTS`. The live source defaults to `~/personal/dotfiles/nixos/navi/`: `shared/cheats` on both laptops, `work/cheats` on t14, `personal/cheats` on g14. Each laptop also reads `${XDG_DATA_HOME:-$HOME/.local/share}/navi/cheats`. Keep work commands in the work collection. If the environment is not activated yet, inspect `home/modules/programs/development/navi.nix` to resolve paths.

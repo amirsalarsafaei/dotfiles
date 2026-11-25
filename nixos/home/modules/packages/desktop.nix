@@ -15,7 +15,6 @@
     pkgs.postman
     pkgs.mattermost-desktop
     pkgs.libreoffice
-    pkgs.seahorse
   ]
   ++ lib.optionals config.custom.personal.enable [
     pkgs.texstudio

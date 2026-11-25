@@ -188,19 +188,39 @@ in
       </actions>
     '';
 
-    dataFile = lib.listToAttrs (
-      map (
-        id:
-        lib.nameValuePair "applications/${id}.desktop" {
-          text = ''
-            [Desktop Entry]
-            Type=Application
-            Name=${id}
-            Hidden=true
-          '';
-        }
-      ) hiddenEntries
-    );
+    dataFile = lib.mkMerge [
+      (lib.listToAttrs (
+        map (
+          id:
+          lib.nameValuePair "applications/${id}.desktop" {
+            text = ''
+              [Desktop Entry]
+              Type=Application
+              Name=${id}
+              Hidden=true
+            '';
+          }
+        ) hiddenEntries
+      ))
+      {
+        "applications/org.gnome.seahorse.Application.desktop".source =
+          pkgs.runCommand "seahorse-desktop-entry"
+            {
+              nativeBuildInputs = [ pkgs.desktop-file-utils ];
+            }
+            ''
+              mkdir -p $out
+              cp ${pkgs.seahorse}/share/applications/org.gnome.seahorse.Application.desktop $out/
+              chmod u+w $out/org.gnome.seahorse.Application.desktop
+              desktop-file-edit \
+                --set-name='Passwords and Keys (Seahorse)' \
+                --set-generic-name='Keyring Manager' \
+                $out/org.gnome.seahorse.Application.desktop
+              desktop-file-validate $out/org.gnome.seahorse.Application.desktop
+            ''
+          + "/org.gnome.seahorse.Application.desktop";
+      }
+    ];
 
     mimeApps = {
       enable = true;

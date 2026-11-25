@@ -426,7 +426,14 @@ in
     security.polkit.enable = true;
 
     security.pam.services = {
-      login.enableGnomeKeyring = true;
+      login = {
+        enableGnomeKeyring = true;
+        fprintAuth = false;
+      };
+      passwd = {
+        enableGnomeKeyring = true;
+        rules.password.unix.control = lib.mkForce "required";
+      };
       hyprlock = {
         enable = true;
         enableGnomeKeyring = true;
@@ -435,6 +442,7 @@ in
 
     services.gnome.gnome-keyring.enable = true;
     services.gnome.gcr-ssh-agent.enable = false;
+    programs.seahorse.enable = true;
 
     programs.ssh = {
       startAgent = true;
@@ -463,7 +471,6 @@ in
 
     services.dbus.packages = [
       pkgs.gcr_4
-      pkgs.gnome-keyring
     ];
 
     services.prometheus.exporters.node = {

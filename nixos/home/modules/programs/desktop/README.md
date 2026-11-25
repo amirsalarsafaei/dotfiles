@@ -446,6 +446,32 @@ running while nothing changes drains the battery.
 
 ## Reliability
 
+- GNOME Keyring is the desktop Secret Service on `g14` and `t14`, enabled by
+  the NixOS desktop profile. Its module supplies the daemon, GCR 3 unlock
+  prompt, D-Bus activation and memory-locking wrapper. GCR 4 remains available
+  for other desktop consumers; the separate GCR SSH agent is disabled because
+  OpenSSH owns the SSH agent. Seahorse uses `programs.seahorse.enable` for
+  system and D-Bus integration and appears as **Passwords and Keys (Seahorse)**
+  in the app launcher. Its launcher retains the upstream MIME handlers and
+  activation settings.
+- Initial login through greetd or a console requires the account password:
+  fingerprint authentication is disabled in the shared `login` PAM stack that
+  greetd includes. This lets login unlock the `login` keyring when its password
+  matches the account password. Fingerprint unlock remains available in
+  Quickshell and the Hyprlock fallback. `passwd` has GNOME Keyring integration,
+  with the Unix password rule set to `required` so success continues to the
+  keyring update instead of returning early. This synchronizes an ordinary user
+  password change when
+  the old password also unlocks the login keyring; root resets and declarative
+  password replacements cannot supply the old password. A deliberately separate
+  keyring password is managed through Seahorse.
+- Fingerprint authentication supplies no password to decrypt a locked keyring.
+  The Quickshell lock uses its own password/fingerprint PAM files and does not
+  unlock the keyring; the Hyprlock fallback has GNOME Keyring PAM integration.
+  Screen locking does not explicitly lock the keyring. Use Seahorse's **Lock**
+  action when needed; applications that need secrets may prompt afterward.
+  The YubiKey helpers remember OATH access through ykman's encrypted cache and
+  the OS keyring, so changing the keyring password does not disable remembering.
 - The wallpaper, bar, OSD, sidebar and board all run in one Quickshell process,
   so a QML error takes down the whole desktop shell. The systemd user service
   restarts it every 2s, which turns an error into a restart loop, not a fix.
