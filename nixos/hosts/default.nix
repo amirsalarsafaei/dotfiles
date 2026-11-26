@@ -3,12 +3,20 @@
   g14 = {
     system = systems.x86_64;
     type = "nixos";
-    users = [ "amirsalar" ];
+    users = [
+      "amirsalar"
+      "fateme"
+    ];
     nixosProfiles = [
       "base"
       "desktop"
     ];
     homeProfiles = [ "full" ];
+    userProfiles.fateme = [
+      "base"
+      "dev"
+    ];
+    sopsHomeUsers = [ "amirsalar" ];
   };
 
   t14 = {

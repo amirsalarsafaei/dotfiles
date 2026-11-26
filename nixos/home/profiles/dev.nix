@@ -61,8 +61,12 @@ in
     neovim.enable = true;
     claudeCode = {
       enable = lib.mkDefault true;
-      enablePersonal = config.custom.claudeCode.enable && config.custom.personal.enable;
-      enablePersonalDeepseek = config.custom.claudeCode.enable && config.custom.personal.enable;
+      enablePersonal = lib.mkDefault (
+        config.custom.claudeCode.enable && config.custom.personal.enable
+      );
+      enablePersonalDeepseek = lib.mkDefault (
+        config.custom.claudeCode.enable && config.custom.personal.enable
+      );
       enableCaveman = config.custom.claudeCode.enable;
       planner.enable = config.custom.claudeCode.enable;
       plugins.personal."clangd-lsp@claude-plugins-official" = true;

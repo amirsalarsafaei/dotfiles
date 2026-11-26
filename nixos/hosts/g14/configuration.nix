@@ -88,6 +88,8 @@ let
     steam-run
   ];
 
+  amirsalarDeepseekKey = "${config.users.users.amirsalar.home}/personal-deepseek";
+
   blacklistNvidia = [
     "nvidia"
     "nvidia_modeset"
@@ -184,6 +186,19 @@ in
       };
     };
   };
+
+  home-manager.users.fateme = { config, ... }: {
+    custom = {
+      personal.enable = false;
+      ntfy.enable = false;
+      claudeCode.enablePersonalDeepseek = true;
+    };
+
+    home.file."personal-deepseek".source =
+      config.lib.file.mkOutOfStoreSymlink amirsalarDeepseekKey;
+  };
+
+  users.users.amirsalar.homeMode = "710";
 
   services.asusd = {
     enable = true;
@@ -356,7 +371,7 @@ in
       "wheel"
     ];
     packages = [ pkgs.sysbench ];
-    shell = pkgs.bashInteractive;
+    shell = pkgs.zsh;
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEDDDJDhs24hJ1RncORDRDI8c6rNti0MndVDJnrzyk1h"
     ];

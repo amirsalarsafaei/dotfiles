@@ -63,8 +63,10 @@ let
     map (name: registry.${name} or (throw "${hostname}: unknown ${kind} profile '${name}'")) names;
 
   homeImports =
-    hostname: hostConfig:
-    profileImports hostname "Home Manager" homeProfileModules hostConfig.homeProfiles;
+    hostname: hostConfig: username:
+    profileImports hostname "Home Manager" homeProfileModules (
+      hostConfig.userProfiles.${username} or hostConfig.homeProfiles or [ "full" ]
+    );
 
   nixosImports =
     hostname: hostConfig: profileImports hostname "NixOS" nixosProfileModules hostConfig.nixosProfiles;
@@ -130,8 +132,16 @@ let
                 inherit secrets inputs;
                 currentHostname = hostname;
               };
-              sharedModules = sopsHomeModules useSopsHome ++ commonHomeModules ++ homeImports hostname hostConfig;
-              users = lib.genAttrs users (_: { });
+              sharedModules = lib.optionals useSopsHome [
+                sops-nix.homeManagerModules.sops
+              ] ++ commonHomeModules;
+              users = lib.genAttrs users (name: {
+                imports =
+                  lib.optionals (useSopsHome && lib.elem name (hostConfig.sopsHomeUsers or users)) [
+                    ../modules/sops.nix
+                  ]
+                  ++ homeImports hostname hostConfig name;
+              });
             };
           }
         ]
@@ -160,7 +170,7 @@ let
       ]
       ++ sopsHomeModules useSops
       ++ commonHomeModules
-      ++ homeImports hostname hostConfig;
+      ++ homeImports hostname hostConfig username;
     };
 
   hostsOfType = type: lib.filterAttrs (_: hostConfig: hostConfig.type == type) allHosts;
@@ -174,6 +184,7 @@ in
     system: pkgs:
     {
       rust = import ./rust-shell.nix { inherit pkgs; };
+      fhs = import ./fhs-shell.nix { inherit pkgs; };
       python = import ./python-shell.nix { inherit pkgs; };
       python-data = import ./python-shell.nix {
         inherit pkgs;
