@@ -8,7 +8,7 @@ let
   netbird = config.services.netbird.clients.default;
 in
 lib.mkIf config.isWork {
-  nix.settings.trusted-users = [ "root" ];
+  nix.settings.trusted-users = lib.mkForce [ "root" ];
 
   assertions = [
     {
