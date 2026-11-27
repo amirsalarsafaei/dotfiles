@@ -136,6 +136,11 @@ in
       "/share/applications"
     ];
 
+    programs.wireshark = {
+      enable = true;
+      package = pkgs.wireshark;
+    };
+
     services.xserver.enable = true;
 
     services.xserver.xkb = {
@@ -177,6 +182,7 @@ in
         "render"
         "libvirt"
         "podman"
+        "wireshark"
       ];
       packages = with pkgs; [
         firefox
