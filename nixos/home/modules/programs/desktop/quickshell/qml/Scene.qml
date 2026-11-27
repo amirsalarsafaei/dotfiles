@@ -31,7 +31,6 @@ Item {
     readonly property real twilight: world?.twilight ?? 0
     readonly property rect stage: world?.stage ?? Qt.rect(width * 0.43, height * 0.25, width * 0.34, width * 0.34)
     readonly property real lyricsWidth: world?.lyricsWidth ?? Math.min(680, width * 0.34)
-    readonly property real quoteWidth: world?.quoteWidth ?? Math.min(640, width * 0.4)
     readonly property bool parts: world?.parts ?? true
     readonly property real critterScale: world?.critterScale ?? 1
     readonly property var lyricsStyle: world?.lyricsStyle ?? ({

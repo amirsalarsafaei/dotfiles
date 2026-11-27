@@ -54,7 +54,6 @@ in
     pkgs.buildah
     pkgs.podman
     pkgs.ast-grep
-    pkgs.istioctl
     pkgs.jfrog-cli
   ]
   ++ lib.optional (!config.custom.work.enable) pkgs.codex;

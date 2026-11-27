@@ -1,0 +1,22 @@
+% minikube, kubernetes, k8s, playground, local, istio
+
+# Start or resume Kubernetes playground
+install -d -m 700 "$HOME/.kube" && KUBECONFIG="$HOME/.kube/playground" DOCKER_CONTEXT=default minikube start -p playground --listen-address=127.0.0.1
+
+# Stop playground (keep data)
+KUBECONFIG="$HOME/.kube/playground" DOCKER_CONTEXT=default minikube stop -p playground
+
+# Show playground status
+KUBECONFIG="$HOME/.kube/playground" DOCKER_CONTEXT=default minikube status -p playground
+
+# List playground nodes
+kubectl --kubeconfig="$HOME/.kube/playground" --context=playground get nodes -o wide
+
+# Open playground shell (exit to return)
+KUBECONFIG="$HOME/.kube/playground" DOCKER_CONTEXT=default zsh
+
+# Show playground authentication identity
+kubectl --kubeconfig="$HOME/.kube/playground" --context=playground auth whoami
+
+# Check playground admin permissions
+kubectl --kubeconfig="$HOME/.kube/playground" --context=playground auth can-i '*' '*' --all-namespaces

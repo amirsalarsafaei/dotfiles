@@ -128,7 +128,6 @@ ShellRoot {
             events: [],
             tasks: []
         })
-    property var quip: ({})
 
     readonly property bool revealed: lock.secure && !unlocking
     readonly property string user: String(Quickshell.env("USER") ?? "")
@@ -138,7 +137,6 @@ ShellRoot {
     readonly property var jalali: Jalali.of(clock.date)
     readonly property var player: Media.player
     readonly property var moon: Lunar.of(clock.date)
-    readonly property string quipText: typeof quip.text === "string" ? quip.text.trim() : ""
     readonly property var upcoming: (agenda.events ?? []).filter(event => eventState(event) !== "past").slice(0, 3)
     readonly property int tasksDue: (agenda.tasks ?? []).length
     readonly property var hud: {
@@ -536,22 +534,6 @@ ShellRoot {
     }
 
     FileView {
-        path: root.cacheHome + "/quip/current.json"
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: {
-            try {
-                const parsed = JSON.parse(text());
-                root.quip = parsed && typeof parsed === "object" ? parsed : {};
-            } catch (error) {
-                root.quip = {};
-            }
-        }
-        onLoadFailed: root.quip = {}
-    }
-
-    FileView {
         path: (Quickshell.env("XDG_RUNTIME_DIR") || "") + "/dpms.state"
         watchChanges: true
         printErrors: false
@@ -917,85 +899,6 @@ ShellRoot {
                                 font.pixelSize: Math.round(21 * stage.unit)
                                 font.weight: Font.Light
                                 font.letterSpacing: 0.5
-                            }
-                        }
-
-                        Column {
-                            id: quipBlock
-
-                            property real lift: 0
-
-                            width: parent.width
-                            topPadding: Math.round(30 * stage.unit)
-                            leftPadding: Math.round(8 * stage.unit)
-                            spacing: Math.round(14 * stage.unit)
-                            visible: quipLine.text.length > 0
-                            opacity: stage.rise(3) * quipLine.shown
-
-                            transform: Translate {
-                                y: Math.round(24 * stage.unit) * (1 - stage.rise(3)) + quipBlock.lift
-                            }
-
-                            Rectangle {
-                                width: Math.round(56 * stage.unit)
-                                height: 1
-
-                                gradient: Gradient {
-                                    orientation: Gradient.Horizontal
-
-                                    GradientStop {
-                                        position: 0
-                                        color: Theme.alpha(Theme.secondary, 0.9)
-                                    }
-
-                                    GradientStop {
-                                        position: 1
-                                        color: Theme.alpha(Theme.secondary, 0)
-                                    }
-                                }
-                            }
-
-                            Text {
-                                id: quipLine
-
-                                property real shown: 0
-
-                                width: parent.width - parent.leftPadding
-                                text: root.quipText
-                                wrapMode: Text.WordWrap
-                                maximumLineCount: 3
-                                elide: Text.ElideRight
-                                lineHeight: 1.2
-                                color: Theme.alpha(Theme.fgBright, 0.8)
-                                font.family: Theme.serif
-                                font.italic: true
-                                font.pixelSize: Math.round(21 * stage.unit)
-                                font.weight: Font.Light
-
-                                onTextChanged: quipIn.restart()
-                                Component.onCompleted: shown = text.length > 0 ? 1 : 0
-
-                                ParallelAnimation {
-                                    id: quipIn
-
-                                    NumberAnimation {
-                                        target: quipLine
-                                        property: "shown"
-                                        from: 0
-                                        to: 1
-                                        duration: 1400
-                                        easing.type: Easing.OutCubic
-                                    }
-
-                                    NumberAnimation {
-                                        target: quipBlock
-                                        property: "lift"
-                                        from: 12
-                                        to: 0
-                                        duration: 1400
-                                        easing.type: Easing.OutCubic
-                                    }
-                                }
                             }
                         }
 

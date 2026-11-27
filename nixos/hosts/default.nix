@@ -4,12 +4,22 @@
     system = systems.x86_64;
     type = "nixos";
     users = [ "amirsalar" ];
+    nixosProfiles = [
+      "base"
+      "desktop"
+    ];
+    homeProfiles = [ "full" ];
   };
 
   t14 = {
     system = systems.x86_64;
     type = "nixos";
     users = [ "amirsalar" ];
+    nixosProfiles = [
+      "base"
+      "desktop"
+    ];
+    homeProfiles = [ "full" ];
     extraModules = [ disko.nixosModules.disko ];
   };
 

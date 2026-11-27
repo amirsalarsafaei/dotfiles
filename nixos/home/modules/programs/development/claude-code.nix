@@ -9,6 +9,9 @@
 let
   cfg = config.custom.claudeCode;
 
+  launch = import ./claude-launch.nix { inherit lib; };
+  inherit (launch) mkBoolFlagParser mkValueFlagParser;
+
   workRuntimeEnv = cfg.workEnvironment // {
     CLAUDE_VARIANT_REALM = "work";
   };
@@ -447,7 +450,7 @@ let
     }
   '';
 
-  commonParserText = effortParserText + sandboxParserText + sessionLaunchText;
+  commonParserText = launch.tuiParserText + effortParserText + sandboxParserText + sessionLaunchText;
 
   claudeZellijResurrect = pkgs.writeShellApplication {
     name = "claude-zellij-resurrect";
@@ -532,55 +535,6 @@ let
       exit 2
     fi
   '';
-
-  mkBoolFlagParser =
-    { flag, resultVar }:
-    ''
-      ${resultVar}=0
-      _claude_flag_rest=()
-      while [ "$#" -gt 0 ]; do
-        case "$1" in
-          ${flag})
-            ${resultVar}=1
-            shift
-            ;;
-          *)
-            _claude_flag_rest+=("$1")
-            shift
-            ;;
-        esac
-      done
-      set -- "''${_claude_flag_rest[@]}"
-      unset _claude_flag_rest
-    '';
-
-  mkValueFlagParser =
-    { flag, resultVar }:
-    ''
-      _claude_flag_rest=()
-      while [ "$#" -gt 0 ]; do
-        case "$1" in
-          ${flag}=*)
-            ${resultVar}="''${1#${flag}=}"
-            shift
-            ;;
-          ${flag})
-            if [ "$#" -lt 2 ]; then
-              printf '%s: ${flag} requires a value\n' "$0" >&2
-              exit 1
-            fi
-            ${resultVar}="$2"
-            shift 2
-            ;;
-          *)
-            _claude_flag_rest+=("$1")
-            shift
-            ;;
-        esac
-      done
-      set -- "''${_claude_flag_rest[@]}"
-      unset _claude_flag_rest
-    '';
 
   effortParserText = ''
     _claude_effort="''${CLAUDE_CODE_EFFORT_DEFAULT:-}"
@@ -848,9 +802,58 @@ let
 
   gatedFlagPlugins = lib.filter (p: (p.gatedTools or [ ]) != [ ]) flagPlugins;
 
-  flagPluginsZshArgs = lib.concatMapStringsSep " " (p: "'${p.flag}[${p.desc}]'") (
+  flagPluginsZshArgs = launch.mkCompletion (
     flagPlugins ++ lib.optional (cfg.enable && cfg.enableDevar) devarSecurityFlag
   );
+
+  commonFlagsZshArgs =
+    launch.mkCompletion (
+      [
+        {
+          flag = "--tui";
+          desc = "enable the interactive alternate-screen UI for this launch";
+        }
+        {
+          flag = "--effort";
+          desc = "effort level for this session";
+          values = [
+            "low"
+            "medium"
+            "high"
+            "xhigh"
+            "max"
+          ];
+        }
+        {
+          flag = "--chrome";
+          desc = "attach Playwright Extension to your logged-in Chrome";
+        }
+        {
+          flag = "--sec-chrome";
+          desc = "attach Chrome DevTools inspection and network capture";
+        }
+        {
+          flag = "--playwright";
+          desc = "attach playwright-mcp";
+        }
+      ]
+      ++ lib.optionals cfg.sandbox.enable [
+        {
+          flag = "--no-sandbox";
+          desc = "skip the bubblewrap sandbox for this launch";
+        }
+        {
+          flag = "--sandbox-net";
+          desc = "unshare the network namespace for this launch";
+        }
+        {
+          flag = "--sandbox-fs";
+          desc = "restrict the sandbox home to the working directory and config dir";
+        }
+      ]
+    )
+    + " "
+    + flagPluginsZshArgs;
 
   pluginFlagsParserText =
     let
@@ -906,6 +909,10 @@ let
       _claude_flag_rest=()
       while [ "$#" -gt 0 ]; do
         case "$1" in
+          --)
+            _claude_flag_rest+=("$@")
+            break
+            ;;
       ${caseArms}
           *)
             _claude_flag_rest+=("$1")
@@ -919,46 +926,25 @@ let
 
   pluginSettingsArgText = ''
     _claude_extra_args=()
-    if [ "''${#_claude_plugin_flags[@]}" -gt 0 ]; then
-      _claude_settings_overlay="{}"
-      for _claude_pf in "''${_claude_plugin_flags[@]}"; do
-        _claude_settings_overlay=$(${lib.getExe' pkgs.jq "jq"} -c \
-          --arg id "''${_claude_pf%=*}" --argjson val "''${_claude_pf##*=}" \
-          '.enabledPlugins[$id] = $val' <<<"$_claude_settings_overlay")
-      done
-      if [ "''${#_claude_plugin_marketplaces[@]}" -gt 0 ]; then
-        _claude_settings_file="''${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
-        _claude_known="{}"
-        if [ -s "$_claude_settings_file" ]; then
-          _claude_known=$(${lib.getExe' pkgs.jq "jq"} -c '.extraKnownMarketplaces // {}' \
-            "$_claude_settings_file" 2>/dev/null || printf '{}')
-        fi
-        for _claude_pm in "''${_claude_plugin_marketplaces[@]}"; do
-          _claude_known=$(${lib.getExe' pkgs.jq "jq"} -c --argjson add "$_claude_pm" \
-            '. + $add' <<<"$_claude_known")
-        done
-        _claude_settings_overlay=$(${lib.getExe' pkgs.jq "jq"} -c --argjson km "$_claude_known" \
-          '.extraKnownMarketplaces = $km' <<<"$_claude_settings_overlay")
-        unset _claude_settings_file _claude_known _claude_pm
+    if [ "$_claude_tui" -eq 1 ]; then
+      _claude_plugin_env+=("CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=0" "CLAUDE_CODE_NO_FLICKER=1")
+    fi
+    unset _claude_tui
+    if [ "''${#_claude_plugin_flags[@]}" -gt 0 ] || [ "''${#_claude_plugin_env[@]}" -gt 0 ]; then
+      _claude_settings_file="''${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
+      if [ ! -s "$_claude_settings_file" ]; then
+        _claude_settings_file=/dev/null
       fi
-      if [ "''${#_claude_plugin_env[@]}" -gt 0 ]; then
-        _claude_settings_file="''${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
-        _claude_env="{}"
-        if [ -s "$_claude_settings_file" ]; then
-          _claude_env=$(${lib.getExe' pkgs.jq "jq"} -c '.env // {}' \
-            "$_claude_settings_file" 2>/dev/null || printf '{}')
-        fi
-        for _claude_pe in "''${_claude_plugin_env[@]}"; do
-          _claude_env=$(${lib.getExe' pkgs.jq "jq"} -c \
-            --arg k "''${_claude_pe%%=*}" --arg v "''${_claude_pe#*=}" \
-            '.[$k] = $v' <<<"$_claude_env")
-        done
-        _claude_settings_overlay=$(${lib.getExe' pkgs.jq "jq"} -c --argjson env "$_claude_env" \
-          '.env = $env' <<<"$_claude_settings_overlay")
-        unset _claude_settings_file _claude_env _claude_pe
-      fi
+      _claude_settings_overlay=$(${lib.getExe pkgs.jq} -cn \
+        --slurpfile base "$_claude_settings_file" \
+        --argjson pluginCount "''${#_claude_plugin_flags[@]}" \
+        --argjson marketplaceCount "''${#_claude_plugin_marketplaces[@]}" \
+        -f ${./claude-settings-overlay.jq} --args \
+        "''${_claude_plugin_flags[@]}" \
+        "''${_claude_plugin_marketplaces[@]}" \
+        "''${_claude_plugin_env[@]}")
       _claude_extra_args+=(--settings "$_claude_settings_overlay")
-      unset _claude_settings_overlay _claude_pf
+      unset _claude_settings_overlay _claude_settings_file
     fi
     for _claude_pc in "''${_claude_plugin_mcp[@]}"; do
       _claude_extra_args+=(--mcp-config "$_claude_pc")
@@ -1841,8 +1827,11 @@ let
       caveman = cfg.enableCaveman && cavemanMode != null;
       marketplaces = lib.optionalAttrs caveman cavemanMarketplace;
       env = {
-        CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN = "1";
+        CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN = if cfg.alternateScreen then "0" else "1";
         CLAUDE_CODE_SHELL = lib.getExe pkgs.bash;
+      }
+      // lib.optionalAttrs cfg.alternateScreen {
+        CLAUDE_CODE_NO_FLICKER = "1";
       }
       // lib.optionalAttrs caveman {
         CLAUDE_CAVEMAN = "1";
@@ -1857,9 +1846,12 @@ let
       attribution = false;
     }
     // lib.optionalAttrs (cfg.skillListingBudgetFraction != null) {
-      skillListingBudgetFraction = cfg.skillListingBudgetFraction;
+      inherit (cfg) skillListingBudgetFraction;
     }
     // base
+    // lib.optionalAttrs (cfg.skillOverrides != { }) {
+      inherit (cfg) skillOverrides;
+    }
     // lib.optionalAttrs (plugins != { } || base ? enabledPlugins || caveman) {
       enabledPlugins = (base.enabledPlugins or { }) // lib.optionalAttrs caveman cavemanPlugin // plugins;
     }
@@ -2112,13 +2104,6 @@ let
     hooks = claudeIpGuardHooks // devarSkillUsageHooks;
   };
 
-  withOverrides =
-    base:
-    base
-    // lib.optionalAttrs (cfg.skillOverrides != { }) {
-      inherit (cfg) skillOverrides;
-    };
-
   personalVariant =
     variant:
     lib.elem variant [
@@ -2136,7 +2121,7 @@ let
     );
 
   mkVariantHomeFile = dir: variant: name: base: {
-    "${dir}/settings.json".text = builtins.toJSON (withOverrides (mkSettings variant name base));
+    "${dir}/settings.json".text = builtins.toJSON (mkSettings variant name base);
     "${dir}/CLAUDE.md".text = mkContext variant;
   };
 
@@ -2213,6 +2198,11 @@ in
 
   options.custom.claudeCode = {
     enable = lib.mkEnableOption "Install claude-code and the gap-claude wrapper";
+
+    alternateScreen = lib.mkEnableOption ''
+      Claude Code's interactive alternate-screen UI by default.
+      Every variant also accepts --tui to enable it for a single launch
+    '';
     workEnvironment = lib.mkOption {
       type = lib.types.attrsOf lib.types.str;
       default = { };
@@ -2878,6 +2868,14 @@ in
       '';
     };
 
+    commonFlagsZshArgs = lib.mkOption {
+      type = lib.types.str;
+      internal = true;
+      readOnly = true;
+      default = commonFlagsZshArgs;
+      description = "Generated zsh completion arguments for the shared launch flags, including enabled plugin flags.";
+    };
+
     flagPluginsZshArgs = lib.mkOption {
       type = lib.types.str;
       internal = true;
@@ -3061,11 +3059,7 @@ in
     (lib.mkIf (cfg.enable && cfg.enableLocal) {
       home = {
         packages = [ localClaude ];
-        file = {
-          ".config/local-claude/settings.json".text = builtins.toJSON (
-            withOverrides (mkSettings "local" "local" localSettings)
-          );
-          ".config/local-claude/CLAUDE.md".text = mkContext "local";
+        file = mkVariantHomeFile ".config/local-claude" "local" "local" localSettings // {
           ${localMcpConfigRel}.text = builtins.toJSON localMcpServers;
         };
       };

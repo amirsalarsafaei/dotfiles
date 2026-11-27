@@ -22,6 +22,20 @@ entry label, the command, and `$ variable: command` lines for dynamic completion
 These are Navi syntax. Use Ctrl-N in Zsh to select a command, review it, and press
 Enter. The `navi-cheats` agent skill describes the conventions and validation.
 
+## Local Kubernetes playground
+
+Search for `Start or resume Kubernetes playground` with Ctrl-N.
+The shared `minikube.cheat` collection is available on both laptops and includes
+start, stop, status, node listing, and authentication checks. Minikube must be
+installed by applying the local Kubernetes configuration first.
+
+Each command explicitly uses `~/.kube/playground`; starting or stopping the lab
+does not change your normal shell's kubeconfig. Use `Open playground shell` to
+run plain `kubectl`, Helm, or `istioctl` against the lab.
+Run `exit` to return to the previous environment. Start and stop explicitly select
+the local Docker context. Stopping keeps cluster data. See the
+[playground guide](../flake/README.md#local-kubernetes-playground) for Istio setup.
+
 ## User-privacy promotions
 
 Search for `Log in to Divar Argo CD` to log in with SSO. Promotion entries list

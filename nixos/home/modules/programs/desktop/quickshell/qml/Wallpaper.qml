@@ -102,11 +102,6 @@ PanelWindow {
     signal skyRequested(string mode)
     readonly property int workspace: monitor?.activeWorkspace?.id ?? 1
     readonly property var jalali: Jalali.of(now)
-    readonly property string cacheHome: String(Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache"))
-    property var quip: ({})
-    property string quipShown: ""
-    readonly property string quipText: typeof quip.text === "string" ? quip.text.trim() : ""
-    readonly property bool quipFresh: quip.date === Qt.formatDateTime(now, "yyyy-MM-dd") && now.getTime() - Number(quip.generated ?? 0) * 1000 < 4 * 3600 * 1000
     readonly property var player: Media.player
     readonly property bool lyricsShown: Prefs.floatingLyrics && !overlay && floating.synced
     readonly property string caption: Media.caption
@@ -127,7 +122,6 @@ PanelWindow {
     }
 
     Component.onCompleted: captionShown = caption
-    onQuipTextChanged: quipSwap.restart()
     onCaptionChanged: captionSwap.restart()
     onAliveChanged: {
         if (alive)
@@ -184,57 +178,6 @@ PanelWindow {
     SystemClock {
         id: clock
         precision: SystemClock.Minutes
-    }
-
-    FileView {
-        path: wall.cacheHome + "/quip/current.json"
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: {
-            try {
-                const parsed = JSON.parse(text());
-                wall.quip = parsed && typeof parsed === "object" ? parsed : {};
-            } catch (error) {
-                wall.quip = {};
-            }
-        }
-        onLoadFailed: wall.quip = {}
-    }
-
-    SequentialAnimation {
-        id: quipSwap
-
-        NumberAnimation {
-            target: quote
-            property: "opacity"
-            to: 0
-            duration: 450
-            easing.type: Easing.InQuad
-        }
-
-        ScriptAction {
-            script: wall.quipShown = wall.quipText
-        }
-
-        ParallelAnimation {
-            NumberAnimation {
-                target: quote
-                property: "opacity"
-                to: wall.quipShown.length > 0 ? 1 : 0
-                duration: 1600
-                easing.type: Easing.OutCubic
-            }
-
-            NumberAnimation {
-                target: quote
-                property: "lift"
-                from: 12
-                to: 0
-                duration: 1600
-                easing.type: Easing.OutCubic
-            }
-        }
     }
 
     Scene {
@@ -524,13 +467,6 @@ PanelWindow {
         anchors.fill: parent
         visible: count > 0
 
-        Timer {
-            interval: 30000
-            repeat: true
-            running: wall.alive && Agents.tracked !== ""
-            onTriggered: Agents.refresh()
-        }
-
         Repeater {
             model: ScriptModel {
                 values: Agents.ids
@@ -559,97 +495,6 @@ PanelWindow {
                 twilight: scene.twilight
                 daylight: scene.daylight
                 onActivated: Agents.open(agent)
-            }
-        }
-    }
-
-    Item {
-        id: quote
-
-        property real lift: 0
-
-        x: Math.round(wall.width * 0.07)
-        y: Math.round(wall.height * 0.2)
-        width: scene.quoteWidth
-        height: quoteColumn.implicitHeight
-        opacity: 0
-        visible: opacity > 0
-        layer.enabled: visible
-        layer.effect: MultiEffect {
-            shadowEnabled: true
-            shadowColor: Theme.alpha(Theme.ink, 0.9)
-            shadowBlur: 1
-            shadowHorizontalOffset: 0
-            shadowVerticalOffset: 1
-            blurMax: 20
-        }
-
-        transform: Translate {
-            y: quote.lift
-        }
-
-        Text {
-            id: quoteMark
-
-            x: -Math.round(quoteMark.implicitWidth * 0.55)
-            y: -Math.round(quoteMark.implicitHeight * 0.42)
-            text: "\u201C"
-            color: Theme.alpha(Theme.secondary, 0.2)
-            font.family: Theme.serif
-            font.pixelSize: 132
-        }
-
-        Column {
-            id: quoteColumn
-
-            width: parent.width
-            spacing: 20
-
-            Text {
-                width: parent.width
-                text: wall.quipShown
-                wrapMode: Text.WordWrap
-                maximumLineCount: 4
-                elide: Text.ElideRight
-                lineHeight: 1.22
-                color: Theme.alpha(Theme.fgBright, 0.82)
-                font.family: Theme.serif
-                font.italic: true
-                font.pixelSize: 27
-                font.weight: Font.Light
-            }
-
-            Row {
-                spacing: 12
-
-                Rectangle {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 44
-                    height: 1
-
-                    gradient: Gradient {
-                        orientation: Gradient.Horizontal
-
-                        GradientStop {
-                            position: 0
-                            color: Theme.alpha(Theme.secondary, 0.85)
-                        }
-
-                        GradientStop {
-                            position: 1
-                            color: Theme.alpha(Theme.secondary, 0)
-                        }
-                    }
-                }
-
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: (wall.quipFresh && typeof wall.quip.part === "string" && wall.quip.part.length > 0 ? "quip  ·  " + wall.quip.part : "quip").toUpperCase()
-                    color: Theme.alpha(Theme.muted, 0.55)
-                    font.family: Theme.mono
-                    font.pixelSize: 10
-                    font.letterSpacing: 3
-                }
             }
         }
     }

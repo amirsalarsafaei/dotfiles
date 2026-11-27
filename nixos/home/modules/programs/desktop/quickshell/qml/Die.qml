@@ -10,6 +10,9 @@ Item {
     property real gpu: 0
     property color accent: Theme.cyan
 
+    layer.enabled: visible
+    layer.smooth: true
+
     readonly property var plan: die.vendor === "amd" ? amd(groups(die.threads)) : intel(groups(die.threads))
     readonly property real aspect: plan.w
     readonly property real k: height
@@ -278,7 +281,7 @@ Item {
                 "8": 12,
                 "6": 8,
                 "4": 4
-            })[radeon[2]] ?? 12 : 8;
+            })[radeon[2]] ?? 12 : 0;
         const arch = radeon ? ({
                 "8": "rdna 3.5",
                 "7": "rdna 3",
@@ -303,17 +306,17 @@ Item {
         domains.forEach((domain, row) => {
             const y = left[1] + row * (rowH + gap);
             const box = [left[0], y, left[2], y + rowH];
-            const flip = row % 2 === 1;
             blocks.push({
                 r: box,
                 s: "block"
             });
             const n = domain.length;
             const pad = 0.012;
-            const tw = (box[2] - box[0] - 2 * pad - 0.01 * (n - 1)) / Math.max(1, n);
-            const coreTop = flip ? y + rowH * 0.36 : y + pad;
-            const coreBottom = flip ? y + rowH - pad : y + rowH * 0.64;
-            const l3 = flip ? [box[0] + pad, y + pad, box[2] - pad, y + rowH * 0.32] : [box[0] + pad, y + rowH * 0.68, box[2] - pad, y + rowH - pad];
+            const cols = Math.min(4, Math.max(1, n));
+            const rows = Math.ceil(n / cols);
+            const tw = (box[2] - box[0] - 2 * pad - 0.016 * (cols - 1)) / cols;
+            const th = (rowH * 0.75 - 2 * pad - 0.016 * (rows - 1)) / Math.max(1, rows);
+            const l3 = [box[0] + pad, y + rowH * 0.78, box[2] - pad, y + rowH - pad];
             blocks.push({
                 r: l3,
                 s: "sram"
@@ -321,14 +324,16 @@ Item {
             grid(blocks, [l3[0] + 0.2, l3[1] + 0.014, l3[2] - 0.01, l3[3] - 0.014], 8, 2, 0.008, "bit");
             labels.push({
                 x: l3[0] + 0.012,
-                y: (l3[1] + l3[3]) / 2 - 0.024,
+                y: l3[1] + 0.004,
+                h: l3[3] - l3[1] - 0.008,
                 text: zen + (domain[0].kind === "e" ? "c" : "") + "\nl3 " + megs(domain[0].l3kb),
                 at: 0.8
             });
             domain.forEach((group, i) => {
-                const tx = box[0] + pad + i * (tw + 0.01);
-                const tile = [tx, coreTop, tx + tw, coreBottom];
-                core(blocks, tile, megs(group.l2kb), flip);
+                const tx = box[0] + pad + (i % cols) * (tw + 0.016);
+                const ty = y + pad + Math.floor(i / cols) * (th + 0.016);
+                const tile = [tx, ty, tx + tw, ty + th];
+                core(blocks, tile, megs(group.l2kb), false);
                 cores.push({
                     r: tile,
                     kind: group.kind,
@@ -363,12 +368,12 @@ Item {
         labels.push({
             x: gpu[0] + 0.012,
             y: gpu[1] + 0.01,
-            text: arch + " · " + cus + "cu",
+            text: cus > 0 ? arch + " · " + cus + "cu" : arch,
             at: 0.8
         });
         const cols = cus >= 12 ? 4 : 2;
-        grid(blocks, [gpu[0] + 0.012, gpu[1] + 0.075, gpu[2] - 0.012, gpu[3] - 0.012], cols, Math.ceil(cus / cols), 0.01, "eu");
-        phy(blocks, labels, w, "lpddr5x");
+        grid(blocks, [gpu[0] + 0.012, gpu[1] + 0.075, gpu[2] - 0.012, gpu[3] - 0.012], cols, Math.ceil((cus > 0 ? cus : 8) / cols), 0.01, "eu");
+        phy(blocks, labels, w, "memory");
 
         return {
             w: w,
@@ -383,7 +388,7 @@ Item {
     function mean(cpus: var): real {
         if (cpus.length === 0)
             return 0;
-        return cpus.reduce((sum, cpu) => sum + (die.loads[cpu] ?? 0), 0) / cpus.length;
+        return Math.max(0, Math.min(1, cpus.reduce((sum, cpu) => sum + (die.loads[cpu] ?? 0), 0) / cpus.length));
     }
 
     function px(v: real): real {
@@ -432,7 +437,7 @@ Item {
             color: Theme.alpha(Theme.muted, modelData.at)
             lineHeight: 0.9
             font.family: Theme.mono
-            font.pixelSize: die.type
+            font.pixelSize: modelData.h ? Math.min(die.type, Math.max(5, Math.floor(die.px(modelData.h) / 2.2))) : die.type
             font.weight: Font.Medium
             font.letterSpacing: 0.6
             font.capitalization: Font.AllUppercase
@@ -456,23 +461,12 @@ Item {
             width: die.px(modelData.r[2]) - x
             height: die.px(modelData.r[3]) - y
 
-            Rectangle {
+            ShaderEffect {
                 anchors.fill: parent
-                radius: 2
-                color: Theme.alpha(tile.tone, 0.04 + 0.14 * tile.load)
-                border.width: tile.load > 0.6 ? 1.5 : 1
-                border.color: Theme.alpha(tile.tone, 0.32 + 0.68 * tile.load)
-            }
-
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                anchors.margins: 2
-                height: Math.round((parent.height - 4) * tile.load)
-                radius: 1
-                color: Theme.alpha(tile.tone, 0.2 + 0.3 * tile.load)
-                visible: height > 0
+                property vector2d size: Qt.vector2d(width, height)
+                property real load: tile.load
+                property color tone: tile.tone
+                fragmentShader: Qt.resolvedUrl("shaders/die-core.frag.qsb")
             }
 
             Text {

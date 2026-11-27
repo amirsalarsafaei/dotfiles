@@ -46,7 +46,6 @@ Item {
         })
     readonly property real lyricsWidth: stageWidth
     readonly property bool parts: true
-    readonly property real quoteWidth: Math.min(640, width * 0.4)
     readonly property var status: [sun > 0.01 ? "sun " + Math.round(sun * 100) + "%" : "", moon.name + " " + Math.round(moon.lit * 100) + "%"]
 
     readonly property int keyTicks: Perf.eco ? 5 : 8

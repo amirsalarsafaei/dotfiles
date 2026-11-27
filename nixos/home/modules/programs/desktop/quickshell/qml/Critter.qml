@@ -80,6 +80,9 @@ Item {
 
         width: 32
         height: 32
+        layer.enabled: true
+        layer.smooth: true
+        layer.textureSize: Qt.size(64, 64)
 
         transform: Scale {
             origin.x: 16
@@ -742,6 +745,18 @@ Item {
                 color: critter.body
             }
 
+            Rectangle {
+                visible: critter.breed === "codex"
+                x: 1.5 * critter.p
+                y: 0.5 * critter.p
+                width: 7 * critter.p
+                height: 3 * critter.p
+                radius: 0.5 * critter.p
+                color: Theme.ink
+                border.color: Theme.alpha(Theme.cyan, 0.65)
+                border.width: Math.max(1, critter.p / 4)
+            }
+
             Repeater {
                 model: [3, 6]
 
@@ -766,7 +781,7 @@ Item {
                         y: eye.closed ? critter.p * 1.25 : 0
                         width: critter.p
                         height: eye.closed ? critter.p / 2 : 2 * critter.p
-                        color: Theme.ink
+                        color: critter.breed === "codex" ? Theme.cyan : Theme.ink
                     }
 
                     Rectangle {
@@ -789,7 +804,7 @@ Item {
                             width: 0.95 * critter.p
                             height: 0.4 * critter.p
                             rotation: modelData
-                            color: Theme.ink
+                            color: critter.breed === "codex" ? Theme.cyan : Theme.ink
                         }
                     }
 
@@ -804,7 +819,7 @@ Item {
                             width: critter.p * 1.5
                             height: critter.p * 0.4
                             rotation: modelData
-                            color: Theme.ink
+                            color: critter.breed === "codex" ? Theme.cyan : Theme.ink
                         }
                     }
 
@@ -813,7 +828,7 @@ Item {
                         anchors.centerIn: parent
                         anchors.horizontalCenterOffset: (eye.modelData === 3 ? -0.2 : 0.2) * critter.p
                         text: eye.modelData === 3 ? ">" : "<"
-                        color: Theme.ink
+                        color: critter.breed === "codex" ? Theme.cyan : Theme.ink
                         font.family: Theme.mono
                         font.bold: true
                         font.pixelSize: 2.6 * critter.p

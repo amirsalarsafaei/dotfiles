@@ -11,6 +11,7 @@ Singleton {
     property bool probed: false
     property bool pending: false
     property string selected: ""
+    property bool watching: false
     readonly property string home: String(Quickshell.env("HOME") ?? "")
     readonly property string tracked: Object.keys(sessions).map(id => {
         const s = sessions[id];
@@ -23,7 +24,7 @@ Singleton {
         const paired = {};
         for (const [id, s] of entries) {
             const key = s.zellij ? s.zellij.session + "/" + s.zellij.pane : "";
-            if (key !== "" && live[key] !== undefined) {
+            if (key !== "" && live[key] !== undefined && sameFamily(s, live[key])) {
                 claimed.add(key);
                 paired[id] = live[key];
             }
@@ -31,7 +32,7 @@ Singleton {
         const loose = entries.filter(([id, s]) => !s.zellij);
         for (const [id, s] of loose) {
             const title = clean(s.title ?? "");
-            const free = Object.keys(live).filter(key => !claimed.has(key));
+            const free = Object.keys(live).filter(key => !claimed.has(key) && sameFamily(s, live[key]));
             let key = title !== "" ? free.find(k => clean(live[k].title) === title) : undefined;
             if (key === undefined && (s.cwd ?? "") !== "") {
                 const sameCwd = free.filter(k => live[k].cwd === s.cwd);
@@ -53,6 +54,16 @@ Singleton {
                 continue;
             result.push(agents.describe(id, s, pane));
         }
+        for (const [key, pane] of Object.entries(live)) {
+            if (claimed.has(key))
+                continue;
+            result.push(agents.describe("pane:" + key, {
+                state: "idle",
+                variant: pane.variant,
+                cwd: pane.cwd,
+                project: String(pane.cwd ?? "").split("/").filter(Boolean).pop() ?? ""
+            }, pane));
+        }
         const rank = realm => realm === "work" ? 0 : realm === "" ? 1 : 2;
         return result.sort((a, b) => rank(a.realm) - rank(b.realm) || a.started - b.started || a.id.localeCompare(b.id));
     }
@@ -66,6 +77,10 @@ Singleton {
 
     function clean(text: string): string {
         return String(text ?? "").replace(/^[^0-9A-Za-z\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF]+/, "").trim();
+    }
+
+    function sameFamily(session: var, pane: var): bool {
+        return String(session.variant ?? "").includes("codex") === String(pane.variant ?? "").includes("codex");
     }
 
     function tint(status: string): color {
@@ -101,8 +116,8 @@ Singleton {
     function describe(id: string, s: var, pane: var): var {
         const status = s.state === "error" ? "error" : s.state === "waiting" ? "asking" : s.state === "working" ? (s.mode === "plan" ? "planning" : "working") : s.verb === "done" ? "done" : "ready";
         const activity = [s.verb ?? "", s.object ?? ""].filter(part => part !== "").join(" ");
-        const name = clean(s.title ?? "") || clean(pane?.title ?? "") || s.project || "claude";
-        const variant = String(s.variant ?? "");
+        const variant = String(s.variant ?? pane?.variant ?? "");
+        const name = clean(s.title ?? "") || s.project || clean(pane?.title ?? "") || (variant.includes("codex") ? "codex" : "claude");
         return {
             id: id,
             name: name === "Claude Code" ? (s.project || name) : name,
@@ -111,7 +126,7 @@ Singleton {
             todo: s.todo ?? null,
             project: s.project ?? "",
             variant: variant,
-            breed: variant.includes("deepseek") ? "deepseek" : variant.includes("glm") ? "glm" : "claude",
+            breed: variant.includes("codex") ? "codex" : variant.includes("deepseek") ? "deepseek" : variant.includes("glm") ? "glm" : "claude",
             realm: agents.realmOf(s),
             since: s.since ?? s.at ?? 0,
             started: s.started ?? 0,
@@ -136,6 +151,14 @@ Singleton {
     }
 
     onTrackedChanged: refresh()
+
+    Timer {
+        interval: 30000 * Perf.pollScale
+        repeat: true
+        running: agents.watching && !Perf.away
+        triggeredOnStart: true
+        onTriggered: agents.refresh()
+    }
 
     FileView {
         path: Quickshell.env("XDG_RUNTIME_DIR") + "/" + Sys.agentsDir + "/state.json"

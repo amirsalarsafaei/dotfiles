@@ -7,6 +7,17 @@ The upstream GPL-3.0 license is retained in `LICENSE`.
 The source and Cargo lockfile live here; `../airpods-tui.nix` builds this copy.
 Both desktop hosts consume that package through the existing Home Manager service.
 
+IPC snapshot replay releases the shared state lock before writing to a client.
+Each client has a bounded queue of 16 outgoing messages and a five-second write
+deadline. A failed writer or a client that misses broadcast events closes the
+connection and stops its forwarding tasks. Reopen the TUI after a disconnect;
+it exits when its event stream closes, and a new connection receives a fresh
+snapshot. The supervised status service restarts its watcher automatically.
+Incoming and outgoing frames share a 16 MiB limit.
+
+The IPC tests simulate fragmented frames, oversized messages, truncated payloads,
+stalled readers and lagged subscribers without Bluetooth or a desktop session.
+
 Spotify, spotifyd, spotify-player and librespot MPRIS playback only counts as
 local playback while PulseAudio/PipeWire reports an uncorked Spotify stream.
 Remote Spotify Connect status cannot trigger a Bluetooth takeover or a pause

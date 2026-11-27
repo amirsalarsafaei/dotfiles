@@ -3,15 +3,10 @@
   pkgs,
   secrets,
   config,
-  hostname,
   ...
 }:
 let
-  localMonitoring = config.custom.localMonitoring.enable;
-  hardening = import ../../home/modules/systemd/lib.nix { inherit lib; };
   browserPolicy = builtins.toJSON { DefaultBrowserSettingEnabled = false; };
-  collectNvidiaMetrics =
-    localMonitoring && hostname == "g14" && builtins.elem "nvidia" config.services.xserver.videoDrivers;
   sshAskpassSkAware = pkgs.writeShellApplication {
     name = "ssh-askpass-sk-aware";
     runtimeInputs = [
@@ -112,125 +107,36 @@ in
       default = false;
       description = "Enable work-specific configuration (work-claude variant, private skills, etc.)";
     };
-
-    custom.localMonitoring.enable = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Run the local Prometheus, exporters and Grafana stack.";
-    };
   };
 
   imports = [
     ./greeter.nix
+    ../../modules/desktop-networking.nix
+    ../../modules/docker.nix
     ../../modules/home-network.nix
+    ../../modules/local-kubernetes.nix
+    ../../modules/local-monitoring.nix
+    ../../modules/local-postgresql.nix
     ../../modules/personal.nix
     ../../modules/power-profile.nix
     ../../modules/ubuntu-vm.nix
   ];
 
   config = {
-    custom.ubuntuVm.enable = true;
+    virtualisation.docker.enable = lib.mkDefault true;
+    custom = {
+      localKubernetes.enable = lib.mkDefault true;
+      localMonitoring.enable = lib.mkDefault true;
+      localPostgresql.enable = lib.mkDefault true;
+      ubuntuVm.enable = lib.mkDefault true;
+    };
 
     environment.pathsToLink = [
       "/share/xdg-desktop-portal"
       "/share/applications"
     ];
 
-    environment.etc.hosts.enable = false;
-
-    systemd.services.local-hosts = {
-      wantedBy = [ "network-pre.target" ];
-      before = [ "network-pre.target" ];
-      restartTriggers = [ config.environment.etc.hosts.source ];
-      serviceConfig = lib.mkMerge [
-        hardening.system
-        {
-          Type = "oneshot";
-          ReadWritePaths = [ "/etc" ];
-          RestrictAddressFamilies = [ "none" ];
-          ExecStart = pkgs.writeShellScript "update-local-hosts" ''
-            if [[ ! -e /etc/hosts.local ]]; then
-              install -m 0644 -o root -g root /dev/null /etc/hosts.local
-            fi
-
-            tmp="$(mktemp /etc/.hosts.XXXXXX)"
-            trap 'rm -f "$tmp"' EXIT
-            cat ${config.environment.etc.hosts.source} /etc/hosts.local > "$tmp"
-            chmod 0644 "$tmp"
-            chown root:root "$tmp"
-            mv "$tmp" /etc/hosts
-            trap - EXIT
-          '';
-        }
-      ];
-    };
-
-    systemd.paths.local-hosts = {
-      wantedBy = [ "multi-user.target" ];
-      pathConfig.PathChanged = "/etc/hosts.local";
-    };
-
-    programs.openvpn3.enable = true;
-
-    networking = {
-      networkmanager = {
-        enable = true;
-        wifi = {
-          backend = "iwd";
-          powersave = false;
-        };
-        plugins = with pkgs; [
-          networkmanager-openconnect
-          networkmanager-openvpn
-        ];
-        dns = "systemd-resolved";
-        settings = {
-          logging = {
-            level = "INFO";
-            domains = "ALL";
-          };
-        };
-      };
-      wireless.enable = false;
-      wireless.iwd = {
-        enable = true;
-        settings = {
-          General = {
-            EnableNetworkConfiguration = false;
-            AddressRandomization = "disabled";
-          };
-          Network = {
-            ConnectTimeout = 120;
-          };
-          Settings = {
-            AutoConnect = true;
-          };
-          DriverQuirks = {
-            PowerSaveDisable = "*";
-          };
-        };
-      };
-      firewall = {
-        enable = true;
-        allowedTCPPorts = [ ];
-        allowedUDPPorts = [ ];
-        checkReversePath = "loose";
-        logRefusedConnections = true;
-        logRefusedPackets = true;
-      };
-      nftables.enable = true;
-    };
     services.xserver.enable = true;
-    services.resolved = {
-      enable = true;
-      settings.Resolve = {
-        FallbackDNS = [
-          "8.8.8.8"
-          "8.8.4.4"
-        ];
-        LLMNR = "no";
-      };
-    };
 
     services.xserver.xkb = {
       layout = "us,ir";
@@ -256,33 +162,12 @@ in
 
     services.libinput.enable = true;
 
-    services.postgresql = {
-      enable = true;
-      package = pkgs.postgresql_16;
-      authentication = pkgs.lib.mkOverride 10 ''
-        local all all peer
-        host all all 127.0.0.1/32 scram-sha-256
-        host all all ::1/128 scram-sha-256
-      '';
-      ensureUsers = [
-        {
-          name = "amirsalar";
-          ensureClauses = {
-            login = true;
-            superuser = true;
-            createdb = true;
-          };
-        }
-      ];
-    };
-
     users.users.amirsalar = {
       isNormalUser = true;
       extraGroups = [
         "wheel"
         "input"
         "sudo"
-        "docker"
         "video"
         "kvm"
         "adbuser"
@@ -397,19 +282,6 @@ in
       };
     };
 
-    virtualisation.docker = {
-      enable = true;
-      daemon.settings = {
-        bip = "192.168.143.1/24";
-        default-address-pools = [
-          {
-            base = "192.168.144.0/20";
-            size = 24;
-          }
-        ];
-      };
-    };
-
     swapDevices = [
       {
         device = "/swapfile";
@@ -472,124 +344,6 @@ in
     services.dbus.packages = [
       pkgs.gcr_4
     ];
-
-    services.prometheus.exporters.node = {
-      enable = localMonitoring;
-      disabledCollectors = [
-        "arp"
-        "btrfs"
-        "drm"
-        "edac"
-        "entropy"
-        "fibrechannel"
-        "infiniband"
-        "ipvs"
-        "nfsd"
-        "perf"
-        "processes"
-        "rapl"
-        "schedstat"
-        "selinux"
-        "sockstat"
-        "softnet"
-        "timex"
-        "udp_queues"
-        "wifi"
-        "xfs"
-        "zfs"
-      ];
-    };
-
-    services.prometheus.exporters.nvidia-gpu = lib.mkIf collectNvidiaMetrics {
-      enable = true;
-      listenAddress = "127.0.0.1";
-      port = 9835;
-    };
-
-    services.prometheus.exporters.blackbox = {
-      enable = localMonitoring;
-      listenAddress = "127.0.0.1";
-      port = 9115;
-      configFile = ./prometheus/blackbox.yml;
-    };
-
-    services.prometheus = {
-      enable = localMonitoring;
-      port = 9090;
-      globalConfig.scrape_interval = "15s";
-      scrapeConfigs = [
-        {
-          job_name = "node_exporter";
-          static_configs = [
-            { targets = [ "localhost:9100" ]; }
-          ];
-        }
-        {
-          job_name = "blackbox_exporter";
-          static_configs = [
-            { targets = [ "localhost:9115" ]; }
-          ];
-        }
-
-        {
-          job_name = "llama-server";
-          bearer_token = "sk-local";
-          static_configs = [
-            { targets = [ "localhost:18080" ]; }
-          ];
-        }
-      ]
-      ++ lib.optionals collectNvidiaMetrics [
-        {
-          job_name = "nvidia-gpu";
-          static_configs = [
-            { targets = [ "localhost:9835" ]; }
-          ];
-        }
-      ]
-      ++ [
-        {
-          job_name = "local-projects";
-          file_sd_configs = [
-            {
-              files = [
-                "/etc/nixos/prometheus-targets/*.yml"
-                "/etc/nixos/prometheus-targets/*.yaml"
-              ];
-              refresh_interval = "1m";
-            }
-          ];
-        }
-      ];
-    };
-
-    systemd.tmpfiles.rules = lib.optionals localMonitoring [
-      "d /etc/nixos/prometheus-targets 0775 root users - -"
-    ];
-
-    services.grafana = {
-      enable = localMonitoring;
-      settings = {
-        server.http_port = 3000;
-        server.http_addr = "127.0.0.1";
-        database.url = "sqlite3:////var/lib/grafana/data/grafana.db?_time_format=sqlite";
-        security.secret_key = "abc";
-      };
-
-      provision.datasources.settings.datasources = [
-        {
-          name = "Prometheus-System";
-          type = "prometheus";
-          access = "proxy";
-          url = "http://localhost:9090";
-          isDefault = true;
-          jsonData = {
-            scrapeInterval = "15s";
-            queryTimeout = "60s";
-          };
-        }
-      ];
-    };
 
     environment.variables = {
       GOOGLE_DEFAULT_CLIENT_ID = secrets.google.clientId;

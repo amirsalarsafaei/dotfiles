@@ -15,5 +15,6 @@
     pkgs.argocd-vault-plugin
     pkgs.kubernetes-helm
     pkgs.kubernetes-helmPlugins.helm-s3
+    pkgs.istioctl
   ];
 }

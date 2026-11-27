@@ -15,6 +15,7 @@ in
     ../../modules/laptop.nix
     ../../modules/work.nix
     ../../private/hosts/t14
+    ../../private/work/security.nix
     ../../modules/logitech.nix
     ../../modules/virtualization.nix
   ];

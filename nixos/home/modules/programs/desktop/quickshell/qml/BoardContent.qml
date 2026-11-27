@@ -38,10 +38,6 @@ Item {
     readonly property string cacheHome: String(Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache"))
     readonly property var player: Media.player
 
-    property var quip: ({})
-
-    readonly property string quipText: typeof quip.text === "string" ? quip.text.trim() : ""
-
     function greeting(): string {
         const hour = clock.date.getHours();
         if (hour < 5)
@@ -194,20 +190,6 @@ Item {
         }
     }
 
-    FileView {
-        path: content.cacheHome + "/quip/current.json"
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: {
-            try {
-                content.quip = JSON.parse(text());
-            } catch (error) {
-                content.quip = {};
-            }
-        }
-    }
-
     Timer {
         interval: 1000
         repeat: true
@@ -321,10 +303,9 @@ Item {
                     Label {
                         Layout.fillWidth: true
                         Layout.rightMargin: 12
-                        text: content.quipText || (content.greeting() + (content.userName ? ", " + content.userName : ""))
+                        text: content.greeting() + (content.userName ? ", " + content.userName : "")
                         color: Theme.muted
                         font.pixelSize: 16
-                        font.italic: content.quipText.length > 0
                         wrapMode: Text.WordWrap
                         maximumLineCount: 2
                     }

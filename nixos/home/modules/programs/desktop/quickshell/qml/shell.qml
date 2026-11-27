@@ -15,6 +15,15 @@ ShellRoot {
     property string sky: "now"
     property string screenName: ""
 
+    Binding {
+        target: Agents
+        property: "watching"
+        value: root.sidebarOpen || root.boardOpen || Quickshell.screens.some(screen => {
+            const monitor = Hyprland.monitorFor(screen);
+            return monitor && !monitor.activeWorkspace?.hasFullscreen && !Perf.veiled(monitor) && (root.barShown || !Perf.covered(monitor.activeWorkspace));
+        })
+    }
+
     function pickScreen(): void {
         const focused = Hyprland.focusedMonitor;
         root.screenName = focused ? focused.name : (Quickshell.screens.length > 0 ? Quickshell.screens[0].name : "");

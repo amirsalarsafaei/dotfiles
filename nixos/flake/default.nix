@@ -32,7 +32,7 @@ let
     allowUnfree = true;
   };
 
-  commonNixpkgsConfig = system: {
+  commonNixpkgsConfig = {
     config = nixpkgsConfig;
     overlays = import ../overlays { inherit nixpkgs-stable nixpkgsConfig; } ++ [
       claude-code.overlays.default
@@ -40,7 +40,7 @@ let
   };
 
   pkgsFor = lib.genAttrs (builtins.attrValues systems) (
-    system: import nixpkgs ({ inherit system; } // commonNixpkgsConfig system)
+    system: import nixpkgs ({ inherit system; } // commonNixpkgsConfig)
   );
 
   homeProfileModules = {
@@ -58,17 +58,16 @@ let
     server = ../hosts/profiles/server.nix;
   };
 
+  profileImports =
+    hostname: kind: registry: names:
+    map (name: registry.${name} or (throw "${hostname}: unknown ${kind} profile '${name}'")) names;
+
   homeImports =
-    hostConfig: map (name: homeProfileModules.${name}) (hostConfig.homeProfiles or [ "full" ]);
+    hostname: hostConfig:
+    profileImports hostname "Home Manager" homeProfileModules hostConfig.homeProfiles;
 
   nixosImports =
-    hostConfig:
-    map (name: nixosProfileModules.${name}) (
-      hostConfig.nixosProfiles or [
-        "base"
-        "desktop"
-      ]
-    );
+    hostname: hostConfig: profileImports hostname "NixOS" nixosProfileModules hostConfig.nixosProfiles;
 
   allHosts = import ../hosts { inherit systems disko; };
 
@@ -115,9 +114,9 @@ let
         sopsNixosModules useSops
         ++ [
           stylix.nixosModules.stylix
-          { nixpkgs = commonNixpkgsConfig system; }
+          { nixpkgs = commonNixpkgsConfig; }
         ]
-        ++ nixosImports hostConfig
+        ++ nixosImports hostname hostConfig
         ++ [
           ../hosts/${hostname}/configuration.nix
           ../hosts/${hostname}/hardware-configuration.nix
@@ -131,7 +130,7 @@ let
                 inherit secrets inputs;
                 currentHostname = hostname;
               };
-              sharedModules = sopsHomeModules useSopsHome ++ commonHomeModules ++ homeImports hostConfig;
+              sharedModules = sopsHomeModules useSopsHome ++ commonHomeModules ++ homeImports hostname hostConfig;
               users = lib.genAttrs users (_: { });
             };
           }
@@ -161,7 +160,7 @@ let
       ]
       ++ sopsHomeModules useSops
       ++ commonHomeModules
-      ++ homeImports hostConfig;
+      ++ homeImports hostname hostConfig;
     };
 
   hostsOfType = type: lib.filterAttrs (_: hostConfig: hostConfig.type == type) allHosts;

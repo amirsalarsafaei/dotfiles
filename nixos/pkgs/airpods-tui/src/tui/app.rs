@@ -508,6 +508,9 @@ impl App {
         while let Ok(event) = self.rx.try_recv() {
             self.handle_event(event);
         }
+        if self.rx.is_closed() && self.rx.is_empty() {
+            self.should_quit = true;
+        }
     }
 
     fn handle_aacp_event(&mut self, mac: &str, event: AACPEvent) {
@@ -918,6 +921,20 @@ mod tests {
         assert_eq!(airpods(&app, MAC).case_lid, Some(LidState::Closed));
         app.handle_event(aacp(MAC, AE::CaseLid(None)));
         assert_eq!(airpods(&app, MAC).case_lid, None);
+    }
+
+    #[test]
+    fn event_stream_closure_exits_after_processing_pending_events() {
+        let (events, rx) = tokio::sync::mpsc::unbounded_channel();
+        let (commands, _commands_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut app = App::new(rx, commands);
+        app.process_events();
+        assert!(!app.should_quit);
+        events.send(connected(MAC, "MyPods", PRO2)).unwrap();
+        drop(events);
+        app.process_events();
+        assert!(app.should_quit);
+        assert_eq!(airpods(&app, MAC).name, "MyPods");
     }
 
     #[test]

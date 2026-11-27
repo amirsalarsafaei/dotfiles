@@ -383,7 +383,6 @@ Item {
             lift: 4,
             fade: 0.55
         })
-    readonly property real quoteWidth: Math.max(240, (layout.x + target - 0.07 * aspect - 0.1) * height)
     readonly property var status: [hw.info.kernel ? "linux " + hw.info.kernel : "", hw.info.generation ? "gen " + hw.info.generation : "", hw.uptime > 0 ? "up " + duration(hw.uptime) : ""]
 
     property vector4d fanTurns: Qt.vector4d(0, 0.19, 0.41, 0.08)
@@ -396,7 +395,6 @@ Item {
     property int eccStick: 0
     property real eccAt: 0.5
     readonly property real ray: time - rayAt < 4 ? (time - rayAt) / 4 : -1
-    property var shownLoads: []
     property vector4d shownLoad: Qt.vector4d(0, 0, 0, 0)
     property vector4d shownTraffic: Qt.vector4d(0, 0, 0, 0)
     property real shownPhases: 0
@@ -532,17 +530,6 @@ Item {
         if (flow !== null)
             shownTraffic = flow;
         shownPhases = approach(shownPhases, phases, k, 0.002);
-        const loads = hw.loads;
-        let moved = shownLoads.length !== loads.length;
-        const next = loads.map((value, i) => {
-            const current = shownLoads[i] ?? 0;
-            const eased = approach(current, value / 100, k, 0.004);
-            if (eased !== current)
-                moved = true;
-            return eased;
-        });
-        if (moved)
-            shownLoads = next;
         if (ray < 0 && flip !== "")
             flip = "";
     }
@@ -1057,10 +1044,10 @@ Item {
 
                         anchors.fill: parent
                         threads: hw.threads
-                        loads: board.shownLoads
+                        loads: hw.loads.map(value => value / 100)
                         vendor: hw.vendor
                         model: hw.info.model ?? ""
-                        gpu: board.shownLoad.y
+                        gpu: hw.gpu / 100
                         accent: board.accent
                     }
                 }

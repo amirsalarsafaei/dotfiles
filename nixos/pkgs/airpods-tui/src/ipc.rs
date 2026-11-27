@@ -2,26 +2,41 @@ use crate::tui::app::{AppEvent, DeviceCommand};
 use log::{error, info};
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::{RwLock, broadcast, mpsc};
+
+const MAX_MESSAGE_SIZE: usize = 16 * 1024 * 1024;
+const WRITE_TIMEOUT: Duration = Duration::from_secs(5);
+const CLIENT_QUEUE_CAPACITY: usize = 16;
 
 pub fn socket_path() -> std::io::Result<PathBuf> {
     Ok(crate::utils::runtime_dir()?.join("airpods-tui.sock"))
 }
 
 async fn write_msg(stream: &mut (impl AsyncWriteExt + Unpin), data: &[u8]) -> std::io::Result<()> {
+    if data.len() > MAX_MESSAGE_SIZE {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "message too large",
+        ));
+    }
     let len = (data.len() as u32).to_be_bytes();
-    stream.write_all(&len).await?;
-    stream.write_all(data).await?;
-    stream.flush().await
+    tokio::time::timeout(WRITE_TIMEOUT, async {
+        stream.write_all(&len).await?;
+        stream.write_all(data).await?;
+        stream.flush().await
+    })
+    .await
+    .map_err(|_| std::io::Error::new(std::io::ErrorKind::TimedOut, "IPC write timed out"))?
 }
 
 async fn read_msg(stream: &mut (impl AsyncReadExt + Unpin)) -> std::io::Result<Vec<u8>> {
     let mut len_buf = [0u8; 4];
     stream.read_exact(&mut len_buf).await?;
     let len = u32::from_be_bytes(len_buf) as usize;
-    if len > 16 * 1024 * 1024 {
+    if len > MAX_MESSAGE_SIZE {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
             "message too large",
@@ -204,79 +219,96 @@ impl IpcServer {
             let (stream, _) = listener.accept().await?;
             info!("IPC client connected");
             let snapshot = self.snapshot.clone();
-            let mut event_rx = self.broadcast_tx.subscribe();
+            let event_rx = self.broadcast_tx.subscribe();
             let cmd_tx = self.cmd_tx.clone();
 
-            tokio::spawn(async move {
-                let (reader, writer) = stream.into_split();
-                let mut reader = tokio::io::BufReader::new(reader);
-                let mut writer = tokio::io::BufWriter::new(writer);
-
-                // Replay snapshot
-                {
-                    let snap = snapshot.read().await;
-                    for event in snap.iter() {
-                        let json = match serde_json::to_vec(event) {
-                            Ok(j) => j,
-                            Err(e) => {
-                                error!("Failed to serialize snapshot event: {}", e);
-                                continue;
-                            }
-                        };
-                        if write_msg(&mut writer, &json).await.is_err() {
-                            return;
-                        }
-                    }
-                }
-
-                // Spawn writer task: forward broadcast events to client
-                let (write_tx, mut write_rx) = mpsc::unbounded_channel::<Vec<u8>>();
-                let writer_handle = tokio::spawn(async move {
-                    while let Some(data) = write_rx.recv().await {
-                        if write_msg(&mut writer, &data).await.is_err() {
-                            break;
-                        }
-                    }
-                });
-
-                // Forward broadcast events
-                let write_tx_clone = write_tx.clone();
-                let event_forward = tokio::spawn(async move {
-                    loop {
-                        match event_rx.recv().await {
-                            Ok(event) => {
-                                if let Ok(json) = serde_json::to_vec(&event)
-                                    && write_tx_clone.send(json).is_err()
-                                {
-                                    break;
-                                }
-                            }
-                            Err(broadcast::error::RecvError::Lagged(n)) => {
-                                info!("IPC client lagged by {} events", n);
-                            }
-                            Err(broadcast::error::RecvError::Closed) => break,
-                        }
-                    }
-                });
-
-                // Read commands from client
-                while let Ok(data) = read_msg(&mut reader).await {
-                    match serde_json::from_slice::<(String, DeviceCommand)>(&data) {
-                        Ok(cmd) => {
-                            let _ = cmd_tx.send(cmd);
-                        }
-                        Err(e) => {
-                            log::debug!("Skipping IPC command this daemon does not know: {}", e);
-                        }
-                    }
-                }
-
-                info!("IPC client disconnected");
-                event_forward.abort();
-                writer_handle.abort();
-            });
+            tokio::spawn(serve_client(stream, snapshot, event_rx, cmd_tx));
         }
     }
+}
+
+async fn serve_client(
+    stream: impl AsyncReadExt + AsyncWriteExt + Unpin + Send + 'static,
+    snapshot: StateSnapshot,
+    mut event_rx: broadcast::Receiver<AppEvent>,
+    cmd_tx: mpsc::UnboundedSender<(String, DeviceCommand)>,
+) {
+    let (reader, writer) = tokio::io::split(stream);
+    let mut reader = tokio::io::BufReader::new(reader);
+    let mut writer = tokio::io::BufWriter::new(writer);
+
+    // Replay snapshot
+    {
+        let snap = snapshot.read().await.clone();
+        for event in snap.iter() {
+            let json = match serde_json::to_vec(event) {
+                Ok(j) => j,
+                Err(e) => {
+                    error!("Failed to serialize snapshot event: {}", e);
+                    continue;
+                }
+            };
+            if write_msg(&mut writer, &json).await.is_err() {
+                return;
+            }
+        }
+    }
+
+    // Spawn writer task: forward broadcast events to client
+    let (write_tx, mut write_rx) = mpsc::channel::<Vec<u8>>(CLIENT_QUEUE_CAPACITY);
+    let mut tasks = tokio::task::JoinSet::new();
+    tasks.spawn(async move {
+        while let Some(data) = write_rx.recv().await {
+            if write_msg(&mut writer, &data).await.is_err() {
+                break;
+            }
+        }
+    });
+
+    // Forward broadcast events
+    let write_tx_clone = write_tx;
+    tasks.spawn(async move {
+        loop {
+            match event_rx.recv().await {
+                Ok(event) => {
+                    if let Ok(json) = serde_json::to_vec(&event)
+                        && write_tx_clone.send(json).await.is_err()
+                    {
+                        break;
+                    }
+                }
+                Err(broadcast::error::RecvError::Lagged(n)) => {
+                    info!("IPC client lagged by {} events", n);
+                    break;
+                }
+                Err(broadcast::error::RecvError::Closed) => break,
+            }
+        }
+    });
+
+    // Read commands from client
+    loop {
+        let data = tokio::select! {
+            _ = tasks.join_next() => break,
+            result = read_msg(&mut reader) => match result {
+                Ok(data) => data,
+                Err(_) => break,
+            },
+        };
+        match serde_json::from_slice::<(String, DeviceCommand)>(&data) {
+            Ok(cmd) => {
+                if cmd_tx.send(cmd).is_err() {
+                    break;
+                }
+            }
+            Err(e) => {
+                log::debug!("Skipping IPC command this daemon does not know: {}", e);
+            }
+        }
+    }
+
+    info!("IPC client disconnected");
+    tasks.shutdown().await;
 }
 
 /// Connect to a running daemon via Unix socket.
@@ -344,6 +376,116 @@ mod tests {
 
     const MAC_A: &str = "AA:BB:CC:DD:EE:FF";
     const MAC_B: &str = "11:22:33:44:55:66";
+
+    #[tokio::test]
+    async fn framing_preserves_fragmented_messages() {
+        let (mut sender, mut receiver) = tokio::io::duplex(1);
+        let sending = tokio::spawn(async move {
+            write_msg(&mut sender, b"first").await.unwrap();
+            write_msg(&mut sender, b"").await.unwrap();
+            write_msg(&mut sender, b"last").await.unwrap();
+        });
+        assert_eq!(read_msg(&mut receiver).await.unwrap(), b"first");
+        assert!(read_msg(&mut receiver).await.unwrap().is_empty());
+        assert_eq!(read_msg(&mut receiver).await.unwrap(), b"last");
+        sending.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn framing_rejects_oversized_messages_and_truncated_payloads() {
+        let header = ((MAX_MESSAGE_SIZE + 1) as u32).to_be_bytes();
+        assert_eq!(
+            read_msg(&mut header.as_slice()).await.unwrap_err().kind(),
+            std::io::ErrorKind::InvalidData
+        );
+        let mut output = Vec::new();
+        assert_eq!(
+            write_msg(&mut output, &vec![0; MAX_MESSAGE_SIZE + 1])
+                .await
+                .unwrap_err()
+                .kind(),
+            std::io::ErrorKind::InvalidData
+        );
+        assert!(output.is_empty());
+        assert_eq!(
+            read_msg(&mut b"\0\0\0\x05abc".as_slice())
+                .await
+                .unwrap_err()
+                .kind(),
+            std::io::ErrorKind::UnexpectedEof
+        );
+    }
+
+    #[tokio::test]
+    async fn stalled_snapshot_does_not_lock_daemon_state() {
+        let snapshot = Arc::new(RwLock::new(vec![AppEvent::DeviceNearby {
+            mac: MAC_A.into(),
+            name: "x".repeat(16 * 1024),
+            product_id: 0,
+        }]));
+        let (server, mut client) = tokio::io::duplex(64);
+        let (_events, event_rx) = broadcast::channel(2);
+        let (cmd_tx, _cmd_rx) = mpsc::unbounded_channel();
+        let connection = tokio::spawn(serve_client(server, snapshot.clone(), event_rx, cmd_tx));
+        let mut header = [0; 4];
+        tokio::time::timeout(Duration::from_secs(1), client.read_exact(&mut header))
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(snapshot.try_write().is_ok());
+        drop(client);
+        tokio::time::timeout(Duration::from_secs(1), connection)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn lagged_client_is_disconnected_instead_of_receiving_incomplete_state() {
+        let snapshot = Arc::new(RwLock::new(Vec::new()));
+        let (server, mut client) = tokio::io::duplex(64);
+        let (events, event_rx) = broadcast::channel(2);
+        let (cmd_tx, _cmd_rx) = mpsc::unbounded_channel();
+        for _ in 0..3 {
+            events.send(AppEvent::AudioUnavailable).unwrap();
+        }
+        tokio::time::timeout(
+            Duration::from_secs(1),
+            serve_client(server, snapshot, event_rx, cmd_tx),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            read_msg(&mut client).await.unwrap_err().kind(),
+            std::io::ErrorKind::UnexpectedEof
+        );
+        assert_eq!(events.receiver_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn stalled_event_writer_closes_the_entire_connection() {
+        let snapshot = Arc::new(RwLock::new(Vec::new()));
+        let (server, mut client) = tokio::io::duplex(64);
+        let (events, event_rx) = broadcast::channel(2);
+        let (cmd_tx, _cmd_rx) = mpsc::unbounded_channel();
+        events
+            .send(AppEvent::DeviceNearby {
+                mac: MAC_A.into(),
+                name: "x".repeat(16 * 1024),
+                product_id: 0,
+            })
+            .unwrap();
+        tokio::time::timeout(
+            WRITE_TIMEOUT + Duration::from_secs(2),
+            serve_client(server, snapshot, event_rx, cmd_tx),
+        )
+        .await
+        .unwrap();
+        let mut remaining = Vec::new();
+        client.read_to_end(&mut remaining).await.unwrap();
+        assert_eq!(remaining.len(), 64);
+        assert_eq!(events.receiver_count(), 0);
+    }
 
     fn battery_event(mac: &str, infos: Vec<BatteryInfo>) -> AppEvent {
         AppEvent::AACPEvent(mac.into(), Box::new(AE::BatteryInfo(infos)))

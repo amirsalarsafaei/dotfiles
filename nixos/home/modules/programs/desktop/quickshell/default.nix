@@ -467,8 +467,9 @@ let
             { timeout 2 zellij -s "$session" action list-panes -j -a 2>/dev/null || true; } \
               | jq -c --arg session "$session" '
                   .[]?
-                  | select((.is_plugin | not) and (.exited | not) and ((.pane_command // "") | test("(^| )([^ ]*/bin/[-a-z0-9]*claude|claude)( |$)")))
-                  | {key: "\($session)/\(.id)", value: {session: $session, pane: (.id | tostring), tab: (.tab_name // ""), title: (.title // ""), cwd: (.pane_cwd // "")}}' \
+                  | select((.is_plugin | not) and (.exited | not))
+                  | ((.pane_command // "") | capture("(^| )(?<variant>([^ ]*/bin/)?([-a-z0-9]*-)?(claude|codex)(-sandbox)?)( |$)") | .variant | split("/") | last) as $variant
+                  | {key: "\($session)/\(.id)", value: {session: $session, pane: (.id | tostring), tab: (.tab_name // ""), title: (.title // ""), cwd: (.pane_cwd // ""), variant: $variant}}' \
               || true
           done | jq -cs 'from_entries'
           ;;
@@ -735,7 +736,6 @@ let
         return 1
       }
 
-      systemctl --user start --no-block quip.service || true
 
       ready="$runtime/lock-screen.ready"
       rm -f "$ready"

@@ -76,7 +76,7 @@ in
 
     siteFunctions = import ./zsh/functions.nix {
       inherit funFortunes;
-      inherit (config.custom.claudeCode) flagPluginsZshArgs;
+      inherit (config.custom.claudeCode) commonFlagsZshArgs;
     };
 
     initContent = ''

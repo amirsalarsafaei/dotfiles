@@ -14,6 +14,5 @@
     ./agenda
     ./lyrics
     ./mood
-    ./quip
   ];
 }
