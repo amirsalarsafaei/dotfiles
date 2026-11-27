@@ -1152,121 +1152,6 @@ let
 
   workWrapperTail = mkWorkWrapperTail claudeBin;
 
-  mkHuntRouter =
-    name: provider:
-    pkgs.writeShellApplication {
-      name = "${name}-router";
-      text = ''
-        hunt_root="''${HUNT_WORKSPACE:-$PWD}"
-        while [ "$hunt_root" != / ] && [ ! -x "$hunt_root/hunt-session" ]; do
-          hunt_root=$(dirname "$hunt_root")
-        done
-        if [ -x "$hunt_root/hunt-session" ]; then
-          exec "$hunt_root/hunt-session" --mode "''${HUNT_SESSION_MODE:-hunt}" -- \
-            ${lib.getExe' pkgs.python3 "python3"} -I ${./claude-model-router.py} \
-            --provider ${lib.escapeShellArg provider} \
-            --secret-tool ${lib.getExe' pkgs.libsecret "secret-tool"} -- ${claudeBin} "$@"
-        fi
-        printf '${name}: launch from the hunt workspace (or set HUNT_WORKSPACE)\n' >&2
-        exit 2
-      '';
-    };
-
-  huntClaudeBin = mkHuntRouter "hunt-claude" "mixed";
-  huntOrcaBin = mkHuntRouter "hunt-claude" "orca";
-  huntDeepseekBin = mkHuntRouter "hunt-deepseek" "deepseek";
-
-  huntClaude = pkgs.writeShellApplication {
-    name = "hunt-claude";
-    runtimeEnv = workRuntimeEnv;
-    runtimeInputs = [
-      pkgs.coreutils
-      pkgs.curl
-      pkgs.jq
-    ];
-    text = ''
-      ${sessionMarkerText}
-      export CLAUDE_VARIANT_NAME="hunt-claude"
-      export CLAUDE_CONFIG_DIR="${glmClaudeConfigDir}"
-      _claude_hunt_orchestrator="''${HUNT_ORCHESTRATOR:-glm}"
-      ${mkValueFlagParser {
-        flag = "--orchestrator";
-        resultVar = "_claude_hunt_orchestrator";
-      }}
-      case "$_claude_hunt_orchestrator" in
-        glm)
-          export ANTHROPIC_MODEL="glm-5.3[1m]"
-          export ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.3[1m]"
-          _claude_hunt_router=${lib.escapeShellArg (lib.getExe huntClaudeBin)}
-          ;;
-        orca)
-          ${mkKeyAuth {
-            name = "orca-claude";
-            authVar = "ANTHROPIC_AUTH_TOKEN";
-          }}
-          export ANTHROPIC_BASE_URL="https://litellm.data.divar.cloud"
-          ${orcaModelPromptText}
-          unset ANTHROPIC_AUTH_TOKEN
-          _claude_hunt_router=${lib.escapeShellArg (lib.getExe huntOrcaBin)}
-          ;;
-        *)
-          printf 'hunt-claude: --orchestrator must be glm or orca\n' >&2
-          exit 2
-          ;;
-      esac
-      unset _claude_hunt_orchestrator
-      export ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek-chat"
-      export ANTHROPIC_DEFAULT_HAIKU_MODEL="deepseek-chat"
-      export ANTHROPIC_SMALL_FAST_MODEL="deepseek-chat"
-      export CLAUDE_CODE_SUBAGENT_MODEL="deepseek-chat"
-      export CLAUDE_CODE_SUBAGENT_MODEL_FORCE="1"
-      export HUNT_ORCHESTRATION="subagents"
-      export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS="0"
-      ${customProviderAutoModeText "deepseek-chat"}
-      export CLAUDE_CODE_EFFORT_DEFAULT="${workEffortLevel}"
-      export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1000000"
-      export CLAUDE_CODE_MAX_CONTEXT_TOKENS="1048576"
-      export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1"
-      set -- --security "$@"
-      ${mkWorkWrapperTail "\"$_claude_hunt_router\""}
-    '';
-  };
-
-  huntOrca = pkgs.writeShellApplication {
-    name = "hunt-orca";
-    text = ''
-      exec ${lib.getExe huntClaude} "$@" --orchestrator orca
-    '';
-  };
-
-  huntDeepseek = pkgs.writeShellApplication {
-    name = "hunt-deepseek";
-    runtimeEnv = workRuntimeEnv;
-    runtimeInputs = [ pkgs.coreutils ];
-    text = ''
-      ${sessionMarkerText}
-      export CLAUDE_VARIANT_NAME="hunt-deepseek"
-      export HUNT_ORCHESTRATION="subagents"
-      export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS="0"
-      export CLAUDE_CONFIG_DIR="${deepseekClaudeConfigDir}"
-      export ANTHROPIC_MODEL="deepseek-chat"
-      export ANTHROPIC_DEFAULT_OPUS_MODEL="deepseek-chat"
-      export ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek-chat"
-      export ANTHROPIC_DEFAULT_HAIKU_MODEL="deepseek-chat"
-      export ANTHROPIC_DEFAULT_FABLE_MODEL="deepseek-chat"
-      export ANTHROPIC_SMALL_FAST_MODEL="deepseek-chat"
-      export CLAUDE_CODE_SUBAGENT_MODEL="deepseek-chat"
-      export CLAUDE_CODE_SUBAGENT_MODEL_FORCE="1"
-      ${customProviderAutoModeText "deepseek-chat"}
-      export CLAUDE_CODE_EFFORT_DEFAULT="${workEffortLevel}"
-      export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1000000"
-      export CLAUDE_CODE_MAX_CONTEXT_TOKENS="1048576"
-      export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1"
-      set -- --security "$@"
-      ${mkWorkWrapperTail (lib.getExe huntDeepseekBin)}
-    '';
-  };
-
   glmClaude = pkgs.writeShellApplication {
     name = "glm-claude";
     runtimeEnv = workRuntimeEnv;
@@ -1346,96 +1231,6 @@ let
       export CLAUDE_CODE_MAX_CONTEXT_TOKENS="1048576"
       export API_TIMEOUT_MS="3000000"
       ${workWrapperTail}
-    '';
-  };
-
-  orcaModelPromptText = ''
-    _claude_orca_model="''${CLAUDE_ORCA_MODEL:-}"
-    ${mkValueFlagParser {
-      flag = "--orca-model";
-      resultVar = "_claude_orca_model";
-    }}
-    _claude_orca_print=0
-    for _claude_orca_arg in "$@"; do
-      case "$_claude_orca_arg" in
-        -p | --print) _claude_orca_print=1 ;;
-      esac
-    done
-    unset _claude_orca_arg
-    if [ -z "$_claude_orca_model" ] && [ "$_claude_orca_print" -eq 0 ] && [ -t 0 ]; then
-      _claude_orca_models=( ${lib.concatStringsSep " " (map lib.escapeShellArg cfg.orcaModels)} )
-      if _claude_orca_available=$(
-        printf 'Authorization: Bearer %s\n' "$ANTHROPIC_AUTH_TOKEN" \
-          | curl --fail --silent --show-error --connect-timeout 3 --max-time 5 \
-            --header @- "$ANTHROPIC_BASE_URL/v1/models" \
-          | jq -er '[.data[]?.id | select(type == "string") | select(test("^(openai/)?orca/"))] | unique | .[]'
-      ); then
-        mapfile -t _claude_orca_models <<<"$_claude_orca_available"
-      else
-        printf '%s: no Orca models discovered; using the configured model list\n' "$CLAUDE_VARIANT_NAME" >&2
-      fi
-      unset _claude_orca_available
-      PS3="Which orca model? "
-      select _claude_orca_pick in "''${_claude_orca_models[@]}" quit; do
-        case "$_claude_orca_pick" in
-          quit)
-            exit 0
-            ;;
-          "")
-            printf 'invalid choice: %s\n' "$REPLY" >&2
-            ;;
-          *)
-            _claude_orca_model="$_claude_orca_pick"
-            break
-            ;;
-        esac
-      done
-      unset _claude_orca_pick _claude_orca_models
-    fi
-    [ -n "$_claude_orca_model" ] || _claude_orca_model=${lib.escapeShellArg (lib.head cfg.orcaModels)}
-    printf '%s: using %s\n' "$CLAUDE_VARIANT_NAME" "$_claude_orca_model" >&2
-    export ANTHROPIC_MODEL="$_claude_orca_model"
-    export ANTHROPIC_DEFAULT_OPUS_MODEL="$_claude_orca_model"
-    export ANTHROPIC_DEFAULT_SONNET_MODEL="$_claude_orca_model"
-    export ANTHROPIC_DEFAULT_HAIKU_MODEL="$_claude_orca_model"
-    export ANTHROPIC_SMALL_FAST_MODEL="$_claude_orca_model"
-    export CLAUDE_CODE_SUBAGENT_MODEL="$_claude_orca_model"
-    export CLAUDE_CODE_AUTO_MODE_MODEL="$_claude_orca_model"
-    unset _claude_orca_model _claude_orca_print
-  '';
-
-  orcaClaude = pkgs.writeShellApplication {
-    name = "orca-claude";
-    runtimeEnv = workRuntimeEnv;
-    runtimeInputs = [
-      pkgs.coreutils
-      pkgs.curl
-      pkgs.jq
-    ];
-    text = ''
-      ${sessionMarkerText}
-      ${mkKeyAuth {
-        name = "orca-claude";
-        authVar = "ANTHROPIC_AUTH_TOKEN";
-      }}
-      export CLAUDE_VARIANT_NAME="orca-claude"
-      export ANTHROPIC_BASE_URL="https://litellm.data.divar.cloud"
-      ${customProviderAutoModeText null}
-      export CLAUDE_CONFIG_DIR="${orcaClaudeConfigDir}"
-      export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1000000"
-      export CLAUDE_CODE_MAX_CONTEXT_TOKENS="1048576"
-      ${orcaModelPromptText}
-      ${commonParserText}
-      ${pluginFlagsParserText}
-      ${browserMcpParserText}
-      ${nixosMcpParserText}
-      ${githubMcpParserText}
-      ${lib.getExe healClaudeState} || true
-      ${pluginSettingsArgText}
-      ${browserMcpArgText}
-      ${nixosMcpArgText}
-      ${githubMcpArgText}
-      _claude_session_run ${claudeBin} "''${_claude_extra_args[@]}" "$@"
     '';
   };
 
@@ -1973,7 +1768,6 @@ let
   workOnlyOptions = [
     "enableWork"
     "enableGlm"
-    "enableHunt"
     "enableDeepseek"
     "enableKimi"
     "enableOrca"
@@ -2359,20 +2153,8 @@ let
     ++ lib.optional (cfg.enable && cfg.enableGlm) (
       pickerEntry "glm" "glm-claude" "GLM via z.ai" glmClaude
     )
-    ++ lib.optional (cfg.enable && cfg.enableHunt) (
-      pickerEntry "hunt" "hunt-claude"
-        "Security hunt: GLM main (or --orchestrator orca), DeepSeek subagents"
-        huntClaude
-    )
-    ++ lib.optional (cfg.enable && cfg.enableHunt) (
-      pickerEntry "hunt-orca" "hunt-orca" "Security hunt: Orca main, DeepSeek subagents" huntOrca
-    )
     ++ lib.optional (cfg.enable && cfg.enableDeepseek) (
       pickerEntry "deepseek" "deepseek-claude" "DeepSeek, native Anthropic API" deepseekClaude
-    )
-    ++ lib.optional (cfg.enable && cfg.enableDeepseek) (
-      pickerEntry "hunt-deepseek" "hunt-deepseek" "Security hunt: DeepSeek main and subagents"
-        huntDeepseek
     )
     ++ lib.optional (cfg.enable && cfg.enableKimi) (
       pickerEntry "kimi" "kimi-claude" "Kimi, native Anthropic API" kimiClaude
@@ -2380,9 +2162,6 @@ let
     ++ lib.optional (cfg.enable && cfg.enablePersonalDeepseek) (
       pickerEntry "personal-deepseek" "personal-deepseek-claude" "DeepSeek, personal key"
         personalDeepseekClaude
-    )
-    ++ lib.optional (cfg.enable && cfg.enableOrca) (
-      pickerEntry "orca" "orca-claude" "Orca router, model picker at launch" orcaClaude
     )
     ++ lib.optional (cfg.enable && cfg.enableWork) (
       pickerEntry "work" "work-claude" "Divar work, xhigh" claudeWork
@@ -2440,41 +2219,11 @@ in
       description = "Environment variables exported by all work Claude launchers.";
     };
     enableGlm = mkWorkEnableOption "Route the default claude command through GLM";
-    enableHunt = lib.mkOption {
-      type = lib.types.bool;
-      default = cfg.enableGlm && cfg.enableDeepseek;
-      defaultText = lib.literalExpression "config.custom.claudeCode.enableGlm && config.custom.claudeCode.enableDeepseek";
-      description = ''
-        Install hunt-claude with GLM for the main session and DeepSeek for subagents.
-        Select Orca with --orchestrator orca or HUNT_ORCHESTRATOR=orca; interactive
-        launches offer the Orca model picker, bypassed with --orca-model.
-        Uses the glm-claude or orca-claude keyring entry and deepseek-claude.
-        Interactive and print sessions use ordinary subagents with agent teams disabled.
-        Requires enableGlm and Claude Code >= 2.1.257.
-      '';
-    };
     enableDeepseek = mkWorkEnableOption ''
-      deepseek-claude and hunt-deepseek, using the deepseek-claude keyring entry
+      deepseek-claude, using the deepseek-claude keyring entry
     '';
     enableKimi = mkWorkEnableOption "kimi-claude, using the kimi-claude keyring entry";
-    enableOrca = mkWorkEnableOption ''
-      orca-claude, using the orca-claude keyring entry. Interactive launches discover
-      Orca models from the gateway and prompt for a model; --orca-model or
-      CLAUDE_ORCA_MODEL selects one directly.
-      Print mode defaults to the first entry in orcaModels.
-    '';
-    orcaModels = lib.mkOption {
-      type = lib.types.listOf lib.types.str;
-      default = [
-        "openai/orca/orcacyber-flash-1.0"
-      ];
-      description = ''
-        Fallback model ids offered when gateway discovery fails or returns no
-        Orca models, in menu order. The first entry is also the default for
-        launches that skip the prompt. Every slot runs the chosen id as-is,
-        so ids must be valid at the gateway exactly as written.
-      '';
-    };
+    enableOrca = mkWorkEnableOption "Retain the Orca configuration and shared history for external launchers";
     enablePersonalDeepseek = lib.mkEnableOption ''
       personal-deepseek-claude with a separate profile and keyring entry,
       without work plugins
@@ -3179,17 +2928,10 @@ in
       };
     })
     {
-      assertions =
-        map (name: {
-          assertion = cfg.${name} -> config.custom.work.enable;
-          message = "custom.claudeCode.${name} is work-only and requires custom.work.enable, which modules/work.nix sets on the work laptop.";
-        }) workOnlyOptions
-        ++ [
-          {
-            assertion = cfg.enableHunt -> cfg.enableGlm;
-            message = "custom.claudeCode.enableHunt requires enableGlm for its shared configuration.";
-          }
-        ];
+      assertions = map (name: {
+        assertion = cfg.${name} -> config.custom.work.enable;
+        message = "custom.claudeCode.${name} is work-only and requires custom.work.enable, which modules/work.nix sets on the work laptop.";
+      }) workOnlyOptions;
     }
     (lib.mkIf cfg.agentStatus.enable {
       systemd.user.tmpfiles.rules = [
@@ -3203,7 +2945,8 @@ in
           claudePicker
           gapClaude
         ]
-        ++ lib.optional (cfg.enable && cfg.enableGlm) glmClaude;
+        ++ lib.optional (cfg.enable && cfg.enableGlm) glmClaude
+        ++ lib.optional cfg.sandbox.enable claudeSandbox;
         file = mkVariantHomeFile ".config/gap-claude" "gap" "gap" gapSettings;
       };
     })
@@ -3213,17 +2956,10 @@ in
         file = mkVariantHomeFile ".config/glm-claude" "work" "glm" glmSettings;
       };
     })
-    (lib.mkIf (cfg.enable && cfg.enableHunt) {
-      home.packages = [
-        huntClaude
-        huntOrca
-      ];
-    })
     (lib.mkIf (cfg.enable && cfg.enableDeepseek) {
       home = {
         packages = [
           deepseekClaude
-          huntDeepseek
           deepseekUsage
         ];
         file = mkVariantHomeFile ".config/deepseek-claude" "work" "deepseek" deepseekSettings;
@@ -3319,7 +3055,6 @@ in
     })
     (lib.mkIf (cfg.enable && cfg.enableOrca) {
       home = {
-        packages = [ orcaClaude ];
         file = mkVariantHomeFile ".config/orca-claude" "orca" "orca" orcaSettings;
       };
     })
